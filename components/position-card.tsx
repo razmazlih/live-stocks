@@ -19,7 +19,17 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const { t } = useTranslation(locale);
   const { position, currentPrice, positionPnLUsd, positionPnLIls, projectedPrice, projectedPnLUsd, projectedPnLIls } = metrics;
 
-  const isPositiveCurrentPnL = positionPnLUsd >= 0;
+  const currentPnLColor = (() => {
+    if (currentPrice < position.entryPrice) {
+      return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
+    }
+
+    if (currentPrice > projectedPrice) {
+      return { className: 'text-[#4AA956]', hex: '#4AA956' };
+    }
+
+    return { className: 'text-[#2563EB]', hex: '#2563EB' };
+  })();
   const isPositiveProjectedDelta = (projectedPrice - position.entryPrice) >= 0;
 
   return (
@@ -56,11 +66,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="text-xs font-semibold text-gray-500 uppercase">{t.dashboard.current}</div>
             <div className="text-sm">
               <div className="text-gray-700">{t.dashboard.price}: <span className="font-semibold">{formatCurrency(currentPrice, 'USD', locale)}</span></div>
-              <div className={isPositiveCurrentPnL ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
+              <div className={currentPnLColor.className}>
                 {t.dashboard.pnl} USD: <span className="font-semibold">{formatCurrency(positionPnLUsd, 'USD', locale)}</span>
               </div>
               {settings.currency === 'ILS' && (
-                <div className={isPositiveCurrentPnL ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
+                <div className={currentPnLColor.className}>
                   {t.dashboard.pnl} ILS: <span className="font-semibold">{formatCurrency(positionPnLIls, 'ILS', locale)}</span>
                 </div>
               )}
@@ -87,7 +97,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           <div className="mt-3">
             <Sparkline
               data={sparklineData}
-              color={isPositiveCurrentPnL ? '#4AA956' : '#D22E2E'}
+              color={currentPnLColor.hex}
               className="opacity-60"
             />
           </div>
