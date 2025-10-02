@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StockQuote } from '@/types';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 300;
+export const revalidate = 0;
 
 async function fetchWithRetry(url: string, retries = 3, delay = 1000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url, { next: { revalidate: 300 } });
+      const response = await fetch(url, { cache: 'no-store' });
       if (response.ok) return response;
       if (response.status === 429 && i < retries - 1) {
         await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
@@ -33,14 +34,14 @@ export async function GET(request: NextRequest) {
     if (!symbol) {
       return NextResponse.json(
         { error: 'Symbol parameter is required' },
-        { status: 400 }
+        { status: 400, headers: NO_STORE_HEADERS }
       );
     }
 
     if (!token) {
       return NextResponse.json(
         { error: 'Finnhub token is not configured' },
-        { status: 500 }
+        { status: 500, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -51,16 +52,16 @@ export async function GET(request: NextRequest) {
     if (data.c === 0 || data.c === undefined) {
       return NextResponse.json(
         { error: 'Invalid symbol or no data available' },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Quote API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch quote data' },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

@@ -4,13 +4,14 @@ import { CandleData } from '@/types';
 const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 1800;
+export const revalidate = 0;
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 async function fetchWithRetry(url: string, retries = 3, delay = 1000): Promise<Response> {
   let lastError: unknown = null;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const response = await fetch(url, { next: { revalidate } });
+      const response = await fetch(url, { cache: 'no-store' });
       if (response.ok) {
         return response;
       }
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (!symbol || !from || !to) {
       return NextResponse.json(
         { error: 'Symbol, from, and to parameters are required' },
-        { status: 400 }
+        { status: 400, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
     if (!Number.isFinite(fromSeconds) || !Number.isFinite(toSeconds) || fromSeconds >= toSeconds) {
       return NextResponse.json(
         { error: 'Invalid time range provided' },
-        { status: 400 }
+        { status: 400, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
       const description = data.chart?.error?.description || 'No data available';
       return NextResponse.json(
         { error: description },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -164,7 +165,7 @@ export async function GET(request: NextRequest) {
     if (!entries.length) {
       return NextResponse.json(
         { error: 'No data available for the specified period' },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -178,12 +179,12 @@ export async function GET(request: NextRequest) {
       s: 'ok',
     };
 
-    return NextResponse.json(candleData);
+    return NextResponse.json(candleData, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Candles API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch candle data' },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }
