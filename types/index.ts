@@ -17,6 +17,7 @@ export interface StockQuote {
   o?: number;
   pc?: number;
   t?: number;
+  v?: number;
 }
 
 export interface ExchangeRateResponse {
@@ -76,3 +77,24 @@ export interface CandleData {
 export type TimeRange = '1D' | '1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All';
 
 export type Locale = 'he' | 'en';
+
+export interface PortfolioAllocationDatum {
+  symbol: string;
+  display: string;
+  valueUsd: number;
+  valueIls: number;
+  percentage: number;
+}
+
+export interface PortfolioPnLDatum {
+  symbol: string;
+  display: string;
+  currentPnLUsd: number;
+  projectedPnLUsd: number;
+  currentValue: number;
+}
+
+export interface HistoricalPoint {
+  timestamp: number;
+  close: number;
+}

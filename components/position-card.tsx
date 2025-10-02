@@ -7,6 +7,7 @@ import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline } from './sparkline';
+import Link from 'next/link';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -91,6 +92,15 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             />
           </div>
         )}
+
+        <div className="mt-4 flex justify-end">
+          <Link
+            href={`/stock/${position.symbol}`}
+            className="text-sm font-medium text-[#3B82F6] hover:underline"
+          >
+            {t.dashboard.viewDetails}
+          </Link>
+        </div>
       </div>
     </div>
   );

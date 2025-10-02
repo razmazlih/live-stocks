@@ -1,4 +1,4 @@
-import { Position, PositionMetrics, PortfolioSummary, StockQuote } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionMetrics, PortfolioSummary } from '@/types';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -111,4 +111,75 @@ export function formatDate(date: string | Date, locale: 'he' | 'en' = 'he'): str
     month: 'short',
     year: 'numeric',
   });
+}
+
+export function buildPortfolioAllocation(
+  metrics: PositionMetrics[],
+  usdToIlsRate: number
+): PortfolioAllocationDatum[] {
+  if (!metrics.length) {
+    return [];
+  }
+
+  const totalValue = metrics.reduce((sum, item) => sum + item.currentValue, 0);
+  if (totalValue <= 0) {
+    return [];
+  }
+
+  return metrics
+    .map((m) => {
+      const valueUsd = m.currentValue;
+      const valueIls = valueUsd * (usdToIlsRate || 0);
+      const percentage = (valueUsd / totalValue) * 100;
+
+      return {
+        symbol: m.position.symbol,
+        display: m.position.display,
+        valueUsd,
+        valueIls,
+        percentage,
+      };
+    })
+    .sort((a, b) => b.valueUsd - a.valueUsd);
+}
+
+export function buildPortfolioPnL(metrics: PositionMetrics[]): PortfolioPnLDatum[] {
+  if (!metrics.length) {
+    return [];
+  }
+
+  return metrics
+    .map((m) => ({
+      symbol: m.position.symbol,
+      display: m.position.display,
+      currentPnLUsd: m.positionPnLUsd,
+      projectedPnLUsd: m.projectedPnLUsd,
+      currentValue: m.currentValue,
+    }))
+    .sort((a, b) => Math.abs(b.currentPnLUsd) - Math.abs(a.currentPnLUsd));
+}
+
+export function mapCandleDataToPoints(data?: CandleData | null): HistoricalPoint[] {
+  if (!data || !Array.isArray(data.t) || !Array.isArray(data.c)) {
+    return [];
+  }
+
+  const length = Math.min(data.t.length, data.c.length);
+  const points: HistoricalPoint[] = [];
+
+  for (let i = 0; i < length; i++) {
+    const timestamp = data.t[i];
+    const close = data.c[i];
+
+    if (typeof timestamp !== 'number' || typeof close !== 'number') {
+      continue;
+    }
+
+    points.push({
+      timestamp: timestamp * 1000,
+      close,
+    });
+  }
+
+  return points.sort((a, b) => a.timestamp - b.timestamp);
 }

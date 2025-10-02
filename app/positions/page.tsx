@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -288,6 +288,11 @@ export default function PositionsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <Link href={`/stock/${position.symbol}`}>
+                      <Button variant="ghost" size="sm">
+                        <BarChart3 className="w-4 h-4" />
+                      </Button>
+                    </Link>
                     <Button
                       variant="ghost"
                       size="sm"

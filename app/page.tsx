@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionMetrics, PortfolioSummary } from '@/types';
-import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency } from '@/lib/calculations';
+import { CandleData, Position, PositionMetrics, PortfolioSummary } from '@/types';
+import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency, mapCandleDataToPoints } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
+import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, RefreshCw, Settings, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -18,8 +19,52 @@ export default function HomePage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({});
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const loadSparklines = useCallback(async (positionsList: Position[]) => {
+    setSparklineData({});
+
+    if (positionsList.length === 0) {
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const from = now - 60 * 60 * 24 * 30;
+
+    const results = await Promise.all(
+      positionsList.map(async (position) => {
+        try {
+          const response = await fetch(
+            `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''}`
+          );
+
+          if (!response.ok) {
+            console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
+            return [position.symbol, []] as const;
+          }
+
+          const candleData = (await response.json()) as CandleData & { error?: string };
+
+          if (candleData?.error) {
+            console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
+            return [position.symbol, []] as const;
+          }
+
+          const points = mapCandleDataToPoints(candleData);
+          const closes = points.map((point) => point.close);
+
+          return [position.symbol, closes] as const;
+        } catch (error) {
+          console.error(`Failed to load sparkline for ${position.symbol}:`, error);
+          return [position.symbol, []] as const;
+        }
+      })
+    );
+
+    setSparklineData(Object.fromEntries(results));
+  }, [settings.finnhubToken]);
 
   const loadData = useCallback(async () => {
     try {
@@ -82,6 +127,8 @@ export default function HomePage() {
 
       const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
       setSummary(portfolioSummary);
+
+      await loadSparklines(mappedPositions);
 
       setLastUpdate(new Date());
     } catch (error) {
@@ -154,7 +201,11 @@ export default function HomePage() {
             <>
               <div className="space-y-4 mb-6">
                 {metrics.map((m) => (
-                  <PositionCard key={m.position.id || m.position.symbol} metrics={m} />
+                  <PositionCard
+                    key={m.position.id || m.position.symbol}
+                    metrics={m}
+                    sparklineData={sparklineData[m.position.symbol] || []}
+                  />
                 ))}
               </div>
 
@@ -186,6 +237,9 @@ export default function HomePage() {
                       </p>
                     </div>
                   </div>
+
+                  <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t.dashboard.visualizationsTitle}</h3>
+                  <PortfolioVisualizations metrics={metrics} summary={summary} />
                 </div>
               )}
             </>
