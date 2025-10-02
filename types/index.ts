@@ -98,3 +98,69 @@ export interface HistoricalPoint {
   timestamp: number;
   close: number;
 }
+
+export interface PositionAnalytics {
+  symbol: string;
+  display: string;
+  cagr: number;
+  maxDrawdown: number;
+  annualizedVolatility30?: number;
+  annualizedVolatility90?: number;
+  meanDailyReturn?: number;
+  medianDailyReturn?: number;
+  stdDevDailyReturn?: number;
+  minDailyReturn?: number;
+  maxDailyReturn?: number;
+  percentile5?: number;
+  percentile95?: number;
+  valueAtRisk95?: number;
+  expectedShortfall95?: number;
+  observations: number;
+}
+
+export interface CorrelationMatrix {
+  symbols: string[];
+  values: number[][];
+}
+
+export interface PortfolioAnalytics {
+  sharpeRatio?: number;
+  sortinoRatio?: number;
+  annualizedVolatility?: number;
+  valueAtRisk95?: number;
+  expectedShortfall95?: number;
+  beta?: number;
+  correlationMatrix?: CorrelationMatrix | null;
+  herfindahlIndex: number;
+}
+
+export interface RebalanceSuggestion {
+  symbol: string;
+  display?: string;
+  currentWeight: number;
+  targetWeight: number;
+  deltaWeight: number;
+  currentValue: number;
+  targetValue: number;
+  action: 'buy' | 'sell' | 'hold';
+  unitsToTrade: number;
+}
+
+export interface CurrencyExposure {
+  baseCurrency: 'USD' | 'ILS';
+  usdValue: number;
+  ilsValue: number;
+  exposureByPosition: Array<{
+    symbol: string;
+    display: string;
+    usdValue: number;
+    ilsValue: number;
+    weight: number;
+  }>;
+}
+
+export interface WhatIfScenario {
+  usdIlsRate: number;
+  totalValueUsd: number;
+  totalValueIls: number;
+}

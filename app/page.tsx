@@ -9,7 +9,7 @@ import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, RefreshCw, Settings, Plus } from 'lucide-react';
+import { TrendingUp, RefreshCw, Settings, Plus, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -167,6 +167,11 @@ export default function HomePage() {
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
+              <Link href="/analysis">
+                <Button variant="outline" size="sm" title={t.analysis.title}>
+                  <BarChart3 className="w-4 h-4" />
+                </Button>
+              </Link>
               <Link href="/positions">
                 <Button variant="outline" size="sm">
                   <Plus className="w-4 h-4" />

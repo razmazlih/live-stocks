@@ -1,6 +1,59 @@
-import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionMetrics, PortfolioSummary } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionMetrics, PortfolioSummary, RebalanceSuggestion } from '@/types';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+const TRADING_DAYS_PER_YEAR = 252;
+
+function safeNumber(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function mean(values: number[]): number {
+  if (!values.length) {
+    return 0;
+  }
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function variance(values: number[], sample = false): number {
+  if (values.length < (sample ? 2 : 1)) {
+    return 0;
+  }
+  const avg = mean(values);
+  const sumSquaredDiff = values.reduce((total, value) => total + Math.pow(value - avg, 2), 0);
+  return sumSquaredDiff / (values.length - (sample ? 1 : 0));
+}
+
+function standardDeviation(values: number[]): number {
+  return Math.sqrt(variance(values, true));
+}
+
+function computeQuantile(sortedValues: number[], q: number): number {
+  if (!sortedValues.length) {
+    return 0;
+  }
+
+  const clampedQ = Math.min(Math.max(q, 0), 1);
+  if (clampedQ === 0) {
+    return sortedValues[0];
+  }
+  if (clampedQ === 1) {
+    return sortedValues[sortedValues.length - 1];
+  }
+
+  const position = (sortedValues.length - 1) * clampedQ;
+  const lowerIndex = Math.floor(position);
+  const upperIndex = Math.ceil(position);
+
+  if (lowerIndex === upperIndex) {
+    return sortedValues[lowerIndex];
+  }
+
+  const lowerValue = sortedValues[lowerIndex];
+  const upperValue = sortedValues[upperIndex];
+  const weight = position - lowerIndex;
+
+  return lowerValue + (upperValue - lowerValue) * weight;
+}
 
 export function calculatePositionMetrics(
   position: Position,
@@ -44,6 +97,299 @@ export function calculatePositionMetrics(
     roiPercent,
     dailyChange,
     dailyChangePercent,
+  };
+}
+
+export function calculateCagr(entryPrice: number, currentPrice: number, yearsHeld: number): number {
+  if (!Number.isFinite(entryPrice) || !Number.isFinite(currentPrice) || entryPrice <= 0) {
+    return 0;
+  }
+
+  const duration = Math.max(yearsHeld, 1 / TRADING_DAYS_PER_YEAR);
+  const growthFactor = currentPrice / entryPrice;
+  if (growthFactor <= 0) {
+    return 0;
+  }
+
+  return Math.pow(growthFactor, 1 / duration) - 1;
+}
+
+export function calculateMaxDrawdown(values: number[]): number {
+  if (!values.length) {
+    return 0;
+  }
+
+  let peak = values[0];
+  let maxDrawdown = 0;
+
+  for (const value of values) {
+    if (!Number.isFinite(value) || value <= 0) {
+      continue;
+    }
+
+    peak = Math.max(peak, value);
+    const drawdown = (value - peak) / peak;
+    if (drawdown < maxDrawdown) {
+      maxDrawdown = drawdown;
+    }
+  }
+
+  return Math.abs(maxDrawdown);
+}
+
+export function calculateDailyReturns(points: HistoricalPoint[]): number[] {
+  if (!points || points.length < 2) {
+    return [];
+  }
+
+  const returns: number[] = [];
+
+  for (let i = 1; i < points.length; i++) {
+    const previous = safeNumber(points[i - 1]?.close);
+    const current = safeNumber(points[i]?.close);
+
+    if (previous <= 0 || current <= 0) {
+      continue;
+    }
+
+    returns.push(current / previous - 1);
+  }
+
+  return returns;
+}
+
+export function calculateAnnualizedVolatility(returns: number[]): number {
+  if (!returns.length) {
+    return 0;
+  }
+
+  const stdDev = standardDeviation(returns);
+  return stdDev * Math.sqrt(TRADING_DAYS_PER_YEAR);
+}
+
+export function calculateValueAtRisk(returns: number[], confidence = 0.95): number {
+  if (!returns.length) {
+    return 0;
+  }
+
+  const sorted = [...returns].sort((a, b) => a - b);
+  const tailQuantile = computeQuantile(sorted, 1 - confidence);
+  return Math.max(0, -tailQuantile);
+}
+
+export function calculateExpectedShortfall(returns: number[], confidence = 0.95): number {
+  if (!returns.length) {
+    return 0;
+  }
+
+  const sorted = [...returns].sort((a, b) => a - b);
+  const tailQuantile = computeQuantile(sorted, 1 - confidence);
+  const tailReturns = sorted.filter((value) => value <= tailQuantile);
+
+  if (!tailReturns.length) {
+    return Math.max(0, -tailQuantile);
+  }
+
+  const tailMean = mean(tailReturns);
+  return Math.max(0, -tailMean);
+}
+
+export function calculateSharpeRatio(returns: number[], riskFreeRate = 0): number {
+  if (!returns.length) {
+    return 0;
+  }
+
+  const avgReturn = mean(returns);
+  const excessReturn = avgReturn - riskFreeRate;
+  const stdDev = standardDeviation(returns);
+
+  if (stdDev === 0) {
+    return 0;
+  }
+
+  return (excessReturn / stdDev) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+}
+
+export function calculateSortinoRatio(returns: number[], riskFreeRate = 0): number {
+  if (!returns.length) {
+    return 0;
+  }
+
+  const avgReturn = mean(returns);
+  const excessReturn = avgReturn - riskFreeRate;
+  const negativeReturns = returns.filter((value) => value < 0);
+
+  if (!negativeReturns.length) {
+    return 0;
+  }
+
+  const downsideDeviation = Math.sqrt(mean(negativeReturns.map((value) => Math.pow(value, 2))));
+  if (downsideDeviation === 0) {
+    return 0;
+  }
+
+  return (excessReturn / downsideDeviation) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+}
+
+export function calculateCorrelationMatrix(series: number[][]): number[][] {
+  if (!series.length) {
+    return [];
+  }
+
+  const length = series[0]?.length ?? 0;
+  if (!length) {
+    return [];
+  }
+
+  const means = series.map((values) => mean(values));
+  const matrix: number[][] = [];
+
+  for (let i = 0; i < series.length; i++) {
+    matrix[i] = [];
+    for (let j = 0; j < series.length; j++) {
+      if (i === j) {
+        matrix[i][j] = 1;
+        continue;
+      }
+
+      let covarianceSum = 0;
+      let count = 0;
+
+      for (let k = 0; k < length; k++) {
+        const a = series[i][k];
+        const b = series[j][k];
+        if (Number.isFinite(a) && Number.isFinite(b)) {
+          covarianceSum += (a - means[i]) * (b - means[j]);
+          count += 1;
+        }
+      }
+
+      if (count < 2) {
+        matrix[i][j] = 0;
+        continue;
+      }
+
+      const covariance = covarianceSum / (count - 1);
+      const stdA = standardDeviation(series[i]);
+      const stdB = standardDeviation(series[j]);
+
+      if (stdA === 0 || stdB === 0) {
+        matrix[i][j] = 0;
+      } else {
+        matrix[i][j] = covariance / (stdA * stdB);
+      }
+    }
+  }
+
+  return matrix;
+}
+
+export function calculateBeta(assetReturns: number[], benchmarkReturns: number[]): number {
+  if (!assetReturns.length || !benchmarkReturns.length) {
+    return 0;
+  }
+
+  const length = Math.min(assetReturns.length, benchmarkReturns.length);
+  const assetSlice = assetReturns.slice(-length);
+  const benchmarkSlice = benchmarkReturns.slice(-length);
+
+  const assetMean = mean(assetSlice);
+  const benchmarkMean = mean(benchmarkSlice);
+
+  let covarianceSum = 0;
+  let varianceSum = 0;
+
+  for (let i = 0; i < length; i++) {
+    const assetDiff = assetSlice[i] - assetMean;
+    const benchmarkDiff = benchmarkSlice[i] - benchmarkMean;
+    covarianceSum += assetDiff * benchmarkDiff;
+    varianceSum += benchmarkDiff * benchmarkDiff;
+  }
+
+  if (varianceSum === 0) {
+    return 0;
+  }
+
+  return covarianceSum / varianceSum;
+}
+
+export function calculateHerfindahlIndex(weights: number[]): number {
+  if (!weights.length) {
+    return 0;
+  }
+
+  return weights.reduce((sum, weight) => sum + Math.pow(weight, 2), 0);
+}
+
+export function calculateEqualWeightRebalance(metrics: PositionMetrics[]): RebalanceSuggestion[] {
+  if (!metrics.length) {
+    return [];
+  }
+
+  const totalValue = metrics.reduce((sum, item) => sum + item.currentValue, 0);
+  if (totalValue === 0) {
+    return [];
+  }
+
+  const targetWeight = 1 / metrics.length;
+
+  return metrics.map((metric) => {
+    const currentValue = metric.currentValue;
+    const currentWeight = currentValue / totalValue;
+    const targetValue = targetWeight * totalValue;
+    const deltaValue = targetValue - currentValue;
+    const action = deltaValue > 0.01 * totalValue
+      ? 'buy'
+      : deltaValue < -0.01 * totalValue
+        ? 'sell'
+        : 'hold';
+    const unitsToTrade = metric.currentPrice > 0 ? deltaValue / metric.currentPrice : 0;
+
+    return {
+      symbol: metric.position.symbol,
+      display: metric.position.display,
+      currentWeight,
+      targetWeight,
+      deltaWeight: targetWeight - currentWeight,
+      currentValue,
+      targetValue,
+      action,
+      unitsToTrade,
+    };
+  });
+}
+
+export function calculateReturnDistribution(returns: number[]): {
+  mean: number;
+  median: number;
+  stdDev: number;
+  min: number;
+  max: number;
+  percentile5: number;
+  percentile95: number;
+} {
+  if (!returns.length) {
+    return {
+      mean: 0,
+      median: 0,
+      stdDev: 0,
+      min: 0,
+      max: 0,
+      percentile5: 0,
+      percentile95: 0,
+    };
+  }
+
+  const sorted = [...returns].sort((a, b) => a - b);
+
+  return {
+    mean: mean(returns),
+    median: computeQuantile(sorted, 0.5),
+    stdDev: standardDeviation(returns),
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    percentile5: computeQuantile(sorted, 0.05),
+    percentile95: computeQuantile(sorted, 0.95),
   };
 }
 
