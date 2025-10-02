@@ -74,7 +74,7 @@ export interface CandleData {
   s: string;
 }
 
-export type TimeRange = '1D' | '1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All';
+export type TimeRange = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'All';
 
 export type Locale = 'he' | 'en';
 
@@ -96,7 +96,101 @@ export interface PortfolioPnLDatum {
 
 export interface HistoricalPoint {
   timestamp: number;
+  open?: number;
+  high?: number;
+  low?: number;
   close: number;
+  volume?: number;
+}
+
+export interface IndicatorSeriesPoint extends HistoricalPoint {
+  ema20?: number;
+  ema50?: number;
+  ema200?: number;
+  rsi14?: number;
+  macd?: number;
+  macdSignal?: number;
+  macdHistogram?: number;
+  bbUpper?: number;
+  bbMiddle?: number;
+  bbLower?: number;
+  atr14?: number;
+}
+
+export type DivergenceSignal = 'positive' | 'negative' | 'none';
+
+export type ChecklistKey = 'trend' | 'rsi' | 'macd' | 'volume' | 'supportResistance' | 'riskReward';
+
+export interface ChecklistItem<TContext = Record<string, unknown>> {
+  key: ChecklistKey;
+  passed: boolean;
+  context?: TContext;
+  weight: number;
+}
+
+export interface SupportResistanceLevels {
+  supports: number[];
+  resistances: number[];
+  swingHigh?: {
+    timestamp: number;
+    price: number;
+  };
+  swingLow?: {
+    timestamp: number;
+    price: number;
+  };
+  lastBreakout?: {
+    timestamp: number;
+    price: number;
+  };
+  lastBreakdown?: {
+    timestamp: number;
+    price: number;
+  };
+}
+
+export interface DivergenceSummary {
+  rsi: DivergenceSignal;
+  macd: DivergenceSignal;
+}
+
+export interface StockIndicatorSnapshot {
+  ema20?: number;
+  ema50?: number;
+  ema200?: number;
+  rsi?: number;
+  macd?: number;
+  macdSignal?: number;
+  macdHistogram?: number;
+  bollinger?: {
+    upper?: number;
+    middle?: number;
+    lower?: number;
+  };
+  atr?: number;
+}
+
+export interface RiskRewardPlan {
+  stop?: number;
+  target?: number;
+  rr?: number;
+}
+
+export interface StockAnalysisResult {
+  series: IndicatorSeriesPoint[];
+  indicators: StockIndicatorSnapshot;
+  supportResistance: SupportResistanceLevels;
+  divergences: DivergenceSummary;
+  volume: {
+    latest?: number;
+    average20?: number;
+  };
+  checklist: ChecklistItem[];
+  score: number;
+  verdict: 'BUY' | 'SELL' | 'NEUTRAL';
+  riskReward: RiskRewardPlan;
+  periodHigh?: number;
+  periodLow?: number;
 }
 
 export interface PositionAnalytics {

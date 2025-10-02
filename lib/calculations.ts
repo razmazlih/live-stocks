@@ -516,6 +516,10 @@ export function mapCandleDataToPoints(data?: CandleData | null): HistoricalPoint
   for (let i = 0; i < length; i++) {
     const timestamp = data.t[i];
     const close = data.c[i];
+    const open = Array.isArray(data.o) ? data.o[i] : undefined;
+    const high = Array.isArray(data.h) ? data.h[i] : undefined;
+    const low = Array.isArray(data.l) ? data.l[i] : undefined;
+    const volume = Array.isArray(data.v) ? data.v[i] : undefined;
 
     if (typeof timestamp !== 'number' || typeof close !== 'number') {
       continue;
@@ -523,7 +527,11 @@ export function mapCandleDataToPoints(data?: CandleData | null): HistoricalPoint
 
     points.push({
       timestamp: timestamp * 1000,
+      open: typeof open === 'number' ? open : undefined,
+      high: typeof high === 'number' ? high : undefined,
+      low: typeof low === 'number' ? low : undefined,
       close,
+      volume: typeof volume === 'number' ? volume : undefined,
     });
   }
 
