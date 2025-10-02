@@ -221,12 +221,16 @@ export default function AnalysisPage() {
         setSummary(portfolioSummary);
 
         const historicalResults = await Promise.all(
-          mappedPositions.map(async (position) => {
+          mappedPositions.map(async (position): Promise<[string, HistoricalBundle]> => {
             try {
-              return [position.symbol, await fetchHistorical(position.symbol)] as const;
+              return [position.symbol, await fetchHistorical(position.symbol)];
             } catch (error) {
               console.error(`Failed to fetch historical data for ${position.symbol}:`, error);
-              return [position.symbol, { points: [], returns: { map: new Map(), array: [] } }] as const;
+              const emptyBundle: HistoricalBundle = {
+                points: [],
+                returns: { map: new Map<string, number>(), array: [] },
+              };
+              return [position.symbol, emptyBundle];
             }
           })
         );
@@ -283,9 +287,12 @@ export default function AnalysisPage() {
         const totalValue = weights.reduce((sum, value) => sum + value, 0);
         const normalizedWeights = totalValue > 0 ? weights.map((value) => value / totalValue) : [];
 
-        const returnSeries = calculatedMetrics.map((metric) => {
+        const returnSeries = calculatedMetrics.map<ReturnSeries>((metric) => {
           const bundle = historicalMap.get(metric.position.symbol);
-          return bundle?.returns ?? { map: new Map(), array: [] };
+          if (bundle) {
+            return bundle.returns;
+          }
+          return { map: new Map<string, number>(), array: [] };
         });
 
         let commonDates: string[] | null = null;
@@ -300,7 +307,9 @@ export default function AnalysisPage() {
           return series.map;
         });
 
-        if (!commonDates || !commonDates.length) {
+        const resolvedCommonDates: string[] = commonDates ?? [];
+
+        if (resolvedCommonDates.length === 0) {
           setPortfolioAnalytics({
             sharpeRatio: undefined,
             sortinoRatio: undefined,
@@ -313,12 +322,12 @@ export default function AnalysisPage() {
           });
         } else {
           const alignedSeries = orderedMaps.map((seriesMap) =>
-            commonDates!.map((date) => seriesMap.get(date) ?? 0)
+            resolvedCommonDates.map((date) => seriesMap.get(date) ?? 0)
           );
 
           const correlationMatrix = calculateCorrelationMatrix(alignedSeries);
 
-          const portfolioReturns: number[] = commonDates!.map((_, index) => {
+          const portfolioReturns: number[] = resolvedCommonDates.map((_, index) => {
             return alignedSeries.reduce((sum, series, seriesIndex) => {
               const weight = normalizedWeights[seriesIndex] ?? 0;
               return sum + weight * (series[index] ?? 0);
@@ -329,12 +338,12 @@ export default function AnalysisPage() {
           const esPercent = calculateExpectedShortfall(portfolioReturns, 0.95);
 
           const portfolioReturnMap = new Map<string, number>();
-          commonDates.forEach((date, index) => {
+          resolvedCommonDates.forEach((date, index) => {
             portfolioReturnMap.set(date, portfolioReturns[index]);
           });
 
           const benchmarkReturnsMap = benchmarkHistorical.returns.map;
-          const betaDates = commonDates.filter((date) => benchmarkReturnsMap.has(date));
+          const betaDates = resolvedCommonDates.filter((date) => benchmarkReturnsMap.has(date));
           const portfolioForBeta = betaDates.map((date) => portfolioReturnMap.get(date) ?? 0);
           const benchmarkForBeta = betaDates.map((date) => benchmarkReturnsMap.get(date) ?? 0);
           const beta = betaDates.length ? calculateBeta(portfolioForBeta, benchmarkForBeta) : undefined;
