@@ -1,0 +1,2 @@
+-- Placeholder seed file to satisfy Supabase CLI configuration.
+-- Add seed data here when needed.
