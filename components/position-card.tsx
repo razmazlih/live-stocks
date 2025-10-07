@@ -210,6 +210,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               color={sparklineColor.hex}
               baseline={position.entryPrice}
               baselineColor="rgba(148, 163, 184, 0.8)"
+              projectedPrice={projectedPrice}
               className="h-36 w-full"
             />
           </div>
