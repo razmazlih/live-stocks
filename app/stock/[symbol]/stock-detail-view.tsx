@@ -18,6 +18,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import type { LegendProps } from 'recharts';
 import { ArrowLeft, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,25 @@ import {
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
+
+type BaseChartPoint = {
+  timestamp: number;
+  close: number;
+  ema20?: number;
+  ema50?: number;
+  ema200?: number;
+  bbUpper?: number;
+  bbLower?: number;
+  volume?: number;
+};
+
+type SegmentedChartPoint = BaseChartPoint & {
+  closeBelowEntry: number | null;
+  closeBetweenProjected: number | null;
+  closeAboveProjected: number | null;
+};
+
+type CloseSegments = Pick<SegmentedChartPoint, 'closeBelowEntry' | 'closeBetweenProjected' | 'closeAboveProjected'>;
 
 const VERDICT_BADGES: Record<StockAnalysisResult['verdict'], string> = {
   BUY: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
@@ -455,20 +475,200 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical, currentPriceUsd]
   );
 
-  const chartData = useMemo(
-    () =>
-      analysis.series.map((point) => ({
-        timestamp: point.timestamp,
-        close: convertValue(point.close),
-        ema20: point.ema20 !== undefined ? convertValue(point.ema20) : undefined,
-        ema50: point.ema50 !== undefined ? convertValue(point.ema50) : undefined,
-        ema200: point.ema200 !== undefined ? convertValue(point.ema200) : undefined,
-        bbUpper: point.bbUpper !== undefined ? convertValue(point.bbUpper) : undefined,
-        bbLower: point.bbLower !== undefined ? convertValue(point.bbLower) : undefined,
-        volume: point.volume,
-      })),
-    [analysis.series, convertValue]
+  const entryPriceValue = useMemo(
+    () => (position ? convertValue(position.entryPrice) : undefined),
+    [convertValue, position]
   );
+
+  const projectedPriceValue = useMemo(
+    () => (metrics ? convertValue(metrics.projectedPrice) : undefined),
+    [convertValue, metrics]
+  );
+
+  const chartData = useMemo(() => {
+    const basePoints: BaseChartPoint[] = analysis.series.map((point) => ({
+      timestamp: point.timestamp,
+      close: convertValue(point.close),
+      ema20: point.ema20 !== undefined ? convertValue(point.ema20) : undefined,
+      ema50: point.ema50 !== undefined ? convertValue(point.ema50) : undefined,
+      ema200: point.ema200 !== undefined ? convertValue(point.ema200) : undefined,
+      bbUpper: point.bbUpper !== undefined ? convertValue(point.bbUpper) : undefined,
+      bbLower: point.bbLower !== undefined ? convertValue(point.bbLower) : undefined,
+      volume: point.volume,
+    }));
+
+    if (!basePoints.length) {
+      return [] as SegmentedChartPoint[];
+    }
+
+    const entry = entryPriceValue;
+    const projected = projectedPriceValue;
+
+    const thresholds = Array.from(
+      new Set([entry, projected].filter((value): value is number => value !== undefined))
+    );
+
+    const isApproximatelyEqual = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+
+    const categorizeClose = (close: number): CloseSegments => {
+      if (entry === undefined) {
+        return {
+          closeBelowEntry: close,
+          closeBetweenProjected: null,
+          closeAboveProjected: null,
+        };
+      }
+
+      const matchesEntry = isApproximatelyEqual(close, entry);
+      const matchesProjected = projected !== undefined ? isApproximatelyEqual(close, projected) : false;
+
+      if (projected === undefined || isApproximatelyEqual(projected, entry)) {
+        if (close < entry && !matchesEntry) {
+          return {
+            closeBelowEntry: close,
+            closeBetweenProjected: null,
+            closeAboveProjected: null,
+          };
+        }
+
+        if (matchesEntry) {
+          return {
+            closeBelowEntry: close,
+            closeBetweenProjected: close,
+            closeAboveProjected: null,
+          };
+        }
+
+        return {
+          closeBelowEntry: null,
+          closeBetweenProjected: close,
+          closeAboveProjected: null,
+        };
+      }
+
+      if (projected > entry) {
+        if (close < entry && !matchesEntry) {
+          return {
+            closeBelowEntry: close,
+            closeBetweenProjected: null,
+            closeAboveProjected: null,
+          };
+        }
+
+        if (matchesEntry) {
+          return {
+            closeBelowEntry: close,
+            closeBetweenProjected: close,
+            closeAboveProjected: null,
+          };
+        }
+
+        if (close < projected && !matchesProjected) {
+          return {
+            closeBelowEntry: null,
+            closeBetweenProjected: close,
+            closeAboveProjected: null,
+          };
+        }
+
+        if (matchesProjected) {
+          return {
+            closeBelowEntry: null,
+            closeBetweenProjected: close,
+            closeAboveProjected: close,
+          };
+        }
+
+        return {
+          closeBelowEntry: null,
+          closeBetweenProjected: null,
+          closeAboveProjected: close,
+        };
+      }
+
+      // projected < entry
+      if (close < projected && !matchesProjected) {
+        return {
+          closeBelowEntry: close,
+          closeBetweenProjected: null,
+          closeAboveProjected: null,
+        };
+      }
+
+      if (matchesProjected) {
+        return {
+          closeBelowEntry: close,
+          closeBetweenProjected: close,
+          closeAboveProjected: null,
+        };
+      }
+
+      if (close < entry && !matchesEntry) {
+        return {
+          closeBelowEntry: close,
+          closeBetweenProjected: null,
+          closeAboveProjected: null,
+        };
+      }
+
+      if (matchesEntry) {
+        return {
+          closeBelowEntry: close,
+          closeBetweenProjected: null,
+          closeAboveProjected: close,
+        };
+      }
+
+      return {
+        closeBelowEntry: null,
+        closeBetweenProjected: null,
+        closeAboveProjected: close,
+      };
+    };
+
+    const createPoint = (point: BaseChartPoint): SegmentedChartPoint => ({
+      ...point,
+      ...categorizeClose(point.close),
+    });
+
+    const segmented: SegmentedChartPoint[] = [];
+
+    segmented.push(createPoint(basePoints[0]));
+
+    for (let index = 1; index < basePoints.length; index += 1) {
+      const previous = basePoints[index - 1];
+      const current = basePoints[index];
+
+      if (thresholds.length > 0 && current.close !== previous.close) {
+        const minClose = Math.min(previous.close, current.close);
+        const maxClose = Math.max(previous.close, current.close);
+
+        const betweenThresholds = thresholds
+          .filter((value) => value > minClose && value < maxClose)
+          .sort((a, b) => (current.close > previous.close ? a - b : b - a));
+
+        betweenThresholds.forEach((thresholdValue) => {
+          const ratio = (thresholdValue - previous.close) / (current.close - previous.close);
+          if (!Number.isFinite(ratio)) {
+            return;
+          }
+
+          const interpolatedTimestamp = previous.timestamp + ratio * (current.timestamp - previous.timestamp);
+
+          segmented.push(
+            createPoint({
+              timestamp: interpolatedTimestamp,
+              close: thresholdValue,
+            })
+          );
+        });
+      }
+
+      segmented.push(createPoint(current));
+    }
+
+    return segmented;
+  }, [analysis.series, convertValue, entryPriceValue, projectedPriceValue]);
 
   const tooltipLabels = useMemo(
     () => ({
@@ -480,6 +680,49 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       bbLower: t.stock.detailView.indicatorLabels.bbLower,
     }),
     [t.stock.detailView.indicatorLabels]
+  );
+
+  const legendFormatter = useCallback(
+    (value: string) => tooltipLabels[value as keyof typeof tooltipLabels] ?? value,
+    [tooltipLabels]
+  );
+
+  const renderLegend = useCallback(
+    ({ payload }: LegendProps) => {
+      if (!payload?.length) {
+        return null;
+      }
+
+      const seen = new Set<string>();
+
+      return (
+        <ul className="flex flex-wrap gap-4 text-xs text-gray-600">
+          {payload
+            .filter((entry) => {
+              if (!entry.value) {
+                return false;
+              }
+              if (entry.value === 'close') {
+                if (seen.has('close')) {
+                  return false;
+                }
+                seen.add('close');
+              }
+              return true;
+            })
+            .map((entry) => (
+              <li key={`${entry.dataKey}-${entry.value}`} className="flex items-center gap-2">
+                <span
+                  className="block h-1 w-4 rounded-full"
+                  style={{ backgroundColor: entry.value === 'close' ? '#2563EB' : entry.color ?? '#2563EB' }}
+                />
+                <span>{legendFormatter(entry.value as string)}</span>
+              </li>
+            ))}
+        </ul>
+      );
+    },
+    [legendFormatter]
   );
 
   const verdictNarrative = useMemo(
@@ -683,13 +926,105 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               }}
                               labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
                             />
-                            <Legend verticalAlign="top" height={32} />
-                            <Line type="monotone" dataKey="close" name={tooltipLabels.close} stroke="#2563EB" strokeWidth={2} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="ema20" name={tooltipLabels.ema20} stroke="#0EA5E9" strokeWidth={1.5} dot={false} yAxisId="price" strokeDasharray="5 5" />
-                            <Line type="monotone" dataKey="ema50" name={tooltipLabels.ema50} stroke="#EC4899" strokeWidth={1.5} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="ema200" name={tooltipLabels.ema200} stroke="#F59E0B" strokeWidth={1.5} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="bbUpper" name={tooltipLabels.bbUpper} stroke="#93C5FD" strokeWidth={1} dot={false} yAxisId="price" strokeDasharray="4 4" />
-                            <Line type="monotone" dataKey="bbLower" name={tooltipLabels.bbLower} stroke="#93C5FD" strokeWidth={1} dot={false} yAxisId="price" strokeDasharray="4 4" />
+                            <Legend verticalAlign="top" height={32} content={renderLegend} />
+                            <Line
+                              type="monotone"
+                              dataKey="closeBelowEntry"
+                              name="close"
+                              stroke="#EF4444"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              strokeLinecap="round"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="closeBetweenProjected"
+                              name="close"
+                              stroke="#2563EB"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              strokeLinecap="round"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="closeAboveProjected"
+                              name="close"
+                              stroke="#10B981"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              strokeLinecap="round"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="ema20"
+                              name={tooltipLabels.ema20}
+                              stroke="#0EA5E9"
+                              strokeWidth={1.5}
+                              dot={false}
+                              yAxisId="price"
+                              strokeDasharray="5 5"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="ema50"
+                              name={tooltipLabels.ema50}
+                              stroke="#EC4899"
+                              strokeWidth={1.5}
+                              dot={false}
+                              yAxisId="price"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="ema200"
+                              name={tooltipLabels.ema200}
+                              stroke="#F59E0B"
+                              strokeWidth={1.5}
+                              dot={false}
+                              yAxisId="price"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="bbUpper"
+                              name={tooltipLabels.bbUpper}
+                              stroke="#93C5FD"
+                              strokeWidth={1}
+                              dot={false}
+                              yAxisId="price"
+                              strokeDasharray="4 4"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="bbLower"
+                              name={tooltipLabels.bbLower}
+                              stroke="#93C5FD"
+                              strokeWidth={1}
+                              dot={false}
+                              yAxisId="price"
+                              strokeDasharray="4 4"
+                              connectNulls
+                            />
+                            {projectedPriceValue !== undefined && (
+                              <ReferenceLine
+                                y={projectedPriceValue}
+                                yAxisId="price"
+                                stroke="#1D4ED8"
+                                strokeDasharray="6 6"
+                                strokeWidth={1.5}
+                                label={{
+                                  value: t.stock.detailView.indicatorLabels.projectedPrice,
+                                  position: 'right',
+                                  fill: '#1f2937',
+                                  fontSize: 12,
+                                }}
+                              />
+                            )}
                             {analysis.supportResistance.supports.slice(-2).map((level) => (
                               <ReferenceLine
                                 key={`support-${level}`}
