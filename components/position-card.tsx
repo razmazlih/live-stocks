@@ -187,16 +187,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 <dt>{t.dashboard.price}</dt>
                 <dd className="font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
               </div>
-              <div className={`flex items-center justify-between ${projectedPnLStyles.text}`}>
-                <dt>{t.dashboard.projectedDelta} USD</dt>
-                <dd className="font-semibold">{formatCurrency(projectedPriceDelta, 'USD', locale)}</dd>
-              </div>
-              {settings.currency === 'ILS' && usdToIlsRate > 0 && (
-                <div className={`flex items-center justify-between ${projectedPnLStyles.text}`}>
-                  <dt>{t.dashboard.projectedDelta} ILS</dt>
-                  <dd className="font-semibold">{formatCurrency(projectedPriceDeltaIls, 'ILS', locale)}</dd>
-                </div>
-              )}
               <div className={`flex items-center justify-between ${combinedStyles.text}`}>
                 <dt>{t.dashboard.combined} USD</dt>
                 <dd className="font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
