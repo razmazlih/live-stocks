@@ -70,6 +70,191 @@ const VERDICT_BADGES: Record<StockAnalysisResult['verdict'], string> = {
   NEUTRAL: 'bg-slate-200 text-slate-700 border border-slate-300',
 };
 
+const PRICE_SEGMENT_COLORS = {
+  belowEntry: '#EF4444',
+  betweenTargets: '#2563EB',
+  aboveTarget: '#22C55E',
+} as const;
+
+const PRICE_LINE_EPSILON = 1e-6;
+
+interface LineShapePoint {
+  x: number;
+  y: number;
+  value?: number;
+  payload?: {
+    close?: number;
+    [key: string]: unknown;
+  };
+}
+
+interface PriceLineStop {
+  ratio: number;
+  x: number;
+  y: number;
+  value: number;
+}
+
+interface ColoredPriceLineProps {
+  points?: LineShapePoint[];
+  strokeWidth?: number;
+  entryPrice: number;
+  projectedPrice: number;
+  [key: string]: unknown;
+}
+
+function getPointValue(point: LineShapePoint): number {
+  if (typeof point.payload?.close === 'number') {
+    return point.payload.close;
+  }
+
+  if (typeof point.value === 'number') {
+    return point.value;
+  }
+
+  return 0;
+}
+
+function getSegmentColor(value: number, entryPrice: number, projectedPrice: number): string {
+  if (!Number.isFinite(value)) {
+    return PRICE_SEGMENT_COLORS.betweenTargets;
+  }
+
+  if (entryPrice <= projectedPrice) {
+    if (value < entryPrice) {
+      return PRICE_SEGMENT_COLORS.belowEntry;
+    }
+
+    if (value < projectedPrice) {
+      return PRICE_SEGMENT_COLORS.betweenTargets;
+    }
+
+    return PRICE_SEGMENT_COLORS.aboveTarget;
+  }
+
+  // Fallback handling if projected price is below entry price.
+  if (value < projectedPrice) {
+    return PRICE_SEGMENT_COLORS.betweenTargets;
+  }
+
+  if (value < entryPrice) {
+    return PRICE_SEGMENT_COLORS.belowEntry;
+  }
+
+  return PRICE_SEGMENT_COLORS.aboveTarget;
+}
+
+function ColoredPriceLine({
+  points,
+  strokeWidth = 2,
+  entryPrice,
+  projectedPrice,
+}: ColoredPriceLineProps) {
+  if (!points?.length) {
+    return null;
+  }
+
+  const safeEntryPrice = Number.isFinite(entryPrice) ? entryPrice : 0;
+  const safeProjectedPrice = Number.isFinite(projectedPrice) ? projectedPrice : safeEntryPrice;
+  const thresholds = [safeEntryPrice, safeProjectedPrice]
+    .filter((value, index, array) => {
+      if (!Number.isFinite(value)) {
+        return false;
+      }
+
+      return (
+        array.findIndex((candidate) => Math.abs(candidate - value) < PRICE_LINE_EPSILON) === index
+      );
+    });
+
+  const segments: Array<{ start: PriceLineStop; end: PriceLineStop; color: string }> = [];
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+
+    if (previous.x === undefined || current.x === undefined) {
+      continue;
+    }
+
+    const previousValue = getPointValue(previous);
+    const currentValue = getPointValue(current);
+
+    if (!Number.isFinite(previousValue) || !Number.isFinite(currentValue)) {
+      continue;
+    }
+
+    const intersections = thresholds.flatMap<PriceLineStop>((threshold) => {
+      const delta = currentValue - previousValue;
+
+      if (Math.abs(delta) < PRICE_LINE_EPSILON) {
+        return [];
+      }
+
+      const ratio = (threshold - previousValue) / delta;
+
+      if (ratio <= 0 || ratio >= 1) {
+        return [];
+      }
+
+      const x = previous.x + ratio * (current.x - previous.x);
+      const y = previous.y + ratio * (current.y - previous.y);
+
+      return [{ ratio, x, y, value: threshold }];
+    });
+
+    const segmentStops: PriceLineStop[] = [
+      { ratio: 0, x: previous.x, y: previous.y, value: previousValue },
+      ...intersections.sort((a, b) => a.ratio - b.ratio),
+      { ratio: 1, x: current.x, y: current.y, value: currentValue },
+    ];
+
+    for (let stopIndex = 1; stopIndex < segmentStops.length; stopIndex += 1) {
+      const start = segmentStops[stopIndex - 1];
+      const end = segmentStops[stopIndex];
+
+      if (Math.abs(end.x - start.x) < PRICE_LINE_EPSILON && Math.abs(end.y - start.y) < PRICE_LINE_EPSILON) {
+        continue;
+      }
+
+      const midpointValue = (start.value + end.value) / 2;
+      const color = getSegmentColor(midpointValue, safeEntryPrice, safeProjectedPrice);
+
+      segments.push({ start, end, color });
+    }
+  }
+
+  const lastPoint = points[points.length - 1];
+  const lastValue = getPointValue(lastPoint);
+  const lastColor = getSegmentColor(lastValue, safeEntryPrice, safeProjectedPrice);
+
+  return (
+    <g>
+      {segments.map((segment, idx) => (
+        <path
+          key={`${segment.start.x}-${segment.end.x}-${idx}`}
+          d={`M ${segment.start.x} ${segment.start.y} L ${segment.end.x} ${segment.end.y}`}
+          fill="none"
+          stroke={segment.color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+      {Number.isFinite(lastPoint.x) && Number.isFinite(lastPoint.y) && (
+        <circle
+          cx={lastPoint.x}
+          cy={lastPoint.y}
+          r={3}
+          fill="#ffffff"
+          stroke={lastColor}
+          strokeWidth={1.5}
+        />
+      )}
+    </g>
+  );
+}
+
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
 
@@ -449,6 +634,18 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   );
 
   const currentPriceUsd = metrics?.currentPrice ?? quote?.c ?? position?.entryPrice ?? 0;
+  const entryPriceValue = position?.entryPrice ?? 0;
+  const projectedPriceValue = metrics?.projectedPrice ?? entryPriceValue;
+
+  const entryPriceDisplay = useMemo(
+    () => convertValue(entryPriceValue),
+    [convertValue, entryPriceValue]
+  );
+
+  const projectedPriceDisplay = useMemo(
+    () => convertValue(projectedPriceValue),
+    [convertValue, projectedPriceValue]
+  );
 
   const analysis = useMemo(
     () => analyzeStock({ points: historical, currentPrice: currentPriceUsd }),
@@ -684,7 +881,38 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
                             />
                             <Legend verticalAlign="top" height={32} />
-                            <Line type="monotone" dataKey="close" name={tooltipLabels.close} stroke="#2563EB" strokeWidth={2} dot={false} yAxisId="price" />
+                            {Number.isFinite(projectedPriceDisplay) && (
+                              <ReferenceLine
+                                y={projectedPriceDisplay}
+                                yAxisId="price"
+                                stroke="#1D4ED8"
+                                strokeDasharray="6 6"
+                                strokeWidth={1.5}
+                                label={{
+                                  value: t.stock.detailView.predictedPriceLine,
+                                  position: isRtl ? 'insideTopLeft' : 'insideTopRight',
+                                  fill: '#1D4ED8',
+                                  fontSize: 12,
+                                }}
+                              />
+                            )}
+                            <Line
+                              type="linear"
+                              dataKey="close"
+                              name={tooltipLabels.close}
+                              stroke="#2563EB"
+                              strokeWidth={2}
+                              dot={false}
+                              activeDot={{ r: 4 }}
+                              yAxisId="price"
+                              shape={(props) => (
+                                <ColoredPriceLine
+                                  {...props}
+                                  entryPrice={entryPriceDisplay}
+                                  projectedPrice={projectedPriceDisplay}
+                                />
+                              )}
+                            />
                             <Line type="monotone" dataKey="ema20" name={tooltipLabels.ema20} stroke="#0EA5E9" strokeWidth={1.5} dot={false} yAxisId="price" strokeDasharray="5 5" />
                             <Line type="monotone" dataKey="ema50" name={tooltipLabels.ema50} stroke="#EC4899" strokeWidth={1.5} dot={false} yAxisId="price" />
                             <Line type="monotone" dataKey="ema200" name={tooltipLabels.ema200} stroke="#F59E0B" strokeWidth={1.5} dot={false} yAxisId="price" />

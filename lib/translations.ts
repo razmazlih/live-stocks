@@ -136,6 +136,7 @@ export const translations = {
       detailView: {
         subtitle: 'גרף מחיר, מדדים וניתוח הזדמנות',
         showVolume: 'הצג נפח',
+        predictedPriceLine: 'מחיר חזוי',
         tooltip: {
           volume: 'נפח',
         },
@@ -394,6 +395,7 @@ export const translations = {
       detailView: {
         subtitle: 'Interactive price, indicators, and opportunity analysis',
         showVolume: 'Show volume',
+        predictedPriceLine: 'Projected price',
         tooltip: {
           volume: 'Volume',
         },
