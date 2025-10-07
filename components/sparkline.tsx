@@ -9,6 +9,11 @@ interface SparklineProps {
   color?: string;
   baseline?: number;
   baselineColor?: string;
+  projectedPrice?: number;
+  projectedLineColor?: string;
+  belowEntryColor?: string;
+  betweenProjectedColor?: string;
+  aboveProjectedColor?: string;
   className?: string;
 }
 
@@ -19,6 +24,11 @@ export function Sparkline({
   color = '#2563EB',
   baseline,
   baselineColor = 'rgba(148, 163, 184, 0.9)',
+  projectedPrice,
+  projectedLineColor = 'rgba(37, 99, 235, 0.8)',
+  belowEntryColor = '#D22E2E',
+  betweenProjectedColor = '#2563EB',
+  aboveProjectedColor = '#4AA956',
   className = ''
 }: SparklineProps) {
   const gradientId = useId();
@@ -30,7 +40,11 @@ export function Sparkline({
       return null;
     }
 
-    const values = typeof baseline === 'number' ? [...data, baseline] : data;
+    const values = [
+      ...data,
+      ...(typeof baseline === 'number' ? [baseline] : []),
+      ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
+    ];
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
@@ -45,22 +59,62 @@ export function Sparkline({
       ? height - ((baseline - min) / range) * height
       : null;
 
-    return { points, baselineY };
-  }, [data, baseline, width, height]);
+    const projectedY = typeof projectedPrice === 'number'
+      ? height - ((projectedPrice - min) / range) * height
+      : null;
+
+    return { points, baselineY, projectedY };
+  }, [data, baseline, projectedPrice, width, height]);
 
   if (!normalized) {
     return <div className={className} style={{ width, height }} />;
   }
 
-  const { points, baselineY } = normalized;
-  const linePath = points.reduce((path, point, index) => (
-    index === 0
-      ? `M ${point.x} ${point.y}`
-      : `${path} L ${point.x} ${point.y}`
-  ), '');
-
+  const { points, baselineY, projectedY } = normalized;
   const areaPath = [`M 0 ${height}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${width} ${height}`, 'Z'].join(' ');
   const lastPoint = points[points.length - 1];
+
+  const determineColor = (value: number) => {
+    if (typeof baseline === 'number' && value < baseline) {
+      return belowEntryColor;
+    }
+
+    if (typeof projectedPrice === 'number') {
+      if (value >= projectedPrice) {
+        return aboveProjectedColor;
+      }
+
+      return betweenProjectedColor;
+    }
+
+    return color;
+  };
+
+  const segments: { color: string; path: string }[] = [];
+  let currentSegment: { color: string; path: string } | null = null;
+
+  points.forEach((point, index) => {
+    const pointColor = determineColor(data[index]);
+
+    if (!currentSegment || currentSegment.color !== pointColor) {
+      if (currentSegment) {
+        segments.push(currentSegment);
+      }
+
+      currentSegment = {
+        color: pointColor,
+        path: `M ${point.x} ${point.y}`,
+      };
+    } else {
+      currentSegment.path = `${currentSegment.path} L ${point.x} ${point.y}`;
+    }
+  });
+
+  if (currentSegment) {
+    segments.push(currentSegment);
+  }
+
+  const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
 
   return (
     <svg
@@ -74,8 +128,8 @@ export function Sparkline({
     >
       <defs>
         <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
+          <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
         </linearGradient>
         <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -84,10 +138,6 @@ export function Sparkline({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={color} stopOpacity={0.9} />
-          <stop offset="100%" stopColor={color} stopOpacity={0.7} />
-        </linearGradient>
       </defs>
 
       <g opacity={0.08}>
@@ -107,28 +157,43 @@ export function Sparkline({
         />
       )}
 
+      {projectedY !== null && (
+        <line
+          x1={0}
+          y1={projectedY}
+          x2={width}
+          y2={projectedY}
+          stroke={projectedLineColor}
+          strokeWidth={1.5}
+          strokeDasharray="6 4"
+        />
+      )}
+
       <path
         d={areaPath}
         fill={`url(#${areaGradientId})`}
         opacity={0.6}
       />
 
-      <path
-        d={linePath}
-        fill="none"
-        stroke={`url(#${gradientId})`}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter={`url(#${glowId})`}
-      />
+      {segments.map((segment) => (
+        <path
+          key={segment.path}
+          d={segment.path}
+          fill="none"
+          stroke={segment.color}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter={`url(#${glowId})`}
+        />
+      ))}
 
       <circle
         cx={lastPoint.x}
         cy={lastPoint.y}
         r={2.8}
         fill="#ffffff"
-        stroke={color}
+        stroke={lastSegmentColor}
         strokeWidth={1.2}
       />
     </svg>
