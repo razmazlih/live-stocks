@@ -206,6 +206,8 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <Sparkline
               data={sparklineData}
               color={sparklineColor.hex}
+              baseline={position.entryPrice}
+              baselineColor="rgba(148, 163, 184, 0.8)"
               className="opacity-80"
             />
           </div>
