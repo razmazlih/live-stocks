@@ -455,19 +455,39 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical, currentPriceUsd]
   );
 
+  const entryPriceDisplay = useMemo(
+    () => (position ? convertValue(position.entryPrice) : undefined),
+    [convertValue, position]
+  );
+
+  const projectedPriceDisplay = useMemo(
+    () => (metrics ? convertValue(metrics.projectedPrice) : entryPriceDisplay),
+    [convertValue, entryPriceDisplay, metrics]
+  );
+
   const chartData = useMemo(
     () =>
-      analysis.series.map((point) => ({
-        timestamp: point.timestamp,
-        close: convertValue(point.close),
-        ema20: point.ema20 !== undefined ? convertValue(point.ema20) : undefined,
-        ema50: point.ema50 !== undefined ? convertValue(point.ema50) : undefined,
-        ema200: point.ema200 !== undefined ? convertValue(point.ema200) : undefined,
-        bbUpper: point.bbUpper !== undefined ? convertValue(point.bbUpper) : undefined,
-        bbLower: point.bbLower !== undefined ? convertValue(point.bbLower) : undefined,
-        volume: point.volume,
-      })),
-    [analysis.series, convertValue]
+      analysis.series.map((point) => {
+        const close = convertValue(point.close);
+        const isBelowEntry = entryPriceDisplay !== undefined && close < entryPriceDisplay;
+        const isAboveProjected = projectedPriceDisplay !== undefined && close > projectedPriceDisplay;
+        const isInBand = !isBelowEntry && !isAboveProjected;
+
+        return {
+          timestamp: point.timestamp,
+          close,
+          closeBelowEntry: isBelowEntry ? close : null,
+          closeInBand: isInBand ? close : null,
+          closeAboveProjected: isAboveProjected ? close : null,
+          ema20: point.ema20 !== undefined ? convertValue(point.ema20) : undefined,
+          ema50: point.ema50 !== undefined ? convertValue(point.ema50) : undefined,
+          ema200: point.ema200 !== undefined ? convertValue(point.ema200) : undefined,
+          bbUpper: point.bbUpper !== undefined ? convertValue(point.bbUpper) : undefined,
+          bbLower: point.bbLower !== undefined ? convertValue(point.bbLower) : undefined,
+          volume: point.volume,
+        };
+      }),
+    [analysis.series, convertValue, entryPriceDisplay, projectedPriceDisplay]
   );
 
   const tooltipLabels = useMemo(
@@ -478,6 +498,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       ema200: t.stock.detailView.indicatorLabels.ema200,
       bbUpper: t.stock.detailView.indicatorLabels.bbUpper,
       bbLower: t.stock.detailView.indicatorLabels.bbLower,
+      projected: t.stock.detailView.indicatorLabels.projected,
     }),
     [t.stock.detailView.indicatorLabels]
   );
@@ -684,7 +705,54 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
                             />
                             <Legend verticalAlign="top" height={32} />
-                            <Line type="monotone" dataKey="close" name={tooltipLabels.close} stroke="#2563EB" strokeWidth={2} dot={false} yAxisId="price" />
+                            {projectedPriceDisplay !== undefined && (
+                              <ReferenceLine
+                                y={projectedPriceDisplay}
+                                yAxisId="price"
+                                stroke="#1D4ED8"
+                                strokeDasharray="6 6"
+                                ifOverflow="extendDomain"
+                                label={{
+                                  value: tooltipLabels.projected,
+                                  position: 'right',
+                                  fill: '#1D4ED8',
+                                  fontSize: 12,
+                                }}
+                              />
+                            )}
+                            <Line
+                              type="monotone"
+                              dataKey="closeBelowEntry"
+                              name={tooltipLabels.close}
+                              stroke="#DC2626"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              legendType="none"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="closeInBand"
+                              name={tooltipLabels.close}
+                              stroke="#2563EB"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              legendType="none"
+                              connectNulls
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="closeAboveProjected"
+                              name={tooltipLabels.close}
+                              stroke="#16A34A"
+                              strokeWidth={2}
+                              dot={false}
+                              yAxisId="price"
+                              legendType="none"
+                              connectNulls
+                            />
                             <Line type="monotone" dataKey="ema20" name={tooltipLabels.ema20} stroke="#0EA5E9" strokeWidth={1.5} dot={false} yAxisId="price" strokeDasharray="5 5" />
                             <Line type="monotone" dataKey="ema50" name={tooltipLabels.ema50} stroke="#EC4899" strokeWidth={1.5} dot={false} yAxisId="price" />
                             <Line type="monotone" dataKey="ema200" name={tooltipLabels.ema200} stroke="#F59E0B" strokeWidth={1.5} dot={false} yAxisId="price" />
