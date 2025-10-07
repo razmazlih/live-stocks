@@ -17,7 +17,36 @@ interface PositionCardProps {
 export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { position, currentPrice, positionPnLUsd, positionPnLIls, projectedPrice, projectedPnLUsd, projectedPnLIls } = metrics;
+  const {
+    position,
+    currentPrice,
+    positionPnLUsd,
+    positionPnLIls,
+    projectedPrice,
+    projectedPnLUsd,
+    projectedPnLIls,
+    combined,
+    combinedIls,
+  } = metrics;
+
+  const projectedPriceDelta = currentPrice - projectedPrice;
+  const projectedPriceDeltaClass = projectedPriceDelta >= 0 ? 'text-[#4AA956]' : 'text-[#D22E2E]';
+  const usdToIlsRate = (() => {
+    if (positionPnLUsd !== 0) {
+      return positionPnLIls / positionPnLUsd;
+    }
+
+    if (projectedPnLUsd !== 0) {
+      return projectedPnLIls / projectedPnLUsd;
+    }
+
+    if (combined !== 0) {
+      return combinedIls / combined;
+    }
+
+    return 0;
+  })();
+  const projectedPriceDeltaIls = projectedPriceDelta * usdToIlsRate;
 
   const currentPnLColor = (() => {
     if (currentPrice < position.entryPrice) {
@@ -30,7 +59,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return { className: 'text-[#2563EB]', hex: '#2563EB' };
   })();
-  const isPositiveProjectedDelta = (projectedPrice - position.entryPrice) >= 0;
 
   return (
     <div className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white/50 hover:bg-white/70 transition-colors">
@@ -81,12 +109,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="text-xs font-semibold text-gray-500 uppercase">{t.dashboard.projected}</div>
             <div className="text-sm">
               <div className="text-gray-700">{t.dashboard.price}: <span className="font-semibold">{formatCurrency(projectedPrice, 'USD', locale)}</span></div>
-              <div className={isPositiveProjectedDelta ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
-                {t.dashboard.pnl} USD: <span className="font-semibold">{formatCurrency(projectedPnLUsd, 'USD', locale)}</span>
+              <div className={projectedPriceDeltaClass}>
+                {t.dashboard.projectedDelta} USD: <span className="font-semibold">{formatCurrency(projectedPriceDelta, 'USD', locale)}</span>
               </div>
-              {settings.currency === 'ILS' && (
-                <div className={isPositiveProjectedDelta ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
-                  {t.dashboard.pnl} ILS: <span className="font-semibold">{formatCurrency(projectedPnLIls, 'ILS', locale)}</span>
+              {settings.currency === 'ILS' && usdToIlsRate > 0 && (
+                <div className={projectedPriceDeltaClass}>
+                  {t.dashboard.projectedDelta} ILS: <span className="font-semibold">{formatCurrency(projectedPriceDeltaIls, 'ILS', locale)}</span>
                 </div>
               )}
             </div>
