@@ -30,7 +30,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return { className: 'text-[#2563EB]', hex: '#2563EB' };
   })();
-  const isPositiveProjectedDelta = (projectedPrice - position.entryPrice) >= 0;
+  const isPositiveProjectedDelta = (projectedPrice - currentPrice) >= 0;
 
   return (
     <div className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white/50 hover:bg-white/70 transition-colors">
