@@ -28,6 +28,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     projectedPnLIls,
     combined,
     combinedIls,
+    yearsHeld,
   } = metrics;
 
   const projectedPriceDelta = currentPrice - projectedPrice;
@@ -210,6 +211,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               color={sparklineColor.hex}
               baseline={position.entryPrice}
               baselineColor="rgba(148, 163, 184, 0.8)"
+              projectedPrice={projectedPrice}
+              annualGrowthRate={settings.annualGrowthRate}
+              yearsHeld={yearsHeld}
               className="h-36 w-full"
             />
           </div>
