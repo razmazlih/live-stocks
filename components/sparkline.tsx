@@ -9,6 +9,11 @@ interface SparklineProps {
   color?: string;
   baseline?: number;
   baselineColor?: string;
+  projectedPrice?: number;
+  projectedLineColor?: string;
+  belowEntryColor?: string;
+  betweenProjectedColor?: string;
+  aboveProjectedColor?: string;
   className?: string;
 }
 
@@ -19,6 +24,11 @@ export function Sparkline({
   color = '#2563EB',
   baseline,
   baselineColor = 'rgba(148, 163, 184, 0.9)',
+  projectedPrice,
+  projectedLineColor = 'rgba(37, 99, 235, 0.8)',
+  belowEntryColor = '#D22E2E',
+  betweenProjectedColor = '#2563EB',
+  aboveProjectedColor = '#4AA956',
   className = ''
 }: SparklineProps) {
   const gradientId = useId();
@@ -30,7 +40,11 @@ export function Sparkline({
       return null;
     }
 
-    const values = typeof baseline === 'number' ? [...data, baseline] : data;
+    const values = [
+      ...data,
+      ...(typeof baseline === 'number' ? [baseline] : []),
+      ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
+    ];
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
@@ -45,22 +59,132 @@ export function Sparkline({
       ? height - ((baseline - min) / range) * height
       : null;
 
-    return { points, baselineY };
-  }, [data, baseline, width, height]);
+    let projectedPath: string | null = null;
+
+    if (typeof projectedPrice === 'number' && points.length > 1) {
+      const startValue = Number.isFinite(baseline) ? baseline : data[0];
+      const endValue = projectedPrice;
+
+      if (Number.isFinite(startValue) && Number.isFinite(endValue)) {
+        const safeStart = startValue as number;
+        const safeEnd = endValue as number;
+
+        if (safeStart !== 0) {
+          const growthFactor = safeEnd / safeStart;
+
+          if (growthFactor > 0) {
+            const projectedPoints = points.map((point, index) => {
+              const fraction = index / (points.length - 1);
+              const projectedValue = safeStart * Math.pow(growthFactor, fraction);
+              const y = height - ((projectedValue - min) / range) * height;
+              return { x: point.x, y };
+            });
+
+            projectedPath = projectedPoints
+              .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+              .join(' ');
+          }
+        }
+
+        if (!projectedPath) {
+          const startY = height - ((safeStart - min) / range) * height;
+          const endY = height - ((safeEnd - min) / range) * height;
+          projectedPath = `M ${points[0].x} ${startY} L ${points[points.length - 1].x} ${endY}`;
+        }
+      }
+    }
+
+    return { points, baselineY, projectedPath };
+  }, [data, baseline, projectedPrice, width, height]);
 
   if (!normalized) {
     return <div className={className} style={{ width, height }} />;
   }
 
-  const { points, baselineY } = normalized;
-  const linePath = points.reduce((path, point, index) => (
-    index === 0
-      ? `M ${point.x} ${point.y}`
-      : `${path} L ${point.x} ${point.y}`
-  ), '');
-
+  const { points, baselineY, projectedPath } = normalized;
   const areaPath = [`M 0 ${height}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${width} ${height}`, 'Z'].join(' ');
   const lastPoint = points[points.length - 1];
+
+  const determineColor = (value: number) => {
+    if (typeof baseline === 'number' && value < baseline) {
+      return belowEntryColor;
+    }
+
+    if (typeof projectedPrice === 'number') {
+      if (value >= projectedPrice) {
+        return aboveProjectedColor;
+      }
+
+      return betweenProjectedColor;
+    }
+
+    return color;
+  };
+
+  const segments: { color: string; path: string }[] = [];
+
+  if (points.length > 1) {
+    const thresholds = [
+      ...(typeof baseline === 'number' ? [baseline] : []),
+      ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
+    ].filter((value) => Number.isFinite(value));
+
+    const uniqueThresholds = Array.from(new Set(thresholds)).sort((a, b) => a - b);
+
+    let currentColor = determineColor(data[0]);
+    let currentPathCommands = [`M ${points[0].x} ${points[0].y}`];
+
+    for (let index = 1; index < points.length; index += 1) {
+      const startPoint = points[index - 1];
+      const endPoint = points[index];
+      const startValue = data[index - 1];
+      const endValue = data[index];
+      const direction = Math.sign(endValue - startValue) || 1;
+
+      const breakpoints = uniqueThresholds
+        .map((threshold) => {
+          const crosses =
+            (startValue < threshold && endValue > threshold) ||
+            (startValue > threshold && endValue < threshold);
+
+          if (!crosses) {
+            return null;
+          }
+
+          const ratio = (threshold - startValue) / (endValue - startValue);
+
+          return {
+            ratio,
+            threshold,
+            point: {
+              x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
+              y: startPoint.y + (endPoint.y - startPoint.y) * ratio,
+            },
+          };
+        })
+        .filter((breakpoint): breakpoint is { ratio: number; threshold: number; point: { x: number; y: number } } =>
+          breakpoint !== null && breakpoint.ratio > 0 && breakpoint.ratio < 1,
+        )
+        .sort((a, b) => a.ratio - b.ratio);
+
+      breakpoints.forEach((breakpoint) => {
+        currentPathCommands.push(`L ${breakpoint.point.x} ${breakpoint.point.y}`);
+        segments.push({ color: currentColor, path: currentPathCommands.join(' ') });
+
+        const epsilon = direction > 0 ? 1e-4 : -1e-4;
+        currentColor = determineColor(breakpoint.threshold + epsilon);
+        currentPathCommands = [`M ${breakpoint.point.x} ${breakpoint.point.y}`];
+      });
+
+      currentPathCommands.push(`L ${endPoint.x} ${endPoint.y}`);
+    }
+
+    if (currentPathCommands.length > 1) {
+      segments.push({ color: currentColor, path: currentPathCommands.join(' ') });
+    }
+  }
+
+  const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
 
   return (
     <svg
@@ -74,8 +198,8 @@ export function Sparkline({
     >
       <defs>
         <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
+          <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
         </linearGradient>
         <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -84,10 +208,6 @@ export function Sparkline({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={color} stopOpacity={0.9} />
-          <stop offset="100%" stopColor={color} stopOpacity={0.7} />
-        </linearGradient>
       </defs>
 
       <g opacity={0.08}>
@@ -107,28 +227,42 @@ export function Sparkline({
         />
       )}
 
+      {projectedPath && (
+        <path
+          d={projectedPath}
+          fill="none"
+          stroke={projectedLineColor}
+          strokeWidth={1.5}
+          strokeDasharray="6 4"
+          strokeLinecap="round"
+        />
+      )}
+
       <path
         d={areaPath}
         fill={`url(#${areaGradientId})`}
         opacity={0.6}
       />
 
-      <path
-        d={linePath}
-        fill="none"
-        stroke={`url(#${gradientId})`}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter={`url(#${glowId})`}
-      />
+      {segments.map((segment) => (
+        <path
+          key={segment.path}
+          d={segment.path}
+          fill="none"
+          stroke={segment.color}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter={`url(#${glowId})`}
+        />
+      ))}
 
       <circle
         cx={lastPoint.x}
         cy={lastPoint.y}
         r={2.8}
         fill="#ffffff"
-        stroke={color}
+        stroke={lastSegmentColor}
         strokeWidth={1.2}
       />
     </svg>
