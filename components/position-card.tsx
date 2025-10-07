@@ -30,7 +30,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return { className: 'text-[#2563EB]', hex: '#2563EB' };
   })();
-  const isPositiveProjectedDelta = (projectedPrice - position.entryPrice) >= 0;
+  const isPositiveProjectedDelta = (projectedPrice - currentPrice) >= 0;
+  const projectedPnLDisplayUsd = Math.abs(projectedPnLUsd);
+  const projectedPnLDisplayIls = Math.abs(projectedPnLIls);
 
   return (
     <div className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white/50 hover:bg-white/70 transition-colors">
@@ -82,11 +84,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="text-sm">
               <div className="text-gray-700">{t.dashboard.price}: <span className="font-semibold">{formatCurrency(projectedPrice, 'USD', locale)}</span></div>
               <div className={isPositiveProjectedDelta ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
-                {t.dashboard.pnl} USD: <span className="font-semibold">{formatCurrency(projectedPnLUsd, 'USD', locale)}</span>
+                {t.dashboard.pnl} USD: <span className="font-semibold">{formatCurrency(projectedPnLDisplayUsd, 'USD', locale)}</span>
               </div>
               {settings.currency === 'ILS' && (
                 <div className={isPositiveProjectedDelta ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
-                  {t.dashboard.pnl} ILS: <span className="font-semibold">{formatCurrency(projectedPnLIls, 'ILS', locale)}</span>
+                  {t.dashboard.pnl} ILS: <span className="font-semibold">{formatCurrency(projectedPnLDisplayIls, 'ILS', locale)}</span>
                 </div>
               )}
             </div>

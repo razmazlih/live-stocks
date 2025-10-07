@@ -70,10 +70,10 @@ export function calculatePositionMetrics(
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
   const projectedPrice = position.entryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
-  const projectedPnLUsd = (projectedPrice - position.entryPrice) * position.quantity;
+  const projectedPnLUsd = (projectedPrice - currentPrice) * position.quantity;
   const projectedPnLIls = projectedPnLUsd * usdToIlsRate;
 
-  const combined = positionPnLUsd - projectedPnLUsd;
+  const combined = positionPnLUsd + projectedPnLUsd;
   const combinedIls = combined * usdToIlsRate;
 
   const currentValue = currentPrice * position.quantity;
