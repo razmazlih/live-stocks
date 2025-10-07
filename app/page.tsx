@@ -30,12 +30,16 @@ export default function HomePage() {
       return;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - 60 * 60 * 24 * 30;
-
     const results = await Promise.all(
       positionsList.map(async (position) => {
         try {
+          const now = Math.floor(Date.now() / 1000);
+          const entryDate = position.entryDate ? new Date(position.entryDate) : null;
+          const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
+            ? Math.floor(entryDate.getTime() / 1000)
+            : now - 60 * 60 * 24 * 30;
+          const from = Math.min(entryTimestamp, now);
+
           const response = await fetch(
             `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''}`
           );
