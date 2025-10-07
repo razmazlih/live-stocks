@@ -29,11 +29,12 @@ interface PortfolioVisualizationsProps {
 
 const COLORS = ['#2563EB', '#0EA5E9', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#F97316'];
 
-type ChartTooltipProps = TooltipProps<number, string> & {
-  formatValue: (value: number) => string;
-};
-
-const ChartTooltip = ({ active, payload, label, formatValue }: ChartTooltipProps) => {
+function ChartTooltip<ValueType extends number | string, NameType extends string>({
+  active,
+  payload,
+  label,
+  formatValue,
+}: TooltipProps<ValueType, NameType> & { formatValue: (value: number) => string }) {
   if (!active || !payload?.length) {
     return null;
   }
@@ -57,7 +58,7 @@ const ChartTooltip = ({ active, payload, label, formatValue }: ChartTooltipProps
       </div>
     </div>
   );
-};
+}
 
 export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualizationsProps) {
   const { locale, settings } = useApp();
@@ -159,9 +160,12 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         <Cell key={entry.symbol} fill={`url(#chartGradient-${index % COLORS.length})`} stroke="transparent" />
                       ))}
                     </Pie>
-                    <Tooltip
+                    <Tooltip<number, string>
                       content={(props) => (
-                        <ChartTooltip {...props} formatValue={(value) => pieTooltipFormatter(value) as string} />
+                        <ChartTooltip
+                          {...props}
+                          formatValue={(value) => pieTooltipFormatter(Number(value ?? 0))}
+                        />
                       )}
                     />
                   </PieChart>
@@ -249,9 +253,12 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   axisLine={false}
                   tick={{ fill: '#64748B', fontSize: 12 }}
                 />
-                <Tooltip
+                <Tooltip<number, string>
                   content={(props) => (
-                    <ChartTooltip {...props} formatValue={(value) => barTooltipFormatter(value) as string} />
+                    <ChartTooltip
+                      {...props}
+                      formatValue={(value) => barTooltipFormatter(Number(value ?? 0))}
+                    />
                   )}
                 />
                 <Bar
