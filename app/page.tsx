@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CandleData, Position, PositionMetrics, PortfolioSummary } from '@/types';
-import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency, mapCandleDataToPoints } from '@/lib/calculations';
+import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency, formatPercent, mapCandleDataToPoints } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, RefreshCw, Settings, Plus, BarChart3 } from 'lucide-react';
+import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -136,7 +136,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [settings.annualGrowthRate, settings.finnhubToken]);
+  }, [settings.annualGrowthRate, settings.finnhubToken, loadSparklines]);
 
   useEffect(() => {
     loadData();
@@ -149,106 +149,314 @@ export default function HomePage() {
     });
   };
 
+  const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
+    const formatted = formatCurrency(value, currency, locale);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
+  const formatSignedPercent = (value: number) => {
+    const formatted = formatPercent(value, locale);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
+  const getTrendTone = (value: number) => {
+    if (value > 0) {
+      return {
+        text: 'text-emerald-600',
+        badge: 'bg-emerald-50 text-emerald-600',
+      };
+    }
+
+    if (value < 0) {
+      return {
+        text: 'text-rose-600',
+        badge: 'bg-rose-50 text-rose-600',
+      };
+    }
+
+    return {
+      text: 'text-slate-600',
+      badge: 'bg-slate-100 text-slate-500',
+    };
+  };
+
+  const getTrendIcon = (value: number) => {
+    if (value > 0) {
+      return <ArrowUpRight className="h-4 w-4" />;
+    }
+
+    if (value < 0) {
+      return <ArrowDownRight className="h-4 w-4" />;
+    }
+
+    return <Minus className="h-4 w-4" />;
+  };
+
+  const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
+  const totalDailyChangeUsd = metrics.reduce(
+    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
+    0
+  );
+  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
+  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
+
+  const currentRate = summary?.usdToIlsRate ?? usdToIls;
+  const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
+  const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
+  const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
+
+  type SummaryCard = {
+    key: string;
+    label: string;
+    value: string;
+    valueClass?: string;
+    secondary?: { label: string; value: string };
+    helper?: { label: string; value: string }[];
+    badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
+    footnote?: string;
+  };
+
+  const summaryCards: SummaryCard[] = summary
+    ? [
+        {
+          key: 'value',
+          label: t.dashboard.totalValue,
+          value: formatCurrency(summary.totalValue, 'USD', locale),
+          valueClass: 'text-3xl font-semibold text-slate-900',
+          secondary: {
+            label: 'ILS',
+            value: formatCurrency(totalValueIls, 'ILS', locale),
+          },
+          helper: [
+            { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
+            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
+          ],
+          badge: {
+            value: formatSignedPercent(totalReturnPercent),
+            tone: getTrendTone(totalReturnUsd),
+            icon: getTrendIcon(totalReturnUsd),
+          },
+          footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+        },
+        {
+          key: 'current',
+          label: t.dashboard.currentPnL,
+          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+          secondary: {
+            label: 'ILS',
+            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
+          },
+        },
+        {
+          key: 'projected',
+          label: t.dashboard.projectedPnL,
+          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+          secondary: {
+            label: 'ILS',
+            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+          },
+        },
+        {
+          key: 'combined',
+          label: t.dashboard.combinedPnL,
+          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
+          secondary: {
+            label: 'ILS',
+            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
+          },
+        },
+      ]
+    : [];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
-      <div className="max-w-7xl mx-auto p-6">
-        <header className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-[#3B82F6]" />
-              <h1 className="text-3xl font-bold text-[#0F172A]">{t.app.title}</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadData}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Link href="/analysis">
-                <Button variant="outline" size="sm" title={t.analysis.title}>
-                  <BarChart3 className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/positions">
-                <Button variant="outline" size="sm">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/settings">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <p className="text-sm text-[#475569]">
-            {t.app.updated} {formatTime(lastUpdate)}
-          </p>
-        </header>
-
-        <div className="backdrop-blur-sm bg-white/85 rounded-2xl border border-white/50 shadow-xl p-6 mb-6">
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
-          ) : positions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{t.dashboard.noPositions}</p>
-              <Link href="/positions">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t.positions.add}
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4 mb-6">
-                {metrics.map((m) => (
-                  <PositionCard
-                    key={m.position.id || m.position.symbol}
-                    metrics={m}
-                    sparklineData={sparklineData[m.position.symbol] || []}
-                  />
-                ))}
+    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+      <div className="relative">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-blue-200/60 blur-3xl" />
+            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-6">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+                    <TrendingUp className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.app.title}</h1>
+                    <p className="mt-2 max-w-xl text-base text-slate-600">{t.app.subtitle}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
+                    {t.app.updated} {formatTime(lastUpdate)}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
+                    <TrendingUp className="h-4 w-4 text-blue-500" />
+                    1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
+                  </span>
+                  {hasDailyChange && (
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
+                    >
+                      {dailyChangeIcon}
+                      {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
+                      <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
+                    </span>
+                  )}
+                </div>
               </div>
+              <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.quickActions}</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">{t.common.refresh}</span>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                  >
+                    <Link href="/analysis">
+                      <BarChart3 className="h-4 w-4" />
+                      <span>{t.analysis.title}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild variant="secondary" size="sm" className="gap-2">
+                    <Link href="/positions">
+                      <Plus className="h-4 w-4" />
+                      <span>{t.positions.add}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900">
+                    <Link href="/settings">
+                      <Settings className="h-4 w-4" />
+                      <span className="hidden sm:inline">{t.settings.title}</span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
 
-              {summary && (
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">{t.dashboard.combined}</h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">USD:</span>
-                          <span className={`font-bold text-lg ${summary.totalCombinedUsd >= 0 ? 'text-[#4AA956]' : 'text-[#D22E2E]'}`}>
-                            {formatCurrency(summary.totalCombinedUsd, 'USD', locale)}
-                          </span>
+          <main className="mt-10">
+            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
+              <div className="relative z-10">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                    <p>{t.common.loading}</p>
+                  </div>
+                ) : positions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                    <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner">
+                      <Plus className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-slate-800">{t.dashboard.noPositions}</p>
+                      <p className="text-sm text-slate-500">{t.positions.title}</p>
+                    </div>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                    >
+                      <Link href="/positions">
+                        <Plus className="h-4 w-4" />
+                        <span>{t.positions.add}</span>
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-10">
+                    {summary && summaryCards.length > 0 && (
+                      <div className="space-y-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
+                          {hasDailyChange && (
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
+                            >
+                              {dailyChangeIcon}
+                              {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
+                              <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
+                            </span>
+                          )}
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">ILS:</span>
-                          <span className={`font-bold text-lg ${summary.totalCombinedIls >= 0 ? 'text-[#4AA956]' : 'text-[#D22E2E]'}`}>
-                            {formatCurrency(summary.totalCombinedIls, 'ILS', locale)}
-                          </span>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                          {summaryCards.map((card) => (
+                            <div
+                              key={card.key}
+                              className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                            >
+                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                              <div className="relative z-10 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                                  {card.badge && (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
+                                    >
+                                      {card.badge.icon}
+                                      {card.badge.value}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={card.valueClass}>{card.value}</p>
+                                {card.secondary && (
+                                  <p className="text-sm text-slate-500">
+                                    {card.secondary.label}:{' '}
+                                    <span className="font-medium text-slate-700">{card.secondary.value}</span>
+                                  </p>
+                                )}
+                                {card.helper?.map((helper) => (
+                                  <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
+                                    {helper.label}:{' '}
+                                    <span className="font-medium text-slate-700">{helper.value}</span>
+                                  </p>
+                                ))}
+                                {card.footnote && (
+                                  <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.positionsTitle}</h2>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {metrics.map((m) => (
+                          <PositionCard
+                            key={m.position.id || m.position.symbol}
+                            metrics={m}
+                            sparklineData={sparklineData[m.position.symbol] || []}
+                          />
+                        ))}
                       </div>
                     </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">{t.dashboard.exchangeRate}</h3>
-                      <p className="text-gray-700">
-                        1 USD ≈ <span className="font-semibold">₪{usdToIls.toFixed(2)}</span>
-                      </p>
-                    </div>
+                    {summary && (
+                      <div className="space-y-4 border-t border-slate-100 pt-6">
+                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
+                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                          <PortfolioVisualizations metrics={metrics} summary={summary} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-4">{t.dashboard.visualizationsTitle}</h3>
-                  <PortfolioVisualizations metrics={metrics} summary={summary} />
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </div>
+            </section>
+          </main>
         </div>
       </div>
     </div>
