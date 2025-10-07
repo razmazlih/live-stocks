@@ -19,6 +19,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const { t } = useTranslation(locale);
   const { position, currentPrice, positionPnLUsd, positionPnLIls, projectedPrice, projectedPnLUsd, projectedPnLIls } = metrics;
 
+  const projectedPriceDelta = currentPrice - projectedPrice;
+  const projectedPriceDeltaClass = projectedPriceDelta >= 0 ? 'text-[#4AA956]' : 'text-[#D22E2E]';
+
   const currentPnLColor = (() => {
     if (currentPrice < position.entryPrice) {
       return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
@@ -81,6 +84,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="text-xs font-semibold text-gray-500 uppercase">{t.dashboard.projected}</div>
             <div className="text-sm">
               <div className="text-gray-700">{t.dashboard.price}: <span className="font-semibold">{formatCurrency(projectedPrice, 'USD', locale)}</span></div>
+              <div className={projectedPriceDeltaClass}>
+                {t.dashboard.projectedDelta}: <span className="font-semibold">{formatCurrency(projectedPriceDelta, 'USD', locale)}</span>
+              </div>
               <div className={isPositiveProjectedDelta ? 'text-[#4AA956]' : 'text-[#D22E2E]'}>
                 {t.dashboard.pnl} USD: <span className="font-semibold">{formatCurrency(projectedPnLUsd, 'USD', locale)}</span>
               </div>
