@@ -5,6 +5,7 @@ export const translations = {
     app: {
       title: 'סטטוס מניות',
       updated: 'עודכן',
+      subtitle: 'מעקב בזמן אמת אחרי התיק עם תובנות ברורות ואלגנטיות.',
     },
     dashboard: {
       portfolioValue: 'שווי תיק',
@@ -26,6 +27,16 @@ export const translations = {
       pnlChart: 'רווח/הפסד לפי פוזיציה',
       emptyChart: 'אין נתונים להצגה',
       viewDetails: 'מסך פירוט',
+      summaryTitle: 'תמונת מצב התיק',
+      positionsTitle: 'פוזיציות פעילות',
+      quickActions: 'פעולות מהירות',
+      totalValue: 'שווי תיק נוכחי',
+      totalCost: 'עלות מצטברת',
+      currentPnL: 'רווח/הפסד נוכחי',
+      projectedPnL: 'רווח/הפסד חזוי',
+      combinedPnL: 'פער מול התחזית',
+      dailyChange: 'שינוי יומי',
+      totalReturn: 'תשואה מצטברת',
     },
     analysis: {
       title: 'ניתוח מתקדם',
@@ -250,6 +261,7 @@ export const translations = {
     app: {
       title: 'Stocks Status',
       updated: 'Updated',
+      subtitle: 'Real-time visibility into your portfolio with clear, modern insights.',
     },
     dashboard: {
       portfolioValue: 'Portfolio Value',
@@ -271,6 +283,16 @@ export const translations = {
       pnlChart: 'P/L by Position',
       emptyChart: 'No data to display',
       viewDetails: 'View details',
+      summaryTitle: 'Portfolio snapshot',
+      positionsTitle: 'Active positions',
+      quickActions: 'Quick actions',
+      totalValue: 'Current portfolio value',
+      totalCost: 'Total cost basis',
+      currentPnL: 'Current P/L',
+      projectedPnL: 'Projected P/L',
+      combinedPnL: 'Gap vs projection',
+      dailyChange: 'Daily change',
+      totalReturn: 'Total return',
     },
     analysis: {
       title: 'Advanced Analytics',
