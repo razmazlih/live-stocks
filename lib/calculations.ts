@@ -1,7 +1,95 @@
-import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionMetrics, PortfolioSummary, RebalanceSuggestion } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, RebalanceSuggestion } from '@/types';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 const TRADING_DAYS_PER_YEAR = 252;
+
+function getRemainingQuantity(lot: PositionLot): number {
+  const exitQuantity = (lot.exits || []).reduce((total, exit) => total + (exit?.quantity || 0), 0);
+  return Math.max((lot.entryQuantity || 0) - exitQuantity, 0);
+}
+
+export interface PositionLotSummary {
+  totalQuantity: number;
+  costBasis: number;
+  averageEntryPrice: number;
+  weightedEntryTimestamp?: number;
+  weightedEntryDate?: string;
+  weightedYearsHeld: number;
+  projectedPrice: number;
+}
+
+export function summarizePositionLots(
+  lots: PositionLot[] = [],
+  annualGrowthRate = 0,
+  referenceDate: Date = new Date()
+): PositionLotSummary {
+  if (!Array.isArray(lots) || lots.length === 0) {
+    return {
+      totalQuantity: 0,
+      costBasis: 0,
+      averageEntryPrice: 0,
+      weightedYearsHeld: 0,
+      projectedPrice: 0,
+    };
+  }
+
+  let totalQuantity = 0;
+  let costBasis = 0;
+  let weightedEntryTimestamp = 0;
+  let weightedYearsHeldAccumulator = 0;
+  let projectedPriceAccumulator = 0;
+
+  for (const lot of lots) {
+    const remainingQuantity = getRemainingQuantity(lot);
+
+    if (remainingQuantity <= 0) {
+      continue;
+    }
+
+    const entryPrice = lot.entryPrice || 0;
+    const entryDate = lot.entryDate ? new Date(lot.entryDate) : referenceDate;
+    const yearsHeld = (referenceDate.getTime() - entryDate.getTime()) / MS_PER_YEAR;
+    const projectedLotPrice = entryPrice * Math.pow(1 + annualGrowthRate, Math.max(yearsHeld, 0));
+
+    totalQuantity += remainingQuantity;
+    costBasis += entryPrice * remainingQuantity;
+    weightedEntryTimestamp += entryDate.getTime() * remainingQuantity;
+    weightedYearsHeldAccumulator += Math.max(yearsHeld, 0) * remainingQuantity;
+    projectedPriceAccumulator += projectedLotPrice * remainingQuantity;
+  }
+
+  if (totalQuantity <= 0) {
+    return {
+      totalQuantity: 0,
+      costBasis: 0,
+      averageEntryPrice: 0,
+      weightedYearsHeld: 0,
+      projectedPrice: 0,
+    };
+  }
+
+  const averageEntryPrice = costBasis / totalQuantity;
+  const weightedEntryTimestampAverage = weightedEntryTimestamp / totalQuantity;
+
+  return {
+    totalQuantity,
+    costBasis,
+    averageEntryPrice,
+    weightedEntryTimestamp: weightedEntryTimestampAverage,
+    weightedEntryDate: new Date(weightedEntryTimestampAverage).toISOString(),
+    weightedYearsHeld: weightedYearsHeldAccumulator / totalQuantity,
+    projectedPrice: projectedPriceAccumulator / totalQuantity,
+  };
+}
+
+export function calculateWeightedProjectedPrice(
+  lots: PositionLot[] = [],
+  annualGrowthRate = 0.05,
+  referenceDate: Date = new Date()
+): number {
+  const summary = summarizePositionLots(lots, annualGrowthRate, referenceDate);
+  return summary.projectedPrice;
+}
 
 function safeNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -62,28 +150,46 @@ export function calculatePositionMetrics(
   annualGrowthRate: number = 0.05,
   dailyChange?: number
 ): PositionMetrics {
-  const entryDate = new Date(position.entryDate);
   const now = new Date();
-  const yearsHeld = (now.getTime() - entryDate.getTime()) / MS_PER_YEAR;
+  const lots = position.lots && position.lots.length > 0
+    ? position.lots
+    : [{
+        entryPrice: position.entryPrice,
+        entryQuantity: position.quantity,
+        entryDate: position.entryDate,
+      }];
 
-  const positionPnLUsd = (currentPrice - position.entryPrice) * position.quantity;
+  const lotSummary = summarizePositionLots(lots, annualGrowthRate, now);
+  const quantity = lotSummary.totalQuantity || position.quantity;
+  const entryPrice = quantity > 0 ? lotSummary.averageEntryPrice : position.entryPrice;
+  const yearsHeld = lotSummary.weightedYearsHeld;
+
+  const costBasis = lotSummary.costBasis;
+  const currentValue = currentPrice * quantity;
+  const positionPnLUsd = currentValue - costBasis;
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
-  const projectedPrice = position.entryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
-  const projectedPnLUsd = (projectedPrice - position.entryPrice) * position.quantity;
+  const projectedPrice = lotSummary.projectedPrice || entryPrice;
+  const projectedValue = projectedPrice * quantity;
+  const projectedPnLUsd = projectedValue - costBasis;
   const projectedPnLIls = projectedPnLUsd * usdToIlsRate;
 
   const combined = positionPnLUsd - projectedPnLUsd;
   const combinedIls = combined * usdToIlsRate;
 
-  const currentValue = currentPrice * position.quantity;
-  const costBasis = position.entryPrice * position.quantity;
-  const roiPercent = ((currentValue - costBasis) / costBasis) * 100;
-
-  const dailyChangePercent = dailyChange !== undefined ? (dailyChange / (currentPrice - dailyChange)) * 100 : undefined;
+  const roiPercent = costBasis > 0 ? (positionPnLUsd / costBasis) * 100 : 0;
+  const dailyChangePercent = dailyChange !== undefined && currentPrice - dailyChange !== 0
+    ? (dailyChange / (currentPrice - dailyChange)) * 100
+    : undefined;
 
   return {
-    position,
+    position: {
+      ...position,
+      entryPrice,
+      quantity,
+      entryDate: lotSummary.weightedEntryDate || position.entryDate,
+      lots,
+    },
     currentPrice,
     positionPnLUsd,
     positionPnLIls,
@@ -94,6 +200,7 @@ export function calculatePositionMetrics(
     combinedIls,
     yearsHeld,
     currentValue,
+    costBasis,
     roiPercent,
     dailyChange,
     dailyChangePercent,
@@ -406,7 +513,7 @@ export function calculatePortfolioSummary(
       totalCombinedUsd: acc.totalCombinedUsd + m.combined,
       totalCombinedIls: acc.totalCombinedIls + m.combinedIls,
       totalValue: acc.totalValue + m.currentValue,
-      totalCost: acc.totalCost + (m.position.entryPrice * m.position.quantity),
+      totalCost: acc.totalCost + m.costBasis,
     }),
     {
       totalCurrentPnLUsd: 0,

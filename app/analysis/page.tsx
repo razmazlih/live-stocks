@@ -49,6 +49,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { mapSupabasePosition } from '@/lib/positions';
 
 const DAY_SECONDS = 60 * 60 * 24;
 const ANALYSIS_WINDOW_DAYS = 400;
@@ -153,15 +154,7 @@ export default function AnalysisPage() {
           throw positionsError;
         }
 
-        const mappedPositions: Position[] = (positionsData || []).map((p) => ({
-          id: p.id,
-          symbol: p.symbol,
-          display: p.display,
-          imageUrl: p.image_url,
-          entryPrice: parseFloat(p.entry_price.toString()),
-          quantity: parseFloat(p.quantity.toString()),
-          entryDate: p.entry_date,
-        }));
+        const mappedPositions: Position[] = (positionsData || []).map(mapSupabasePosition);
 
         if (cancelled) {
           return;

@@ -11,6 +11,7 @@ import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import Link from 'next/link';
+import { mapSupabasePosition } from '@/lib/positions';
 
 export default function HomePage() {
   const { locale, settings, refreshTrigger } = useApp();
@@ -81,15 +82,7 @@ export default function HomePage() {
 
       if (positionsError) throw positionsError;
 
-      const mappedPositions: Position[] = (positionsData || []).map(p => ({
-        id: p.id,
-        symbol: p.symbol,
-        display: p.display,
-        imageUrl: p.image_url,
-        entryPrice: parseFloat(p.entry_price.toString()),
-        quantity: parseFloat(p.quantity.toString()),
-        entryDate: p.entry_date,
-      }));
+      const mappedPositions: Position[] = (positionsData || []).map(mapSupabasePosition);
 
       setPositions(mappedPositions);
 

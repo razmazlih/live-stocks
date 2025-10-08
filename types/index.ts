@@ -1,11 +1,36 @@
+export interface LotExit {
+  id?: string;
+  quantity: number;
+  exitPrice: number;
+  exitDate: string;
+}
+
+export interface PositionLot {
+  id?: string;
+  entryPrice: number;
+  entryQuantity: number;
+  entryDate: string;
+  exits?: LotExit[];
+}
+
 export interface Position {
   id?: string;
   symbol: string;
   display: string;
   imageUrl: string;
+  /**
+   * Aggregated entry price calculated as the weighted average of all active lots.
+   */
   entryPrice: number;
+  /**
+   * Total remaining quantity after accounting for exits across all lots.
+   */
   quantity: number;
+  /**
+   * Weighted average entry date for the remaining quantity.
+   */
   entryDate: string;
+  lots: PositionLot[];
 }
 
 export interface StockQuote {
@@ -40,6 +65,7 @@ export interface PositionMetrics {
   combinedIls: number;
   yearsHeld: number;
   currentValue: number;
+  costBasis: number;
   roiPercent: number;
   dailyChange?: number;
   dailyChangePercent?: number;

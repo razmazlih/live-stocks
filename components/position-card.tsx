@@ -202,6 +202,45 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </div>
         </div>
 
+        {position.lots && position.lots.length > 0 && (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.lotBreakdown}</p>
+            <div className="mt-3 space-y-3 text-xs text-slate-600">
+              {position.lots.map((lot, index) => {
+                const remainingExits = lot.exits && lot.exits.length > 0;
+                return (
+                  <div key={index} className="rounded-lg bg-slate-50/60 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-semibold text-slate-700">
+                        {t.dashboard.lotLabel} #{index + 1}
+                      </div>
+                      <div className="text-slate-500">
+                        {formatNumber(lot.entryQuantity, locale)} @ {formatCurrency(lot.entryPrice, 'USD', locale)} • {formatDate(lot.entryDate, locale)}
+                      </div>
+                    </div>
+                    {remainingExits ? (
+                      <ul className="mt-2 space-y-1 text-slate-500">
+                        {lot.exits?.map((exit, exitIndex) => (
+                          <li key={exitIndex} className="flex items-center justify-between">
+                            <span>
+                              {t.dashboard.exitLabel} #{exitIndex + 1}
+                            </span>
+                            <span>
+                              {formatNumber(exit.quantity, locale)} @ {formatCurrency(exit.exitPrice, 'USD', locale)} • {formatDate(exit.exitDate, locale)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-slate-400">{t.dashboard.noExits}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {sparklineData && sparklineData.length > 0 && (
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <Sparkline

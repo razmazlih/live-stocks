@@ -4,14 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position } from '@/types';
+import { LotExit, Position, PositionLot } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { formatDateForInput, mapSupabasePosition, preparePositionPersistencePayload } from '@/lib/positions';
 
 export default function PositionsPage() {
   const { locale, triggerRefresh } = useApp();
@@ -27,6 +28,14 @@ export default function PositionsPage() {
     entryPrice: 0,
     quantity: 0,
     entryDate: new Date().toISOString().split('T')[0],
+    lots: [
+      {
+        entryPrice: 0,
+        entryQuantity: 0,
+        entryDate: new Date().toISOString().split('T')[0],
+        exits: [],
+      },
+    ],
   });
 
   const loadPositions = useCallback(async () => {
@@ -39,15 +48,7 @@ export default function PositionsPage() {
 
       if (error) throw error;
 
-      const mappedPositions: Position[] = (data || []).map(p => ({
-        id: p.id,
-        symbol: p.symbol,
-        display: p.display,
-        imageUrl: p.image_url,
-        entryPrice: parseFloat(p.entry_price.toString()),
-        quantity: parseFloat(p.quantity.toString()),
-        entryDate: p.entry_date,
-      }));
+      const mappedPositions: Position[] = (data || []).map(mapSupabasePosition);
 
       setPositions(mappedPositions);
     } catch (error) {
@@ -71,6 +72,14 @@ export default function PositionsPage() {
       entryPrice: 0,
       quantity: 0,
       entryDate: new Date().toISOString().split('T')[0],
+      lots: [
+        {
+          entryPrice: 0,
+          entryQuantity: 0,
+          entryDate: new Date().toISOString().split('T')[0],
+          exits: [],
+        },
+      ],
     });
     setDialogOpen(true);
   }
@@ -83,47 +92,148 @@ export default function PositionsPage() {
       imageUrl: position.imageUrl,
       entryPrice: position.entryPrice,
       quantity: position.quantity,
-      entryDate: position.entryDate,
+      entryDate: formatDateForInput(position.entryDate),
+      lots: position.lots?.map((lot) => ({
+        ...lot,
+        entryDate: formatDateForInput(lot.entryDate),
+        exits: lot.exits?.map((exit) => ({
+          ...exit,
+          exitDate: formatDateForInput(exit.exitDate),
+        })) || [],
+      })),
     });
     setDialogOpen(true);
+  }
+
+  function updateLot(index: number, changes: Partial<PositionLot>) {
+    const sanitized: Partial<PositionLot> = { ...changes };
+    if (typeof sanitized.entryPrice === 'number') {
+      sanitized.entryPrice = Number.isFinite(sanitized.entryPrice) ? sanitized.entryPrice : 0;
+    }
+    if (typeof sanitized.entryQuantity === 'number') {
+      sanitized.entryQuantity = Number.isFinite(sanitized.entryQuantity) ? sanitized.entryQuantity : 0;
+    }
+    setFormData((prev) => {
+      const lots = [...(prev.lots || [])];
+      lots[index] = { ...lots[index], ...sanitized } as PositionLot;
+      return { ...prev, lots };
+    });
+  }
+
+  function addLot() {
+    setFormData((prev) => ({
+      ...prev,
+      lots: [
+        ...(prev.lots || []),
+        {
+          entryPrice: 0,
+          entryQuantity: 0,
+          entryDate: new Date().toISOString().split('T')[0],
+          exits: [],
+        },
+      ],
+    }));
+  }
+
+  function removeLot(index: number) {
+    setFormData((prev) => {
+      const lots = [...(prev.lots || [])];
+      lots.splice(index, 1);
+      if (!lots.length) {
+        lots.push({
+          entryPrice: 0,
+          entryQuantity: 0,
+          entryDate: new Date().toISOString().split('T')[0],
+          exits: [],
+        });
+      }
+      return { ...prev, lots };
+    });
+  }
+
+  function addExit(lotIndex: number) {
+    setFormData((prev) => {
+      const lots = [...(prev.lots || [])];
+      const lot = lots[lotIndex];
+      if (!lot) {
+        return prev;
+      }
+      const exits = [...(lot.exits || []), {
+        quantity: 0,
+        exitPrice: 0,
+        exitDate: new Date().toISOString().split('T')[0],
+      } as LotExit];
+      lots[lotIndex] = { ...lot, exits };
+      return { ...prev, lots };
+    });
+  }
+
+  function updateExit(lotIndex: number, exitIndex: number, changes: Partial<LotExit>) {
+    const sanitized: Partial<LotExit> = { ...changes };
+    if (typeof sanitized.quantity === 'number') {
+      sanitized.quantity = Number.isFinite(sanitized.quantity) ? sanitized.quantity : 0;
+    }
+    if (typeof sanitized.exitPrice === 'number') {
+      sanitized.exitPrice = Number.isFinite(sanitized.exitPrice) ? sanitized.exitPrice : 0;
+    }
+    setFormData((prev) => {
+      const lots = [...(prev.lots || [])];
+      const lot = lots[lotIndex];
+      if (!lot) {
+        return prev;
+      }
+      const exits = [...(lot.exits || [])];
+      exits[exitIndex] = { ...exits[exitIndex], ...sanitized } as LotExit;
+      lots[lotIndex] = { ...lot, exits };
+      return { ...prev, lots };
+    });
+  }
+
+  function removeExit(lotIndex: number, exitIndex: number) {
+    setFormData((prev) => {
+      const lots = [...(prev.lots || [])];
+      const lot = lots[lotIndex];
+      if (!lot) {
+        return prev;
+      }
+      const exits = [...(lot.exits || [])];
+      exits.splice(exitIndex, 1);
+      lots[lotIndex] = { ...lot, exits };
+      return { ...prev, lots };
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!formData.symbol || !formData.display || !formData.entryPrice || !formData.quantity) {
+    if (!formData.symbol || !formData.display) {
       toast.error(locale === 'he' ? 'נא למלא את כל השדות' : 'Please fill all fields');
       return;
     }
 
+    const lots = formData.lots || [];
+
+    if (!lots.length || lots.some((lot) => !lot.entryPrice || !lot.entryQuantity || !lot.entryDate)) {
+      toast.error(locale === 'he' ? 'נא להזין לפחות לוט אחד עם מחיר, כמות ותאריך' : 'Please provide at least one lot with price, quantity, and date');
+      return;
+    }
+
     try {
+      const payload = preparePositionPersistencePayload({ ...formData, lots });
+
       if (editingPosition) {
         const { error } = await supabase
           .from('positions')
-          .update({
-            symbol: formData.symbol,
-            display: formData.display,
-            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol?.toLowerCase()}.com`,
-            entry_price: formData.entryPrice,
-            quantity: formData.quantity,
-            entry_date: formData.entryDate,
-            updated_at: new Date().toISOString(),
-          })
+          .update(payload)
           .eq('id', editingPosition.id);
 
         if (error) throw error;
         toast.success(locale === 'he' ? 'הפוזיציה עודכנה' : 'Position updated');
       } else {
+        const { updated_at, ...insertPayload } = payload;
         const { error } = await supabase
           .from('positions')
-          .insert({
-            symbol: formData.symbol,
-            display: formData.display,
-            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol?.toLowerCase()}.com`,
-            entry_price: formData.entryPrice,
-            quantity: formData.quantity,
-            entry_date: formData.entryDate,
-          });
+          .insert(insertPayload);
 
         if (error) throw error;
         toast.success(locale === 'he' ? 'הפוזיציה נוספה' : 'Position added');
@@ -215,39 +325,118 @@ export default function PositionsPage() {
                       placeholder="https://logo.clearbit.com/apple.com"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="entryPrice">{t.positions.entryPrice}</Label>
-                    <Input
-                      id="entryPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.entryPrice}
-                      onChange={(e) => setFormData({ ...formData, entryPrice: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="quantity">{t.positions.quantity}</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="entryDate">{t.positions.entryDate}</Label>
-                    <Input
-                      id="entryDate"
-                      type="date"
-                      value={formData.entryDate}
-                      onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-                      required
-                    />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>{t.positions.lots}</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={addLot}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        {t.positions.addLot}
+                      </Button>
+                    </div>
+                    {(formData.lots || []).map((lot, lotIndex) => (
+                      <div key={lotIndex} className="space-y-3 rounded-lg border border-dashed border-slate-200 p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-700">
+                            {t.positions.lotLabel} #{lotIndex + 1}
+                          </span>
+                          {(formData.lots?.length || 0) > 1 && (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeLot(lotIndex)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div>
+                            <Label>{t.positions.entryPrice}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={lot.entryPrice}
+                              onChange={(e) => updateLot(lotIndex, { entryPrice: parseFloat(e.target.value) })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label>{t.positions.entryQuantity}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={lot.entryQuantity}
+                              onChange={(e) => updateLot(lotIndex, { entryQuantity: parseFloat(e.target.value) })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label>{t.positions.entryDate}</Label>
+                            <Input
+                              type="date"
+                              value={lot.entryDate}
+                              onChange={(e) => updateLot(lotIndex, { entryDate: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">{t.positions.exits}</span>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addExit(lotIndex)}>
+                              <Plus className="w-4 h-4 mr-1" />
+                              {t.positions.addExit}
+                            </Button>
+                          </div>
+                          {(lot.exits || []).length === 0 ? (
+                            <p className="text-xs text-slate-400">{t.positions.noExits}</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {(lot.exits || []).map((exit, exitIndex) => (
+                                <div key={exitIndex} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                                  <div>
+                                    <Label>{t.positions.exitQuantity}</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={exit.quantity}
+                                      onChange={(e) => updateExit(lotIndex, exitIndex, { quantity: parseFloat(e.target.value) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>{t.positions.exitPrice}</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={exit.exitPrice}
+                                      onChange={(e) => updateExit(lotIndex, exitIndex, { exitPrice: parseFloat(e.target.value) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>{t.positions.exitDate}</Label>
+                                    <Input
+                                      type="date"
+                                      value={exit.exitDate}
+                                      onChange={(e) => updateExit(lotIndex, exitIndex, { exitDate: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="flex items-end">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removeExit(lotIndex, exitIndex)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex gap-2">
                     <Button type="submit">{t.positions.save}</Button>
@@ -284,7 +473,21 @@ export default function PositionsPage() {
                       {position.display} ({position.symbol})
                     </div>
                     <div className="text-sm text-gray-600">
-                      {position.quantity} @ ${position.entryPrice} • {position.entryDate}
+                      {position.quantity} @ ${Number(position.entryPrice || 0).toFixed(2)} • {position.entryDate ? position.entryDate.split('T')[0] : ''}
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs text-gray-500">
+                      {position.lots.map((lot, index) => (
+                        <div key={index}>
+                          <div>
+                            {t.positions.lotLabel} #{index + 1}: {lot.entryQuantity} @ ${Number(lot.entryPrice || 0).toFixed(2)} • {lot.entryDate ? lot.entryDate.split('T')[0] : ''}
+                          </div>
+                          {(lot.exits || []).map((exit, exitIndex) => (
+                            <div key={exitIndex} className="pl-4">
+                              {t.positions.exitLabel} #{exitIndex + 1}: {exit.quantity} @ ${Number(exit.exitPrice || 0).toFixed(2)} • {exit.exitDate ? exit.exitDate.split('T')[0] : ''}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="flex gap-2">

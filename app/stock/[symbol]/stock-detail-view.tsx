@@ -39,6 +39,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
+import { mapSupabasePosition } from '@/lib/positions';
 import {
   calculatePositionMetrics,
   formatCurrency,
@@ -282,15 +283,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
-        const mappedPosition: Position = {
-          id: data.id,
-          symbol: data.symbol,
-          display: data.display,
-          imageUrl: data.image_url,
-          entryPrice: parseFloat(data.entry_price.toString()),
-          quantity: parseFloat(data.quantity.toString()),
-          entryDate: data.entry_date,
-        };
+        const mappedPosition: Position = mapSupabasePosition(data);
 
         if (cancelled) {
           return;
