@@ -1,4 +1,5 @@
-import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionMetrics, PortfolioSummary, RebalanceSuggestion } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, RebalanceSuggestion } from '@/types';
+import { computeOpenLots, summarizeLots } from '@/lib/positions';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 const TRADING_DAYS_PER_YEAR = 252;
@@ -62,28 +63,51 @@ export function calculatePositionMetrics(
   annualGrowthRate: number = 0.05,
   dailyChange?: number
 ): PositionMetrics {
-  const entryDate = new Date(position.entryDate);
+  const lots = position.lots ?? [];
   const now = new Date();
-  const yearsHeld = (now.getTime() - entryDate.getTime()) / MS_PER_YEAR;
+  const hasLots = lots.length > 0;
+  const summary = hasLots ? summarizeLots(lots, now) : undefined;
 
-  const positionPnLUsd = (currentPrice - position.entryPrice) * position.quantity;
+  const normalizedQuantity = summary && summary.totalQuantity > 0 ? summary.totalQuantity : position.quantity;
+  const normalizedEntryPrice = summary && summary.totalQuantity > 0 ? summary.averageEntryPrice : position.entryPrice;
+  const normalizedEntryDate = summary?.earliestEntryDate ?? position.entryDate;
+  const normalizedPosition: Position = {
+    ...position,
+    entryPrice: normalizedEntryPrice,
+    quantity: normalizedQuantity,
+    entryDate: normalizedEntryDate,
+  };
+
+  const entryDate = new Date(normalizedEntryDate);
+  const fallbackYearsHeld = Number.isNaN(entryDate.getTime())
+    ? 0
+    : Math.max((now.getTime() - entryDate.getTime()) / MS_PER_YEAR, 0);
+
+  const yearsHeld = summary ? summary.weightedHoldingYears || fallbackYearsHeld : fallbackYearsHeld;
+
+  const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
-  const projectedPrice = position.entryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
-  const projectedPnLUsd = (projectedPrice - position.entryPrice) * position.quantity;
+  const projectedPrice = normalizedQuantity > 0
+    ? calculateWeightedProjectedPrice(lots, annualGrowthRate, now)
+    : normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
+
+  const projectedPnLUsd = (projectedPrice - normalizedEntryPrice) * normalizedQuantity;
   const projectedPnLIls = projectedPnLUsd * usdToIlsRate;
 
   const combined = positionPnLUsd - projectedPnLUsd;
   const combinedIls = combined * usdToIlsRate;
 
-  const currentValue = currentPrice * position.quantity;
-  const costBasis = position.entryPrice * position.quantity;
-  const roiPercent = ((currentValue - costBasis) / costBasis) * 100;
+  const currentValue = currentPrice * normalizedQuantity;
+  const costBasis = normalizedEntryPrice * normalizedQuantity;
+  const roiPercent = costBasis !== 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
 
-  const dailyChangePercent = dailyChange !== undefined ? (dailyChange / (currentPrice - dailyChange)) * 100 : undefined;
+  const dailyChangePercent = dailyChange !== undefined && currentPrice - dailyChange !== 0
+    ? (dailyChange / (currentPrice - dailyChange)) * 100
+    : undefined;
 
   return {
-    position,
+    position: normalizedPosition,
     currentPrice,
     positionPnLUsd,
     positionPnLIls,
@@ -98,6 +122,39 @@ export function calculatePositionMetrics(
     dailyChange,
     dailyChangePercent,
   };
+}
+
+export function calculateWeightedProjectedPrice(
+  lots: PositionLot[],
+  annualGrowthRate: number,
+  asOf: Date = new Date()
+): number {
+  if (!Array.isArray(lots) || lots.length === 0) {
+    return 0;
+  }
+
+  const openLots = computeOpenLots(lots);
+  if (!openLots.length) {
+    return 0;
+  }
+
+  const totalQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
+  if (totalQuantity <= 0) {
+    return 0;
+  }
+
+  const weightedSum = openLots.reduce((sum, lot) => {
+    const executedAt = new Date(lot.executedAt);
+    if (Number.isNaN(executedAt.getTime())) {
+      return sum;
+    }
+
+    const yearsHeld = Math.max((asOf.getTime() - executedAt.getTime()) / MS_PER_YEAR, 0);
+    const projectedPrice = lot.price * Math.pow(1 + annualGrowthRate, yearsHeld);
+    return sum + projectedPrice * lot.quantity;
+  }, 0);
+
+  return weightedSum / totalQuantity;
 }
 
 export function calculateCagr(entryPrice: number, currentPrice: number, yearsHeld: number): number {
