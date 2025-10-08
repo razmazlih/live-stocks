@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLotType } from '@/types';
+import { Position, PositionLot, PositionLotType } from '@/types';
 import { mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,16 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  BarChart3,
+  ArrowRightLeft,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -56,6 +65,8 @@ export default function PositionsPage() {
     quantity: 0,
     executedAt: new Date().toISOString().split('T')[0],
   });
+  const [editingLot, setEditingLot] = useState<PositionLot | null>(null);
+  const [expandedPositions, setExpandedPositions] = useState<Record<string, boolean>>({});
   const isEditing = Boolean(editingPosition);
 
   const loadPositions = useCallback(async () => {
@@ -109,15 +120,57 @@ export default function PositionsPage() {
     setDialogOpen(true);
   }
 
-  function openTransactionDialog(position: Position, type: PositionLotType = 'BUY') {
+  function normalizeDateInput(dateString?: string) {
+    if (!dateString) {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    return parsed.toISOString().split('T')[0];
+  }
+
+  function openTransactionDialog(
+    position: Position,
+    type: PositionLotType = 'BUY',
+    lot?: PositionLot,
+  ) {
     setTransactionTarget(position);
+
+    if (lot) {
+      setTransactionForm({
+        type: lot.type,
+        price: lot.price,
+        quantity: lot.quantity,
+        executedAt: normalizeDateInput(lot.executedAt),
+      });
+      setEditingLot(lot);
+    } else {
+      setTransactionForm({
+        type,
+        price: 0,
+        quantity: 0,
+        executedAt: new Date().toISOString().split('T')[0],
+      });
+      setEditingLot(null);
+    }
+
+    setTransactionDialogOpen(true);
+  }
+
+  function closeTransactionDialog() {
+    setTransactionDialogOpen(false);
+    setTransactionTarget(null);
+    setEditingLot(null);
     setTransactionForm({
-      type,
+      type: 'BUY',
       price: 0,
       quantity: 0,
       executedAt: new Date().toISOString().split('T')[0],
     });
-    setTransactionDialogOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -202,28 +255,73 @@ export default function PositionsPage() {
       return;
     }
 
-    if (transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
+    if (
+      !editingLot &&
+      transactionForm.type === 'SELL' &&
+      transactionForm.quantity > transactionTarget.quantity
+    ) {
       toast.error(locale === 'he' ? 'אין מספיק כמות פנויה למכירה' : 'Not enough quantity to sell');
       return;
     }
 
     try {
-      const { error } = await supabase.from('position_lots').insert({
-        position_id: transactionTarget.id,
-        side: transactionForm.type,
-        price: transactionForm.price,
-        quantity: transactionForm.quantity,
-        executed_at: transactionForm.executedAt,
-      });
+      if (editingLot?.id) {
+        const { error } = await supabase
+          .from('position_lots')
+          .update({
+            side: transactionForm.type,
+            price: transactionForm.price,
+            quantity: transactionForm.quantity,
+            executed_at: transactionForm.executedAt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editingLot.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(locale === 'he' ? 'העסקה נשמרה' : 'Transaction saved');
-      setTransactionDialogOpen(false);
+        toast.success(locale === 'he' ? 'הפעולה עודכנה' : 'Transaction updated');
+      } else {
+        const { error } = await supabase.from('position_lots').insert({
+          position_id: transactionTarget.id,
+          side: transactionForm.type,
+          price: transactionForm.price,
+          quantity: transactionForm.quantity,
+          executed_at: transactionForm.executedAt,
+        });
+
+        if (error) throw error;
+
+        toast.success(locale === 'he' ? 'העסקה נשמרה' : 'Transaction saved');
+      }
+
+      closeTransactionDialog();
       loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error('Error saving transaction:', error);
+      toast.error(t.common.error);
+    }
+  }
+
+  async function handleDeleteTransaction(lot: PositionLot) {
+    if (!lot.id) {
+      toast.error(t.common.error);
+      return;
+    }
+
+    if (!confirm(locale === 'he' ? 'למחוק פעולה זו?' : 'Delete this transaction?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('position_lots').delete().eq('id', lot.id);
+      if (error) throw error;
+
+      toast.success(locale === 'he' ? 'הפעולה נמחקה' : 'Transaction deleted');
+      loadPositions();
+      triggerRefresh();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
       toast.error(t.common.error);
     }
   }
@@ -248,6 +346,13 @@ export default function PositionsPage() {
       console.error('Error deleting position:', error);
       toast.error(t.common.error);
     }
+  }
+
+  function toggleExpanded(positionKey: string) {
+    setExpandedPositions((prev) => ({
+      ...prev,
+      [positionKey]: !prev[positionKey],
+    }));
   }
 
   return (
@@ -374,10 +479,21 @@ export default function PositionsPage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
+            <Dialog
+              open={transactionDialogOpen}
+              onOpenChange={(open) => {
+                if (open) {
+                  setTransactionDialogOpen(true);
+                } else {
+                  closeTransactionDialog();
+                }
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{t.positions.addTransaction}</DialogTitle>
+                  <DialogTitle>
+                    {editingLot ? t.positions.editTransaction : t.positions.addTransaction}
+                  </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleTransactionSubmit} className="space-y-4">
                   <div>
@@ -451,8 +567,10 @@ export default function PositionsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit">{t.positions.saveTransaction}</Button>
-                    <Button type="button" variant="outline" onClick={() => setTransactionDialogOpen(false)}>
+                    <Button type="submit">
+                      {editingLot ? t.positions.updateTransaction : t.positions.saveTransaction}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={closeTransactionDialog}>
                       {t.positions.cancel}
                     </Button>
                   </div>
@@ -482,10 +600,20 @@ export default function PositionsPage() {
                   return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
                 });
                 const recentLots = sortedLots.slice(0, 6);
+                const positionKey = position.id ?? position.symbol;
+                const isExpanded = Boolean(expandedPositions[positionKey]);
+                const lotsToDisplay = isExpanded ? sortedLots : recentLots;
+                const visibleCount = lotsToDisplay.length;
+                const totalCount = sortedLots.length;
+                const counterLabel =
+                  isExpanded || visibleCount === totalCount
+                    ? totalCount
+                    : `${visibleCount}/${totalCount}`;
+                const canToggle = totalCount > recentLots.length;
 
                 return (
                   <div
-                    key={position.id}
+                    key={position.id ?? position.symbol}
                     className="rounded-lg border border-gray-200 bg-white/70 p-5"
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -503,17 +631,33 @@ export default function PositionsPage() {
                         </div>
 
                         <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                               {t.positions.transactionsTitle}
                             </p>
-                            <span className="text-[11px] text-slate-400">
-                              {sortedLots.length === recentLots.length ? sortedLots.length : `${recentLots.length}/${sortedLots.length}`}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-400">{counterLabel}</span>
+                              {canToggle && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[11px]"
+                                  onClick={() => toggleExpanded(positionKey)}
+                                >
+                                  {isExpanded ? t.positions.collapseTransactions : t.positions.showAllTransactions}
+                                  {isExpanded ? (
+                                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                                  ) : (
+                                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          {recentLots.length > 0 ? (
+                          {lotsToDisplay.length > 0 ? (
                             <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                              {recentLots.map((lot) => {
+                              {lotsToDisplay.map((lot) => {
                                 const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                                 const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
                                 return (
@@ -527,7 +671,29 @@ export default function PositionsPage() {
                                     <span>
                                       {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
                                     </span>
-                                    <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-slate-500">
+                                      {formatDate(lot.executedAt, locale)}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => openTransactionDialog(position, lot.type, lot)}
+                                        aria-label={t.positions.editTransaction}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500"
+                                        onClick={() => handleDeleteTransaction(lot)}
+                                        aria-label={t.positions.deleteTransaction}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </span>
                                   </li>
                                 );
                               })}
