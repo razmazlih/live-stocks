@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLotType } from '@/types';
+import { Position, PositionLot, PositionLotType } from '@/types';
 import { mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ export default function PositionsPage() {
   });
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [transactionTarget, setTransactionTarget] = useState<Position | null>(null);
+  const [editingLot, setEditingLot] = useState<PositionLot | null>(null);
   const [transactionForm, setTransactionForm] = useState<TransactionFormData>({
     type: 'BUY',
     price: 0,
@@ -109,13 +110,24 @@ export default function PositionsPage() {
     setDialogOpen(true);
   }
 
-  function openTransactionDialog(position: Position, type: PositionLotType = 'BUY') {
+  function openTransactionDialog(
+    position: Position,
+    options?: { type?: PositionLotType; lot?: PositionLot },
+  ) {
+    const lot = options?.lot ?? null;
+    const type = lot?.type ?? options?.type ?? 'BUY';
+    const executedDate = lot ? new Date(lot.executedAt) : new Date();
+    const executedAtValue = Number.isNaN(executedDate.getTime())
+      ? new Date().toISOString().split('T')[0]
+      : executedDate.toISOString().split('T')[0];
+
     setTransactionTarget(position);
+    setEditingLot(lot);
     setTransactionForm({
       type,
-      price: 0,
-      quantity: 0,
-      executedAt: new Date().toISOString().split('T')[0],
+      price: lot ? lot.price : 0,
+      quantity: lot ? lot.quantity : 0,
+      executedAt: executedAtValue,
     });
     setTransactionDialogOpen(true);
   }
@@ -202,28 +214,76 @@ export default function PositionsPage() {
       return;
     }
 
-    if (transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
+    if (
+      transactionForm.type === 'SELL' &&
+      !editingLot &&
+      transactionForm.quantity > transactionTarget.quantity
+    ) {
       toast.error(locale === 'he' ? 'אין מספיק כמות פנויה למכירה' : 'Not enough quantity to sell');
       return;
     }
 
     try {
-      const { error } = await supabase.from('position_lots').insert({
-        position_id: transactionTarget.id,
-        side: transactionForm.type,
-        price: transactionForm.price,
-        quantity: transactionForm.quantity,
-        executed_at: transactionForm.executedAt,
-      });
+      if (editingLot?.id) {
+        const { error } = await supabase
+          .from('position_lots')
+          .update({
+            side: transactionForm.type,
+            price: transactionForm.price,
+            quantity: transactionForm.quantity,
+            executed_at: transactionForm.executedAt,
+          })
+          .eq('id', editingLot.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(locale === 'he' ? 'העסקה נשמרה' : 'Transaction saved');
+        toast.success(t.positions.transactionUpdated);
+      } else {
+        const { error } = await supabase.from('position_lots').insert({
+          position_id: transactionTarget.id,
+          side: transactionForm.type,
+          price: transactionForm.price,
+          quantity: transactionForm.quantity,
+          executed_at: transactionForm.executedAt,
+        });
+
+        if (error) throw error;
+
+        toast.success(t.positions.transactionSaved);
+      }
+
       setTransactionDialogOpen(false);
+      setEditingLot(null);
       loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error('Error saving transaction:', error);
+      toast.error(t.common.error);
+    }
+  }
+
+  async function handleTransactionDelete(lot: PositionLot) {
+    if (!lot.id) {
+      toast.error(t.common.error);
+      return;
+    }
+
+    const message = t.positions.confirmDeleteTransaction;
+
+    if (!confirm(message)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('position_lots').delete().eq('id', lot.id);
+
+      if (error) throw error;
+
+      toast.success(t.positions.transactionDeleted);
+      loadPositions();
+      triggerRefresh();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
       toast.error(t.common.error);
     }
   }
@@ -374,10 +434,21 @@ export default function PositionsPage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
+            <Dialog
+              open={transactionDialogOpen}
+              onOpenChange={(open) => {
+                setTransactionDialogOpen(open);
+                if (!open) {
+                  setEditingLot(null);
+                  setTransactionTarget(null);
+                }
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{t.positions.addTransaction}</DialogTitle>
+                  <DialogTitle>
+                    {editingLot ? t.positions.editTransaction : t.positions.addTransaction}
+                  </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleTransactionSubmit} className="space-y-4">
                   <div>
@@ -452,7 +523,15 @@ export default function PositionsPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button type="submit">{t.positions.saveTransaction}</Button>
-                    <Button type="button" variant="outline" onClick={() => setTransactionDialogOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setTransactionDialogOpen(false);
+                        setEditingLot(null);
+                        setTransactionTarget(null);
+                      }}
+                    >
                       {t.positions.cancel}
                     </Button>
                   </div>
@@ -528,6 +607,28 @@ export default function PositionsPage() {
                                       {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
                                     </span>
                                     <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                                    <div className="ml-2 flex items-center gap-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-slate-500 hover:text-slate-700"
+                                        onClick={() => openTransactionDialog(position, { lot })}
+                                        aria-label={t.positions.editTransaction}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-rose-500 hover:text-rose-600"
+                                        onClick={() => handleTransactionDelete(lot)}
+                                        aria-label={t.positions.deleteTransaction}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
                                   </li>
                                 );
                               })}
