@@ -4,14 +4,34 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position } from '@/types';
+import { Position, PositionLotType } from '@/types';
+import { mapPositionRow } from '@/lib/positions';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+
+interface PositionFormData {
+  symbol: string;
+  display: string;
+  imageUrl: string;
+  initialPrice: number;
+  initialQuantity: number;
+  initialDate: string;
+}
+
+interface TransactionFormData {
+  type: PositionLotType;
+  price: number;
+  quantity: number;
+  executedAt: string;
+}
 
 export default function PositionsPage() {
   const { locale, triggerRefresh } = useApp();
@@ -20,34 +40,35 @@ export default function PositionsPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
-  const [formData, setFormData] = useState<Partial<Position>>({
+  const [formData, setFormData] = useState<PositionFormData>({
     symbol: '',
     display: '',
     imageUrl: '',
-    entryPrice: 0,
-    quantity: 0,
-    entryDate: new Date().toISOString().split('T')[0],
+    initialPrice: 0,
+    initialQuantity: 0,
+    initialDate: new Date().toISOString().split('T')[0],
   });
+  const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [transactionTarget, setTransactionTarget] = useState<Position | null>(null);
+  const [transactionForm, setTransactionForm] = useState<TransactionFormData>({
+    type: 'BUY',
+    price: 0,
+    quantity: 0,
+    executedAt: new Date().toISOString().split('T')[0],
+  });
+  const isEditing = Boolean(editingPosition);
 
   const loadPositions = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('positions')
-        .select('*')
+        .select('*, position_lots(*)')
         .order('symbol');
 
       if (error) throw error;
 
-      const mappedPositions: Position[] = (data || []).map(p => ({
-        id: p.id,
-        symbol: p.symbol,
-        display: p.display,
-        imageUrl: p.image_url,
-        entryPrice: parseFloat(p.entry_price.toString()),
-        quantity: parseFloat(p.quantity.toString()),
-        entryDate: p.entry_date,
-      }));
+      const mappedPositions: Position[] = (data || []).map(mapPositionRow);
 
       setPositions(mappedPositions);
     } catch (error) {
@@ -68,9 +89,9 @@ export default function PositionsPage() {
       symbol: '',
       display: '',
       imageUrl: '',
-      entryPrice: 0,
-      quantity: 0,
-      entryDate: new Date().toISOString().split('T')[0],
+      initialPrice: 0,
+      initialQuantity: 0,
+      initialDate: new Date().toISOString().split('T')[0],
     });
     setDialogOpen(true);
   }
@@ -81,19 +102,37 @@ export default function PositionsPage() {
       symbol: position.symbol,
       display: position.display,
       imageUrl: position.imageUrl,
-      entryPrice: position.entryPrice,
-      quantity: position.quantity,
-      entryDate: position.entryDate,
+      initialPrice: position.entryPrice,
+      initialQuantity: position.quantity,
+      initialDate: position.entryDate,
     });
     setDialogOpen(true);
+  }
+
+  function openTransactionDialog(position: Position, type: PositionLotType = 'BUY') {
+    setTransactionTarget(position);
+    setTransactionForm({
+      type,
+      price: 0,
+      quantity: 0,
+      executedAt: new Date().toISOString().split('T')[0],
+    });
+    setTransactionDialogOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!formData.symbol || !formData.display || !formData.entryPrice || !formData.quantity) {
+    if (!formData.symbol || !formData.display) {
       toast.error(locale === 'he' ? 'נא למלא את כל השדות' : 'Please fill all fields');
       return;
+    }
+
+    if (!editingPosition) {
+      if (formData.initialPrice <= 0 || formData.initialQuantity <= 0) {
+        toast.error(locale === 'he' ? 'נדרש מחיר וכמות חיוביים לכניסה' : 'Positive price and quantity are required');
+        return;
+      }
     }
 
     try {
@@ -103,29 +142,41 @@ export default function PositionsPage() {
           .update({
             symbol: formData.symbol,
             display: formData.display,
-            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol?.toLowerCase()}.com`,
-            entry_price: formData.entryPrice,
-            quantity: formData.quantity,
-            entry_date: formData.entryDate,
+            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingPosition.id);
 
         if (error) throw error;
-        toast.success(locale === 'he' ? 'הפוזיציה עודכנה' : 'Position updated');
+        toast.success(locale === 'he' ? 'הפרטים עודכנו' : 'Position details updated');
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('positions')
           .insert({
             symbol: formData.symbol,
             display: formData.display,
-            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol?.toLowerCase()}.com`,
-            entry_price: formData.entryPrice,
-            quantity: formData.quantity,
-            entry_date: formData.entryDate,
-          });
+            image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
+            entry_price: formData.initialPrice,
+            quantity: formData.initialQuantity,
+            entry_date: formData.initialDate,
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+
+        if (data) {
+          const { error: lotError } = await supabase.from('position_lots').insert({
+            position_id: data.id,
+            side: 'BUY',
+            price: formData.initialPrice,
+            quantity: formData.initialQuantity,
+            executed_at: formData.initialDate,
+          });
+
+          if (lotError) throw lotError;
+        }
+
         toast.success(locale === 'he' ? 'הפוזיציה נוספה' : 'Position added');
       }
 
@@ -134,6 +185,45 @@ export default function PositionsPage() {
       triggerRefresh();
     } catch (error) {
       console.error('Error saving position:', error);
+      toast.error(t.common.error);
+    }
+  }
+
+  async function handleTransactionSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!transactionTarget?.id) {
+      toast.error(t.common.error);
+      return;
+    }
+
+    if (transactionForm.price <= 0 || transactionForm.quantity <= 0) {
+      toast.error(locale === 'he' ? 'נא להזין מחיר וכמות חיוביים' : 'Enter positive price and quantity');
+      return;
+    }
+
+    if (transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
+      toast.error(locale === 'he' ? 'אין מספיק כמות פנויה למכירה' : 'Not enough quantity to sell');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('position_lots').insert({
+        position_id: transactionTarget.id,
+        side: transactionForm.type,
+        price: transactionForm.price,
+        quantity: transactionForm.quantity,
+        executed_at: transactionForm.executedAt,
+      });
+
+      if (error) throw error;
+
+      toast.success(locale === 'he' ? 'העסקה נשמרה' : 'Transaction saved');
+      setTransactionDialogOpen(false);
+      loadPositions();
+      triggerRefresh();
+    } catch (error) {
+      console.error('Error saving transaction:', error);
       toast.error(t.common.error);
     }
   }
@@ -215,43 +305,154 @@ export default function PositionsPage() {
                       placeholder="https://logo.clearbit.com/apple.com"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="entryPrice">{t.positions.entryPrice}</Label>
-                    <Input
-                      id="entryPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.entryPrice}
-                      onChange={(e) => setFormData({ ...formData, entryPrice: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="quantity">{t.positions.quantity}</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="entryDate">{t.positions.entryDate}</Label>
-                    <Input
-                      id="entryDate"
-                      type="date"
-                      value={formData.entryDate}
-                      onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-                      required
-                    />
-                  </div>
+                  {isEditing ? (
+                    editingPosition && (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
+                        <p className="font-semibold text-slate-700">{t.positions.currentHolding}</p>
+                        <p className="mt-2">
+                          {formatNumber(editingPosition.quantity, locale)} · {formatCurrency(editingPosition.entryPrice, 'USD', locale)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {t.positions.since} {formatDate(editingPosition.entryDate, locale)}
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="sm:col-span-1">
+                        <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                        <Input
+                          id="initialPrice"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={Number.isFinite(formData.initialPrice) ? formData.initialPrice : 0}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              initialPrice: Number.parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="sm:col-span-1">
+                        <Label htmlFor="initialQuantity">{t.positions.initialQuantity}</Label>
+                        <Input
+                          id="initialQuantity"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={Number.isFinite(formData.initialQuantity) ? formData.initialQuantity : 0}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              initialQuantity: Number.parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="sm:col-span-1">
+                        <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                        <Input
+                          id="initialDate"
+                          type="date"
+                          value={formData.initialDate}
+                          onChange={(e) => setFormData({ ...formData, initialDate: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Button type="submit">{t.positions.save}</Button>
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      {t.positions.cancel}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t.positions.addTransaction}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleTransactionSubmit} className="space-y-4">
+                  <div>
+                    <Label>{t.positions.transactionType}</Label>
+                    <RadioGroup
+                      value={transactionForm.type}
+                      onValueChange={(value) =>
+                        setTransactionForm({ ...transactionForm, type: value as PositionLotType })
+                      }
+                      className="mt-2 flex gap-4"
+                    >
+                      <label className="flex items-center gap-2 text-sm text-slate-600">
+                        <RadioGroupItem value="BUY" id="transaction-buy" />
+                        {t.positions.buy}
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-600">
+                        <RadioGroupItem value="SELL" id="transaction-sell" />
+                        {t.positions.sell}
+                      </label>
+                    </RadioGroup>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="transactionPrice">{t.positions.transactionPrice}</Label>
+                      <Input
+                        id="transactionPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={transactionForm.price}
+                        onChange={(e) =>
+                          setTransactionForm({
+                            ...transactionForm,
+                            price: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="transactionQuantity">{t.positions.transactionQuantity}</Label>
+                      <Input
+                        id="transactionQuantity"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={transactionForm.quantity}
+                        onChange={(e) =>
+                          setTransactionForm({
+                            ...transactionForm,
+                            quantity: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                      {transactionForm.type === 'SELL' && transactionTarget && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {t.positions.availableQuantity}: {formatNumber(transactionTarget.quantity, locale)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="transactionDate">{t.positions.transactionDate}</Label>
+                      <Input
+                        id="transactionDate"
+                        type="date"
+                        value={transactionForm.executedAt}
+                        onChange={(e) => setTransactionForm({ ...transactionForm, executedAt: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit">{t.positions.saveTransaction}</Button>
+                    <Button type="button" variant="outline" onClick={() => setTransactionDialogOpen(false)}>
                       {t.positions.cancel}
                     </Button>
                   </div>
@@ -274,42 +475,104 @@ export default function PositionsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {positions.map((position) => (
-                <div
-                  key={position.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-white/50"
-                >
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
-                      {position.display} ({position.symbol})
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {position.quantity} @ ${position.entryPrice} • {position.entryDate}
+              {positions.map((position) => {
+                const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
+                  const aTime = new Date(a.executedAt).getTime();
+                  const bTime = new Date(b.executedAt).getTime();
+                  return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
+                });
+                const recentLots = sortedLots.slice(0, 6);
+
+                return (
+                  <div
+                    key={position.id}
+                    className="rounded-lg border border-gray-200 bg-white/70 p-5"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-gray-900">{position.display}</span>
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                              {position.symbol}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-600">
+                            {formatNumber(position.quantity, locale)} · {formatCurrency(position.entryPrice, 'USD', locale)} • {formatDate(position.entryDate, locale)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.transactionsTitle}
+                            </p>
+                            <span className="text-[11px] text-slate-400">
+                              {sortedLots.length === recentLots.length ? sortedLots.length : `${recentLots.length}/${sortedLots.length}`}
+                            </span>
+                          </div>
+                          {recentLots.length > 0 ? (
+                            <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                              {recentLots.map((lot) => {
+                                const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                                const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+                                return (
+                                  <li
+                                    key={`${lot.id}-${lot.executedAt}`}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                                      {typeLabel}
+                                    </span>
+                                    <span>
+                                      {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
+                                    </span>
+                                    <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-400">{t.positions.noTransactions}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openTransactionDialog(position)}
+                        >
+                          <ArrowRightLeft className="mr-2 h-4 w-4" />
+                          {t.positions.addTransaction}
+                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/stock/${position.symbol}`}>
+                            <Button variant="ghost" size="sm">
+                              <BarChart3 className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(position)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(position.id!)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Link href={`/stock/${position.symbol}`}>
-                      <Button variant="ghost" size="sm">
-                        <BarChart3 className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditDialog(position)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(position.id!)}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

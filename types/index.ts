@@ -1,3 +1,14 @@
+export type PositionLotType = 'BUY' | 'SELL';
+
+export interface PositionLot {
+  id?: string;
+  positionId?: string;
+  type: PositionLotType;
+  price: number;
+  quantity: number;
+  executedAt: string;
+}
+
 export interface Position {
   id?: string;
   symbol: string;
@@ -6,6 +17,7 @@ export interface Position {
   entryPrice: number;
   quantity: number;
   entryDate: string;
+  lots?: PositionLot[];
 }
 
 export interface StockQuote {

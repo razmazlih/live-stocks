@@ -38,6 +38,7 @@ import type {
   WhatIfScenario,
 } from '@/types';
 import { Button } from '@/components/ui/button';
+import { mapPositionRow } from '@/lib/positions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
@@ -146,22 +147,14 @@ export default function AnalysisPage() {
       try {
         const { data: positionsData, error: positionsError } = await supabase
           .from('positions')
-          .select('*')
+          .select('*, position_lots(*)')
           .order('symbol');
 
         if (positionsError) {
           throw positionsError;
         }
 
-        const mappedPositions: Position[] = (positionsData || []).map((p) => ({
-          id: p.id,
-          symbol: p.symbol,
-          display: p.display,
-          imageUrl: p.image_url,
-          entryPrice: parseFloat(p.entry_price.toString()),
-          quantity: parseFloat(p.quantity.toString()),
-          entryDate: p.entry_date,
-        }));
+        const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
 
         if (cancelled) {
           return;

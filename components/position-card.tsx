@@ -181,17 +181,17 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </dl>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.projected}</p>
-            <dl className="mt-3 space-y-2 text-sm text-slate-600">
-              <div className="flex items-center justify-between">
-                <dt>{t.dashboard.price}</dt>
-                <dd className="font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
-              </div>
-              <div className={`flex items-center justify-between ${combinedStyles.text}`}>
-                <dt>{t.dashboard.combined} USD</dt>
-                <dd className="font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
-              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.projected}</p>
+                <dl className="mt-3 space-y-2 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <dt>{t.dashboard.weightedProjectedPrice}</dt>
+                    <dd className="font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
+                  </div>
+                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                    <dt>{t.dashboard.combined} USD</dt>
+                    <dd className="font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
+                  </div>
               {settings.currency === 'ILS' && (
                 <div className={`flex items-center justify-between ${combinedStyles.text}`}>
                   <dt>{t.dashboard.combined} ILS</dt>

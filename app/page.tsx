@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CandleData, Position, PositionMetrics, PortfolioSummary } from '@/types';
 import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency, formatPercent, mapCandleDataToPoints } from '@/lib/calculations';
+import { mapPositionRow } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
@@ -76,20 +77,12 @@ export default function HomePage() {
 
       const { data: positionsData, error: positionsError } = await supabase
         .from('positions')
-        .select('*')
+        .select('*, position_lots(*)')
         .order('symbol');
 
       if (positionsError) throw positionsError;
 
-      const mappedPositions: Position[] = (positionsData || []).map(p => ({
-        id: p.id,
-        symbol: p.symbol,
-        display: p.display,
-        imageUrl: p.image_url,
-        entryPrice: parseFloat(p.entry_price.toString()),
-        quantity: parseFloat(p.quantity.toString()),
-        entryDate: p.entry_date,
-      }));
+      const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
 
       setPositions(mappedPositions);
 

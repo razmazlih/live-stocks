@@ -47,6 +47,7 @@ import {
   formatPercent,
   mapCandleDataToPoints,
 } from '@/lib/calculations';
+import { computeOpenLots, mapPositionRow } from '@/lib/positions';
 import { analyzeStock } from '@/lib/stock-analysis';
 import { cn } from '@/lib/utils';
 import {
@@ -254,6 +255,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [showVolume, setShowVolume] = useState(true);
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
+  const transactions = useMemo(() => {
+    if (!position?.lots) {
+      return [];
+    }
+    return [...position.lots].sort((a, b) => {
+      const aTime = new Date(a.executedAt).getTime();
+      const bTime = new Date(b.executedAt).getTime();
+      if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+        return 0;
+      }
+      return bTime - aTime;
+    });
+  }, [position?.lots]);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +280,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       try {
         const { data, error: positionError } = await supabase
           .from('positions')
-          .select('*')
+          .select('*, position_lots(*)')
           .eq('symbol', normalizedSymbol)
           .maybeSingle();
 
@@ -282,15 +297,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
-        const mappedPosition: Position = {
-          id: data.id,
-          symbol: data.symbol,
-          display: data.display,
-          imageUrl: data.image_url,
-          entryPrice: parseFloat(data.entry_price.toString()),
-          quantity: parseFloat(data.quantity.toString()),
-          entryDate: data.entry_date,
-        };
+        const mappedPosition = mapPositionRow(data);
 
         if (cancelled) {
           return;
@@ -611,6 +618,97 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </div>
               </div>
             </div>
+
+            <Card className="bg-white/85 border border-white/60 shadow-xl">
+              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {t.positions.transactionsTitle}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">{t.stock.detailView.transactionsHelper}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 sm:grid-cols-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.quantity}</div>
+                    <div className="font-medium text-gray-900">{formatNumber(position.quantity, locale)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.entryPrice}</div>
+                    <div className="font-medium text-gray-900">{formatDisplayCurrency(position.entryPrice)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.weightedProjectedPrice}</div>
+                    <div className="font-medium text-gray-900">{formatDisplayCurrency(metrics.projectedPrice)}</div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-gray-600">
+                {openLots.length > 0 ? (
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {t.positions.currentHolding}
+                    </div>
+                    <div className="mt-2 grid gap-3 md:grid-cols-2">
+                      {openLots.map((lot) => (
+                        <div
+                          key={`${lot.id ?? lot.executedAt}-open`}
+                          className="rounded-md border border-slate-200 bg-slate-50/70 p-3"
+                        >
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span className="font-semibold text-emerald-600">{t.positions.buy}</span>
+                            <span>{formatDate(lot.executedAt, locale)}</span>
+                          </div>
+                          <div className="mt-2 text-sm font-medium text-gray-900">
+                            {formatNumber(lot.quantity, locale)} · {formatDisplayCurrency(lot.price)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-gray-500">
+                    {t.positions.noTransactions}
+                  </div>
+                )}
+
+                {transactions.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t.positions.transactionType}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((lot) => {
+                          const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+                          const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                          return (
+                            <TableRow key={`${lot.id}-${lot.executedAt}`}>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                                  {label}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatNumber(lot.quantity, locale)}
+                              </TableCell>
+                              <TableCell className="text-right">{formatDisplayCurrency(lot.price)}</TableCell>
+                              <TableCell className="text-right text-xs text-gray-500">
+                                {formatDate(lot.executedAt, locale)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
               <Card className="bg-white/85 border border-white/60 shadow-xl">
