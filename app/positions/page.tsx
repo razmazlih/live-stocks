@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLotType } from '@/types';
+import { Position, PositionLot, PositionLotType } from '@/types';
 import { mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft, History } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -27,10 +27,24 @@ interface PositionFormData {
 }
 
 interface TransactionFormData {
+  id?: string;
   type: PositionLotType;
   price: number;
   quantity: number;
   executedAt: string;
+}
+
+function getTodayIsoDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function createDefaultTransactionForm(): TransactionFormData {
+  return {
+    type: 'BUY',
+    price: 0,
+    quantity: 0,
+    executedAt: getTodayIsoDate(),
+  };
 }
 
 export default function PositionsPage() {
@@ -46,17 +60,22 @@ export default function PositionsPage() {
     imageUrl: '',
     initialPrice: 0,
     initialQuantity: 0,
-    initialDate: new Date().toISOString().split('T')[0],
+    initialDate: getTodayIsoDate(),
   });
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [transactionTarget, setTransactionTarget] = useState<Position | null>(null);
-  const [transactionForm, setTransactionForm] = useState<TransactionFormData>({
-    type: 'BUY',
-    price: 0,
-    quantity: 0,
-    executedAt: new Date().toISOString().split('T')[0],
-  });
+  const [transactionForm, setTransactionForm] = useState<TransactionFormData>(createDefaultTransactionForm());
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
   const isEditing = Boolean(editingPosition);
+  const isEditingTransaction = Boolean(transactionForm.id);
+
+  const historyTarget = useMemo(() => {
+    if (!historyTargetId) {
+      return null;
+    }
+    return positions.find((position) => position.id === historyTargetId) ?? null;
+  }, [historyTargetId, positions]);
 
   const loadPositions = useCallback(async () => {
     try {
@@ -91,7 +110,7 @@ export default function PositionsPage() {
       imageUrl: '',
       initialPrice: 0,
       initialQuantity: 0,
-      initialDate: new Date().toISOString().split('T')[0],
+      initialDate: getTodayIsoDate(),
     });
     setDialogOpen(true);
   }
@@ -112,12 +131,28 @@ export default function PositionsPage() {
   function openTransactionDialog(position: Position, type: PositionLotType = 'BUY') {
     setTransactionTarget(position);
     setTransactionForm({
+      ...createDefaultTransactionForm(),
       type,
-      price: 0,
-      quantity: 0,
-      executedAt: new Date().toISOString().split('T')[0],
     });
     setTransactionDialogOpen(true);
+  }
+
+  function openEditTransactionDialog(position: Position, lot: PositionLot) {
+    setHistoryDialogOpen(false);
+    setTransactionTarget(position);
+    setTransactionForm({
+      id: lot.id,
+      type: lot.type,
+      price: lot.price,
+      quantity: lot.quantity,
+      executedAt: lot.executedAt,
+    });
+    setTransactionDialogOpen(true);
+  }
+
+  function openHistoryDialog(position: Position) {
+    setHistoryTargetId(position.id ?? null);
+    setHistoryDialogOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -202,28 +237,69 @@ export default function PositionsPage() {
       return;
     }
 
-    if (transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
+    if (!transactionForm.id && transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
       toast.error(locale === 'he' ? 'אין מספיק כמות פנויה למכירה' : 'Not enough quantity to sell');
       return;
     }
 
     try {
-      const { error } = await supabase.from('position_lots').insert({
-        position_id: transactionTarget.id,
-        side: transactionForm.type,
-        price: transactionForm.price,
-        quantity: transactionForm.quantity,
-        executed_at: transactionForm.executedAt,
-      });
+      if (transactionForm.id) {
+        const { error } = await supabase
+          .from('position_lots')
+          .update({
+            side: transactionForm.type,
+            price: transactionForm.price,
+            quantity: transactionForm.quantity,
+            executed_at: transactionForm.executedAt,
+          })
+          .eq('id', transactionForm.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(locale === 'he' ? 'העסקה נשמרה' : 'Transaction saved');
+        toast.success(t.positions.transactionUpdated);
+      } else {
+        const { error } = await supabase.from('position_lots').insert({
+          position_id: transactionTarget.id,
+          side: transactionForm.type,
+          price: transactionForm.price,
+          quantity: transactionForm.quantity,
+          executed_at: transactionForm.executedAt,
+        });
+
+        if (error) throw error;
+
+        toast.success(t.positions.transactionSaved);
+      }
+
       setTransactionDialogOpen(false);
       loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error('Error saving transaction:', error);
+      toast.error(t.common.error);
+    }
+  }
+
+  async function handleDeleteTransaction(lot: PositionLot) {
+    if (!lot.id) {
+      toast.error(t.common.error);
+      return;
+    }
+
+    if (!confirm(t.positions.confirmDeleteTransaction)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('position_lots').delete().eq('id', lot.id);
+
+      if (error) throw error;
+
+      toast.success(t.positions.transactionDeleted);
+      await loadPositions();
+      triggerRefresh();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
       toast.error(t.common.error);
     }
   }
@@ -374,10 +450,21 @@ export default function PositionsPage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
+            <Dialog
+              open={transactionDialogOpen}
+              onOpenChange={(open) => {
+                setTransactionDialogOpen(open);
+                if (!open) {
+                  setTransactionTarget(null);
+                  setTransactionForm(createDefaultTransactionForm());
+                }
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{t.positions.addTransaction}</DialogTitle>
+                  <DialogTitle>
+                    {isEditingTransaction ? t.positions.editTransaction : t.positions.addTransaction}
+                  </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleTransactionSubmit} className="space-y-4">
                   <div>
@@ -459,6 +546,89 @@ export default function PositionsPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            <Dialog
+              open={historyDialogOpen}
+              onOpenChange={(open) => {
+                setHistoryDialogOpen(open);
+                if (!open) {
+                  setHistoryTargetId(null);
+                }
+              }}
+            >
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{t.positions.manageHistory}</DialogTitle>
+                  {historyTarget && (
+                    <p className="text-sm text-slate-500">
+                      {historyTarget.display} · {historyTarget.symbol}
+                    </p>
+                  )}
+                </DialogHeader>
+                {historyTarget ? (
+                  historyTarget.lots && historyTarget.lots.length > 0 ? (
+                    <div className="space-y-3">
+                      {[...(historyTarget.lots ?? [])]
+                        .sort((a, b) => {
+                          const aTime = new Date(a.executedAt).getTime();
+                          const bTime = new Date(b.executedAt).getTime();
+                          return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
+                        })
+                        .map((lot) => {
+                          const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                          const badgeTone = lot.type === 'BUY'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700';
+
+                          return (
+                            <div
+                              key={`${lot.id}-${lot.executedAt}`}
+                              className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-3"
+                            >
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                                {typeLabel}
+                              </span>
+                              <div className="flex flex-col text-sm text-slate-600">
+                                <span>
+                                  {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
+                                </span>
+                                <span className="text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                              </div>
+                              <div className="ml-auto flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => historyTarget && openEditTransactionDialog(historyTarget, lot)}
+                                  aria-label={t.positions.editTransaction}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteTransaction(lot)}
+                                  aria-label={t.positions.deleteTransaction}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">{t.positions.noTransactions}</p>
+                  )
+                ) : (
+                  <p className="text-sm text-slate-500">{t.common.loading}</p>
+                )}
+                {historyTarget && (
+                  <Button className="mt-4 w-full" onClick={() => openTransactionDialog(historyTarget)}>
+                    <Plus className="w-4 h-4" />
+                    {t.positions.addTransaction}
+                  </Button>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
@@ -503,13 +673,26 @@ export default function PositionsPage() {
                         </div>
 
                         <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                               {t.positions.transactionsTitle}
                             </p>
-                            <span className="text-[11px] text-slate-400">
-                              {sortedLots.length === recentLots.length ? sortedLots.length : `${recentLots.length}/${sortedLots.length}`}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-400">
+                                {sortedLots.length === recentLots.length
+                                  ? sortedLots.length
+                                  : `${recentLots.length}/${sortedLots.length}`}
+                              </span>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto px-0 text-[11px] text-slate-500 hover:text-slate-700"
+                                onClick={() => openHistoryDialog(position)}
+                              >
+                                <History className="mr-1 h-3 w-3" />
+                                {t.positions.manageHistory}
+                              </Button>
+                            </div>
                           </div>
                           {recentLots.length > 0 ? (
                             <ul className="mt-2 space-y-1 text-sm text-slate-600">
@@ -546,6 +729,14 @@ export default function PositionsPage() {
                         >
                           <ArrowRightLeft className="mr-2 h-4 w-4" />
                           {t.positions.addTransaction}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openHistoryDialog(position)}
+                        >
+                          <History className="mr-2 h-4 w-4" />
+                          {t.positions.manageHistory}
                         </Button>
                         <div className="flex justify-end gap-2">
                           <Link href={`/stock/${position.symbol}`}>
