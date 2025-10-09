@@ -308,13 +308,20 @@ export default function HomePage() {
       ]
     : [];
 
+  const pageSections = [
+    { id: 'portfolio-overview', label: t.dashboard.summaryTitle },
+    { id: 'positions', label: t.dashboard.positionsTitle },
+    { id: 'visualizations', label: t.dashboard.visualizationsTitle },
+    { id: 'settings', label: t.settings.title, href: '/settings' },
+  ];
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-6 shadow-xl backdrop-blur-sm">
             <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-blue-200/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
@@ -381,7 +388,31 @@ export default function HomePage() {
             </div>
           </header>
 
-          <main className="mt-10">
+          <nav
+            aria-label={t.dashboard.quickActions}
+            className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {pageSections.map((section) => {
+              const href = section.href ?? `#${section.id}`;
+
+              return (
+                <Button
+                  key={section.id}
+                  asChild
+                  variant="secondary"
+                  size="lg"
+                  className="group flex items-center justify-between rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-left text-slate-700 shadow-inner transition hover:-translate-y-0.5 hover:border-blue-100 hover:bg-white/90"
+                >
+                  <Link href={href}>
+                    <span className="text-sm font-semibold">{section.label}</span>
+                    <ArrowUpRight className="h-4 w-4 text-blue-500 transition group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+              );
+            })}
+          </nav>
+
+          <main className="mt-8">
             <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
               <div className="relative z-10">
@@ -411,69 +442,98 @@ export default function HomePage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-10">
-                    {portfolioTimeline.length > 0 && summary && (
-                      <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
-                    )}
-
+                  <div className="space-y-12">
                     {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-                          {hasDailyChange && (
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
+                      <div
+                        id="portfolio-overview"
+                        className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+                      >
+                        <section aria-labelledby="portfolio-summary-heading" className="space-y-5">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <h2
+                              id="portfolio-summary-heading"
+                              className="text-xl font-semibold text-slate-900"
                             >
-                              {dailyChangeIcon}
-                              {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
-                              <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
-                            </span>
-                          )}
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                          {summaryCards.map((card) => (
-                            <div
-                              key={card.key}
-                              className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
-                            >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
-                              <div className="relative z-10 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-sm font-medium text-slate-500">{card.label}</p>
-                                  {card.badge && (
-                                    <span
-                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
-                                    >
-                                      {card.badge.icon}
-                                      {card.badge.value}
-                                    </span>
+                              {t.dashboard.summaryTitle}
+                            </h2>
+                            {hasDailyChange && (
+                              <span
+                                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
+                              >
+                                {dailyChangeIcon}
+                                {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
+                                <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
+                            {summaryCards.map((card) => (
+                              <div
+                                key={card.key}
+                                className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                              >
+                                <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                                <div className="relative z-10 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                                    {card.badge && (
+                                      <span
+                                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
+                                      >
+                                        {card.badge.icon}
+                                        {card.badge.value}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className={card.valueClass}>{card.value}</p>
+                                  {card.secondary && (
+                                    <p className="text-sm text-slate-500">
+                                      {card.secondary.label}:{' '}
+                                      <span className="font-medium text-slate-700">{card.secondary.value}</span>
+                                    </p>
+                                  )}
+                                  {card.helper?.map((helper) => (
+                                    <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
+                                      {helper.label}:{' '}
+                                      <span className="font-medium text-slate-700">{helper.value}</span>
+                                    </p>
+                                  ))}
+                                  {card.footnote && (
+                                    <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
                                   )}
                                 </div>
-                                <p className={card.valueClass}>{card.value}</p>
-                                {card.secondary && (
-                                  <p className="text-sm text-slate-500">
-                                    {card.secondary.label}:{' '}
-                                    <span className="font-medium text-slate-700">{card.secondary.value}</span>
-                                  </p>
-                                )}
-                                {card.helper?.map((helper) => (
-                                  <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
-                                    {helper.label}:{' '}
-                                    <span className="font-medium text-slate-700">{helper.value}</span>
-                                  </p>
-                                ))}
-                                {card.footnote && (
-                                  <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
-                                )}
                               </div>
+                            ))}
+                          </div>
+                        </section>
+                        {portfolioTimeline.length > 0 && summary && (
+                          <section
+                            aria-labelledby="portfolio-chart-heading"
+                            className="rounded-3xl border border-white/70 bg-white/90 p-4 shadow-inner"
+                          >
+                            <div className="flex items-center justify-between pb-4">
+                              <h2 id="portfolio-chart-heading" className="text-xl font-semibold text-slate-900">
+                                {t.dashboard.performance}
+                              </h2>
+                              <span className="text-xs font-medium text-slate-500">
+                                {t.app.updated} {formatTime(lastUpdate)}
+                              </span>
                             </div>
-                          ))}
-                        </div>
+                            <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
+                          </section>
+                        )}
                       </div>
                     )}
 
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.positionsTitle}</h2>
+                    <section id="positions" aria-labelledby="positions-heading" className="space-y-4">
+                      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                        <h2 id="positions-heading" className="text-xl font-semibold text-slate-900">
+                          {t.dashboard.positionsTitle}
+                        </h2>
+                        <Button asChild size="sm" variant="outline" className="self-start lg:self-auto">
+                          <Link href="/positions">{t.positions.title}</Link>
+                        </Button>
+                      </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {metrics.map((m) => (
                           <PositionCard
@@ -483,15 +543,26 @@ export default function HomePage() {
                           />
                         ))}
                       </div>
-                    </div>
+                    </section>
 
                     {summary && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
+                      <section
+                        id="visualizations"
+                        aria-labelledby="visualizations-heading"
+                        className="space-y-4 border-t border-slate-100 pt-6"
+                      >
+                        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                          <h3 id="visualizations-heading" className="text-lg font-semibold text-slate-900">
+                            {t.dashboard.visualizationsTitle}
+                          </h3>
+                          <Button asChild variant="ghost" size="sm" className="self-start text-slate-600 lg:self-auto">
+                            <Link href="/analysis">{t.analysis.title}</Link>
+                          </Button>
+                        </div>
                         <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
                           <PortfolioVisualizations metrics={metrics} summary={summary} />
                         </div>
-                      </div>
+                      </section>
                     )}
                   </div>
                 )}
