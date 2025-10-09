@@ -40,6 +40,16 @@ export const translations = {
       combinedPnL: 'פער מול התחזית',
       dailyChange: 'שינוי יומי',
       totalReturn: 'תשואה מצטברת',
+      portfolioOverviewTitle: 'גרף רווח/הפסד כולל',
+      portfolioOverviewDescription: 'מעקב אחר הרווח או ההפסד המצטבר של התיק לאורך זמן.',
+      positiveTrend: 'מגמה חיובית',
+      negativeTrend: 'מגמה שלילית',
+      neutralTrend: 'מגמה יציבה',
+      bestPnL: 'שיא רווח',
+      worstPnL: 'שפל הפסד',
+      portfolioOverviewFootnote: 'תובנה מהירה',
+      portfolioOverviewSummary: (current: string, projected: string) =>
+        `הרווח/הפסד הכולל כעת הוא ${current}, והתחזית לפי היעדים עומדת על ${projected}.`,
     },
     analysis: {
       title: 'ניתוח מתקדם',
@@ -323,6 +333,16 @@ export const translations = {
       combinedPnL: 'Gap vs projection',
       dailyChange: 'Daily change',
       totalReturn: 'Total return',
+      portfolioOverviewTitle: 'Total P/L trend',
+      portfolioOverviewDescription: 'Follow how your aggregate profit or loss evolves across every holding.',
+      positiveTrend: 'Positive momentum',
+      negativeTrend: 'Negative momentum',
+      neutralTrend: 'Flat momentum',
+      bestPnL: 'Best run',
+      worstPnL: 'Deepest pullback',
+      portfolioOverviewFootnote: 'Quick insight',
+      portfolioOverviewSummary: (current: string, projected: string) =>
+        `Total portfolio P/L sits at ${current}, with projections pointing toward ${projected}.`,
     },
     analysis: {
       title: 'Advanced Analytics',
