@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { mapPositionRow } from '@/lib/positions';
-import { calculatePositionMetrics } from '@/lib/calculations';
-import { ExchangeRateResponse, Position, StockQuote } from '@/types';
+import { calculatePositionMetrics, calculateWeightedPortfolioPrice } from '@/lib/calculations';
+import { Position, StockQuote } from '@/types';
+import { fetchUsdToIlsRate } from '@/lib/exchange';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const DEFAULT_GROWTH_RATE = Number.parseFloat(process.env.DEFAULT_GROWTH_RATE ?? '0.05');
@@ -76,46 +77,6 @@ async function fetchQuote(symbol: string, token?: string): Promise<QuoteResult |
     console.error(`Failed to fetch quote for ${symbol}:`, error);
     return null;
   }
-}
-
-async function fetchUsdToIlsRate(): Promise<number> {
-  const fallback = Number.parseFloat(process.env.DEFAULT_USD_TO_ILS_RATE ?? '3.7');
-  const url = process.env.EXCHANGE_RATE_URL ?? 'https://open.er-api.com/v6/latest/USD';
-
-  try {
-    const response = await fetchWithRetry(url);
-    const data = await response.json() as ExchangeRateResponse;
-    const rate = data?.rates?.ILS;
-
-    if (isFiniteNumber(rate) && rate > 0) {
-      return rate;
-    }
-
-    console.warn('ILS rate missing from exchange response, falling back to default');
-    return fallback;
-  } catch (error) {
-    console.error('Failed to fetch exchange rate, using fallback:', error);
-    return fallback;
-  }
-}
-
-function calculateWeightedPortfolioPrice(positions: Position[]): number | null {
-  const totalQuantity = positions.reduce((sum, position) => sum + (isFiniteNumber(position.quantity) ? position.quantity : 0), 0);
-  if (totalQuantity <= 0) {
-    return null;
-  }
-
-  const totalCost = positions.reduce((sum, position) => {
-    const entryPrice = isFiniteNumber(position.entryPrice) ? position.entryPrice : 0;
-    const quantity = isFiniteNumber(position.quantity) ? position.quantity : 0;
-    return sum + entryPrice * quantity;
-  }, 0);
-
-  if (totalCost <= 0) {
-    return null;
-  }
-
-  return totalCost / totalQuantity;
 }
 
 function toFixed(value: number, digits = 2): number {

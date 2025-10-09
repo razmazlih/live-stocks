@@ -124,6 +124,36 @@ export function calculatePositionMetrics(
   };
 }
 
+export function calculateWeightedPortfolioPrice(positions: Position[]): number | null {
+  if (!Array.isArray(positions) || positions.length === 0) {
+    return null;
+  }
+
+  const totalQuantity = positions.reduce((sum, position) => {
+    const quantity = safeNumber(position.quantity);
+    return sum + (quantity > 0 ? quantity : 0);
+  }, 0);
+
+  if (totalQuantity <= 0) {
+    return null;
+  }
+
+  const totalCost = positions.reduce((sum, position) => {
+    const entryPrice = safeNumber(position.entryPrice);
+    const quantity = safeNumber(position.quantity);
+    if (entryPrice <= 0 || quantity <= 0) {
+      return sum;
+    }
+    return sum + entryPrice * quantity;
+  }, 0);
+
+  if (totalCost <= 0) {
+    return null;
+  }
+
+  return totalCost / totalQuantity;
+}
+
 export function calculateWeightedProjectedPrice(
   lots: PositionLot[],
   annualGrowthRate: number,
