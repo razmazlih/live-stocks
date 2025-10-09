@@ -1,150 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { CandleData, Position, PositionMetrics, PortfolioSummary } from '@/types';
-import { calculatePositionMetrics, calculatePortfolioSummary, formatCurrency, formatPercent, mapCandleDataToPoints } from '@/lib/calculations';
-import { mapPositionRow } from '@/lib/positions';
+import { useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart } from 'lucide-react';
 import Link from 'next/link';
+import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
-  const { locale, settings, refreshTrigger } = useApp();
+  const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const [loading, setLoading] = useState(true);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
-  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({});
-  const [usdToIls, setUsdToIls] = useState(3.7);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const { loading, positions, metrics, summary, sparklineData, usdToIls, lastUpdate, reload } =
+    usePortfolioData();
 
-  const loadSparklines = useCallback(async (positionsList: Position[]) => {
-    setSparklineData({});
-
-    if (positionsList.length === 0) {
-      return;
+  const lastUpdatedDisplay = useMemo(() => {
+    if (!lastUpdate) {
+      return null;
     }
 
-    const results = await Promise.all(
-      positionsList.map(async (position) => {
-        try {
-          const now = Math.floor(Date.now() / 1000);
-          const entryDate = position.entryDate ? new Date(position.entryDate) : null;
-          const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
-            ? Math.floor(entryDate.getTime() / 1000)
-            : now - 60 * 60 * 24 * 30;
-          const from = Math.min(entryTimestamp, now);
-
-          const response = await fetch(
-            `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''}`
-          );
-
-          if (!response.ok) {
-            console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
-            return [position.symbol, []] as const;
-          }
-
-          const candleData = (await response.json()) as CandleData & { error?: string };
-
-          if (candleData?.error) {
-            console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
-            return [position.symbol, []] as const;
-          }
-
-          const points = mapCandleDataToPoints(candleData);
-          const closes = points.map((point) => point.close);
-
-          return [position.symbol, closes] as const;
-        } catch (error) {
-          console.error(`Failed to load sparkline for ${position.symbol}:`, error);
-          return [position.symbol, []] as const;
-        }
-      })
-    );
-
-    setSparklineData(Object.fromEntries(results));
-  }, [settings.finnhubToken]);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const { data: positionsData, error: positionsError } = await supabase
-        .from('positions')
-        .select('*, position_lots(*)')
-        .order('symbol');
-
-      if (positionsError) throw positionsError;
-
-      const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
-
-      setPositions(mappedPositions);
-
-      const rateResponse = await fetch('/api/exchange-rate');
-      const rateData = await rateResponse.json();
-      const rate = rateData.usdToIls || 3.7;
-      setUsdToIls(rate);
-
-      const metricsPromises = mappedPositions.map(async (position) => {
-        try {
-          const quoteResponse = await fetch(
-            `/api/quote?symbol=${position.symbol}${settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''}`
-          );
-          const quoteData = await quoteResponse.json();
-
-          const currentPrice = quoteData.c || position.entryPrice;
-          const dailyChange = quoteData.d;
-
-          return calculatePositionMetrics(
-            position,
-            currentPrice,
-            rate,
-            settings.annualGrowthRate,
-            dailyChange
-          );
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-          return calculatePositionMetrics(
-            position,
-            position.entryPrice,
-            rate,
-            settings.annualGrowthRate
-          );
-        }
-      });
-
-      const calculatedMetrics = await Promise.all(metricsPromises);
-      setMetrics(calculatedMetrics);
-
-      const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
-      setSummary(portfolioSummary);
-
-      await loadSparklines(mappedPositions);
-
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [settings.annualGrowthRate, settings.finnhubToken, loadSparklines]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData, refreshTrigger]);
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', {
+    return lastUpdate.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, [lastUpdate, locale]);
 
   const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
     const formatted = formatCurrency(value, currency, locale);
@@ -290,7 +172,7 @@ export default function HomePage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
                   <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
                     <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-                    {t.app.updated} {formatTime(lastUpdate)}
+                    {t.app.updated} {lastUpdatedDisplay ?? '—'}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
                     <TrendingUp className="h-4 w-4 text-blue-500" />
@@ -310,9 +192,19 @@ export default function HomePage() {
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.quickActions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
+                  <Button variant="outline" size="sm" onClick={reload} disabled={loading} className="gap-2">
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">{t.common.refresh}</span>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="gap-2 bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
+                  >
+                    <Link href="/portfolio">
+                      <LineChart className="h-4 w-4" />
+                      <span>{t.portfolio.quickAction}</span>
+                    </Link>
                   </Button>
                   <Button
                     asChild

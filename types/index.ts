@@ -69,6 +69,11 @@ export interface PortfolioSummary {
   usdToIlsRate: number;
 }
 
+export interface PortfolioTimelinePoint {
+  timestamp: number;
+  totalPnLUsd: number;
+}
+
 export interface Settings {
   annualGrowthRate: number;
   currency: 'USD' | 'ILS';
