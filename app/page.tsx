@@ -9,6 +9,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
+import { PortfolioOverviewChart, PortfolioTimelinePoint } from '@/components/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import Link from 'next/link';
@@ -21,11 +22,13 @@ export default function HomePage() {
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({});
+  const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const loadSparklines = useCallback(async (positionsList: Position[]) => {
     setSparklineData({});
+    setPortfolioTimeline([]);
 
     if (positionsList.length === 0) {
       return;
@@ -47,28 +50,65 @@ export default function HomePage() {
 
           if (!response.ok) {
             console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
-            return [position.symbol, []] as const;
+            return {
+              symbol: position.symbol,
+              closes: [],
+              timeline: [],
+            };
           }
 
           const candleData = (await response.json()) as CandleData & { error?: string };
 
           if (candleData?.error) {
             console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
-            return [position.symbol, []] as const;
+            return {
+              symbol: position.symbol,
+              closes: [],
+              timeline: [],
+            };
           }
 
           const points = mapCandleDataToPoints(candleData);
           const closes = points.map((point) => point.close);
+          const timeline = points.map((point) => ({
+            timestamp: point.timestamp,
+            totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
+          }));
 
-          return [position.symbol, closes] as const;
+          return {
+            symbol: position.symbol,
+            closes,
+            timeline,
+          };
         } catch (error) {
           console.error(`Failed to load sparkline for ${position.symbol}:`, error);
-          return [position.symbol, []] as const;
+          return {
+            symbol: position.symbol,
+            closes: [],
+            timeline: [],
+          };
         }
       })
     );
 
-    setSparklineData(Object.fromEntries(results));
+    const sparklineEntries = results.map((result) => [result.symbol, result.closes] as const);
+    setSparklineData(Object.fromEntries(sparklineEntries));
+
+    const aggregatedTimeline = new Map<number, number>();
+    results.forEach((result) => {
+      result.timeline.forEach((point) => {
+        aggregatedTimeline.set(
+          point.timestamp,
+          (aggregatedTimeline.get(point.timestamp) ?? 0) + point.totalPnLUsd
+        );
+      });
+    });
+
+    const sortedTimeline = Array.from(aggregatedTimeline.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([timestamp, totalPnLUsd]) => ({ timestamp, totalPnLUsd }));
+
+    setPortfolioTimeline(sortedTimeline);
   }, [settings.finnhubToken]);
 
   const loadData = useCallback(async () => {
@@ -372,6 +412,10 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="space-y-10">
+                    {portfolioTimeline.length > 0 && summary && (
+                      <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
+                    )}
+
                     {summary && summaryCards.length > 0 && (
                       <div className="space-y-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
