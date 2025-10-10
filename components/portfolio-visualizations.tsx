@@ -105,12 +105,17 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
   }, [metrics, settings.currency, summary]);
 
   const pnlData = useMemo(() => {
+    const activeMetrics = metrics.filter((metric) => metric.position.quantity !== 0);
+    if (!activeMetrics.length) {
+      return [];
+    }
+
     const rate = summary?.usdToIlsRate ?? 0;
     const toDisplay = settings.currency === 'ILS'
       ? (value: number) => value * rate
       : (value: number) => value;
 
-    return buildPortfolioPnL(metrics).map((item) => ({
+    return buildPortfolioPnL(activeMetrics).map((item) => ({
       ...item,
       currentPnLDisplay: toDisplay(item.currentPnLUsd),
       projectedPnLDisplay: toDisplay(item.projectedPnLUsd),
