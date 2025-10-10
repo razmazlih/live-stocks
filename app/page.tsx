@@ -84,6 +84,16 @@ export default function HomePage() {
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
+  const openMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity > 0),
+    [metrics]
+  );
+  const closedMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity <= 0),
+    [metrics]
+  );
+  const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
   type SummaryCard = {
     key: string;
     label: string;
@@ -242,7 +252,7 @@ export default function HomePage() {
                     <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
                     <p>{t.common.loading}</p>
                   </div>
-                ) : positions.length === 0 ? (
+                ) : !hasAnyPositions ? (
                   <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
                     <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner">
                       <Plus className="h-6 w-6" />
@@ -323,7 +333,7 @@ export default function HomePage() {
                     <div className="space-y-4">
                       <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.positionsTitle}</h2>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {metrics.map((m) => (
+                        {openMetrics.map((m) => (
                           <PositionCard
                             key={m.position.id || m.position.symbol}
                             metrics={m}
@@ -331,6 +341,22 @@ export default function HomePage() {
                           />
                         ))}
                       </div>
+                      {closedMetrics.length > 0 && (
+                        <div className="space-y-4">
+                          <h2 className="text-xl font-semibold text-slate-900">
+                            {t.dashboard.closedPositionsTitle}
+                          </h2>
+                          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {closedMetrics.map((m) => (
+                              <PositionCard
+                                key={`closed-${m.position.id || m.position.symbol}`}
+                                metrics={m}
+                                sparklineData={sparklineData[m.position.symbol] || []}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {summary && (
