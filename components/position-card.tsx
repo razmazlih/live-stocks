@@ -110,7 +110,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-center">
+          <div className="flex items-start">
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
@@ -150,20 +150,25 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
           </div>
 
-          {dailyChangeAmount !== null && dailyChangeStyles && (
+          {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
             <Badge
               variant="outline"
               className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
             >
               {dailyChangeIcon}
               <span>{t.dashboard.dailyChange}</span>
-              <span className="font-semibold">
+              <div className='flex flex-col gap-1 items-start font-semibold'>
+              <span>
                 {formatCurrency(dailyChangeAmount, 'USD', locale)}
               </span>
+              <span>
+                {percentText(dailyChangePercent)}
+              </span>
+              </div>
             </Badge>
           )}
         </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 md:grid-cols-3">
+                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
                 <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
                   <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
@@ -172,16 +177,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
                   <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
                 </div>
-                {dailyChangePercent !== undefined && (
-                  <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      {t.dashboard.dailyChangePercent}
-                    </p>
-                    <p className={`mt-1 text-base font-semibold ${dailyChangeStyles?.text ?? 'text-slate-900'}`}>
-                      {percentText(dailyChangePercent)}
-                    </p>
-                  </div>
-                )}
               </div>
 
         <div className="grid gap-4 md:grid-cols-2">
