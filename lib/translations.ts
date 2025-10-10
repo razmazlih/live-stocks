@@ -10,7 +10,6 @@ export const translations = {
     dashboard: {
       portfolioValue: 'שווי תיק',
       allocation: 'הקצאה',
-      performance: 'ביצועים',
       current: 'נוכחי',
       projected: 'חזוי',
       combined: 'משולב',
@@ -43,7 +42,6 @@ export const translations = {
       dailyChange: 'שינוי יומי',
       dailyChangePercent: 'שינוי יומי (%)',
       totalReturn: 'תשואה מצטברת',
-      projectedVsEntry: 'חזוי מול מחיר הכניסה',
       portfolioOverviewTitle: 'גרף רווח/הפסד כולל',
       portfolioOverviewDescription: 'מעקב אחר הרווח או ההפסד המצטבר של התיק לאורך זמן.',
       positiveTrend: 'מגמה חיובית',
@@ -396,7 +394,6 @@ export const translations = {
     dashboard: {
       portfolioValue: 'Portfolio Value',
       allocation: 'Allocation',
-      performance: 'Performance',
       current: 'Current',
       projected: 'Projected',
       combined: 'Combined',
@@ -429,7 +426,6 @@ export const translations = {
       dailyChange: 'Daily change',
       dailyChangePercent: 'Daily change (%)',
       totalReturn: 'Total return',
-      projectedVsEntry: 'Projection vs. entry',
       portfolioOverviewTitle: 'Total P/L trend',
       portfolioOverviewDescription: 'Follow how your aggregate profit or loss evolves across every holding.',
       positiveTrend: 'Positive momentum',

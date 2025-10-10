@@ -110,7 +110,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
+          <div className="flex items-center">
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+
           <div className="flex items-start gap-4">
             <div className="relative">
               <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
@@ -141,7 +145,25 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 {t.dashboard.since} {formatDate(position.entryDate, locale)}
               </p>
 
-              <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 md:grid-cols-3">
+            </div>
+          </div>
+
+          </div>
+
+          {dailyChangeAmount !== null && dailyChangeStyles && (
+            <Badge
+              variant="outline"
+              className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+            >
+              {dailyChangeIcon}
+              <span>{t.dashboard.dailyChange}</span>
+              <span className="font-semibold">
+                {formatCurrency(dailyChangeAmount, 'USD', locale)}
+              </span>
+            </Badge>
+          )}
+        </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 md:grid-cols-3">
                 <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
                   <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
@@ -161,22 +183,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {dailyChangeAmount !== null && dailyChangeStyles && (
-            <Badge
-              variant="outline"
-              className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
-            >
-              {dailyChangeIcon}
-              <span>{t.dashboard.dailyChange}</span>
-              <span className="font-semibold">
-                {formatCurrency(dailyChangeAmount, 'USD', locale)}
-              </span>
-            </Badge>
-          )}
-        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
@@ -224,10 +230,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
         {sparklineData && sparklineData.length > 0 && (
           <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
-            <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span>{t.dashboard.performance}</span>
-              <span className="text-slate-500">{t.dashboard.projectedVsEntry}</span>
-            </div>
             <Sparkline
               data={sparklineData}
               width={360}
