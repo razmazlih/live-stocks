@@ -20,6 +20,22 @@ export interface Position {
   lots?: PositionLot[];
 }
 
+export interface RealizedSale {
+  id?: string;
+  positionId?: string;
+  symbol: string;
+  display: string;
+  quantity: number;
+  sellPrice: number;
+  sellDate: string;
+  proceedsUsd: number;
+  costBasisUsd: number;
+  profitUsd: number;
+  profitPercent: number;
+  averageEntryPrice: number;
+  holdingPeriodDays: number;
+}
+
 export interface StockQuote {
   c: number;
   d?: number;

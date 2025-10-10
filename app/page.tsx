@@ -6,7 +6,18 @@ import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, RefreshCw, Settings, Plus, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart } from 'lucide-react';
+import {
+  TrendingUp,
+  RefreshCw,
+  Settings,
+  Plus,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  LineChart,
+  CircleDollarSign,
+} from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
@@ -224,6 +235,16 @@ export default function HomePage() {
                     <Link href="/analysis">
                       <BarChart3 className="h-4 w-4" />
                       <span>{t.analysis.title}</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]"
+                  >
+                    <Link href="/realized">
+                      <CircleDollarSign className="h-4 w-4" />
+                      <span>{t.realized.quickAction}</span>
                     </Link>
                   </Button>
                   <Button asChild variant="secondary" size="sm" className="gap-2">

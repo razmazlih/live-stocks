@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  CircleDollarSign,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -271,6 +272,16 @@ export default function PortfolioPage() {
                     <Link href="/">
                       <Home className="h-4 w-4" />
                       <span>{t.app.title}</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]"
+                  >
+                    <Link href="/realized">
+                      <CircleDollarSign className="h-4 w-4" />
+                      <span>{t.realized.quickAction}</span>
                     </Link>
                   </Button>
                 </div>

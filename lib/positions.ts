@@ -1,4 +1,4 @@
-import { Position, PositionLot, PositionLotType } from '@/types';
+import { Position, PositionLot, PositionLotType, RealizedSale } from '@/types';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -182,4 +182,100 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
     entryDate,
     lots,
   };
+}
+
+export function computeRealizedSales(position: Position): RealizedSale[] {
+  const lots = position.lots ?? [];
+
+  if (!lots.length) {
+    return [];
+  }
+
+  const sortedLots = [...lots].sort((a, b) => {
+    const aTime = new Date(a.executedAt).getTime();
+    const bTime = new Date(b.executedAt).getTime();
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return 0;
+    }
+    return aTime - bTime;
+  });
+
+  type BuyLot = {
+    id?: string;
+    price: number;
+    quantity: number;
+    executedAt: string;
+  };
+
+  const openBuys: BuyLot[] = [];
+  const realized: RealizedSale[] = [];
+
+  for (const lot of sortedLots) {
+    const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (quantity === 0) {
+      continue;
+    }
+
+    if (lot.type === 'BUY') {
+      openBuys.push({
+        id: lot.id,
+        price: lot.price,
+        quantity,
+        executedAt: lot.executedAt,
+      });
+      continue;
+    }
+
+    const sellDate = new Date(lot.executedAt);
+    let remaining = quantity;
+    let matchedQuantity = 0;
+    let costBasisUsd = 0;
+    let weightedHoldingDays = 0;
+
+    while (remaining > 0 && openBuys.length) {
+      const current = openBuys[0];
+      const matched = Math.min(remaining, current.quantity);
+
+      costBasisUsd += matched * current.price;
+      matchedQuantity += matched;
+
+      const buyDate = new Date(current.executedAt);
+      if (!Number.isNaN(buyDate.getTime()) && !Number.isNaN(sellDate.getTime())) {
+        const diffMs = sellDate.getTime() - buyDate.getTime();
+        const diffDays = Math.max(diffMs / (1000 * 60 * 60 * 24), 0);
+        weightedHoldingDays += diffDays * matched;
+      }
+
+      current.quantity -= matched;
+      remaining -= matched;
+
+      if (current.quantity <= 1e-8) {
+        openBuys.shift();
+      }
+    }
+
+    const proceedsUsd = lot.price * quantity;
+    const averageEntryPrice = matchedQuantity > 0 ? costBasisUsd / matchedQuantity : 0;
+    const profitUsd = proceedsUsd - costBasisUsd;
+    const profitPercent = costBasisUsd > 0 ? (profitUsd / costBasisUsd) * 100 : 0;
+    const holdingPeriodDays = matchedQuantity > 0 ? weightedHoldingDays / matchedQuantity : 0;
+
+    realized.push({
+      id: lot.id,
+      positionId: position.id,
+      symbol: position.symbol,
+      display: position.display,
+      quantity,
+      sellPrice: lot.price,
+      sellDate: lot.executedAt,
+      proceedsUsd,
+      costBasisUsd,
+      profitUsd,
+      profitPercent,
+      averageEntryPrice,
+      holdingPeriodDays,
+    });
+  }
+
+  return realized;
 }
