@@ -3,22 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  Area,
   Bar,
-  BarChart,
-  Brush,
   CartesianGrid,
   ComposedChart,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceDot,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowLeft, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,36 +191,78 @@ function buildVerdictNarrative(
   return lines.join(' ');
 }
 
+function buildHoldingPeriodLabel(
+  yearsHeld: number | undefined,
+  t: ReturnType<typeof useTranslation>['t'],
+  locale: 'he' | 'en'
+) {
+  if (yearsHeld === undefined || !Number.isFinite(yearsHeld) || yearsHeld <= 0) {
+    return t.stock.detailView.holdingPeriod.lessThanMonth;
+  }
+
+  const months = Math.round(yearsHeld * 12);
+  if (months > 0 && months < 12) {
+    return t.stock.detailView.holdingPeriod.months.replace('{{count}}', months.toString());
+  }
+
+  const yearsRounded = Math.max(Math.round(yearsHeld * 10) / 10, 0.1);
+  return t.stock.detailView.holdingPeriod.years.replace(
+    '{{count}}',
+    formatNumber(yearsRounded, locale)
+  );
+}
+
 function StockDetailSkeleton() {
   return (
     <div className="space-y-6">
-      <Skeleton className="h-8 w-40" />
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-white/70 border border-white/50 shadow">
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-72 w-full" />
-          </CardContent>
-        </Card>
-        <Card className="bg-white/70 border border-white/50 shadow">
-          <CardHeader>
-            <Skeleton className="h-6 w-28" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-2/3" />
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <div className="space-y-2 text-right">
+          <Skeleton className="ml-auto h-4 w-20" />
+          <Skeleton className="ml-auto h-8 w-32" />
+          <Skeleton className="ml-auto h-4 w-24" />
+        </div>
       </div>
       <Card className="bg-white/70 border border-white/50 shadow">
         <CardHeader>
-          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-24 w-full" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-white/60 p-4">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="bg-white/70 border border-white/50 shadow">
+        <CardHeader>
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-80 w-full" />
+        </CardContent>
+      </Card>
+      <Card className="bg-white/70 border border-white/50 shadow">
+        <CardHeader>
+          <Skeleton className="h-5 w-44" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-2/3" />
         </CardContent>
       </Card>
     </div>
@@ -467,26 +503,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       analysis.series.map((point) => ({
         timestamp: point.timestamp,
         close: convertValue(point.close),
-        ema20: point.ema20 !== undefined ? convertValue(point.ema20) : undefined,
-        ema50: point.ema50 !== undefined ? convertValue(point.ema50) : undefined,
-        ema200: point.ema200 !== undefined ? convertValue(point.ema200) : undefined,
-        bbUpper: point.bbUpper !== undefined ? convertValue(point.bbUpper) : undefined,
-        bbLower: point.bbLower !== undefined ? convertValue(point.bbLower) : undefined,
         volume: point.volume,
       })),
     [analysis.series, convertValue]
-  );
-
-  const tooltipLabels = useMemo(
-    () => ({
-      close: t.stock.detailView.indicatorLabels.close,
-      ema20: t.stock.detailView.indicatorLabels.ema20,
-      ema50: t.stock.detailView.indicatorLabels.ema50,
-      ema200: t.stock.detailView.indicatorLabels.ema200,
-      bbUpper: t.stock.detailView.indicatorLabels.bbUpper,
-      bbLower: t.stock.detailView.indicatorLabels.bbLower,
-    }),
-    [t.stock.detailView.indicatorLabels]
   );
 
   const verdictNarrative = useMemo(
@@ -494,24 +513,99 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [analysis.checklist, analysis.riskReward, t]
   );
 
-  const checklistRows = useMemo(
+  const checklistInsights = useMemo(
     () =>
       analysis.checklist.map((item) => ({
         key: item.key,
-        label: t.stock.detailView.criteria[item.key],
-        statusLabel: item.passed ? t.stock.detailView.status.yes : t.stock.detailView.status.no,
-        statusClass: item.passed
-          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-          : 'bg-rose-100 text-rose-700 border border-rose-200',
+        title: t.stock.detailView.criteria[item.key],
+        passed: item.passed,
         detail: buildChecklistDetail(item.key, item, t, formatDisplayCurrency, formatVolume),
       })),
     [analysis.checklist, formatDisplayCurrency, formatVolume, t]
+  );
+
+  const positiveInsights = useMemo(
+    () => checklistInsights.filter((item) => item.passed),
+    [checklistInsights]
+  );
+
+  const negativeInsights = useMemo(
+    () => checklistInsights.filter((item) => !item.passed),
+    [checklistInsights]
   );
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
 
   const verdictBadgeClass = VERDICT_BADGES[analysis.verdict];
+
+  const verdictMessage = t.stock.detailView.verdictMessage[analysis.verdict];
+
+  const investedAmountUsd = metrics ? metrics.position.entryPrice * metrics.position.quantity : 0;
+  const investedAmountDisplay = metrics ? formatDisplayCurrency(investedAmountUsd) : '--';
+  const currentValueDisplay = metrics ? formatDisplayCurrency(metrics.currentValue) : '--';
+  const totalGainUsd = metrics ? metrics.currentValue - investedAmountUsd : 0;
+  const totalGainDisplay = metrics ? formatDisplayCurrency(totalGainUsd) : '--';
+  const totalGainPercentLabel =
+    metrics?.roiPercent !== undefined ? formatPercent(metrics.roiPercent, locale) : '--';
+  const totalGainClass =
+    metrics && totalGainUsd !== 0
+      ? totalGainUsd > 0
+        ? 'text-emerald-600'
+        : 'text-rose-600'
+      : 'text-slate-600';
+  const holdingPeriodLabel = metrics ? buildHoldingPeriodLabel(metrics.yearsHeld, t, locale) : '--';
+  const dailyChangeDisplay =
+    dailyChangeValue !== undefined ? formatDisplayCurrency(dailyChangeValue) : '--';
+  const dailyChangePercentLabel =
+    dailyChangePercent !== undefined ? formatPercent(dailyChangePercent, locale) : '--';
+  const dailyChangeClass =
+    dailyChangeValue === undefined
+      ? 'text-slate-500'
+      : dailyChangeValue >= 0
+        ? 'text-emerald-600'
+        : 'text-rose-600';
+
+  const quickFacts = metrics
+    ? [
+        {
+          key: 'currentValue',
+          label: t.stock.detailView.quickFacts.currentValue,
+          value: currentValueDisplay,
+          helper: t.stock.detailView.quickFactsHelper.currentValue,
+        },
+        {
+          key: 'investedAmount',
+          label: t.stock.detailView.quickFacts.investedAmount,
+          value: investedAmountDisplay,
+          helper: t.stock.detailView.quickFactsHelper.investedAmount,
+        },
+        {
+          key: 'totalGain',
+          label: t.stock.detailView.quickFacts.totalGain,
+          value: totalGainDisplay,
+          secondary: totalGainPercentLabel,
+          helper: t.stock.detailView.quickFactsHelper.totalGain,
+          accentClass: totalGainClass,
+          secondaryClass: totalGainClass,
+        },
+        {
+          key: 'dailyChange',
+          label: t.stock.detailView.quickFacts.dailyChange,
+          value: dailyChangeDisplay,
+          secondary: dailyChangePercentLabel,
+          helper: t.stock.detailView.quickFactsHelper.dailyChange,
+          accentClass: dailyChangeClass,
+          secondaryClass: dailyChangeClass,
+        },
+        {
+          key: 'holdingTime',
+          label: t.stock.detailView.quickFacts.holdingTime,
+          value: holdingPeriodLabel,
+          helper: t.stock.detailView.quickFactsHelper.holdingTime,
+        },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -551,73 +645,94 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
-                  <AvatarImage src={position.imageUrl} alt={position.display} />
-                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                    {position.symbol.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
-                    <Badge variant="secondary" className="text-sm uppercase">
-                      {position.symbol}
-                    </Badge>
-                    <Badge className={cn('text-sm uppercase font-semibold', verdictBadgeClass)}>
-                      {analysis.verdict}
-                    </Badge>
+            <div className="flex flex-col gap-4 rounded-2xl bg-white/80 p-6 shadow-md backdrop-blur">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
+                    <AvatarImage src={position.imageUrl} alt={position.display} />
+                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                      {position.symbol.slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
+                      <Badge variant="secondary" className="text-sm uppercase">
+                        {position.symbol}
+                      </Badge>
+                      <Badge className={cn('text-sm uppercase font-semibold', verdictBadgeClass)}>
+                        {analysis.verdict}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                      <span>
+                        {t.dashboard.quantity}{' '}
+                        <span className="font-medium text-gray-900">
+                          {formatNumber(position.quantity, locale)}
+                        </span>
+                      </span>
+                      <span>
+                        {t.dashboard.entryPrice}{' '}
+                        <span className="font-medium text-gray-900">
+                          {formatDisplayCurrency(position.entryPrice)}
+                        </span>
+                      </span>
+                      <span>
+                        {t.dashboard.since}{' '}
+                        <span className="font-medium text-gray-900">
+                          {formatDate(position.entryDate, locale)}
+                        </span>
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                    <span>
-                      {t.dashboard.quantity}:{' '}
-                      <span className="font-medium text-gray-900">
-                        {formatNumber(position.quantity, locale)}
-                      </span>
-                    </span>
-                    <span>
-                      {t.dashboard.entryPrice}:{' '}
-                      <span className="font-medium text-gray-900">
-                        {formatDisplayCurrency(position.entryPrice)}
-                      </span>
-                    </span>
-                    <span>
-                      {t.dashboard.since}{' '}
-                      <span className="font-medium text-gray-900">
-                        {formatDate(position.entryDate, locale)}
-                      </span>
-                    </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
+                  <div className="text-3xl font-semibold text-[#0F172A]">
+                    {formatDisplayCurrency(metrics.currentPrice)}
+                  </div>
+                  <div className={cn('text-sm font-medium', dailyChangeClass)}>
+                    {dailyChangeDisplay}{' '}
+                    {dailyChangePercent !== undefined && dailyChangePercentLabel !== '--'
+                      ? `(${dailyChangePercentLabel})`
+                      : ''}
                   </div>
                 </div>
               </div>
-
-              <div className="text-right">
-                <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
-                <div className="text-3xl font-semibold text-[#0F172A]">
-                  {formatDisplayCurrency(metrics.currentPrice)}
-                </div>
-                <div
-                  className={cn(
-                    'text-sm font-medium',
-                    dailyChangeValue === undefined
-                      ? 'text-gray-500'
-                      : dailyChangeValue >= 0
-                        ? 'text-emerald-600'
-                        : 'text-rose-600'
-                  )}
-                >
-                  {dailyChangeValue === undefined ? (
-                    '--'
-                  ) : (
-                    <>
-                      {formatDisplayCurrency(dailyChangeValue)}{' '}
-                      {dailyChangePercent !== undefined && `(${formatPercent(dailyChangePercent, locale)})`}
-                    </>
-                  )}
-                </div>
-              </div>
+              <p className="text-sm text-gray-600">{verdictMessage}</p>
             </div>
+
+            <Card className="bg-white/85 border border-white/60 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  {t.stock.detailView.quickFactsTitle}
+                </CardTitle>
+                <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {quickFacts.map((fact) => (
+                    <div
+                      key={fact.key}
+                      className="rounded-xl border border-slate-100 bg-white/70 p-4 shadow-sm"
+                    >
+                      <div className="text-xs uppercase tracking-wide text-gray-500">
+                        {fact.label}
+                      </div>
+                      <div className={cn('mt-2 text-lg font-semibold text-slate-900', fact.accentClass)}>
+                        {fact.value}
+                      </div>
+                      {fact.secondary && (
+                        <div className={cn('text-sm font-medium', fact.secondaryClass)}>
+                          {fact.secondary}
+                        </div>
+                      )}
+                      <p className="mt-2 text-xs text-gray-500">{fact.helper}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             <Card className="bg-white/85 border border-white/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -710,444 +825,222 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-              <Card className="bg-white/85 border border-white/60 shadow-xl">
-                <CardHeader className="gap-4">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <CardTitle className="text-lg font-semibold text-gray-900">
-                        {t.stock.history}
-                      </CardTitle>
-                      <p className="text-sm text-gray-500">{t.stock.detailView.subtitle}</p>
+            <Card className="bg-white/85 border border-white/60 shadow-xl">
+              <CardHeader className="gap-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      {t.stock.detailView.chartTitle}
+                    </CardTitle>
+                    <p className="text-sm text-gray-500">{t.stock.detailView.chartSubtitle}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      {TIME_RANGES.map((option) => (
+                        <Button
+                          key={option}
+                          variant={range === option ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setRange(option)}
+                          disabled={historicalLoading && range === option}
+                        >
+                          {t.timeRange[option]}
+                        </Button>
+                      ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex flex-wrap gap-2">
-                        {TIME_RANGES.map((option) => (
-                          <Button
-                            key={option}
-                            variant={range === option ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setRange(option)}
-                            disabled={historicalLoading && range === option}
-                          >
-                            {t.timeRange[option]}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Switch checked={showVolume} onCheckedChange={setShowVolume} id="volume-toggle" />
-                        <label htmlFor="volume-toggle" className="cursor-pointer">
-                          {t.stock.detailView.showVolume}
-                        </label>
-                      </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Switch checked={showVolume} onCheckedChange={setShowVolume} id="volume-toggle" />
+                      <label htmlFor="volume-toggle" className="cursor-pointer">
+                        {t.stock.detailView.showVolume}
+                      </label>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {historicalLoading ? (
-                    <Skeleton className="h-80 w-full" />
-                  ) : chartData.length === 0 ? (
-                    <div className="flex h-80 items-center justify-center text-sm text-gray-500">
-                      {t.stock.historyUnavailable}
-                    </div>
-                  ) : (
-                    <div>
-                      <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[280px]')}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData} syncId="price-volume" margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                            <XAxis
-                              dataKey="timestamp"
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
-                            />
-                            <YAxis
-                              yAxisId="price"
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={(value) => formatCurrency(value as number, settings.currency, locale)}
-                            />
-                            <Tooltip
-                              formatter={(value, name) => {
-                                if (name === 'volume') {
-                                  return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
-                                }
-                                const label = tooltipLabels[name as keyof typeof tooltipLabels] ?? name;
-                                return [
-                                  formatCurrency(value as number, settings.currency, locale),
-                                  label,
-                                ];
-                              }}
-                              labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
-                            />
-                            <Legend verticalAlign="top" height={32} />
-                            <Line type="monotone" dataKey="close" name={tooltipLabels.close} stroke="#2563EB" strokeWidth={2} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="ema20" name={tooltipLabels.ema20} stroke="#0EA5E9" strokeWidth={1.5} dot={false} yAxisId="price" strokeDasharray="5 5" />
-                            <Line type="monotone" dataKey="ema50" name={tooltipLabels.ema50} stroke="#EC4899" strokeWidth={1.5} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="ema200" name={tooltipLabels.ema200} stroke="#F59E0B" strokeWidth={1.5} dot={false} yAxisId="price" />
-                            <Line type="monotone" dataKey="bbUpper" name={tooltipLabels.bbUpper} stroke="#93C5FD" strokeWidth={1} dot={false} yAxisId="price" strokeDasharray="4 4" />
-                            <Line type="monotone" dataKey="bbLower" name={tooltipLabels.bbLower} stroke="#93C5FD" strokeWidth={1} dot={false} yAxisId="price" strokeDasharray="4 4" />
-                            {analysis.supportResistance.supports.slice(-2).map((level) => (
-                              <ReferenceLine
-                                key={`support-${level}`}
-                                y={convertValue(level)}
-                                yAxisId="price"
-                                stroke="#10B981"
-                                strokeDasharray="3 3"
-                              />
-                            ))}
-                            {analysis.supportResistance.resistances.slice(0, 2).map((level) => (
-                              <ReferenceLine
-                                key={`resistance-${level}`}
-                                y={convertValue(level)}
-                                yAxisId="price"
-                                stroke="#F87171"
-                                strokeDasharray="3 3"
-                              />
-                            ))}
-                            {analysis.supportResistance.lastBreakout && (
-                              <ReferenceDot
-                                x={analysis.supportResistance.lastBreakout.timestamp}
-                                y={convertValue(analysis.supportResistance.lastBreakout.price)}
-                                r={5}
-                                fill="#10B981"
-                                stroke="white"
-                                yAxisId="price"
-                              />
-                            )}
-                            {analysis.supportResistance.lastBreakdown && (
-                              <ReferenceDot
-                                x={analysis.supportResistance.lastBreakdown.timestamp}
-                                y={convertValue(analysis.supportResistance.lastBreakdown.price)}
-                                r={5}
-                                fill="#F87171"
-                                stroke="white"
-                                yAxisId="price"
-                              />
-                            )}
-                            {analysis.periodHigh && (
-                              <ReferenceLine
-                                y={convertValue(analysis.periodHigh)}
-                                yAxisId="price"
-                                stroke="#3B82F6"
-                                strokeDasharray="1 6"
-                              />
-                            )}
-                            {analysis.periodLow && (
-                              <ReferenceLine
-                                y={convertValue(analysis.periodLow)}
-                                yAxisId="price"
-                                stroke="#3B82F6"
-                                strokeDasharray="1 6"
-                              />
-                            )}
-                            <Brush
-                              dataKey="timestamp"
-                              height={24}
-                              travellerWidth={10}
-                              tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
-                            />
-                            {showVolume && (
-                              <YAxis
-                                yAxisId="volume"
-                                orientation="right"
-                                tickLine={false}
-                                axisLine={false}
-                                hide
-                              />
-                            )}
-                            {showVolume && (
-                              <Bar
-                                yAxisId="volume"
-                                dataKey="volume"
-                                name={t.stock.detailView.tooltip.volume}
-                                barSize={12}
-                                fill="rgba(148, 163, 184, 0.4)"
-                              />
-                            )}
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      <div className="mt-6">
-                        <h4 className="mb-2 text-sm font-semibold text-gray-700">RSI(14)</h4>
-                        <ResponsiveContainer width="100%" height={120}>
-                          <LineChart data={analysis.series} syncId="price-volume" margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                            <XAxis dataKey="timestamp" hide />
-                            <YAxis domain={[0, 100]} ticks={[20, 30, 50, 70, 80]} width={20} />
-                            <Tooltip
-                              formatter={(value) => [Number(value).toFixed(2), 'RSI']}
-                              labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
-                            />
-                            <ReferenceLine y={30} stroke="#F87171" strokeDasharray="4 4" />
-                            <ReferenceLine y={70} stroke="#FBBF24" strokeDasharray="4 4" />
-                            <Line type="monotone" dataKey="rsi14" stroke="#6366F1" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col gap-6">
-                <Card className="bg-white/85 border border-white/60 shadow-xl">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {t.stock.detailView.verdictTitle}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm text-gray-600">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-4xl font-bold text-[#0F172A]">{analysis.score}</div>
-                        <div className="text-xs uppercase tracking-wide text-gray-500">
-                          {t.stock.detailView.score}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <Progress value={analysis.score} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.rr}</span>
-                        <span className="font-medium text-gray-900">
-                          {analysis.riskReward.rr ? analysis.riskReward.rr.toFixed(2) : '--'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.stop}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(analysis.riskReward.stop)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.target}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(analysis.riskReward.target)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 p-3 text-sm text-gray-700">
-                      {verdictNarrative}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/85 border border-white/60 shadow-xl">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {t.stock.detailView.indicatorSummary}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm text-gray-600">
-                    <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-1">
-                      <div className="rounded-lg bg-slate-100/70 p-3">
-                        <div className="text-xs uppercase text-gray-500">EMA</div>
-                        <div className="mt-2 space-y-1">
-                          <div className="flex justify-between">
-                            <span>20</span>
-                            <span className="font-medium text-gray-900">
-                              {formatDisplayCurrency(analysis.indicators.ema20)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>50</span>
-                            <span className="font-medium text-gray-900">
-                              {formatDisplayCurrency(analysis.indicators.ema50)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>200</span>
-                            <span className="font-medium text-gray-900">
-                              {formatDisplayCurrency(analysis.indicators.ema200)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-slate-100/70 p-3">
-                        <div className="text-xs uppercase text-gray-500">RSI & MACD</div>
-                        <div className="mt-2 space-y-1">
-                          <div className="flex justify-between">
-                            <span>RSI</span>
-                            <span className="font-medium text-gray-900">
-                              {analysis.indicators.rsi ? analysis.indicators.rsi.toFixed(2) : '--'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>MACD</span>
-                            <span className="font-medium text-gray-900">
-                              {analysis.indicators.macd ? analysis.indicators.macd.toFixed(2) : '--'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Signal</span>
-                            <span className="font-medium text-gray-900">
-                              {analysis.indicators.macdSignal ? analysis.indicators.macdSignal.toFixed(2) : '--'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-slate-100/70 p-3">
-                      <div className="text-xs uppercase text-gray-500">ATR</div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span>{t.stock.detailView.atr}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(analysis.indicators.atr)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-slate-100/70 p-3">
-                      <div className="text-xs uppercase text-gray-500">{t.stock.detailView.volumeBlock}</div>
-                      <div className="mt-2 space-y-1">
-                        <div className="flex justify-between">
-                          <span>{t.stock.volume}</span>
-                          <span className="font-medium text-gray-900">
-                            {formatVolume(analysis.volume.latest)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>{t.stock.detailView.averageVolume20}</span>
-                          <span className="font-medium text-gray-900">
-                            {formatVolume(analysis.volume.average20)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-slate-100/70 p-3">
-                      <div className="text-xs uppercase text-gray-500">
-                        {t.stock.detailView.divergences}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant="outline" className="bg-white text-gray-700">
-                          RSI: {t.stock.detailView.divergence[analysis.divergences.rsi]}
-                        </Badge>
-                        <Badge variant="outline" className="bg-white text-gray-700">
-                          MACD: {t.stock.detailView.divergence[analysis.divergences.macd]}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/85 border border-white/60 shadow-xl">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {t.stock.detailView.supportResistance}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 text-sm text-gray-600">
-                    <div>
-                      <div className="text-xs uppercase text-gray-500">{t.stock.detailView.supports}</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {analysis.supportResistance.supports.length === 0 && <span>--</span>}
-                        {analysis.supportResistance.supports.map((level) => (
-                          <Badge key={`support-chip-${level}`} variant="outline" className="bg-emerald-50 text-emerald-700">
-                            {formatDisplayCurrency(level)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase text-gray-500">{t.stock.detailView.resistances}</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {analysis.supportResistance.resistances.length === 0 && <span>--</span>}
-                        {analysis.supportResistance.resistances.map((level) => (
-                          <Badge key={`resistance-chip-${level}`} variant="outline" className="bg-rose-50 text-rose-700">
-                            {formatDisplayCurrency(level)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.periodHigh}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(analysis.periodHigh)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.periodLow}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(analysis.periodLow)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.lastBreakout}</span>
-                        <span className="font-medium text-gray-900">
-                          {analysis.supportResistance.lastBreakout
-                            ? `${formatDisplayCurrency(analysis.supportResistance.lastBreakout.price)} · ${formatDate(
-                                new Date(analysis.supportResistance.lastBreakout.timestamp).toISOString(),
-                                locale
-                              )}`
-                            : '--'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{t.stock.detailView.lastBreakdown}</span>
-                        <span className="font-medium text-gray-900">
-                          {analysis.supportResistance.lastBreakdown
-                            ? `${formatDisplayCurrency(analysis.supportResistance.lastBreakdown.price)} · ${formatDate(
-                                new Date(analysis.supportResistance.lastBreakdown.timestamp).toISOString(),
-                                locale
-                              )}`
-                            : '--'}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {historicalLoading ? (
+                  <Skeleton className="h-80 w-full" />
+                ) : chartData.length === 0 ? (
+                  <div className="flex h-80 items-center justify-center text-sm text-gray-500">
+                    {t.stock.historyUnavailable}
+                  </div>
+                ) : (
+                  <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                        <defs>
+                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
+                        <XAxis
+                          dataKey="timestamp"
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
+                        />
+                        <YAxis
+                          yAxisId="price"
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => formatCurrency(value as number, settings.currency, locale)}
+                        />
+                        <Tooltip
+                          formatter={(value, name) => {
+                            if (name === 'volume') {
+                              return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
+                            }
+                            return [
+                              formatCurrency(value as number, settings.currency, locale),
+                              t.stock.detailView.chartPriceLabel,
+                            ];
+                          }}
+                          labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
+                        />
+                        {showVolume && (
+                          <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
+                        )}
+                        {showVolume && (
+                          <Bar
+                            yAxisId="volume"
+                            dataKey="volume"
+                            name={t.stock.detailView.tooltip.volume}
+                            barSize={14}
+                            fill="rgba(148, 163, 184, 0.35)"
+                          />
+                        )}
+                        <Area
+                          type="monotone"
+                          dataKey="close"
+                          yAxisId="price"
+                          stroke="#2563EB"
+                          strokeWidth={2.5}
+                          fill="url(#priceGradient)"
+                          name={t.stock.detailView.chartPriceLabel}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
+              </CardContent>
+            </Card>
 
             <Card className="bg-white/85 border border-white/60 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">
-                  {t.stock.detailView.checklistTitle}
+                  {t.stock.detailView.verdictTitle}
                 </CardTitle>
+                <p className="text-sm text-gray-600">{verdictMessage}</p>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="whitespace-nowrap text-gray-500">
-                          {t.stock.detailView.columns.criterion}
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap text-gray-500">
-                          {t.stock.detailView.columns.status}
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap text-gray-500">
-                          {t.stock.detailView.columns.details}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {checklistRows.map((row) => (
-                        <TableRow key={row.key}>
-                          <TableCell className="whitespace-nowrap font-medium text-gray-900">
-                            {row.label}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            <Badge className={cn('text-xs font-semibold uppercase', row.statusClass)}>
-                              {row.statusLabel}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="min-w-[240px] text-sm text-gray-600">
-                            {row.detail}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+              <CardContent className="space-y-6 text-sm text-gray-600">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+                  <div>
+                    <div className="text-4xl font-bold text-[#0F172A]">{analysis.score}</div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                      {t.stock.detailView.score}
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Progress value={analysis.score} />
+                    <p className="text-xs text-gray-500">{t.stock.detailView.scoreHelper}</p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500">{t.stock.detailView.tableMobileHint}</p>
+                <div className="rounded-lg bg-slate-50/90 p-4 text-sm text-slate-700">
+                  {verdictNarrative || t.stock.detailView.reasons.none}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                      {t.stock.detailView.rr}
+                    </div>
+                    <div className="mt-1 font-medium text-gray-900">
+                      {analysis.riskReward.rr ? analysis.riskReward.rr.toFixed(2) : '--'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                      {t.stock.detailView.stop}
+                    </div>
+                    <div className="mt-1 font-medium text-gray-900">
+                      {analysis.riskReward.stop ? formatDisplayCurrency(analysis.riskReward.stop) : '--'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                      {t.stock.detailView.target}
+                    </div>
+                    <div className="mt-1 font-medium text-gray-900">
+                      {analysis.riskReward.target ? formatDisplayCurrency(analysis.riskReward.target) : '--'}
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            <Card className="bg-white/85 border border-white/60 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  {t.stock.detailView.insightsTitle}
+                </CardTitle>
+                <p className="text-sm text-gray-600">{t.stock.detailView.insightsSubtitle}</p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="mb-3 text-sm font-semibold text-emerald-700">
+                    {t.stock.detailView.insightsPositive}
+                  </h4>
+                  <ul className="space-y-3">
+                    {positiveInsights.length ? (
+                      positiveInsights.map((item) => (
+                        <li
+                          key={item.key}
+                          className="flex items-start gap-3 rounded-lg bg-emerald-50/70 p-3"
+                        >
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                          <div className="space-y-1">
+                            <p className="font-medium text-emerald-900">{item.title}</p>
+                            <p className="text-xs text-emerald-700/80">{item.detail}</p>
+                          </div>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="rounded-lg border border-dashed border-emerald-200 bg-white/70 p-3 text-xs text-emerald-700/80">
+                        {t.stock.detailView.insightsEmpty}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="mb-3 text-sm font-semibold text-rose-700">
+                    {t.stock.detailView.insightsNegative}
+                  </h4>
+                  <ul className="space-y-3">
+                    {negativeInsights.length ? (
+                      negativeInsights.map((item) => (
+                        <li
+                          key={item.key}
+                          className="flex items-start gap-3 rounded-lg bg-rose-50/70 p-3"
+                        >
+                          <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-600" />
+                          <div className="space-y-1">
+                            <p className="font-medium text-rose-900">{item.title}</p>
+                            <p className="text-xs text-rose-700/80">{item.detail}</p>
+                          </div>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="rounded-lg border border-dashed border-rose-200 bg-white/70 p-3 text-xs text-rose-700/80">
+                        {t.stock.detailView.insightsEmpty}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         )}
       </div>
