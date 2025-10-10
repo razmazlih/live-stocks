@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { mapPositionRow } from '@/lib/positions';
 import { calculatePositionMetrics } from '@/lib/calculations';
-import { ExchangeRateResponse, Position, StockQuote } from '@/types';
+import { ExchangeRateResponse, Position, PositionMetrics, StockQuote } from '@/types';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const DEFAULT_GROWTH_RATE = Number.parseFloat(process.env.DEFAULT_GROWTH_RATE ?? '0.05');
@@ -99,23 +99,43 @@ async function fetchUsdToIlsRate(): Promise<number> {
   }
 }
 
-function calculateWeightedPortfolioPrice(positions: Position[]): number | null {
-  const totalQuantity = positions.reduce((sum, position) => sum + (isFiniteNumber(position.quantity) ? position.quantity : 0), 0);
-  if (totalQuantity <= 0) {
+interface WeightedPortfolioPrices {
+  entry: number;
+  current: number;
+  projected: number;
+}
+
+function calculateWeightedPortfolioPrices(metrics: PositionMetrics[]): WeightedPortfolioPrices | null {
+  const totals = metrics.reduce(
+    (acc, metric) => {
+      const quantity = isFiniteNumber(metric.position.quantity) ? metric.position.quantity : 0;
+      if (quantity <= 0) {
+        return acc;
+      }
+
+      const entryPrice = isFiniteNumber(metric.position.entryPrice) ? metric.position.entryPrice : 0;
+      const currentPrice = isFiniteNumber(metric.currentPrice) ? metric.currentPrice : 0;
+      const projectedPrice = isFiniteNumber(metric.projectedPrice) ? metric.projectedPrice : 0;
+
+      return {
+        quantity: acc.quantity + quantity,
+        entry: acc.entry + entryPrice * quantity,
+        current: acc.current + currentPrice * quantity,
+        projected: acc.projected + projectedPrice * quantity,
+      };
+    },
+    { quantity: 0, entry: 0, current: 0, projected: 0 },
+  );
+
+  if (totals.quantity <= 0) {
     return null;
   }
 
-  const totalCost = positions.reduce((sum, position) => {
-    const entryPrice = isFiniteNumber(position.entryPrice) ? position.entryPrice : 0;
-    const quantity = isFiniteNumber(position.quantity) ? position.quantity : 0;
-    return sum + entryPrice * quantity;
-  }, 0);
-
-  if (totalCost <= 0) {
-    return null;
-  }
-
-  return totalCost / totalQuantity;
+  return {
+    entry: totals.entry / totals.quantity,
+    current: totals.current / totals.quantity,
+    projected: totals.projected / totals.quantity,
+  };
 }
 
 function toFixed(value: number, digits = 2): number {
@@ -244,11 +264,26 @@ export async function POST(request: NextRequest) {
     };
 
     if (includeWeightedPrice) {
-      const weightedPrice = calculateWeightedPortfolioPrice(metrics.map(metric => metric.position));
-      if (isFiniteNumber(weightedPrice)) {
+      const weightedPrices = calculateWeightedPortfolioPrices(metrics);
+      if (weightedPrices) {
         responsePayload.weightedPrice = {
           currency: 'USD',
-          value: toFixed(weightedPrice),
+          value: toFixed(weightedPrices.entry),
+        };
+
+        responsePayload.weightedPrices = {
+          currency: 'USD',
+          entry: toFixed(weightedPrices.entry),
+          current: toFixed(weightedPrices.current),
+          projected: toFixed(weightedPrices.projected),
+          ...(targetCurrency !== 'USD'
+            ? {
+              targetCurrency,
+              entryTarget: toFixed(convertToTarget(weightedPrices.entry)),
+              currentTarget: toFixed(convertToTarget(weightedPrices.current)),
+              projectedTarget: toFixed(convertToTarget(weightedPrices.projected)),
+            }
+            : {}),
         };
       }
     }
