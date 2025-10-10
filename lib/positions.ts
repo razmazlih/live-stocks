@@ -164,7 +164,11 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
   const fallbackEntryPrice = parseNumeric(row.entry_price);
   const fallbackEntryDate = row.entry_date ?? new Date().toISOString();
 
-  const quantity = summary.totalQuantity > 0 ? summary.totalQuantity : fallbackQuantity;
+  const quantity = summary.totalQuantity > 0
+    ? summary.totalQuantity
+    : lots.length > 0
+      ? 0
+      : fallbackQuantity;
   const entryPrice = summary.totalQuantity > 0 ? summary.averageEntryPrice : fallbackEntryPrice;
   const entryDate = summary.earliestEntryDate ?? fallbackEntryDate;
 
