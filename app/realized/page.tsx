@@ -59,6 +59,14 @@ export default function RealizedPnLPage() {
     [realizedSales]
   );
 
+  const chronologicalSales = useMemo(
+    () =>
+      sortedSales
+        .slice()
+        .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime()),
+    [sortedSales]
+  );
+
   const totals = useMemo(() => {
     return sortedSales.reduce(
       (acc, sale) => {
@@ -112,6 +120,35 @@ export default function RealizedPnLPage() {
     return Array.from(map.values()).sort((a, b) => b.profitUsd - a.profitUsd);
   }, [sortedSales]);
 
+  const taxSummary = useMemo(() => {
+    let cumulativeProfitUsd = 0;
+    let peakProfitUsd = 0;
+    let taxUsd = 0;
+    let taxIls = 0;
+
+    chronologicalSales.forEach((sale) => {
+      cumulativeProfitUsd += sale.profitUsd;
+
+      if (sale.profitUsd > 0) {
+        const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+        const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
+
+        if (taxableProfitUsd > 1e-8) {
+          const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : 0;
+          taxUsd += taxableProfitUsd * 0.25;
+          taxIls += taxableProfitUsd * conversionRate * 0.25;
+        }
+
+        peakProfitUsd = newPeakProfitUsd;
+        return;
+      }
+
+      peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+    });
+
+    return { taxUsd, taxIls };
+  }, [chronologicalSales]);
+
   const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
     const formatted = formatCurrency(value, currency, locale);
     return value > 0 ? `+${formatted}` : formatted;
@@ -154,6 +191,7 @@ export default function RealizedPnLPage() {
   };
 
   const hasSales = sortedSales.length > 0;
+  const netProfitUsd = totals.profitUsd - taxSummary.taxUsd;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
@@ -184,11 +222,11 @@ export default function RealizedPnLPage() {
                     1 USD ≈ {formatCurrency(rate, 'ILS', locale)}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(totals.profitUsd).badge}`}
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(netProfitUsd).badge}`}
                   >
-                    {getTrendIcon(totals.profitUsd)}
-                    {formatSignedCurrency(totals.profitUsd, 'USD')}
-                    <span className="text-xs font-medium text-slate-600/80">{t.realized.totalProfit}</span>
+                    {getTrendIcon(netProfitUsd)}
+                    {formatSignedCurrency(netProfitUsd, 'USD')}
+                    <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
                   </span>
                 </div>
               </div>
@@ -247,12 +285,12 @@ export default function RealizedPnLPage() {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h2 className="text-xl font-semibold text-slate-900">{t.realized.summaryTitle}</h2>
                         <span
-                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(totals.profitUsd).badge}`}
-                        >
-                          {getTrendIcon(totals.profitUsd)}
-                          {formatSignedCurrency(totals.profitUsd, 'USD')}
-                          <span className="text-xs font-medium text-slate-600/80">{t.realized.totalProfit}</span>
-                        </span>
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(netProfitUsd).badge}`}
+                  >
+                    {getTrendIcon(netProfitUsd)}
+                    {formatSignedCurrency(netProfitUsd, 'USD')}
+                    <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
+                  </span>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
@@ -294,14 +332,19 @@ export default function RealizedPnLPage() {
                         <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
                           <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
                           <div className="relative z-10 space-y-3">
-                            <p className="text-sm font-medium text-slate-500">{t.realized.averageReturn}</p>
-                            <p className="text-3xl font-semibold text-slate-900">
-                              {formatPercent(
-                                totals.costUsd !== 0 ? (totals.profitUsd / totals.costUsd) * 100 : 0,
-                                locale
-                              )}
-                            </p>
-                            <p className="text-xs font-medium text-slate-500">{t.realized.averageReturnHelper}</p>
+                            <p className="text-sm font-medium text-slate-500">{t.realized.taxesTitle}</p>
+                            <div className="space-y-1">
+                              <span className="sr-only">{t.realized.taxesUsdLabel}</span>
+                              <p className="text-3xl font-semibold text-slate-900">
+                                {formatCurrency(taxSummary.taxUsd, 'USD', locale)}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="sr-only">{t.realized.taxesIlsLabel}</span>
+                              <p className="text-xs font-medium text-slate-500">
+                                {formatCurrency(taxSummary.taxIls, 'ILS', locale)}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
