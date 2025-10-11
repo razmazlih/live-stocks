@@ -1,6 +1,6 @@
 'use client';
 
-import { PositionMetrics } from '@/types';
+import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -12,7 +12,7 @@ import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
-  sparklineData?: number[];
+  sparklineData?: HistoricalPoint[];
 }
 
 export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
@@ -235,6 +235,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               projectedPrice={projectedPrice}
               annualGrowthRate={settings.annualGrowthRate}
               yearsHeld={yearsHeld}
+              lots={position.lots ?? []}
+              locale={locale}
+              tradeLabels={{
+                BUY: t.positions.buy,
+                SELL: t.positions.sell,
+              }}
               className="h-36 w-full"
             />
           </div>
