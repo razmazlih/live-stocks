@@ -1,9 +1,22 @@
 'use client';
 
-import { useId, useMemo } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+
+import { HistoricalPoint, PositionLotType } from '@/types';
+
+export interface SparklineEvent {
+  id: string;
+  timestamp: number;
+  type: PositionLotType;
+  price: number;
+  quantity: number;
+  typeLabel?: string;
+  priceLabel?: string;
+  quantityLabel?: string;
+}
 
 interface SparklineProps {
-  data: number[];
+  points: HistoricalPoint[];
   width?: number;
   height?: number;
   color?: string;
@@ -16,6 +29,7 @@ interface SparklineProps {
   aboveProjectedColor?: string;
   annualGrowthRate?: number;
   yearsHeld?: number;
+  events?: SparklineEvent[];
   className?: string;
 }
 
@@ -25,9 +39,21 @@ type SparklineSegment = {
   end: { x: number; y: number };
 };
 
+type NormalizedPoint = {
+  x: number;
+  y: number;
+  close: number;
+  timestamp: number;
+};
+
+type NormalizedEvent = SparklineEvent & {
+  x: number;
+  y: number;
+};
+
 export function Sparkline({
-  data,
-  width = 320,
+  points,
+  width,
   height = 96,
   color = '#2563EB',
   baseline,
@@ -39,6 +65,7 @@ export function Sparkline({
   aboveProjectedColor = '#4AA956',
   annualGrowthRate,
   yearsHeld,
+  events,
   className = ''
 }: SparklineProps) {
   const gradientId = useId();
@@ -46,10 +73,60 @@ export function Sparkline({
   const strokeGradientId = `${gradientId}-stroke`;
   const glowId = `${gradientId}-glow`;
 
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof width === 'number') {
+      setMeasuredWidth(null);
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const element = containerRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      const nextWidth = element.getBoundingClientRect().width;
+
+      setMeasuredWidth((current) => {
+        if (current === null) {
+          return nextWidth;
+        }
+
+        return Math.abs(current - nextWidth) < 0.5 ? current : nextWidth;
+      });
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [width]);
+
+  const effectiveWidth = typeof width === 'number' ? width : measuredWidth ?? 320;
+  const wrapperWidth = typeof width === 'number' ? width : '100%';
+
   const normalized = useMemo(() => {
-    if (!data || data.length < 2) {
+    if (!points || points.length < 2) {
       return null;
     }
+
+    const sortedPoints = [...points].sort((a, b) => a.timestamp - b.timestamp);
+    const closes = sortedPoints.map((point) => point.close);
 
     const projectionValues: number[] = [];
     const canProject =
@@ -58,15 +135,15 @@ export function Sparkline({
       typeof yearsHeld === 'number' &&
       Number.isFinite(annualGrowthRate) &&
       Number.isFinite(yearsHeld) &&
-      data.length > 1;
+      sortedPoints.length > 1;
 
     if (canProject) {
       const growthBase = 1 + annualGrowthRate;
       const isGrowthValid = growthBase > 0;
 
       if (isGrowthValid) {
-        for (let index = 0; index < data.length; index += 1) {
-          const progress = index / (data.length - 1);
+        for (let index = 0; index < sortedPoints.length; index += 1) {
+          const progress = index / (sortedPoints.length - 1);
           const projectedValue = baseline * Math.pow(growthBase, yearsHeld * progress);
           projectionValues.push(projectedValue);
         }
@@ -74,19 +151,27 @@ export function Sparkline({
     }
 
     const values = [
-      ...data,
+      ...closes,
       ...(typeof baseline === 'number' ? [baseline] : []),
       ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
       ...projectionValues,
+      ...((events ?? [])
+        .map((event) => event.price)
+        .filter((price): price is number => typeof price === 'number' && Number.isFinite(price))),
     ];
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
 
-    const points = data.map((value, i) => {
-      const x = (i / (data.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
-      return { x, y };
+    const firstTimestamp = sortedPoints[0]?.timestamp ?? 0;
+    const lastTimestamp = sortedPoints[sortedPoints.length - 1]?.timestamp ?? 0;
+    const timeRange = Math.max(lastTimestamp - firstTimestamp, 1);
+
+    const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
+      const relativeTime = (point.timestamp - firstTimestamp) / timeRange;
+      const x = relativeTime * effectiveWidth;
+      const y = height - ((point.close - min) / range) * height;
+      return { x, y, close: point.close, timestamp: point.timestamp };
     });
 
     const baselineY = typeof baseline === 'number'
@@ -97,23 +182,64 @@ export function Sparkline({
       ? height - ((projectedPrice - min) / range) * height
       : null;
 
-    const projectionPoints = projectionValues.length === data.length
+    const projectionPoints = projectionValues.length === sortedPoints.length
       ? projectionValues.map((value, index) => {
-          const x = (index / (data.length - 1)) * width;
+          const referencePoint = normalizedPoints[index];
+          const x = referencePoint?.x ?? 0;
           const y = height - ((value - min) / range) * height;
           return { x, y };
         })
       : null;
 
-    return { points, baselineY, projectedY, projectionPoints };
+    const normalizedEvents: NormalizedEvent[] = (events ?? [])
+      .map((event) => {
+        if (!Number.isFinite(event.price) || !Number.isFinite(event.timestamp)) {
+          return null;
+        }
+
+        let x = normalizedPoints[0]?.x ?? 0;
+
+        if (event.timestamp <= firstTimestamp) {
+          x = normalizedPoints[0]?.x ?? 0;
+        } else if (event.timestamp >= lastTimestamp) {
+          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? effectiveWidth;
+        } else {
+          const index = sortedPoints.findIndex((point) => point.timestamp >= event.timestamp);
+
+          if (index <= 0) {
+            x = normalizedPoints[Math.max(index, 0)]?.x ?? 0;
+          } else {
+            const previousPoint = sortedPoints[index - 1];
+            const nextPoint = sortedPoints[index];
+            const previousNormalized = normalizedPoints[index - 1];
+            const nextNormalized = normalizedPoints[index];
+            const denominator = (nextPoint.timestamp - previousPoint.timestamp) || 1;
+            const ratio = (event.timestamp - previousPoint.timestamp) / denominator;
+            x = (previousNormalized?.x ?? 0) + ((nextNormalized?.x ?? 0) - (previousNormalized?.x ?? 0)) * ratio;
+          }
+        }
+
+        const y = height - ((event.price - min) / range) * height;
+
+        return {
+          ...event,
+          x,
+          y: Math.min(Math.max(y, 4), height - 4),
+        } satisfies NormalizedEvent;
+      })
+      .filter((event): event is NormalizedEvent => event !== null)
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    return { points: normalizedPoints, closes, baselineY, projectedY, projectionPoints, events: normalizedEvents };
   }, [
-    data,
+    points,
     baseline,
     projectedPrice,
-    width,
+    effectiveWidth,
     height,
     annualGrowthRate,
     yearsHeld,
+    events,
   ]);
 
   const segments = useMemo(() => {
@@ -149,8 +275,8 @@ export function Sparkline({
     for (let index = 1; index < normalized.points.length; index += 1) {
       const startPoint = normalized.points[index - 1];
       const endPoint = normalized.points[index];
-      const startValue = data[index - 1];
-      const endValue = data[index];
+      const startValue = normalized.closes[index - 1];
+      const endValue = normalized.closes[index];
       const direction = Math.sign(endValue - startValue) || 1;
 
       const breakpoints = uniqueThresholds
@@ -183,7 +309,7 @@ export function Sparkline({
         )
         .sort((a, b) => a.ratio - b.ratio);
 
-      let segmentStartPoint = startPoint;
+      let segmentStartPoint: { x: number; y: number } = { x: startPoint.x, y: startPoint.y };
       let currentColor = determineColor(startValue);
 
       breakpoints.forEach((breakpoint) => {
@@ -208,7 +334,6 @@ export function Sparkline({
     return computed;
   }, [
     normalized,
-    data,
     baseline,
     projectedPrice,
     belowEntryColor,
@@ -229,8 +354,8 @@ export function Sparkline({
     const stops: { offset: number; color: string }[] = [];
 
     segments.forEach((segment, index) => {
-      const startOffset = clampOffset(segment.start.x / width);
-      const endOffset = clampOffset(segment.end.x / width);
+      const startOffset = clampOffset(segment.start.x / effectiveWidth);
+      const endOffset = clampOffset(segment.end.x / effectiveWidth);
 
       if (index === 0) {
         stops.push({ offset: startOffset, color: segment.color });
@@ -248,104 +373,185 @@ export function Sparkline({
     });
 
     return stops;
-  }, [segments, normalized, color, width]);
+  }, [segments, normalized, color, effectiveWidth]);
 
-  if (!normalized) {
-    return <div className={className} style={{ width, height }} />;
+  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  if (!normalized || effectiveWidth <= 0) {
+    return <div ref={containerRef} className={`relative ${className}`} style={{ width: wrapperWidth, height }} />;
   }
 
-  const { points, baselineY, projectedY, projectionPoints } = normalized;
-  const areaPath = [`M 0 ${height}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${width} ${height}`, 'Z'].join(' ');
-  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
-  const lastPoint = points[points.length - 1];
+  const { points: normalizedPoints, baselineY, projectedY, projectionPoints, events: normalizedEvents } = normalized;
+  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${effectiveWidth} ${height}`, 'Z'].join(' ');
+  const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const lastPoint = normalizedPoints[normalizedPoints.length - 1];
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
-      ? `M 0 ${projectedY} L ${width} ${projectedY}`
+      ? `M 0 ${projectedY} L ${effectiveWidth} ${projectedY}`
       : null;
 
+  const activeEventId = selectedEventId ?? hoveredEventId;
+  const activeEvent = normalizedEvents.find((event) => event.id === activeEventId) ?? null;
+
+  const handleWrapperClick = () => {
+    setSelectedEventId(null);
+  };
+
   return (
-    <svg
-      width={width}
-      height={height}
-      className={className}
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-hidden="true"
-      preserveAspectRatio="none"
+    <div
+      ref={containerRef}
+      className={`relative ${className}`}
+      style={{ width: wrapperWidth, height }}
+      onClick={handleWrapperClick}
+      role="presentation"
     >
-      <defs>
-        <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
-          <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
-        </linearGradient>
-        <linearGradient id={strokeGradientId} x1="0" x2={width} y1="0" y2="0" gradientUnits="userSpaceOnUse">
-          {gradientStops.map((stop, index) => (
-            <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
-          ))}
-        </linearGradient>
-        <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-          <feMerge>
-            <feMergeNode in="coloredBlur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
+      <svg
+        width="100%"
+        height="100%"
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${effectiveWidth} ${height}`}
+        role="img"
+        aria-hidden="true"
+        preserveAspectRatio="none"
+      >
+        <defs>
+          <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+            {gradientStops.map((stop, index) => (
+              <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
+            ))}
+          </linearGradient>
+          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-      <g opacity={0.08}>
-        <line x1="0" y1={height} x2={width} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-        <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-      </g>
+        <g opacity={0.08}>
+          <line x1="0" y1={height} x2={effectiveWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+          <line x1="0" y1={height / 2} x2={effectiveWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+        </g>
 
-      {baselineY !== null && (
-        <line
-          x1={0}
-          y1={baselineY}
-          x2={width}
-          y2={baselineY}
-          stroke={baselineColor}
-          strokeWidth="1"
-          strokeDasharray="4 3"
-        />
-      )}
+        {baselineY !== null && (
+          <line
+            x1={0}
+            y1={baselineY}
+            x2={effectiveWidth}
+            y2={baselineY}
+            stroke={baselineColor}
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
+        )}
 
-      {projectedLinePath && (
+        {projectedLinePath && (
+          <path
+            d={projectedLinePath}
+            fill="none"
+            stroke={projectedLineColor}
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
+          />
+        )}
+
         <path
-          d={projectedLinePath}
-          fill="none"
-          stroke={projectedLineColor}
-          strokeWidth={1.5}
-          strokeDasharray="6 4"
+          d={areaPath}
+          fill={`url(#${areaGradientId})`}
+          opacity={0.6}
         />
+
+        <path
+          d={linePath}
+          fill="none"
+          stroke={`url(#${strokeGradientId})`}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter={`url(#${glowId})`}
+        />
+
+        <circle
+          cx={lastPoint.x}
+          cy={lastPoint.y}
+          r={2.8}
+          fill="#ffffff"
+          stroke={lastSegmentColor}
+          strokeWidth={1.2}
+        />
+
+        {normalizedEvents.map((event) => {
+          const isActive = activeEventId === event.id;
+          const tone = event.type === 'BUY'
+            ? { fill: '#dcfce7', stroke: '#047857' }
+            : { fill: '#fee2e2', stroke: '#b91c1c' };
+          const labelPrice = event.priceLabel ?? event.price.toLocaleString();
+
+          return (
+            <circle
+              key={event.id}
+              cx={event.x}
+              cy={event.y}
+              r={isActive ? 4.6 : 3.6}
+              fill={tone.fill}
+              stroke={tone.stroke}
+              strokeWidth={isActive ? 1.8 : 1.4}
+              tabIndex={0}
+              role="button"
+              aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setHoveredEventId(event.id);
+              }}
+              onMouseLeave={(e) => {
+                e.stopPropagation();
+                setHoveredEventId((current) => (current === event.id ? null : current));
+              }}
+              onFocus={() => setHoveredEventId(event.id)}
+              onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedEventId((current) => (current === event.id ? null : event.id));
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                setSelectedEventId((current) => (current === event.id ? null : event.id));
+              }}
+            />
+          );
+        })}
+      </svg>
+
+      {activeEvent && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+          style={{
+            left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
+            top: Math.max(activeEvent.y - 12, 12),
+          }}
+        >
+          <div className="font-semibold text-slate-800">
+            {activeEvent.typeLabel ?? activeEvent.type}
+          </div>
+          <div className="text-slate-500">
+            {new Date(activeEvent.timestamp).toLocaleDateString()}
+          </div>
+          <div className="mt-1 text-slate-600">
+            <span className="font-medium text-slate-800">{activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}</span>
+            <span className="ml-2">·</span>
+            <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
+          </div>
+        </div>
       )}
-
-      <path
-        d={areaPath}
-        fill={`url(#${areaGradientId})`}
-        opacity={0.6}
-      />
-
-      <path
-        d={linePath}
-        fill="none"
-        stroke={`url(#${strokeGradientId})`}
-        strokeWidth={2.4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter={`url(#${glowId})`}
-      />
-
-      <circle
-        cx={lastPoint.x}
-        cy={lastPoint.y}
-        r={2.8}
-        fill="#ffffff"
-        stroke={lastSegmentColor}
-        strokeWidth={1.2}
-      />
-    </svg>
+    </div>
   );
 }
