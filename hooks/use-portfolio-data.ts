@@ -12,6 +12,7 @@ import {
 } from '@/lib/calculations';
 import {
   CandleData,
+  HistoricalPoint,
   Position,
   PositionMetrics,
   PortfolioSummary,
@@ -20,7 +21,7 @@ import {
 
 interface SparklineResult {
   symbol: string;
-  closes: number[];
+  points: HistoricalPoint[];
   timeline: PortfolioTimelinePoint[];
 }
 
@@ -31,7 +32,7 @@ export function usePortfolioData() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({});
+  const [sparklineData, setSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -65,7 +66,7 @@ export function usePortfolioData() {
               console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
               return {
                 symbol: position.symbol,
-                closes: [],
+                points: [],
                 timeline: [],
               };
             }
@@ -76,13 +77,12 @@ export function usePortfolioData() {
               console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
               return {
                 symbol: position.symbol,
-                closes: [],
+                points: [],
                 timeline: [],
               };
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const closes = points.map((point) => point.close);
             const timeline = points.map<PortfolioTimelinePoint>((point) => ({
               timestamp: point.timestamp,
               totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
@@ -90,21 +90,21 @@ export function usePortfolioData() {
 
             return {
               symbol: position.symbol,
-              closes,
+              points,
               timeline,
             };
           } catch (error) {
             console.error(`Failed to load sparkline for ${position.symbol}:`, error);
             return {
               symbol: position.symbol,
-              closes: [],
+              points: [],
               timeline: [],
             };
           }
         })
       );
 
-      const sparklineEntries = results.map((result) => [result.symbol, result.closes] as const);
+      const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
       setSparklineData(Object.fromEntries(sparklineEntries));
 
       const aggregatedTimeline = new Map<number, number>();
