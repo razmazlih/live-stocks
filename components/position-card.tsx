@@ -1,18 +1,20 @@
 'use client';
 
-import { PositionMetrics } from '@/types';
+import { useMemo } from 'react';
+
+import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sparkline } from './sparkline';
+import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
-  sparklineData?: number[];
+  sparklineData?: HistoricalPoint[];
 }
 
 export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
@@ -64,6 +66,48 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const changeFromEntryPercent = position.entryPrice !== 0
     ? ((currentPrice - position.entryPrice) / position.entryPrice) * 100
     : null;
+
+  const sparklineEvents: SparklineEvent[] = useMemo(() => {
+    const lots = position.lots ?? [];
+
+    if (!lots.length) {
+      return [];
+    }
+
+    const buyLabel = t.positions.buy;
+    const sellLabel = t.positions.sell;
+
+    const events = lots.reduce<SparklineEvent[]>((acc, lot, index) => {
+      const executedAt = new Date(lot.executedAt);
+      const timestamp = executedAt.getTime();
+
+      if (Number.isNaN(timestamp)) {
+        return acc;
+      }
+
+      if (!Number.isFinite(lot.quantity) || !Number.isFinite(lot.price)) {
+        return acc;
+      }
+
+      const quantity = lot.quantity;
+      const price = lot.price;
+
+      acc.push({
+        id: lot.id ?? `${position.symbol}-${lot.type}-${index}`,
+        timestamp,
+        type: lot.type,
+        price,
+        quantity,
+        typeLabel: lot.type === 'BUY' ? buyLabel : sellLabel,
+        priceLabel: formatCurrency(price, 'USD', locale),
+        quantityLabel: formatNumber(quantity, locale),
+      });
+
+      return acc;
+    }, []);
+
+    return events.sort((a, b) => a.timestamp - b.timestamp);
+  }, [locale, position.lots, position.symbol, t.positions.buy, t.positions.sell]);
 
   const getTrendStyles = (value: number) => {
     if (value > 0) {
@@ -223,10 +267,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </div>
         </div>
 
-        {sparklineData && sparklineData.length > 0 && (
+        {sparklineData && sparklineData.length > 1 && (
           <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
             <Sparkline
-              data={sparklineData}
+              points={sparklineData}
               width={360}
               height={140}
               color={sparklineColor.hex}
@@ -235,6 +279,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               projectedPrice={projectedPrice}
               annualGrowthRate={settings.annualGrowthRate}
               yearsHeld={yearsHeld}
+              events={sparklineEvents}
               className="h-36 w-full"
             />
           </div>
