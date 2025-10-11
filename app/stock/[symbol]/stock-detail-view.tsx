@@ -8,10 +8,12 @@ import {
   CartesianGrid,
   ComposedChart,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import type { TooltipPayload, TooltipProps } from 'recharts';
 import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -49,6 +51,7 @@ import {
   ChecklistItem,
   ChecklistKey,
   HistoricalPoint,
+  PositionLotType,
   Position,
   PositionMetrics,
   StockAnalysisResult,
@@ -63,6 +66,24 @@ const VERDICT_BADGES: Record<StockAnalysisResult['verdict'], string> = {
   BUY: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
   SELL: 'bg-rose-100 text-rose-700 border border-rose-200',
   NEUTRAL: 'bg-slate-200 text-slate-700 border border-slate-300',
+};
+
+const BUY_MARKER_COLOR = '#059669';
+const SELL_MARKER_COLOR = '#E11D48';
+
+type TradeMarker = {
+  x: number;
+  y: number;
+  tradeType: PositionLotType;
+  quantity: number;
+  priceDisplay: number;
+  totalDisplay: number;
+  executedAt: number;
+};
+
+type TradeMarkerGroups = {
+  buys: TradeMarker[];
+  sells: TradeMarker[];
 };
 
 type CandleResponse = CandleData & { error?: string };
@@ -508,6 +529,151 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [analysis.series, convertValue]
   );
 
+  const chartDomain = useMemo(() => {
+    if (!analysis.series.length) {
+      return null;
+    }
+
+    return {
+      start: analysis.series[0].timestamp,
+      end: analysis.series[analysis.series.length - 1].timestamp,
+    };
+  }, [analysis.series]);
+
+  const tradeMarkers = useMemo<TradeMarkerGroups>(() => {
+    if (!position?.lots?.length || !chartDomain) {
+      return { buys: [], sells: [] };
+    }
+
+    return position.lots.reduce<TradeMarkerGroups>((acc, lot) => {
+      const executedAt = new Date(lot.executedAt).getTime();
+
+      if (Number.isNaN(executedAt)) {
+        return acc;
+      }
+
+      if (executedAt < chartDomain.start || executedAt > chartDomain.end) {
+        return acc;
+      }
+
+      const priceDisplay = convertValue(lot.price);
+      const marker: TradeMarker = {
+        x: executedAt,
+        y: priceDisplay,
+        tradeType: lot.type,
+        quantity: lot.quantity,
+        priceDisplay,
+        totalDisplay: convertValue(lot.price * lot.quantity),
+        executedAt,
+      };
+
+      if (lot.type === 'BUY') {
+        acc.buys.push(marker);
+      } else {
+        acc.sells.push(marker);
+      }
+
+      return acc;
+    }, { buys: [], sells: [] });
+  }, [chartDomain, convertValue, position?.lots]);
+
+  const renderTooltip = useCallback(
+    ({ active, payload, label }: TooltipProps<number, string>) => {
+      if (!active || !payload?.length) {
+        return null;
+      }
+
+      const rawLabel =
+        typeof label === 'number' ? label : typeof label === 'string' ? Number(label) : undefined;
+      const firstPayload = payload[0]?.payload as { timestamp?: number; x?: number } | undefined;
+
+      const tooltipTimestamp =
+        rawLabel !== undefined && Number.isFinite(rawLabel)
+          ? rawLabel
+          : typeof firstPayload?.timestamp === 'number'
+            ? firstPayload.timestamp
+            : typeof firstPayload?.x === 'number'
+              ? firstPayload.x
+              : undefined;
+
+      const formattedLabel =
+        tooltipTimestamp !== undefined ? formatTooltipLabel(tooltipTimestamp, range, localeCode) : '';
+
+      const closeEntry = payload.find((entry) => entry.dataKey === 'close');
+      const volumeEntry = payload.find((entry) => entry.dataKey === 'volume');
+      const tradeEntries = payload.filter(
+        (entry): entry is TooltipPayload<number, string> & { payload: TradeMarker } => {
+          const trade = entry?.payload as Partial<TradeMarker> | undefined;
+          return trade?.tradeType === 'BUY' || trade?.tradeType === 'SELL';
+        }
+      );
+
+      return (
+        <div className="min-w-[200px] rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
+          {formattedLabel ? (
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{formattedLabel}</p>
+          ) : null}
+          <div className="mt-2 space-y-2">
+            {closeEntry ? (
+              <div className="flex items-center gap-2 text-slate-600">
+                <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                </span>
+                <span className="text-xs font-medium sm:text-sm">{t.stock.detailView.chartPriceLabel}</span>
+                <span className="ml-auto font-semibold text-slate-900">
+                  {formatCurrency(Number(closeEntry.value ?? 0), settings.currency, locale)}
+                </span>
+              </div>
+            ) : null}
+            {volumeEntry ? (
+              <div className="flex items-center gap-2 text-slate-600">
+                <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                </span>
+                <span className="text-xs font-medium sm:text-sm">{t.stock.detailView.tooltip.volume}</span>
+                <span className="ml-auto font-semibold text-slate-900">
+                  {formatVolume(Number(volumeEntry.value ?? 0))}
+                </span>
+              </div>
+            ) : null}
+            {tradeEntries.map((entry) => {
+              const trade = entry.payload;
+              const isBuy = trade.tradeType === 'BUY';
+              const color = isBuy ? BUY_MARKER_COLOR : SELL_MARKER_COLOR;
+              const labelText = isBuy ? t.stock.detailView.tooltip.buy : t.stock.detailView.tooltip.sell;
+
+              return (
+                <div
+                  key={`${trade.tradeType}-${trade.executedAt}-${trade.quantity}`}
+                  className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                    </span>
+                    <span className="font-semibold text-slate-900">{labelText}</span>
+                    <span className="ml-auto font-semibold text-slate-900">
+                      {formatCurrency(trade.priceDisplay, settings.currency, locale)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>
+                      {t.stock.detailView.tooltip.quantity}: {formatNumber(trade.quantity, locale)}
+                    </span>
+                    <span>
+                      {t.stock.detailView.tooltip.total}: {formatCurrency(trade.totalDisplay, settings.currency, locale)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [formatVolume, locale, localeCode, range, settings.currency, t]
+  );
+
   const verdictNarrative = useMemo(
     () => buildVerdictNarrative(analysis.checklist, analysis.riskReward, t),
     [analysis.checklist, analysis.riskReward, t]
@@ -876,7 +1042,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
                         <XAxis
+                          type="number"
                           dataKey="timestamp"
+                          domain={[chartDomain?.start ?? 'dataMin', chartDomain?.end ?? 'dataMax']}
                           tickLine={false}
                           axisLine={false}
                           tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
@@ -888,16 +1056,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           tickFormatter={(value) => formatCurrency(value as number, settings.currency, locale)}
                         />
                         <Tooltip
-                          formatter={(value, name) => {
-                            if (name === 'volume') {
-                              return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
-                            }
-                            return [
-                              formatCurrency(value as number, settings.currency, locale),
-                              t.stock.detailView.chartPriceLabel,
-                            ];
-                          }}
-                          labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
+                          cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
+                          content={renderTooltip}
                         />
                         {showVolume && (
                           <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
@@ -909,6 +1069,32 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             fill="rgba(148, 163, 184, 0.35)"
+                          />
+                        )}
+                        {tradeMarkers.buys.length > 0 && (
+                          <Scatter
+                            data={tradeMarkers.buys}
+                            yAxisId="price"
+                            name={t.positions.buy}
+                            shape={({ cx, cy }) =>
+                              typeof cx === 'number' && typeof cy === 'number' ? (
+                                <circle cx={cx} cy={cy} r={5} fill={BUY_MARKER_COLOR} stroke="#fff" strokeWidth={1.5} />
+                              ) : null
+                            }
+                            isAnimationActive={false}
+                          />
+                        )}
+                        {tradeMarkers.sells.length > 0 && (
+                          <Scatter
+                            data={tradeMarkers.sells}
+                            yAxisId="price"
+                            name={t.positions.sell}
+                            shape={({ cx, cy }) =>
+                              typeof cx === 'number' && typeof cy === 'number' ? (
+                                <circle cx={cx} cy={cy} r={5} fill={SELL_MARKER_COLOR} stroke="#fff" strokeWidth={1.5} />
+                              ) : null
+                            }
+                            isAnimationActive={false}
                           />
                         )}
                         <Area
