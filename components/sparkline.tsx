@@ -2,8 +2,19 @@
 
 import { useId, useMemo } from 'react';
 
+import { PositionLotType } from '@/types';
+
+export interface SparklineMarker {
+  id: string;
+  type: PositionLotType;
+  timestamp: number;
+  price: number;
+  label: string;
+}
+
 interface SparklineProps {
   data: number[];
+  timestamps?: number[];
   width?: number;
   height?: number;
   color?: string;
@@ -17,6 +28,7 @@ interface SparklineProps {
   annualGrowthRate?: number;
   yearsHeld?: number;
   className?: string;
+  markers?: SparklineMarker[];
 }
 
 type SparklineSegment = {
@@ -27,6 +39,7 @@ type SparklineSegment = {
 
 export function Sparkline({
   data,
+  timestamps,
   width = 320,
   height = 96,
   color = '#2563EB',
@@ -39,7 +52,8 @@ export function Sparkline({
   aboveProjectedColor = '#4AA956',
   annualGrowthRate,
   yearsHeld,
-  className = ''
+  className = '',
+  markers = [],
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill`;
@@ -78,6 +92,7 @@ export function Sparkline({
       ...(typeof baseline === 'number' ? [baseline] : []),
       ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
       ...projectionValues,
+      ...markers.map((marker) => marker.price),
     ];
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -105,7 +120,9 @@ export function Sparkline({
         })
       : null;
 
-    return { points, baselineY, projectedY, projectionPoints };
+    const toY = (value: number) => height - ((value - min) / range) * height;
+
+    return { points, baselineY, projectedY, projectionPoints, toY };
   }, [
     data,
     baseline,
@@ -114,6 +131,7 @@ export function Sparkline({
     height,
     annualGrowthRate,
     yearsHeld,
+    markers,
   ]);
 
   const segments = useMemo(() => {
@@ -250,11 +268,86 @@ export function Sparkline({
     return stops;
   }, [segments, normalized, color, width]);
 
+  const markerElements = useMemo(() => {
+    if (!normalized || !normalized.points || normalized.points.length === 0) {
+      return null;
+    }
+
+    const points = normalized.points;
+    const timestampList = timestamps && timestamps.length === points.length ? timestamps : null;
+
+    if (!timestampList || timestampList.length === 0) {
+      return null;
+    }
+
+    const computeX = (target: number) => {
+      const len = timestampList.length;
+
+      if (len === 1) {
+        return points[0].x;
+      }
+
+      if (target <= timestampList[0]) {
+        return points[0].x;
+      }
+
+      if (target >= timestampList[len - 1]) {
+        return points[len - 1].x;
+      }
+
+      let rightIndex = timestampList.findIndex((value) => value >= target);
+
+      if (rightIndex === -1) {
+        return points[len - 1].x;
+      }
+
+      if (timestampList[rightIndex] === target) {
+        return points[rightIndex].x;
+      }
+
+      const leftIndex = Math.max(0, rightIndex - 1);
+      const leftTimestamp = timestampList[leftIndex];
+      const rightTimestamp = timestampList[rightIndex];
+      const leftPoint = points[leftIndex];
+      const rightPoint = points[rightIndex];
+
+      if (rightTimestamp === leftTimestamp) {
+        return rightPoint.x;
+      }
+
+      const ratio = (target - leftTimestamp) / (rightTimestamp - leftTimestamp);
+
+      return leftPoint.x + (rightPoint.x - leftPoint.x) * ratio;
+    };
+
+    return markers
+      .map((marker) => {
+        if (!Number.isFinite(marker.price) || !Number.isFinite(marker.timestamp)) {
+          return null;
+        }
+
+        const x = computeX(marker.timestamp);
+        const y = normalized.toY(marker.price);
+        const isBuy = marker.type === 'BUY';
+        const fillColor = isBuy ? 'rgba(16, 185, 129, 0.18)' : 'rgba(248, 113, 113, 0.18)';
+        const strokeColor = isBuy ? '#059669' : '#DC2626';
+
+        return (
+          <g key={marker.id}>
+            <circle cx={x} cy={y} r={6} fill={fillColor} stroke="none" />
+            <circle cx={x} cy={y} r={3.5} fill="#ffffff" stroke={strokeColor} strokeWidth={1.5} />
+            <title>{marker.label}</title>
+          </g>
+        );
+      })
+      .filter((element): element is JSX.Element => element !== null);
+  }, [markers, normalized, timestamps]);
+
   if (!normalized) {
     return <div className={className} style={{ width, height }} />;
   }
 
-  const { points, baselineY, projectedY, projectionPoints } = normalized;
+  const { points, baselineY, projectedY, projectionPoints, toY } = normalized;
   const areaPath = [`M 0 ${height}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${width} ${height}`, 'Z'].join(' ');
   const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const lastPoint = points[points.length - 1];
@@ -346,6 +439,8 @@ export function Sparkline({
         stroke={lastSegmentColor}
         strokeWidth={1.2}
       />
+
+      {markerElements}
     </svg>
   );
 }

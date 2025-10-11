@@ -1,18 +1,20 @@
 'use client';
 
-import { PositionMetrics } from '@/types';
+import { useMemo } from 'react';
+
+import { PositionMetrics, SparklineSeries } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sparkline } from './sparkline';
+import { Sparkline, type SparklineMarker } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
-  sparklineData?: number[];
+  sparklineData?: SparklineSeries;
 }
 
 export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
@@ -60,6 +62,45 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return { className: 'text-[#2563EB]', hex: '#2563EB' };
   })();
+
+  const tradeMarkers: SparklineMarker[] = useMemo(() => {
+    const lots = position.lots ?? [];
+
+    if (!sparklineData || sparklineData.timestamps.length === 0 || lots.length === 0) {
+      return [];
+    }
+
+    return lots
+      .map((lot, index) => {
+        const executedDate = new Date(lot.executedAt);
+        const timestamp = executedDate.getTime();
+
+        if (Number.isNaN(timestamp)) {
+          return null;
+        }
+
+        const tradeTypeText = lot.type === 'BUY' ? t.analysis.actions.buy : t.analysis.actions.sell;
+        const quantityText = formatNumber(lot.quantity, locale);
+        const priceText = formatCurrency(lot.price, 'USD', locale);
+        const dateText = formatDate(lot.executedAt, locale);
+
+        return {
+          id: lot.id ?? `${position.symbol}-${lot.type}-${index}-${timestamp}`,
+          type: lot.type,
+          timestamp,
+          price: lot.price,
+          label: `${tradeTypeText} • ${quantityText} @ ${priceText} • ${dateText}`,
+        } satisfies SparklineMarker;
+      })
+      .filter((marker): marker is SparklineMarker => marker !== null);
+  }, [
+    locale,
+    position.lots,
+    position.symbol,
+    sparklineData,
+    t.analysis.actions.buy,
+    t.analysis.actions.sell,
+  ]);
 
   const changeFromEntryPercent = position.entryPrice !== 0
     ? ((currentPrice - position.entryPrice) / position.entryPrice) * 100
@@ -223,10 +264,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </div>
         </div>
 
-        {sparklineData && sparklineData.length > 0 && (
+        {sparklineData && sparklineData.closes.length > 0 && (
           <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
             <Sparkline
-              data={sparklineData}
+              data={sparklineData.closes}
+              timestamps={sparklineData.timestamps}
+              markers={tradeMarkers}
               width={360}
               height={140}
               color={sparklineColor.hex}

@@ -358,7 +358,7 @@ export default function HomePage() {
                           <PositionCard
                             key={m.position.id || m.position.symbol}
                             metrics={m}
-                            sparklineData={sparklineData[m.position.symbol] || []}
+                            sparklineData={sparklineData[m.position.symbol]}
                           />
                         ))}
                       </div>
@@ -372,7 +372,7 @@ export default function HomePage() {
                               <PositionCard
                                 key={`closed-${m.position.id || m.position.symbol}`}
                                 metrics={m}
-                                sparklineData={sparklineData[m.position.symbol] || []}
+                                sparklineData={sparklineData[m.position.symbol]}
                               />
                             ))}
                           </div>
