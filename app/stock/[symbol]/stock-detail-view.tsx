@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,42 +28,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
-
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import {
-  calculatePositionMetrics,
-  formatCurrency,
-  formatDate,
-  formatNumber,
-  formatPercent,
-  mapCandleDataToPoints,
-} from '@/lib/calculations';
+import { calculatePositionMetrics, formatCurrency, formatDate, formatNumber, formatPercent, mapCandleDataToPoints } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow } from '@/lib/positions';
-import { analyzeStock } from '@/lib/stock-analysis';
 import { cn } from '@/lib/utils';
-import {
-  CandleData,
-  ChecklistItem,
-  ChecklistKey,
-  HistoricalPoint,
-  Position,
-  PositionMetrics,
-  StockAnalysisResult,
-  StockQuote,
-  TimeRange,
-} from '@/types';
+import { CandleData, HistoricalPoint, Position, PositionMetrics, StockQuote, TimeRange } from '@/types';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
-
-const VERDICT_BADGES: Record<StockAnalysisResult['verdict'], string> = {
-  BUY: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  SELL: 'bg-rose-100 text-rose-700 border border-rose-200',
-  NEUTRAL: 'bg-slate-200 text-slate-700 border border-slate-300',
-};
 
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
@@ -128,69 +102,6 @@ function formatTooltipLabel(timestamp: number, range: TimeRange, locale: string)
   });
 }
 
-function buildChecklistDetail(
-  key: ChecklistKey,
-  item: ChecklistItem,
-  t: ReturnType<typeof useTranslation>['t'],
-  formatPrice: (value?: number) => string,
-  formatVolume: (value?: number) => string
-) {
-  const details = t.stock.detailView.details;
-  switch (key) {
-    case 'trend':
-      return item.passed
-        ? details.trendPositive
-        : details.trendNegative.replace('{{ema}}', formatPrice((item.context as Record<string, number | undefined>)?.ema50));
-    case 'rsi':
-      return item.passed ? details.rsiPositive : details.rsiNegative;
-    case 'macd':
-      return item.passed ? details.macdPositive : details.macdNegative;
-    case 'volume':
-      return item.passed
-        ? details.volumePositive.replace(
-            '{{volume}}',
-            formatVolume((item.context as Record<string, number | undefined>)?.currentVolume as number | undefined)
-          )
-        : details.volumeNegative;
-    case 'supportResistance':
-      return item.passed ? details.srPositive : details.srNegative;
-    case 'riskReward':
-      return item.passed
-        ? details.rrPositive.replace(
-            '{{rr}}',
-            ((item.context as Record<string, number | undefined>)?.rr ?? 0).toFixed(2)
-          )
-        : details.rrNegative;
-    default:
-      return '';
-  }
-}
-
-function buildVerdictNarrative(
-  checklist: ChecklistItem[],
-  riskReward: StockAnalysisResult['riskReward'],
-  t: ReturnType<typeof useTranslation>['t']
-) {
-  if (!checklist.length) {
-    return t.stock.detailView.reasons.none;
-  }
-  const positives = checklist.filter((item) => item.passed).map((item) => t.stock.detailView.criteria[item.key]);
-  const negatives = checklist.filter((item) => !item.passed).map((item) => t.stock.detailView.criteria[item.key]);
-
-  const lines: string[] = [];
-  if (positives.length) {
-    lines.push(`${t.stock.detailView.reasons.positives}${positives.slice(0, 3).join(' · ')}`);
-  }
-  if (negatives.length) {
-    lines.push(`${t.stock.detailView.reasons.negatives}${negatives.slice(0, 2).join(' · ')}`);
-  }
-  if (riskReward.rr !== undefined) {
-    lines.push(`${t.stock.detailView.reasons.riskReward}: ${riskReward.rr.toFixed(2)}`);
-  }
-
-  return lines.join(' ');
-}
-
 function buildHoldingPeriodLabel(
   yearsHeld: number | undefined,
   t: ReturnType<typeof useTranslation>['t'],
@@ -253,16 +164,6 @@ function StockDetailSkeleton() {
         </CardHeader>
         <CardContent>
           <Skeleton className="h-80 w-full" />
-        </CardContent>
-      </Card>
-      <Card className="bg-white/70 border border-white/50 shadow">
-        <CardHeader>
-          <Skeleton className="h-5 w-44" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-2/3" />
         </CardContent>
       </Card>
     </div>
@@ -465,17 +366,21 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     };
   }, [fetchHistorical, position, range]);
 
-  const convertValue = useCallback(
-    (valueUsd: number) => (settings.currency === 'ILS' ? valueUsd * usdToIls : valueUsd),
-    [settings.currency, usdToIls]
+  const formatUsdCurrency = useCallback(
+    (valueUsd?: number) => (valueUsd !== undefined ? formatCurrency(valueUsd, 'USD', locale) : '--'),
+    [locale]
   );
 
-  const formatDisplayCurrency = useCallback(
-    (valueUsd?: number) =>
-      valueUsd !== undefined
-        ? formatCurrency(convertValue(valueUsd), settings.currency, locale)
-        : '--',
-    [convertValue, locale, settings.currency]
+  const formatUsdIlsCurrency = useCallback(
+    (valueUsd?: number) => {
+      if (valueUsd === undefined) {
+        return '--';
+      }
+      const usdLabel = formatCurrency(valueUsd, 'USD', locale);
+      const ilsLabel = formatCurrency(valueUsd * usdToIls, 'ILS', locale);
+      return `${usdLabel} · ${ilsLabel}`;
+    },
+    [locale, usdToIls]
   );
 
   const numberFormatter = useMemo(
@@ -491,61 +396,24 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [numberFormatter]
   );
 
-  const currentPriceUsd = metrics?.currentPrice ?? quote?.c ?? position?.entryPrice ?? 0;
-
-  const analysis = useMemo(
-    () => analyzeStock({ points: historical, currentPrice: currentPriceUsd }),
-    [historical, currentPriceUsd]
-  );
-
   const chartData = useMemo(
     () =>
-      analysis.series.map((point) => ({
+      historical.map((point) => ({
         timestamp: point.timestamp,
-        close: convertValue(point.close),
+        close: point.close,
         volume: point.volume,
       })),
-    [analysis.series, convertValue]
-  );
-
-  const verdictNarrative = useMemo(
-    () => buildVerdictNarrative(analysis.checklist, analysis.riskReward, t),
-    [analysis.checklist, analysis.riskReward, t]
-  );
-
-  const checklistInsights = useMemo(
-    () =>
-      analysis.checklist.map((item) => ({
-        key: item.key,
-        title: t.stock.detailView.criteria[item.key],
-        passed: item.passed,
-        detail: buildChecklistDetail(item.key, item, t, formatDisplayCurrency, formatVolume),
-      })),
-    [analysis.checklist, formatDisplayCurrency, formatVolume, t]
-  );
-
-  const positiveInsights = useMemo(
-    () => checklistInsights.filter((item) => item.passed),
-    [checklistInsights]
-  );
-
-  const negativeInsights = useMemo(
-    () => checklistInsights.filter((item) => !item.passed),
-    [checklistInsights]
+    [historical]
   );
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
 
-  const verdictBadgeClass = VERDICT_BADGES[analysis.verdict];
-
-  const verdictMessage = t.stock.detailView.verdictMessage[analysis.verdict];
-
   const investedAmountUsd = metrics ? metrics.position.entryPrice * metrics.position.quantity : 0;
-  const investedAmountDisplay = metrics ? formatDisplayCurrency(investedAmountUsd) : '--';
-  const currentValueDisplay = metrics ? formatDisplayCurrency(metrics.currentValue) : '--';
+  const investedAmountDisplay = metrics ? formatUsdIlsCurrency(investedAmountUsd) : '--';
+  const currentValueDisplay = metrics ? formatUsdIlsCurrency(metrics.currentValue) : '--';
   const totalGainUsd = metrics ? metrics.currentValue - investedAmountUsd : 0;
-  const totalGainDisplay = metrics ? formatDisplayCurrency(totalGainUsd) : '--';
+  const totalGainDisplay = metrics ? formatUsdIlsCurrency(totalGainUsd) : '--';
   const totalGainPercentLabel =
     metrics?.roiPercent !== undefined ? formatPercent(metrics.roiPercent, locale) : '--';
   const totalGainClass =
@@ -556,7 +424,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       : 'text-slate-600';
   const holdingPeriodLabel = metrics ? buildHoldingPeriodLabel(metrics.yearsHeld, t, locale) : '--';
   const dailyChangeDisplay =
-    dailyChangeValue !== undefined ? formatDisplayCurrency(dailyChangeValue) : '--';
+    dailyChangeValue !== undefined ? formatUsdIlsCurrency(dailyChangeValue) : '--';
   const dailyChangePercentLabel =
     dailyChangePercent !== undefined ? formatPercent(dailyChangePercent, locale) : '--';
   const dailyChangeClass =
@@ -660,9 +528,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge className={cn('text-sm uppercase font-semibold', verdictBadgeClass)}>
-                        {analysis.verdict}
-                      </Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -674,7 +539,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <span>
                         {t.dashboard.entryPrice}{' '}
                         <span className="font-medium text-gray-900">
-                          {formatDisplayCurrency(position.entryPrice)}
+                          {formatUsdIlsCurrency(position.entryPrice)}
                         </span>
                       </span>
                       <span>
@@ -689,7 +554,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 <div className="text-right">
                   <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
                   <div className="text-3xl font-semibold text-[#0F172A]">
-                    {formatDisplayCurrency(metrics.currentPrice)}
+                    {formatUsdCurrency(metrics.currentPrice)}
                   </div>
                   <div className={cn('text-sm font-medium', dailyChangeClass)}>
                     {dailyChangeDisplay}{' '}
@@ -699,7 +564,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-600">{verdictMessage}</p>
             </div>
 
             <Card className="bg-white/85 border border-white/60 shadow-xl">
@@ -749,11 +613,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.entryPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDisplayCurrency(position.entryPrice)}</div>
+                    <div className="font-medium text-gray-900">{formatUsdIlsCurrency(position.entryPrice)}</div>
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.weightedProjectedPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDisplayCurrency(metrics.projectedPrice)}</div>
+                    <div className="font-medium text-gray-900">{formatUsdIlsCurrency(metrics.projectedPrice)}</div>
                   </div>
                 </div>
               </CardHeader>
@@ -774,7 +638,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             <span>{formatDate(lot.executedAt, locale)}</span>
                           </div>
                           <div className="mt-2 text-sm font-medium text-gray-900">
-                            {formatNumber(lot.quantity, locale)} · {formatDisplayCurrency(lot.price)}
+                            {formatNumber(lot.quantity, locale)} · {formatUsdIlsCurrency(lot.price)}
                           </div>
                         </div>
                       ))}
@@ -811,7 +675,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               <TableCell className="text-right font-medium">
                                 {formatNumber(lot.quantity, locale)}
                               </TableCell>
-                              <TableCell className="text-right">{formatDisplayCurrency(lot.price)}</TableCell>
+                              <TableCell className="text-right">{formatUsdIlsCurrency(lot.price)}</TableCell>
                               <TableCell className="text-right text-xs text-gray-500">
                                 {formatDate(lot.executedAt, locale)}
                               </TableCell>
@@ -885,7 +749,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           yAxisId="price"
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(value) => formatCurrency(value as number, settings.currency, locale)}
+                          tickFormatter={(value) => formatUsdIlsCurrency(value as number)}
                         />
                         <Tooltip
                           formatter={(value, name) => {
@@ -893,7 +757,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
                             }
                             return [
-                              formatCurrency(value as number, settings.currency, locale),
+                              formatUsdIlsCurrency(value as number),
                               t.stock.detailView.chartPriceLabel,
                             ];
                           }}
@@ -925,119 +789,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                 )}
                 <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/85 border border-white/60 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  {t.stock.detailView.verdictTitle}
-                </CardTitle>
-                <p className="text-sm text-gray-600">{verdictMessage}</p>
-              </CardHeader>
-              <CardContent className="space-y-6 text-sm text-gray-600">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
-                  <div>
-                    <div className="text-4xl font-bold text-[#0F172A]">{analysis.score}</div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">
-                      {t.stock.detailView.score}
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Progress value={analysis.score} />
-                    <p className="text-xs text-gray-500">{t.stock.detailView.scoreHelper}</p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50/90 p-4 text-sm text-slate-700">
-                  {verdictNarrative || t.stock.detailView.reasons.none}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">
-                      {t.stock.detailView.rr}
-                    </div>
-                    <div className="mt-1 font-medium text-gray-900">
-                      {analysis.riskReward.rr ? analysis.riskReward.rr.toFixed(2) : '--'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">
-                      {t.stock.detailView.stop}
-                    </div>
-                    <div className="mt-1 font-medium text-gray-900">
-                      {analysis.riskReward.stop ? formatDisplayCurrency(analysis.riskReward.stop) : '--'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">
-                      {t.stock.detailView.target}
-                    </div>
-                    <div className="mt-1 font-medium text-gray-900">
-                      {analysis.riskReward.target ? formatDisplayCurrency(analysis.riskReward.target) : '--'}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/85 border border-white/60 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  {t.stock.detailView.insightsTitle}
-                </CardTitle>
-                <p className="text-sm text-gray-600">{t.stock.detailView.insightsSubtitle}</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h4 className="mb-3 text-sm font-semibold text-emerald-700">
-                    {t.stock.detailView.insightsPositive}
-                  </h4>
-                  <ul className="space-y-3">
-                    {positiveInsights.length ? (
-                      positiveInsights.map((item) => (
-                        <li
-                          key={item.key}
-                          className="flex items-start gap-3 rounded-lg bg-emerald-50/70 p-3"
-                        >
-                          <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                          <div className="space-y-1">
-                            <p className="font-medium text-emerald-900">{item.title}</p>
-                            <p className="text-xs text-emerald-700/80">{item.detail}</p>
-                          </div>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="rounded-lg border border-dashed border-emerald-200 bg-white/70 p-3 text-xs text-emerald-700/80">
-                        {t.stock.detailView.insightsEmpty}
-                      </li>
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="mb-3 text-sm font-semibold text-rose-700">
-                    {t.stock.detailView.insightsNegative}
-                  </h4>
-                  <ul className="space-y-3">
-                    {negativeInsights.length ? (
-                      negativeInsights.map((item) => (
-                        <li
-                          key={item.key}
-                          className="flex items-start gap-3 rounded-lg bg-rose-50/70 p-3"
-                        >
-                          <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-600" />
-                          <div className="space-y-1">
-                            <p className="font-medium text-rose-900">{item.title}</p>
-                            <p className="text-xs text-rose-700/80">{item.detail}</p>
-                          </div>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="rounded-lg border border-dashed border-rose-200 bg-white/70 p-3 text-xs text-rose-700/80">
-                        {t.stock.detailView.insightsEmpty}
-                      </li>
-                    )}
-                  </ul>
-                </div>
               </CardContent>
             </Card>
 
