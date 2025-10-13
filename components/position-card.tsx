@@ -1,23 +1,24 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
-import { HistoricalPoint, PositionMetrics } from '@/types';
+import { HistoricalPoint, PositionMetrics, PositionTriggerAlert } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
-import Link from 'next/link';
-import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
   sparklineData?: HistoricalPoint[];
+  alert?: PositionTriggerAlert | null;
 }
 
-export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
+export function PositionCard({ metrics, sparklineData, alert }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const {
@@ -26,8 +27,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     positionPnLUsd,
     positionPnLIls,
     projectedPrice,
-    projectedPnLUsd,
-    projectedPnLIls,
     combined,
     combinedIls,
     yearsHeld,
@@ -35,22 +34,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const projectedPriceDelta = currentPrice - projectedPrice;
 
-  const usdToIlsRate = (() => {
-    if (positionPnLUsd !== 0) {
-      return positionPnLIls / positionPnLUsd;
-    }
-
-    if (projectedPnLUsd !== 0) {
-      return projectedPnLIls / projectedPnLUsd;
-    }
-
-    if (combined !== 0) {
-      return combinedIls / combined;
-    }
-
-    return 0;
-  })();
-  const projectedPriceDeltaIls = projectedPriceDelta * usdToIlsRate;
   const sparklineColor = (() => {
     if (currentPrice < position.entryPrice) {
       return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
@@ -89,18 +72,15 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         return acc;
       }
 
-      const quantity = lot.quantity;
-      const price = lot.price;
-
       acc.push({
         id: lot.id ?? `${position.symbol}-${lot.type}-${index}`,
         timestamp,
         type: lot.type,
-        price,
-        quantity,
+        price: lot.price,
+        quantity: lot.quantity,
         typeLabel: lot.type === 'BUY' ? buyLabel : sellLabel,
-        priceLabel: formatCurrency(price, 'USD', locale),
-        quantityLabel: formatNumber(quantity, locale),
+        priceLabel: formatCurrency(lot.price, 'USD', locale),
+        quantityLabel: formatNumber(lot.quantity, locale),
       });
 
       return acc;
@@ -149,16 +129,49 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
 
+  const [showAlertDetails, setShowAlertDetails] = useState(false);
+
+  useEffect(() => {
+    if (!alert) {
+      setShowAlertDetails(false);
+    }
+  }, [alert]);
+
+  const alertTimestamp = useMemo(() => {
+    if (!alert) {
+      return null;
+    }
+
+    const parsed = new Date(alert.ts);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    });
+  }, [alert, locale]);
+
+  const getTriggerStatusStyles = (status: string) => {
+    const normalized = status.toUpperCase();
+    if (normalized === 'TRIGGERED') {
+      return 'bg-rose-100 text-rose-700';
+    }
+    if (normalized === 'TRAIL') {
+      return 'bg-blue-100 text-blue-700';
+    }
+    return 'bg-slate-100 text-slate-600';
+  };
+
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
       <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-start">
-
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-
           <div className="flex items-start gap-4">
             <div className="relative">
               <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
@@ -171,7 +184,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {changeFromEntryPercent !== null && (
                 <Badge
                   variant="secondary"
-                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${
+                    changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'
+                  }`}
                 >
                   {percentText(changeFromEntryPercent)}
                 </Badge>
@@ -188,40 +203,91 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               <p className="text-sm text-slate-500">
                 {t.dashboard.since} {formatDate(position.entryDate, locale)}
               </p>
-
             </div>
-          </div>
-
           </div>
 
           {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
             <Badge
               variant="outline"
-              className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+              className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${
+                dailyChangeStyles.badge
+              }`}
             >
               {dailyChangeIcon}
               <span>{t.dashboard.dailyChange}</span>
-              <div className='flex flex-col gap-1 items-start font-semibold'>
-              <span>
-                {formatCurrency(dailyChangeAmount, 'USD', locale)}
-              </span>
-              <span>
-                {percentText(dailyChangePercent)}
-              </span>
+              <div className="flex flex-col items-start gap-1 font-semibold">
+                <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+                <span>{percentText(dailyChangePercent)}</span>
               </div>
             </Badge>
           )}
         </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+
+        <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+          <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+          </div>
+        </div>
+
+        {alert && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setShowAlertDetails((prev) => !prev)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-start gap-3">
+                <span className="rounded-xl bg-amber-100 p-2 text-amber-600 shadow-sm">
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">{t.dashboard.triggerAlert.title}</p>
+                  {alertTimestamp && (
+                    <p className="text-xs text-amber-700/80">
+                      {t.dashboard.triggerAlert.lastUpdated} {alertTimestamp}
+                    </p>
+                  )}
                 </div>
               </div>
+              <span className="text-xs font-semibold text-amber-700">
+                {showAlertDetails ? t.dashboard.triggerAlert.hideDetails : t.dashboard.triggerAlert.showDetails}
+              </span>
+            </button>
+
+            {showAlertDetails && (
+              <div className="mt-4 space-y-3 text-sm text-amber-900">
+                {alert.items.length === 0 && (
+                  <p className="text-xs text-amber-700/80">{t.dashboard.triggerAlert.empty}</p>
+                )}
+                {alert.items.map((item, index) => (
+                  <div key={`${alert.symbol}-${item.name}-${index}`} className="rounded-xl bg-white/80 p-3 shadow">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <Badge
+                        variant="secondary"
+                        className={`border-0 px-2 py-0.5 text-[10px] font-semibold ${getTriggerStatusStyles(item.status)}`}
+                      >
+                        {item.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">{item.condition}</p>
+                    {item.hint && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        <span className="font-semibold text-slate-600">{t.dashboard.triggerAlert.hintLabel}:</span>{' '}
+                        {item.hint}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
@@ -256,12 +322,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 <dd className="text-base font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
               </div>
               {settings.currency === 'ILS' && (
-                <>
-                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
-                    <dt>{t.dashboard.combined} ILS</dt>
-                    <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
-                  </div>
-                </>
+                <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                  <dt>{t.dashboard.combined} ILS</dt>
+                  <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
+                </div>
               )}
             </dl>
           </div>

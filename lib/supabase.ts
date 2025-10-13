@@ -72,6 +72,29 @@ export type Database = {
           updated_at?: string;
         };
       };
+      position_triggers: {
+        Row: {
+          id: string;
+          symbol: string;
+          ts: string;
+          items: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          symbol: string;
+          ts?: string;
+          items: unknown;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          symbol?: string;
+          ts?: string;
+          items?: unknown;
+          created_at?: string;
+        };
+      };
     };
   };
 };

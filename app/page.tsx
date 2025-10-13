@@ -25,8 +25,17 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 export default function HomePage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, sparklineData, usdToIls, lastUpdate, reload } =
-    usePortfolioData();
+  const {
+    loading,
+    positions,
+    metrics,
+    summary,
+    sparklineData,
+    usdToIls,
+    lastUpdate,
+    positionTriggers,
+    reload,
+  } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -359,6 +368,7 @@ export default function HomePage() {
                             key={m.position.id || m.position.symbol}
                             metrics={m}
                             sparklineData={sparklineData[m.position.symbol] || []}
+                            alert={positionTriggers[m.position.symbol]}
                           />
                         ))}
                       </div>
@@ -373,6 +383,7 @@ export default function HomePage() {
                                 key={`closed-${m.position.id || m.position.symbol}`}
                                 metrics={m}
                                 sparklineData={sparklineData[m.position.symbol] || []}
+                                alert={positionTriggers[m.position.symbol]}
                               />
                             ))}
                           </div>

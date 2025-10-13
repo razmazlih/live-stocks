@@ -9,6 +9,19 @@ export interface PositionLot {
   executedAt: string;
 }
 
+export interface TriggerItem {
+  name: string;
+  condition: string;
+  status: string;
+  hint?: string;
+}
+
+export interface PositionTriggerAlert {
+  symbol: string;
+  ts: string;
+  items: TriggerItem[];
+}
+
 export interface Position {
   id?: string;
   symbol: string;

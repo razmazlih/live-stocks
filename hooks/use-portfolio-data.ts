@@ -17,6 +17,7 @@ import {
   PositionMetrics,
   PortfolioSummary,
   PortfolioTimelinePoint,
+  PositionTriggerAlert,
 } from '@/types';
 
 interface SparklineResult {
@@ -36,6 +37,7 @@ export function usePortfolioData() {
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [positionTriggers, setPositionTriggers] = useState<Record<string, PositionTriggerAlert | null>>({});
 
   const loadSparklines = useCallback(
     async (positionsList: Position[]) => {
@@ -179,6 +181,26 @@ export function usePortfolioData() {
       const calculatedMetrics = await Promise.all(metricsPromises);
       setMetrics(calculatedMetrics);
 
+      const triggerEntries = await Promise.all(
+        mappedPositions.map(async (position) => {
+          try {
+            const response = await fetch(`/api/${encodeURIComponent(position.symbol)}-trigger`);
+
+            if (!response.ok) {
+              return [position.symbol, null] as const;
+            }
+
+            const data = (await response.json()) as { alert?: PositionTriggerAlert | null };
+            return [position.symbol, data.alert ?? null] as const;
+          } catch (error) {
+            console.warn(`Failed to fetch triggers for ${position.symbol}:`, error);
+            return [position.symbol, null] as const;
+          }
+        })
+      );
+
+      setPositionTriggers(Object.fromEntries(triggerEntries));
+
       const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
       setSummary(portfolioSummary);
 
@@ -205,6 +227,7 @@ export function usePortfolioData() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
+    positionTriggers,
     reload: loadData,
   };
 }
