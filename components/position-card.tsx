@@ -250,8 +250,8 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-150 hover:-translate-y-1 hover:shadow-2xl">
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-300 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
@@ -329,7 +329,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                <ArrowUpRight className="h-4 w-4 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </Link>
             </div>
           </>
@@ -459,7 +459,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                <ArrowUpRight className="h-4 w-4 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </Link>
             </div>
           </>
