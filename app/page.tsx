@@ -21,6 +21,7 @@ import {
 import Link from 'next/link';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { HistoricalPoint, PositionLot } from '@/types';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -104,6 +105,56 @@ export default function HomePage() {
     [metrics]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
+  const closedSparklineData = useMemo(() => {
+    return closedMetrics.reduce<Record<string, HistoricalPoint[]>>((acc, metric) => {
+      const symbol = metric.position.symbol;
+      const basePoints = sparklineData[symbol] || [];
+      const lots = metric.position.lots ?? [];
+
+      const lastSell = lots.reduce<{ lot: PositionLot; timestamp: number } | null>((latest, lot) => {
+        if (lot.type !== 'SELL') {
+          return latest;
+        }
+
+        const timestamp = new Date(lot.executedAt).getTime();
+        if (Number.isNaN(timestamp)) {
+          return latest;
+        }
+
+        if (!latest || timestamp > latest.timestamp) {
+          return { lot, timestamp };
+        }
+
+        return latest;
+      }, null);
+
+      if (!lastSell) {
+        acc[symbol] = basePoints;
+        return acc;
+      }
+
+      const trimmedPoints = basePoints
+        .filter((point) => point.timestamp <= lastSell.timestamp)
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+      if (
+        trimmedPoints.length === 0 ||
+        trimmedPoints[trimmedPoints.length - 1]?.timestamp !== lastSell.timestamp
+      ) {
+        trimmedPoints.push({
+          timestamp: lastSell.timestamp,
+          close: lastSell.lot.price,
+          open: lastSell.lot.price,
+          high: lastSell.lot.price,
+          low: lastSell.lot.price,
+        });
+      }
+
+      acc[symbol] = trimmedPoints.sort((a, b) => a.timestamp - b.timestamp);
+      return acc;
+    }, {});
+  }, [closedMetrics, sparklineData]);
 
   type SummaryCard = {
     key: string;
@@ -372,7 +423,7 @@ export default function HomePage() {
                               <PositionCard
                                 key={`closed-${m.position.id || m.position.symbol}`}
                                 metrics={m}
-                                sparklineData={sparklineData[m.position.symbol] || []}
+                                sparklineData={closedSparklineData[m.position.symbol] || []}
                               />
                             ))}
                           </div>

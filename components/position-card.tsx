@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { computeRealizedSales } from '@/lib/positions';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -35,22 +36,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const projectedPriceDelta = currentPrice - projectedPrice;
 
-  const usdToIlsRate = (() => {
-    if (positionPnLUsd !== 0) {
-      return positionPnLIls / positionPnLUsd;
-    }
-
-    if (projectedPnLUsd !== 0) {
-      return projectedPnLIls / projectedPnLUsd;
-    }
-
-    if (combined !== 0) {
-      return combinedIls / combined;
-    }
-
-    return 0;
-  })();
-  const projectedPriceDeltaIls = projectedPriceDelta * usdToIlsRate;
   const sparklineColor = (() => {
     if (currentPrice < position.entryPrice) {
       return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
@@ -149,16 +134,159 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
 
+  const isClosed = position.quantity <= 0;
+  const realizedSales = useMemo(() => computeRealizedSales(position), [position]);
+  const lastSale = realizedSales.length ? realizedSales[realizedSales.length - 1] : null;
+  const lastSaleTimestamp = lastSale ? new Date(lastSale.sellDate).getTime() : null;
+  const totalRealizedProfitUsd = realizedSales.reduce((sum, sale) => sum + sale.profitUsd, 0);
+  const totalProceedsUsd = realizedSales.reduce((sum, sale) => sum + sale.proceedsUsd, 0);
+  const totalCostUsd = realizedSales.reduce((sum, sale) => sum + sale.costBasisUsd, 0);
+  const totalQuantitySold = realizedSales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const averageEntryPrice = totalQuantitySold > 0 ? totalCostUsd / totalQuantitySold : null;
+  const averageExitPrice = totalQuantitySold > 0
+    ? totalProceedsUsd / totalQuantitySold
+    : lastSale?.sellPrice ?? null;
+  const weightedHoldingDays = totalQuantitySold > 0
+    ? realizedSales.reduce((sum, sale) => sum + sale.holdingPeriodDays * sale.quantity, 0) /
+        totalQuantitySold
+    : null;
+
+  const displayedSparklineEvents = useMemo(() => {
+    if (!isClosed || !lastSaleTimestamp) {
+      return sparklineEvents;
+    }
+
+    return sparklineEvents.filter((event) => event.timestamp <= lastSaleTimestamp);
+  }, [isClosed, lastSaleTimestamp, sparklineEvents]);
+
+  if (isClosed) {
+    const realizedStyles = getTrendStyles(totalRealizedProfitUsd);
+
+    const quantityDisplay = totalQuantitySold > 0 ? formatNumber(totalQuantitySold, locale) : '—';
+    const averageEntryDisplay = averageEntryPrice !== null
+      ? formatCurrency(averageEntryPrice, 'USD', locale)
+      : '—';
+    const averageExitDisplay = averageExitPrice !== null
+      ? formatCurrency(averageExitPrice, 'USD', locale)
+      : '—';
+    const holdingPeriodDisplay = weightedHoldingDays !== null
+      ? `${formatNumber(Math.round(weightedHoldingDays), locale)} ${t.dashboard.closedSummary.days}`
+      : '—';
+    const lastSalePriceDisplay = lastSale ? formatCurrency(lastSale.sellPrice, 'USD', locale) : '—';
+    const lastSaleDateDisplay = lastSale ? formatDate(lastSale.sellDate, locale) : null;
+    const realizedProfitDisplay = realizedSales.length
+      ? formatCurrency(totalRealizedProfitUsd, 'USD', locale)
+      : '—';
+
+    return (
+      <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
+        <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
+
+        <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="relative">
+                <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
+                  <AvatarImage src={position.imageUrl} alt={position.display} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    {position.symbol.slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
+                  <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    {position.symbol}
+                  </Badge>
+                </div>
+                {lastSaleDateDisplay && (
+                  <p className="text-sm text-slate-500">
+                    {t.dashboard.closedSummary.lastSale}{' '}
+                    <span className="font-medium text-slate-700">{lastSaleDateDisplay}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.closedSummary.lastSalePrice}
+                </p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{lastSalePriceDisplay}</p>
+              </div>
+              <div className={`rounded-2xl p-3 shadow-sm ${realizedStyles.badge}`}>
+                <p className="text-xs font-semibold uppercase tracking-wide">
+                  {t.dashboard.closedSummary.totalRealized}
+                </p>
+                <p className="mt-1 text-base font-semibold">{realizedProfitDisplay}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+            <div className="rounded-2xl bg-white/70 p-3 shadow-inner">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t.dashboard.entryPrice}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{averageEntryDisplay}</p>
+            </div>
+            <div className="rounded-2xl bg-white/70 p-3 shadow-inner">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t.dashboard.closedSummary.averageExitPrice}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{averageExitDisplay}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t.realized.quantity}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{quantityDisplay}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {t.dashboard.closedSummary.holdingPeriod}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{holdingPeriodDisplay}</p>
+            </div>
+          </div>
+
+          {sparklineData && sparklineData.length > 1 && (
+            <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
+              <Sparkline
+                points={sparklineData}
+                height={140}
+                color={sparklineColor.hex}
+                baseline={position.entryPrice}
+                baselineColor="rgba(148, 163, 184, 0.5)"
+                events={displayedSparklineEvents}
+                className="h-36 w-full"
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Link
+              href={`/stock/${position.symbol}`}
+              className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+            >
+              {t.dashboard.viewDetails}
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
       <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-start">
-
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-
           <div className="flex items-start gap-4">
             <div className="relative">
               <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
@@ -188,10 +316,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               <p className="text-sm text-slate-500">
                 {t.dashboard.since} {formatDate(position.entryDate, locale)}
               </p>
-
             </div>
-          </div>
-
           </div>
 
           {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
@@ -201,27 +326,24 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             >
               {dailyChangeIcon}
               <span>{t.dashboard.dailyChange}</span>
-              <div className='flex flex-col gap-1 items-start font-semibold'>
-              <span>
-                {formatCurrency(dailyChangeAmount, 'USD', locale)}
-              </span>
-              <span>
-                {percentText(dailyChangePercent)}
-              </span>
+              <div className="flex flex-col items-start gap-1 font-semibold">
+                <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+                <span>{percentText(dailyChangePercent)}</span>
               </div>
             </Badge>
           )}
         </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
-                </div>
-              </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+          <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+          </div>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
@@ -256,12 +378,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 <dd className="text-base font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
               </div>
               {settings.currency === 'ILS' && (
-                <>
-                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
-                    <dt>{t.dashboard.combined} ILS</dt>
-                    <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
-                  </div>
-                </>
+                <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                  <dt>{t.dashboard.combined} ILS</dt>
+                  <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
+                </div>
               )}
             </dl>
           </div>
@@ -278,7 +398,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               projectedPrice={projectedPrice}
               annualGrowthRate={settings.annualGrowthRate}
               yearsHeld={yearsHeld}
-              events={sparklineEvents}
+              events={displayedSparklineEvents}
               className="h-36 w-full"
             />
           </div>
