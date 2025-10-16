@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { computeRealizedSales } from '@/lib/positions';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -149,16 +150,126 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
 
+  const isClosed = position.quantity <= 0;
+
+  const realizedSales = useMemo(() => {
+    if (!isClosed) {
+      return [];
+    }
+
+    return computeRealizedSales(position);
+  }, [isClosed, position]);
+
+  const lastSaleRecord = useMemo(() => {
+    if (!realizedSales.length) {
+      return null;
+    }
+
+    return realizedSales.reduce((latest, sale) => {
+      const latestTime = new Date(latest.sellDate).getTime();
+      const saleTime = new Date(sale.sellDate).getTime();
+
+      if (Number.isNaN(saleTime)) {
+        return latest;
+      }
+
+      if (Number.isNaN(latestTime) || saleTime > latestTime) {
+        return sale;
+      }
+
+      return latest;
+    }, realizedSales[0]);
+  }, [realizedSales]);
+
+  const sellEvents = useMemo(() => {
+    if (!isClosed) {
+      return [];
+    }
+
+    return sparklineEvents.filter((event) => event.type === 'SELL');
+  }, [isClosed, sparklineEvents]);
+
+  const fallbackSellEvent = useMemo(() => {
+    if (!sellEvents.length) {
+      return null;
+    }
+
+    return sellEvents.reduce((latest, event) => (event.timestamp > latest.timestamp ? event : latest), sellEvents[0]);
+  }, [sellEvents]);
+
+  const lastSellTimestamp = useMemo(() => {
+    if (lastSaleRecord) {
+      const value = new Date(lastSaleRecord.sellDate).getTime();
+      return Number.isNaN(value) ? null : value;
+    }
+
+    if (fallbackSellEvent) {
+      return fallbackSellEvent.timestamp;
+    }
+
+    return null;
+  }, [lastSaleRecord, fallbackSellEvent]);
+
+  const lastSalePrice = lastSaleRecord?.sellPrice ?? fallbackSellEvent?.price ?? null;
+  const lastSellDate = lastSaleRecord?.sellDate ?? (fallbackSellEvent ? new Date(fallbackSellEvent.timestamp).toISOString() : null);
+
+  const totalQuantitySold = realizedSales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const totalRealizedProfit = realizedSales.reduce((sum, sale) => sum + sale.profitUsd, 0);
+  const totalProceeds = realizedSales.reduce((sum, sale) => sum + sale.proceedsUsd, 0);
+  const weightedHoldingDays = totalQuantitySold > 0
+    ? realizedSales.reduce((sum, sale) => sum + sale.holdingPeriodDays * sale.quantity, 0) / totalQuantitySold
+    : 0;
+
+  const averageEntryPriceClosed = totalQuantitySold > 0
+    ? (totalProceeds - totalRealizedProfit) / totalQuantitySold
+    : lastSaleRecord?.averageEntryPrice ?? position.entryPrice;
+
+  const sparklinePoints = useMemo(() => {
+    if (!isClosed) {
+      return sparklineData ?? [];
+    }
+
+    const points = Array.isArray(sparklineData) ? [...sparklineData] : [];
+
+    if (!points.length) {
+      if (lastSellTimestamp && lastSalePrice !== null) {
+        return [{ timestamp: lastSellTimestamp, close: lastSalePrice }];
+      }
+      return [];
+    }
+
+    const filtered = lastSellTimestamp
+      ? points.filter((point) => point.timestamp <= lastSellTimestamp)
+      : points;
+
+    const sorted = [...filtered].sort((a, b) => a.timestamp - b.timestamp);
+
+    if (lastSellTimestamp && lastSalePrice !== null) {
+      const hasSalePoint = sorted.some((point) => point.timestamp === lastSellTimestamp);
+      if (!hasSalePoint) {
+        sorted.push({ timestamp: lastSellTimestamp, close: lastSalePrice });
+      }
+    }
+
+    return sorted.sort((a, b) => a.timestamp - b.timestamp);
+  }, [isClosed, sparklineData, lastSellTimestamp, lastSalePrice]);
+
+  const eventsForSparkline = useMemo(() => {
+    if (!isClosed || !lastSellTimestamp) {
+      return sparklineEvents;
+    }
+
+    return sparklineEvents.filter((event) => event.timestamp <= lastSellTimestamp);
+  }, [isClosed, lastSellTimestamp, sparklineEvents]);
+
+  const showSparkline = sparklinePoints.length > 1;
+
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
       <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-start">
-
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-
           <div className="flex items-start gap-4">
             <div className="relative">
               <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
@@ -168,7 +279,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </AvatarFallback>
               </Avatar>
 
-              {changeFromEntryPercent !== null && (
+              {!isClosed && changeFromEntryPercent !== null && (
                 <Badge
                   variant="secondary"
                   className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
@@ -186,99 +297,134 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </Badge>
               </div>
               <p className="text-sm text-slate-500">
-                {t.dashboard.since} {formatDate(position.entryDate, locale)}
+                {isClosed && lastSellDate
+                  ? `${t.dashboard.closedOn} ${formatDate(lastSellDate, locale)}`
+                  : `${t.dashboard.since} ${formatDate(position.entryDate, locale)}`}
               </p>
-
             </div>
           </div>
 
-          </div>
-
-          {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
+          {!isClosed && dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
             <Badge
               variant="outline"
               className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
             >
               {dailyChangeIcon}
               <span>{t.dashboard.dailyChange}</span>
-              <div className='flex flex-col gap-1 items-start font-semibold'>
-              <span>
-                {formatCurrency(dailyChangeAmount, 'USD', locale)}
-              </span>
-              <span>
-                {percentText(dailyChangePercent)}
-              </span>
+              <div className="flex flex-col items-start gap-1 font-semibold">
+                <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+                <span>{percentText(dailyChangePercent)}</span>
               </div>
             </Badge>
           )}
         </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
-                </div>
-              </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.current}</p>
-            <dl className="mt-3 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between">
-                <dt>{t.dashboard.price}</dt>
-                <dd className="text-base font-semibold text-slate-900">{formatCurrency(currentPrice, 'USD', locale)}</dd>
+        {!isClosed ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
               </div>
-              <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
-                <dt>{t.dashboard.pnl} USD</dt>
-                <dd className="text-base font-semibold">{formatCurrency(positionPnLUsd, 'USD', locale)}</dd>
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
               </div>
-              {settings.currency === 'ILS' && (
-                <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
-                  <dt>{t.dashboard.pnl} ILS</dt>
-                  <dd className="text-base font-semibold">{formatCurrency(positionPnLIls, 'ILS', locale)}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
+            </div>
 
-          <div className="rounded-3xl border border-slate-100/80 bg-white/70 p-4 shadow-inner">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.projected}</p>
-            <dl className="mt-3 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between">
-                <dt>{t.dashboard.weightedProjectedPrice}</dt>
-                <dd className="text-base font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
-              </div>
-              <div className={`flex items-center justify-between ${combinedStyles.text}`}>
-                <dt>{t.dashboard.combined} USD</dt>
-                <dd className="text-base font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
-              </div>
-              {settings.currency === 'ILS' && (
-                <>
-                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
-                    <dt>{t.dashboard.combined} ILS</dt>
-                    <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.current}</p>
+                <dl className="mt-3 space-y-3 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <dt>{t.dashboard.price}</dt>
+                    <dd className="text-base font-semibold text-slate-900">{formatCurrency(currentPrice, 'USD', locale)}</dd>
                   </div>
-                </>
-              )}
-            </dl>
-          </div>
-        </div>
+                  <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
+                    <dt>{t.dashboard.pnl} USD</dt>
+                    <dd className="text-base font-semibold">{formatCurrency(positionPnLUsd, 'USD', locale)}</dd>
+                  </div>
+                  {settings.currency === 'ILS' && (
+                    <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
+                      <dt>{t.dashboard.pnl} ILS</dt>
+                      <dd className="text-base font-semibold">{formatCurrency(positionPnLIls, 'ILS', locale)}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
 
-        {sparklineData && sparklineData.length > 1 && (
+              <div className="rounded-3xl border border-slate-100/80 bg-white/70 p-4 shadow-inner">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.projected}</p>
+                <dl className="mt-3 space-y-3 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <dt>{t.dashboard.weightedProjectedPrice}</dt>
+                    <dd className="text-base font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
+                  </div>
+                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                    <dt>{t.dashboard.combined} USD</dt>
+                    <dd className="text-base font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
+                  </div>
+                  {settings.currency === 'ILS' && (
+                    <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                      <dt>{t.dashboard.combined} ILS</dt>
+                      <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantitySold}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(totalQuantitySold, locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(averageEntryPriceClosed, 'USD', locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.lastSalePrice}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">
+                  {lastSalePrice !== null ? formatCurrency(lastSalePrice, 'USD', locale) : '—'}
+                </p>
+              </div>
+              <div className={`rounded-2xl bg-slate-50/80 p-3 shadow-sm ${getTrendStyles(totalRealizedProfit).text}`}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.realizedProfit}</p>
+                <p className="mt-1 text-base font-semibold">{formatCurrency(totalRealizedProfit, 'USD', locale)}</p>
+              </div>
+            </div>
+
+            {totalProceeds > 0 && (
+              <p className="text-xs text-slate-500">
+                {t.dashboard.totalProceeds}:{' '}
+                <span className="font-semibold text-slate-700">{formatCurrency(totalProceeds, 'USD', locale)}</span>
+              </p>
+            )}
+
+            {weightedHoldingDays > 0 && (
+              <p className="text-xs text-slate-500">
+                {t.dashboard.averageHoldDays}:{' '}
+                <span className="font-semibold text-slate-700">{formatNumber(weightedHoldingDays, locale)}</span>
+              </p>
+            )}
+          </>
+        )}
+
+        {showSparkline && (
           <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
             <Sparkline
-              points={sparklineData}
+              points={sparklinePoints}
               height={140}
               color={sparklineColor.hex}
               baseline={position.entryPrice}
               baselineColor="rgba(148, 163, 184, 0.5)"
-              projectedPrice={projectedPrice}
-              annualGrowthRate={settings.annualGrowthRate}
-              yearsHeld={yearsHeld}
-              events={sparklineEvents}
+              projectedPrice={!isClosed ? projectedPrice : undefined}
+              annualGrowthRate={!isClosed ? settings.annualGrowthRate : undefined}
+              yearsHeld={!isClosed ? yearsHeld : undefined}
+              events={eventsForSparkline}
               className="h-36 w-full"
             />
           </div>
