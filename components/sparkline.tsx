@@ -70,6 +70,8 @@ export function Sparkline({
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill`;
+  const areaFadeId = `${gradientId}-fade`;
+  const areaMaskId = `${gradientId}-mask`;
   const strokeGradientId = `${gradientId}-stroke`;
   const glowId = `${gradientId}-glow`;
 
@@ -435,10 +437,37 @@ export function Sparkline({
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
+          <linearGradient
+            id={areaGradientId}
+            x1="0"
+            y1="0"
+            x2={effectiveWidth}
+            y2="0"
+            gradientUnits="userSpaceOnUse"
+          >
+            {gradientStops.map((stop, index) => (
+              <stop
+                key={`${stop.offset}-${stop.color}-${index}`}
+                offset={`${stop.offset * 100}%`}
+                stopColor={stop.color}
+                stopOpacity={0.32}
+              />
+            ))}
           </linearGradient>
+          <linearGradient
+            id={areaFadeId}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2={height}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.7} />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+          </linearGradient>
+          <mask id={areaMaskId} maskUnits="userSpaceOnUse">
+            <rect width={effectiveWidth} height={height} fill={`url(#${areaFadeId})`} />
+          </mask>
           <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
             {gradientStops.map((stop, index) => (
               <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
@@ -480,11 +509,7 @@ export function Sparkline({
           />
         )}
 
-        <path
-          d={areaPath}
-          fill={`url(#${areaGradientId})`}
-          opacity={0.6}
-        />
+        <path d={areaPath} fill={`url(#${areaGradientId})`} mask={`url(#${areaMaskId})`} opacity={0.9} />
 
         <path
           d={linePath}
