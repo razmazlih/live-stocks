@@ -378,12 +378,19 @@ export function Sparkline({
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
+  const handleWrapperLeave = () => {
+    setHoveredEventId(null);
+  };
+
   if (!normalized) {
     return (
       <div
         ref={containerRef}
         className={`relative ${className}`}
         style={{ width: '100%', height }}
+        onPointerLeave={handleWrapperLeave}
+        onTouchCancel={handleWrapperLeave}
+        onTouchEnd={handleWrapperLeave}
       />
     );
   }
@@ -413,6 +420,9 @@ export function Sparkline({
       className={`relative ${className}`}
       style={{ width: '100%', height }}
       onClick={handleWrapperClick}
+      onPointerLeave={handleWrapperLeave}
+      onTouchCancel={handleWrapperLeave}
+      onTouchEnd={handleWrapperLeave}
       role="presentation"
     >
       <svg
