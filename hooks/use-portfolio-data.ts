@@ -196,6 +196,21 @@ export function usePortfolioData() {
     loadData();
   }, [loadData, refreshTrigger]);
 
+  useEffect(() => {
+    if (!settings.refreshInterval || settings.refreshInterval <= 0) {
+      return;
+    }
+
+    const intervalMs = settings.refreshInterval * 60 * 1000;
+    const intervalId = window.setInterval(() => {
+      loadData();
+    }, intervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loadData, settings.refreshInterval]);
+
   return {
     loading,
     positions,
