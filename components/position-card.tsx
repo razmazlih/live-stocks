@@ -34,18 +34,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   } = metrics;
 
   const isClosed = position.quantity <= 0;
-  const sparklineColor = (() => {
-    if (currentPrice < position.entryPrice) {
-      return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
-    }
-
-    if (currentPrice > projectedPrice) {
-      return { className: 'text-[#4AA956]', hex: '#4AA956' };
-    }
-
-    return { className: 'text-[#2563EB]', hex: '#2563EB' };
-  })();
-
   const changeFromEntryPercent = position.entryPrice !== 0
     ? ((currentPrice - position.entryPrice) / position.entryPrice) * 100
     : null;
@@ -169,6 +157,74 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return sparklineEvents.filter((event) => event.timestamp <= lastSaleTimestamp);
   }, [isClosed, lastSaleTimestamp, sparklineEvents]);
+
+  const finalSparklineClose = useMemo(() => {
+    if (!effectiveSparklineData.length) {
+      return null;
+    }
+
+    const lastPoint = effectiveSparklineData[effectiveSparklineData.length - 1];
+    return typeof lastPoint?.close === 'number' && Number.isFinite(lastPoint.close)
+      ? lastPoint.close
+      : null;
+  }, [effectiveSparklineData]);
+
+  const realizedExitPrice = useMemo(() => {
+    if (!closedSummary) {
+      return null;
+    }
+
+    const { lastSalePrice, averageExitPrice } = closedSummary;
+
+    if (typeof lastSalePrice === 'number' && Number.isFinite(lastSalePrice) && lastSalePrice > 0) {
+      return lastSalePrice;
+    }
+
+    if (typeof averageExitPrice === 'number' && Number.isFinite(averageExitPrice) && averageExitPrice > 0) {
+      return averageExitPrice;
+    }
+
+    return null;
+  }, [closedSummary]);
+
+  const sparklineReferencePrice = useMemo(() => {
+    if (isClosed) {
+      if (realizedExitPrice !== null) {
+        return realizedExitPrice;
+      }
+
+      if (finalSparklineClose !== null) {
+        return finalSparklineClose;
+      }
+
+      return currentPrice;
+    }
+
+    if (finalSparklineClose !== null) {
+      return finalSparklineClose;
+    }
+
+    return currentPrice;
+  }, [isClosed, realizedExitPrice, finalSparklineClose, currentPrice]);
+
+  const sparklineColor = useMemo(() => {
+    if (typeof sparklineReferencePrice === 'number' && Number.isFinite(sparklineReferencePrice)) {
+      if (sparklineReferencePrice < position.entryPrice) {
+        return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+      }
+
+      if (
+        typeof projectedPrice === 'number' &&
+        Number.isFinite(projectedPrice) &&
+        projectedPrice > position.entryPrice &&
+        sparklineReferencePrice >= projectedPrice
+      ) {
+        return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+      }
+    }
+
+    return { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+  }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
   const getTrendStyles = (value: number) => {
     if (value > 0) {
