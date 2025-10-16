@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
@@ -9,6 +9,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
@@ -249,9 +250,55 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverAnimationFrame = useRef<number | null>(null);
+
+  const handleHoverState = useCallback((next: boolean) => {
+    if (hoverAnimationFrame.current !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(hoverAnimationFrame.current);
+      hoverAnimationFrame.current = null;
+    }
+
+    if (typeof window === 'undefined') {
+      setIsHovered(next);
+      return;
+    }
+
+    hoverAnimationFrame.current = window.requestAnimationFrame(() => {
+      setIsHovered(next);
+      hoverAnimationFrame.current = null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverAnimationFrame.current !== null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(hoverAnimationFrame.current);
+        hoverAnimationFrame.current = null;
+      }
+    };
+  }, []);
+
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
+    <div
+      data-hovered={isHovered ? 'true' : undefined}
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transform-gpu will-change-transform transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-2xl motion-reduce:transform-none motion-reduce:shadow-none motion-reduce:transition-none',
+        isHovered && '-translate-y-1 shadow-2xl',
+      )}
+      onMouseEnter={() => handleHoverState(true)}
+      onMouseLeave={() => handleHoverState(false)}
+      onFocus={() => handleHoverState(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          handleHoverState(false);
+        }
+      }}
+      onTouchStart={() => handleHoverState(true)}
+      onTouchEnd={() => handleHoverState(false)}
+      onTouchCancel={() => handleHoverState(false)}
+    >
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-90 group-data-[hovered=true]:opacity-90" />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
