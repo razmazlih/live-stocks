@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -249,9 +250,39 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
+  const [isHovered, setIsHovered] = useState(false);
+
+  const setHoveredTrue = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const setHoveredFalse = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
+    <div
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        isHovered
+          ? '-translate-y-1 border-blue-200/80 shadow-2xl'
+          : 'translate-y-0 border-slate-200/70 shadow-lg'
+      )}
+      onPointerEnter={setHoveredTrue}
+      onPointerLeave={setHoveredFalse}
+      onFocusCapture={setHoveredTrue}
+      onBlurCapture={setHoveredFalse}
+      onTouchStart={setHoveredTrue}
+      onTouchEnd={setHoveredFalse}
+      onTouchCancel={setHoveredFalse}
+    >
+      <div
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
+          isHovered ? 'opacity-90' : 'opacity-0'
+        )}
+      />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
