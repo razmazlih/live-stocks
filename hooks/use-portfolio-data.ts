@@ -25,6 +25,10 @@ interface SparklineResult {
   timeline: PortfolioTimelinePoint[];
 }
 
+interface LoadOptions {
+  silent?: boolean;
+}
+
 export function usePortfolioData() {
   const { settings, refreshTrigger } = useApp();
 
@@ -39,11 +43,11 @@ export function usePortfolioData() {
 
   const loadSparklines = useCallback(
     async (positionsList: Position[]) => {
-      setSparklineData({});
-      setPortfolioTimeline([]);
-
       if (positionsList.length === 0) {
-        return;
+        return {
+          sparklineData: {},
+          portfolioTimeline: [],
+        };
       }
 
       const results = await Promise.all<SparklineResult>(
@@ -105,7 +109,7 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
-      setSparklineData(Object.fromEntries(sparklineEntries));
+      const sparklineDataResult = Object.fromEntries(sparklineEntries);
 
       const aggregatedTimeline = new Map<number, number>();
       results.forEach((result) => {
@@ -121,80 +125,106 @@ export function usePortfolioData() {
         .sort((a, b) => a[0] - b[0])
         .map(([timestamp, totalPnLUsd]) => ({ timestamp, totalPnLUsd }));
 
-      setPortfolioTimeline(sortedTimeline);
+      return {
+        sparklineData: sparklineDataResult,
+        portfolioTimeline: sortedTimeline,
+      };
     },
     [settings.finnhubToken]
   );
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const { data: positionsData, error: positionsError } = await supabase
-        .from('positions')
-        .select('*, position_lots(*)')
-        .order('symbol');
-
-      if (positionsError) throw positionsError;
-
-      const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
-
-      setPositions(mappedPositions);
-
-      const rateResponse = await fetch('/api/exchange-rate');
-      const rateData = await rateResponse.json();
-      const rate = rateData.usdToIls || 3.7;
-      setUsdToIls(rate);
-
-      const metricsPromises = mappedPositions.map(async (position) => {
-        try {
-          const quoteResponse = await fetch(
-            `/api/quote?symbol=${position.symbol}${
-              settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-            }`
-          );
-          const quoteData = await quoteResponse.json();
-
-          const currentPrice = quoteData.c || position.entryPrice;
-          const dailyChange = quoteData.d;
-
-          return calculatePositionMetrics(
-            position,
-            currentPrice,
-            rate,
-            settings.annualGrowthRate,
-            dailyChange
-          );
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-          return calculatePositionMetrics(
-            position,
-            position.entryPrice,
-            rate,
-            settings.annualGrowthRate
-          );
+  const loadData = useCallback(
+    async ({ silent = false }: LoadOptions = {}) => {
+      try {
+        if (!silent) {
+          setLoading(true);
         }
-      });
 
-      const calculatedMetrics = await Promise.all(metricsPromises);
-      setMetrics(calculatedMetrics);
+        const { data: positionsData, error: positionsError } = await supabase
+          .from('positions')
+          .select('*, position_lots(*)')
+          .order('symbol');
 
-      const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
-      setSummary(portfolioSummary);
+        if (positionsError) throw positionsError;
 
-      await loadSparklines(mappedPositions);
+        const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
 
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error loading portfolio data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]);
+        const rateResponse = await fetch('/api/exchange-rate');
+        const rateData = await rateResponse.json();
+        const rate = rateData.usdToIls || 3.7;
+
+        const metricsPromises = mappedPositions.map(async (position) => {
+          try {
+            const quoteResponse = await fetch(
+              `/api/quote?symbol=${position.symbol}${
+                settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
+              }`
+            );
+            const quoteData = await quoteResponse.json();
+
+            const currentPrice = quoteData.c || position.entryPrice;
+            const dailyChange = quoteData.d;
+
+            return calculatePositionMetrics(
+              position,
+              currentPrice,
+              rate,
+              settings.annualGrowthRate,
+              dailyChange
+            );
+          } catch (error) {
+            console.error(`Failed to fetch quote for ${position.symbol}:`, error);
+            return calculatePositionMetrics(
+              position,
+              position.entryPrice,
+              rate,
+              settings.annualGrowthRate
+            );
+          }
+        });
+
+        const calculatedMetrics = await Promise.all(metricsPromises);
+        const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
+        const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
+          await loadSparklines(mappedPositions);
+
+        setPositions(mappedPositions);
+        setUsdToIls(rate);
+        setMetrics(calculatedMetrics);
+        setSummary(portfolioSummary);
+        setSparklineData(nextSparklineData);
+        setPortfolioTimeline(nextPortfolioTimeline);
+        setLastUpdate(new Date());
+
+      } catch (error) {
+        console.error('Error loading portfolio data:', error);
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]
+  );
 
   useEffect(() => {
     loadData();
   }, [loadData, refreshTrigger]);
+
+  useEffect(() => {
+    if (!settings.refreshInterval || settings.refreshInterval <= 0) {
+      return;
+    }
+
+    const intervalMs = settings.refreshInterval * 60 * 1000;
+    const intervalId = window.setInterval(() => {
+      loadData({ silent: true });
+    }, intervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loadData, settings.refreshInterval]);
 
   return {
     loading,
