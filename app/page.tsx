@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PositionCard } from '@/components/position-card';
+import { ClosedPositionCard, ClosedPositionSummary } from '@/components/closed-position-card';
 import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { computeRealizedSales } from '@/lib/positions';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
@@ -104,6 +106,87 @@ export default function HomePage() {
     [metrics]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
+  const closedPositionsData = useMemo(
+    () =>
+      closedMetrics.map((metric) => {
+        const sales = computeRealizedSales(metric.position);
+
+        if (!sales.length) {
+          return {
+            metrics: metric,
+            summary: null,
+            sparkline: sparklineData[metric.position.symbol] || [],
+          };
+        }
+
+        let totalQuantity = 0;
+        let totalProceedsUsd = 0;
+        let totalCostUsd = 0;
+        let totalProfitUsd = 0;
+        let lastSaleTimestamp: number | null = null;
+        let lastSale = sales[0];
+
+        sales.forEach((sale) => {
+          totalQuantity += sale.quantity;
+          totalProceedsUsd += sale.proceedsUsd;
+          totalCostUsd += sale.costBasisUsd;
+          totalProfitUsd += sale.profitUsd;
+
+          const saleTime = new Date(sale.sellDate).getTime();
+
+          if (!Number.isNaN(saleTime) && (lastSaleTimestamp === null || saleTime > lastSaleTimestamp)) {
+            lastSaleTimestamp = saleTime;
+            lastSale = sale;
+          }
+        });
+
+        const profitPercent = totalCostUsd !== 0 ? (totalProfitUsd / totalCostUsd) * 100 : 0;
+        const averageEntryPrice = totalQuantity > 0 ? totalCostUsd / totalQuantity : 0;
+        const averageExitPrice = totalQuantity > 0 ? totalProceedsUsd / totalQuantity : 0;
+
+        const basePoints = sparklineData[metric.position.symbol] || [];
+        const truncatedPoints = (() => {
+          if (lastSaleTimestamp === null) {
+            return basePoints;
+          }
+
+          const filtered = basePoints.filter((point) => point.timestamp <= lastSaleTimestamp!);
+
+          if (lastSale && Number.isFinite(lastSale.sellPrice)) {
+            const salePrice = lastSale.sellPrice;
+            const existingIndex = filtered.findIndex((point) => point.timestamp === lastSaleTimestamp);
+
+            if (existingIndex >= 0) {
+              filtered[existingIndex] = { ...filtered[existingIndex], close: salePrice };
+            } else {
+              filtered.push({ timestamp: lastSaleTimestamp, close: salePrice });
+            }
+          }
+
+          return filtered.sort((a, b) => a.timestamp - b.timestamp);
+        })();
+
+        const summary: ClosedPositionSummary = {
+          totalQuantity,
+          totalProceedsUsd,
+          totalCostUsd,
+          totalProfitUsd,
+          profitPercent,
+          averageEntryPrice,
+          averageExitPrice,
+          lastSaleDate: lastSale?.sellDate,
+          lastSalePrice: lastSale?.sellPrice,
+        };
+
+        return {
+          metrics: metric,
+          summary,
+          sparkline: truncatedPoints,
+        };
+      }),
+    [closedMetrics, sparklineData]
+  );
 
   type SummaryCard = {
     key: string;
@@ -362,17 +445,19 @@ export default function HomePage() {
                           />
                         ))}
                       </div>
-                      {closedMetrics.length > 0 && (
+                      {closedPositionsData.length > 0 && (
                         <div className="space-y-4">
                           <h2 className="text-xl font-semibold text-slate-900">
                             {t.dashboard.closedPositionsTitle}
                           </h2>
                           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                            {closedMetrics.map((m) => (
-                              <PositionCard
-                                key={`closed-${m.position.id || m.position.symbol}`}
-                                metrics={m}
-                                sparklineData={sparklineData[m.position.symbol] || []}
+                            {closedPositionsData.map(({ metrics: closedMetric, summary, sparkline }) => (
+                              <ClosedPositionCard
+                                key={`closed-${closedMetric.position.id || closedMetric.position.symbol}`}
+                                position={closedMetric.position}
+                                summary={summary}
+                                sparklineData={sparkline}
+                                usdToIlsRate={currentRate}
                               />
                             ))}
                           </div>
