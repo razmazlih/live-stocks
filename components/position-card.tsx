@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, type FocusEvent } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -249,9 +250,43 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  const handlePointerEnter = () => {
+    setIsInteracting(true);
+  };
+
+  const handlePointerLeave = () => {
+    setIsInteracting(false);
+  };
+
+  const handleFocusWithin = () => {
+    setIsInteracting(true);
+  };
+
+  const handleBlurWithin = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsInteracting(false);
+    }
+  };
+
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl">
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-90" />
+    <div
+      className={cn(
+        'group/card relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg transition-all duration-300 ease-out will-change-transform transform-gpu',
+        isInteracting ? '-translate-y-1 shadow-2xl ring-1 ring-blue-100/60' : 'translate-y-0'
+      )}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      onFocusCapture={handleFocusWithin}
+      onBlurCapture={handleBlurWithin}
+    >
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500 ease-out',
+          isInteracting ? 'opacity-90' : 'opacity-0'
+        )}
+      />
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
