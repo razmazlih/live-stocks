@@ -74,6 +74,8 @@ export function Sparkline({
   const glowId = `${gradientId}-glow`;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<number>();
+  const lastMeasuredWidthRef = useRef<number | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
 
   useEffect(() => {
@@ -90,12 +92,33 @@ export function Sparkline({
     const updateWidth = () => {
       const nextWidth = element.getBoundingClientRect().width;
 
-      if (nextWidth > 0) {
-        setMeasuredWidth(nextWidth);
+      if (nextWidth <= 0) {
+        return;
       }
+
+      const currentWidth = lastMeasuredWidthRef.current;
+
+      if (currentWidth !== null && Math.abs(currentWidth - nextWidth) < 0.5) {
+        return;
+      }
+
+      lastMeasuredWidthRef.current = nextWidth;
+      setMeasuredWidth(nextWidth);
     };
 
-    updateWidth();
+    const scheduleUpdate = () => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      if (frameRef.current !== undefined) {
+        cancelAnimationFrame(frameRef.current);
+      }
+
+      frameRef.current = window.requestAnimationFrame(updateWidth);
+    };
+
+    scheduleUpdate();
 
     if (typeof ResizeObserver === 'undefined') {
       return;
@@ -103,17 +126,21 @@ export function Sparkline({
 
     const resizeObserver = new ResizeObserver((entries) => {
       entries.forEach((entry) => {
-        const nextWidth = entry.contentRect.width;
-
-        if (nextWidth > 0) {
-          setMeasuredWidth(nextWidth);
+        if (entry.contentRect.width <= 0) {
+          return;
         }
+
+        scheduleUpdate();
       });
     });
 
     resizeObserver.observe(element);
 
     return () => {
+      if (frameRef.current !== undefined) {
+        cancelAnimationFrame(frameRef.current);
+      }
+
       resizeObserver.disconnect();
     };
   }, []);
