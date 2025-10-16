@@ -25,6 +25,15 @@ interface SparklineResult {
   timeline: PortfolioTimelinePoint[];
 }
 
+interface LoadSparklinesResult {
+  sparklineData: Record<string, HistoricalPoint[]>;
+  portfolioTimeline: PortfolioTimelinePoint[];
+}
+
+interface LoadOptions {
+  background?: boolean;
+}
+
 export function usePortfolioData() {
   const { settings, refreshTrigger } = useApp();
 
@@ -38,12 +47,9 @@ export function usePortfolioData() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const loadSparklines = useCallback(
-    async (positionsList: Position[]) => {
-      setSparklineData({});
-      setPortfolioTimeline([]);
-
+    async (positionsList: Position[]): Promise<LoadSparklinesResult> => {
       if (positionsList.length === 0) {
-        return;
+        return { sparklineData: {}, portfolioTimeline: [] };
       }
 
       const results = await Promise.all<SparklineResult>(
@@ -105,8 +111,6 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
-      setSparklineData(Object.fromEntries(sparklineEntries));
-
       const aggregatedTimeline = new Map<number, number>();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
@@ -120,36 +124,39 @@ export function usePortfolioData() {
       const sortedTimeline = Array.from(aggregatedTimeline.entries())
         .sort((a, b) => a[0] - b[0])
         .map(([timestamp, totalPnLUsd]) => ({ timestamp, totalPnLUsd }));
+      const sparklineData = Object.fromEntries(sparklineEntries);
 
-      setPortfolioTimeline(sortedTimeline);
+      return {
+        sparklineData,
+        portfolioTimeline: sortedTimeline,
+      };
     },
     [settings.finnhubToken]
   );
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
+  const loadData = useCallback(
+    async ({ background = false }: LoadOptions = {}) => {
+      try {
+        if (!background) {
+          setLoading(true);
+        }
 
-      const { data: positionsData, error: positionsError } = await supabase
-        .from('positions')
-        .select('*, position_lots(*)')
-        .order('symbol');
+        const { data: positionsData, error: positionsError } = await supabase
+          .from('positions')
+          .select('*, position_lots(*)')
+          .order('symbol');
 
-      if (positionsError) throw positionsError;
+        if (positionsError) throw positionsError;
 
-      const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
+        const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
+        const rateResponse = await fetch('/api/exchange-rate');
+        const rateData = await rateResponse.json();
+        const rate = rateData.usdToIls || 3.7;
 
-      setPositions(mappedPositions);
-
-      const rateResponse = await fetch('/api/exchange-rate');
-      const rateData = await rateResponse.json();
-      const rate = rateData.usdToIls || 3.7;
-      setUsdToIls(rate);
-
-      const metricsPromises = mappedPositions.map(async (position) => {
-        try {
-          const quoteResponse = await fetch(
-            `/api/quote?symbol=${position.symbol}${
+        const metricsPromises = mappedPositions.map(async (position) => {
+          try {
+            const quoteResponse = await fetch(
+              `/api/quote?symbol=${position.symbol}${
               settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
             }`
           );
@@ -174,27 +181,49 @@ export function usePortfolioData() {
             settings.annualGrowthRate
           );
         }
-      });
+        });
 
-      const calculatedMetrics = await Promise.all(metricsPromises);
-      setMetrics(calculatedMetrics);
+        const calculatedMetrics = await Promise.all(metricsPromises);
+        const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
+        const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
+          await loadSparklines(mappedPositions);
 
-      const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
-      setSummary(portfolioSummary);
-
-      await loadSparklines(mappedPositions);
-
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error loading portfolio data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]);
+        setPositions(mappedPositions);
+        setUsdToIls(rate);
+        setMetrics(calculatedMetrics);
+        setSummary(portfolioSummary);
+        setSparklineData(nextSparklineData);
+        setPortfolioTimeline(nextPortfolioTimeline);
+        setLastUpdate(new Date());
+      } catch (error) {
+        console.error('Error loading portfolio data:', error);
+      } finally {
+        if (!background) {
+          setLoading(false);
+        }
+      }
+    },
+    [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]
+  );
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData, refreshTrigger]);
+
+  useEffect(() => {
+    if (!settings.refreshInterval || settings.refreshInterval <= 0) {
+      return;
+    }
+
+    const intervalMs = settings.refreshInterval * 60 * 1000;
+    const intervalId = window.setInterval(() => {
+      void loadData({ background: true });
+    }, intervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loadData, settings.refreshInterval]);
 
   return {
     loading,
@@ -205,6 +234,6 @@ export function usePortfolioData() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
-    reload: loadData,
+    reload: () => loadData(),
   };
 }
