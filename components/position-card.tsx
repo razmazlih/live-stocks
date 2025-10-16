@@ -34,18 +34,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   } = metrics;
 
   const isClosed = position.quantity <= 0;
-  const sparklineColor = (() => {
-    if (currentPrice < position.entryPrice) {
-      return { className: 'text-[#D22E2E]', hex: '#D22E2E' };
-    }
-
-    if (currentPrice > projectedPrice) {
-      return { className: 'text-[#4AA956]', hex: '#4AA956' };
-    }
-
-    return { className: 'text-[#2563EB]', hex: '#2563EB' };
-  })();
-
   const changeFromEntryPercent = position.entryPrice !== 0
     ? ((currentPrice - position.entryPrice) / position.entryPrice) * 100
     : null;
@@ -169,6 +157,59 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
     return sparklineEvents.filter((event) => event.timestamp <= lastSaleTimestamp);
   }, [isClosed, lastSaleTimestamp, sparklineEvents]);
+
+  const lastSparklinePrice = useMemo(() => {
+    if (isClosed) {
+      const salePrice = closedSummary?.lastSalePrice;
+      if (typeof salePrice === 'number' && Number.isFinite(salePrice)) {
+        return salePrice;
+      }
+    }
+
+    const lastPoint = effectiveSparklineData[effectiveSparklineData.length - 1];
+    if (lastPoint && typeof lastPoint.close === 'number' && Number.isFinite(lastPoint.close)) {
+      return lastPoint.close;
+    }
+
+    if (!isClosed && Number.isFinite(currentPrice)) {
+      return currentPrice;
+    }
+
+    return null;
+  }, [
+    isClosed,
+    closedSummary,
+    effectiveSparklineData,
+    currentPrice,
+  ]);
+
+  const sparklineColor = useMemo(() => {
+    const defaultColor = { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+    if (typeof lastSparklinePrice !== 'number' || !Number.isFinite(lastSparklinePrice)) {
+      return defaultColor;
+    }
+
+    if (lastSparklinePrice < position.entryPrice) {
+      return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+    }
+
+    const hasProjectedPrice = !Number.isNaN(projectedPrice) && Number.isFinite(projectedPrice);
+
+    if (!isClosed && hasProjectedPrice && lastSparklinePrice > projectedPrice) {
+      return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+    }
+
+    if (isClosed && lastSparklinePrice > position.entryPrice) {
+      return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+    }
+
+    return defaultColor;
+  }, [
+    isClosed,
+    lastSparklinePrice,
+    position.entryPrice,
+    projectedPrice,
+  ]);
 
   const getTrendStyles = (value: number) => {
     if (value > 0) {
