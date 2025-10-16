@@ -70,6 +70,8 @@ export function Sparkline({
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill`;
+  const areaMaskId = `${gradientId}-fill-mask`;
+  const areaMaskGradientId = `${gradientId}-fill-mask-gradient`;
   const strokeGradientId = `${gradientId}-stroke`;
   const glowId = `${gradientId}-glow`;
 
@@ -435,10 +437,42 @@ export function Sparkline({
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={lastSegmentColor} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={lastSegmentColor} stopOpacity={0} />
+          <linearGradient
+            id={areaGradientId}
+            x1="0"
+            y1="0"
+            x2={effectiveWidth}
+            y2="0"
+            gradientUnits="userSpaceOnUse"
+          >
+            {gradientStops.map((stop, index) => (
+              <stop
+                key={`${stop.offset}-${stop.color}-${index}`}
+                offset={`${stop.offset * 100}%`}
+                stopColor={stop.color}
+              />
+            ))}
           </linearGradient>
+          <linearGradient
+            id={areaMaskGradientId}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2={height}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.45} />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+          </linearGradient>
+          <mask id={areaMaskId}>
+            <rect
+              x="0"
+              y="0"
+              width={effectiveWidth}
+              height={height}
+              fill={`url(#${areaMaskGradientId})`}
+            />
+          </mask>
           <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
             {gradientStops.map((stop, index) => (
               <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
@@ -483,7 +517,9 @@ export function Sparkline({
         <path
           d={areaPath}
           fill={`url(#${areaGradientId})`}
-          opacity={0.6}
+          mask={`url(#${areaMaskId})`}
+          opacity={1}
+          filter={`url(#${glowId})`}
         />
 
         <path
