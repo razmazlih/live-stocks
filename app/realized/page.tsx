@@ -17,7 +17,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { calculateRealizedTax, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 
 export default function RealizedPnLPage() {
@@ -126,34 +126,10 @@ export default function RealizedPnLPage() {
     return Array.from(map.values()).sort((a, b) => b.profitUsd - a.profitUsd);
   }, [sortedSales]);
 
-  const taxSummary = useMemo(() => {
-    let cumulativeProfitUsd = 0;
-    let peakProfitUsd = 0;
-    let taxUsd = 0;
-    let taxIls = 0;
-
-    chronologicalSales.forEach((sale) => {
-      cumulativeProfitUsd += sale.profitUsd;
-
-      if (sale.profitUsd > 0) {
-        const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
-        const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
-
-        if (taxableProfitUsd > 1e-8) {
-          const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : 0;
-          taxUsd += taxableProfitUsd * 0.25;
-          taxIls += taxableProfitUsd * conversionRate * 0.25;
-        }
-
-        peakProfitUsd = newPeakProfitUsd;
-        return;
-      }
-
-      peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
-    });
-
-    return { taxUsd, taxIls };
-  }, [chronologicalSales]);
+  const taxSummary = useMemo(
+    () => calculateRealizedTax(chronologicalSales, rate),
+    [chronologicalSales, rate]
+  );
 
   const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
     const formatted = formatCurrency(value, currency, locale);
@@ -197,8 +173,8 @@ export default function RealizedPnLPage() {
   };
 
   const hasSales = sortedSales.length > 0;
-  const netProfitUsd = totals.profitUsd - taxSummary.taxUsd;
-  const netProfitIls = totals.profitIls - taxSummary.taxIls;
+  const netProfitUsd = totals.profitUsd - taxSummary.totalTaxUsd;
+  const netProfitIls = totals.profitIls - taxSummary.totalTaxIls;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
@@ -353,13 +329,13 @@ export default function RealizedPnLPage() {
                             <div className="space-y-1">
                               <span className="sr-only">{t.realized.taxesUsdLabel}</span>
                               <p className="text-3xl font-semibold text-slate-900">
-                                {formatCurrency(taxSummary.taxUsd, 'USD', locale)}
+                                {formatCurrency(taxSummary.totalTaxUsd, 'USD', locale)}
                               </p>
                             </div>
                             <div className="space-y-1">
                               <span className="sr-only">{t.realized.taxesIlsLabel}</span>
                               <p className="text-xs font-medium text-slate-500">
-                                {formatCurrency(taxSummary.taxIls, 'ILS', locale)}
+                                {formatCurrency(taxSummary.totalTaxIls, 'ILS', locale)}
                               </p>
                             </div>
                           </div>

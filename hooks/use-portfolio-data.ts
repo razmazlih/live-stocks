@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { mapPositionRow } from '@/lib/positions';
+import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
+  calculateRealizedTax,
   mapCandleDataToPoints,
+  RealizedTaxEvent,
 } from '@/lib/calculations';
 import {
   CandleData,
@@ -17,12 +19,19 @@ import {
   PositionMetrics,
   PortfolioSummary,
   PortfolioTimelinePoint,
+  RealizedSale,
 } from '@/types';
+
+interface PositionTimelinePoint {
+  timestamp: number;
+  openValueUsd: number;
+  openCostUsd: number;
+}
 
 interface SparklineResult {
   symbol: string;
   points: HistoricalPoint[];
-  timeline: PortfolioTimelinePoint[];
+  timeline: PositionTimelinePoint[];
 }
 
 interface LoadSparklinesResult {
@@ -47,7 +56,12 @@ export function usePortfolioData() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const loadSparklines = useCallback(
-    async (positionsList: Position[]): Promise<LoadSparklinesResult> => {
+    async (
+      positionsList: Position[],
+      realizedSales: RealizedSale[],
+      usdToIlsRate: number,
+      taxEvents: RealizedTaxEvent[]
+    ): Promise<LoadSparklinesResult> => {
       if (positionsList.length === 0) {
         return { sparklineData: {}, portfolioTimeline: [] };
       }
@@ -89,9 +103,10 @@ export function usePortfolioData() {
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const timeline = points.map<PortfolioTimelinePoint>((point) => ({
+            const timeline = points.map<PositionTimelinePoint>((point) => ({
               timestamp: point.timestamp,
-              totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
+              openValueUsd: point.close * position.quantity,
+              openCostUsd: position.entryPrice * position.quantity,
             }));
 
             return {
@@ -111,24 +126,147 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
-      const aggregatedTimeline = new Map<number, number>();
+      const aggregatedOpenTimeline = new Map<
+        number,
+        { openValueUsd: number; openCostUsd: number; openPnLUsd: number }
+      >();
+
       results.forEach((result) => {
         result.timeline.forEach((point) => {
-          aggregatedTimeline.set(
-            point.timestamp,
-            (aggregatedTimeline.get(point.timestamp) ?? 0) + point.totalPnLUsd
-          );
+          const current =
+            aggregatedOpenTimeline.get(point.timestamp) ??
+            { openValueUsd: 0, openCostUsd: 0, openPnLUsd: 0 };
+
+          current.openValueUsd += point.openValueUsd;
+          current.openCostUsd += point.openCostUsd;
+          current.openPnLUsd += point.openValueUsd - point.openCostUsd;
+
+          aggregatedOpenTimeline.set(point.timestamp, current);
         });
       });
 
-      const sortedTimeline = Array.from(aggregatedTimeline.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([timestamp, totalPnLUsd]) => ({ timestamp, totalPnLUsd }));
+      const realizedEvents = new Map<
+        number,
+        {
+          proceedsUsd: number;
+          proceedsIls: number;
+          profitUsd: number;
+          profitIls: number;
+          taxesUsd: number;
+          taxesIls: number;
+        }
+      >();
+
+      realizedSales
+        .map((sale) => ({
+          ...sale,
+          timestamp: new Date(sale.sellDate).getTime(),
+        }))
+        .filter((sale) => Number.isFinite(sale.timestamp))
+        .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+        .forEach((sale) => {
+          const timestamp = sale.timestamp ?? 0;
+          const current =
+            realizedEvents.get(timestamp) ??
+            {
+              proceedsUsd: 0,
+              proceedsIls: 0,
+              profitUsd: 0,
+              profitIls: 0,
+              taxesUsd: 0,
+              taxesIls: 0,
+            };
+
+          current.proceedsUsd += sale.proceedsUsd;
+          current.proceedsIls += sale.proceedsUsd * usdToIlsRate;
+          current.profitUsd += sale.profitUsd;
+          current.profitIls += sale.profitUsd * usdToIlsRate;
+
+          realizedEvents.set(timestamp, current);
+        });
+
+      taxEvents.forEach((event) => {
+        const current =
+          realizedEvents.get(event.timestamp) ??
+          {
+            proceedsUsd: 0,
+            proceedsIls: 0,
+            profitUsd: 0,
+            profitIls: 0,
+            taxesUsd: 0,
+            taxesIls: 0,
+          };
+
+        current.taxesUsd += event.taxUsdDelta;
+        current.taxesIls += event.taxIlsDelta;
+
+        realizedEvents.set(event.timestamp, current);
+      });
+
+      const allTimestamps = new Set<number>();
+      aggregatedOpenTimeline.forEach((_, timestamp) => {
+        allTimestamps.add(timestamp);
+      });
+      realizedEvents.forEach((_, timestamp) => {
+        allTimestamps.add(timestamp);
+      });
+
+      const sortedTimeline = Array.from(allTimestamps).sort((a, b) => a - b);
+
+      let lastOpenValueUsd = 0;
+      let lastOpenPnLUsd = 0;
+      let cumulativeProceedsUsd = 0;
+      let cumulativeProceedsIls = 0;
+      let cumulativeProfitUsd = 0;
+      let cumulativeProfitIls = 0;
+      let cumulativeTaxesUsd = 0;
+      let cumulativeTaxesIls = 0;
+
+      const portfolioTimeline: PortfolioTimelinePoint[] = sortedTimeline.map((timestamp) => {
+        const openPoint = aggregatedOpenTimeline.get(timestamp);
+
+        if (openPoint) {
+          lastOpenValueUsd = openPoint.openValueUsd;
+          lastOpenPnLUsd = openPoint.openPnLUsd;
+        }
+
+        const realizedPoint = realizedEvents.get(timestamp);
+
+        if (realizedPoint) {
+          cumulativeProceedsUsd += realizedPoint.proceedsUsd;
+          cumulativeProceedsIls += realizedPoint.proceedsIls;
+          cumulativeProfitUsd += realizedPoint.profitUsd;
+          cumulativeProfitIls += realizedPoint.profitIls;
+          cumulativeTaxesUsd += realizedPoint.taxesUsd;
+          cumulativeTaxesIls += realizedPoint.taxesIls;
+        }
+
+        const openValueIls = lastOpenValueUsd * usdToIlsRate;
+        const totalValueUsd = lastOpenValueUsd + cumulativeProceedsUsd - cumulativeTaxesUsd;
+        const totalValueIls = openValueIls + cumulativeProceedsIls - cumulativeTaxesIls;
+        const totalPnLUsd = lastOpenPnLUsd + cumulativeProfitUsd - cumulativeTaxesUsd;
+
+        return {
+          timestamp,
+          totalPnLUsd,
+          openValueUsd: lastOpenValueUsd,
+          openValueIls,
+          realizedProceedsUsd: cumulativeProceedsUsd,
+          realizedProceedsIls: cumulativeProceedsIls,
+          realizedProfitUsd: cumulativeProfitUsd,
+          realizedProfitIls: cumulativeProfitIls,
+          taxesPaidUsd: cumulativeTaxesUsd,
+          taxesPaidIls: cumulativeTaxesIls,
+          totalValueUsd,
+          totalValueIls,
+        };
+      });
+
       const sparklineData = Object.fromEntries(sparklineEntries);
 
       return {
         sparklineData,
-        portfolioTimeline: sortedTimeline,
+        portfolioTimeline,
       };
     },
     [settings.finnhubToken]
@@ -184,9 +322,32 @@ export function usePortfolioData() {
         });
 
         const calculatedMetrics = await Promise.all(metricsPromises);
-        const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
+        const realizedSales = mappedPositions.flatMap((position) => computeRealizedSales(position));
+
+        const realizedTotals = realizedSales.reduce(
+          (acc, sale) => {
+            acc.proceedsUsd += sale.proceedsUsd;
+            acc.proceedsIls += sale.proceedsUsd * rate;
+            acc.profitUsd += sale.profitUsd;
+            acc.profitIls += sale.profitUsd * rate;
+            return acc;
+          },
+          { proceedsUsd: 0, proceedsIls: 0, profitUsd: 0, profitIls: 0 }
+        );
+
+        const taxResult = calculateRealizedTax(realizedSales, rate);
+
+        const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate, {
+          proceedsUsd: realizedTotals.proceedsUsd,
+          proceedsIls: realizedTotals.proceedsIls,
+          profitUsd: realizedTotals.profitUsd,
+          profitIls: realizedTotals.profitIls,
+          taxesPaidUsd: taxResult.totalTaxUsd,
+          taxesPaidIls: taxResult.totalTaxIls,
+        });
+
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
-          await loadSparklines(mappedPositions);
+          await loadSparklines(mappedPositions, realizedSales, rate, taxResult.events);
 
         setPositions(mappedPositions);
         setUsdToIls(rate);

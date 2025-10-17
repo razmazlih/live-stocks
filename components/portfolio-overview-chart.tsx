@@ -27,38 +27,100 @@ type TooltipValueType = number | string;
 
 interface ChartTooltipProps {
   active?: boolean;
-  payload?: { value: TooltipValueType }[];
+  payload?: Array<{ payload: PortfolioTimelinePoint }>;
   label?: TooltipValueType;
-  valueFormatter: (value: number) => string;
-  labelFormatter: (label: TooltipValueType) => string;
+  formatDate: (value: TooltipValueType) => string;
+  formatUsd: (value: number) => string;
+  formatIls: (value: number) => string;
+  usdToIlsRate: number;
+  labels: {
+    usdHeading: string;
+    ilsHeading: string;
+    totalValue: string;
+    openPositions: string;
+    realizedCash: string;
+    taxesPaid: string;
+    netPnl: string;
+  };
 }
 
-const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }: ChartTooltipProps) => {
+const ChartTooltip = ({
+  active,
+  payload,
+  label,
+  formatDate,
+  formatUsd,
+  formatIls,
+  usdToIlsRate,
+  labels,
+}: ChartTooltipProps) => {
   if (!active || !payload?.length) {
     return null;
   }
 
+  const dataPoint = payload[0]?.payload;
+  if (!dataPoint) {
+    return null;
+  }
+
+  const netPnlIls = dataPoint.totalPnLUsd * usdToIlsRate;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
-      <div className="mt-2 space-y-1">
-        {payload.map((item, index) => {
-          if (item?.value === undefined || item?.value === null) {
-            return null;
-          }
-
-          const numericValue = typeof item.value === 'number' ? item.value : Number(item.value);
-
-          return (
-            <div key={index} className="flex items-center gap-2 text-slate-600">
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
-                <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 to-blue-400" />
-              </span>
-              <span className="text-xs font-medium sm:text-sm">P/L</span>
-              <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {formatDate(label ?? '')}
+      </p>
+      <div className="mt-3 space-y-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{labels.usdHeading}</p>
+          <div className="mt-1 space-y-1 text-xs text-slate-600 sm:text-sm">
+            <div className="flex items-center justify-between font-medium text-slate-500">
+              <span>{labels.totalValue}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(dataPoint.totalValueUsd)}</span>
             </div>
-          );
-        })}
+            <div className="flex items-center justify-between">
+              <span>{labels.openPositions}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(dataPoint.openValueUsd)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.realizedCash}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(dataPoint.realizedProceedsUsd)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.taxesPaid}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(dataPoint.taxesPaidUsd)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.netPnl}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(dataPoint.totalPnLUsd)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-slate-100 pt-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{labels.ilsHeading}</p>
+          <div className="mt-1 space-y-1 text-xs text-slate-600 sm:text-sm">
+            <div className="flex items-center justify-between font-medium text-slate-500">
+              <span>{labels.totalValue}</span>
+              <span className="font-semibold text-slate-900">{formatIls(dataPoint.totalValueIls)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.openPositions}</span>
+              <span className="font-semibold text-slate-900">{formatIls(dataPoint.openValueIls)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.realizedCash}</span>
+              <span className="font-semibold text-slate-900">{formatIls(dataPoint.realizedProceedsIls)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.taxesPaid}</span>
+              <span className="font-semibold text-slate-900">{formatIls(dataPoint.taxesPaidIls)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{labels.netPnl}</span>
+              <span className="font-semibold text-slate-900">{formatIls(netPnlIls)}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -70,6 +132,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
   const currencyFormatter = (value: number) => formatCurrency(value, 'USD', locale);
+  const currencyFormatterIls = (value: number) => formatCurrency(value, 'ILS', locale);
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(localeCode, {
@@ -89,9 +152,22 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   );
 
   const trendPoint = data[data.length - 1];
-  const currentPnL = summary.totalCurrentPnLUsd;
-  const projectedPnL = summary.totalProjectedPnLUsd;
-  const combinedPnL = summary.totalCombinedUsd;
+  const netPnLUsdFallback =
+    summary.totalCurrentPnLUsd + summary.realizedProfitUsd - summary.taxesPaidUsd;
+  const latestPoint = trendPoint;
+  const netPnLUsd = latestPoint?.totalPnLUsd ?? netPnLUsdFallback;
+
+  const netWorthUsd = latestPoint?.totalValueUsd ?? summary.netWorthUsd;
+  const netWorthIls = latestPoint?.totalValueIls ?? summary.netWorthIls;
+  const openValueUsd = latestPoint?.openValueUsd ?? summary.totalValue;
+  const openValueIls = latestPoint?.openValueIls ?? summary.totalValue * summary.usdToIlsRate;
+  const realizedCashUsd = latestPoint?.realizedProceedsUsd ?? summary.realizedProceedsUsd;
+  const realizedCashIls = latestPoint?.realizedProceedsIls ?? summary.realizedProceedsIls;
+  const taxesPaidUsd = latestPoint?.taxesPaidUsd ?? summary.taxesPaidUsd;
+  const taxesPaidIls = latestPoint?.taxesPaidIls ?? summary.taxesPaidIls;
+  const netPnLIls = latestPoint
+    ? latestPoint.totalPnLUsd * summary.usdToIlsRate
+    : summary.totalCurrentPnLIls + summary.realizedProfitIls - summary.taxesPaidIls;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -114,7 +190,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     );
   }, [data]);
 
-  const trendTone = trendPoint?.totalPnLUsd ?? currentPnL;
+  const trendTone = netPnLUsd;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
   const badgeClass = trendTone > 0
     ? 'bg-emerald-50 text-emerald-600'
@@ -143,9 +219,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.2} />
+                    <linearGradient id="portfolioValueUsd" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.85} />
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.15} />
+                    </linearGradient>
+                    <linearGradient id="portfolioValueIls" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.65} />
+                      <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0.12} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -167,18 +247,38 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
                     content={
                       <ChartTooltip
-                        valueFormatter={currencyFormatter}
-                        labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
+                        formatDate={(value) => dateFormatter.format(new Date(Number(value)))}
+                        formatUsd={currencyFormatter}
+                        formatIls={currencyFormatterIls}
+                        usdToIlsRate={summary.usdToIlsRate}
+                        labels={{
+                          usdHeading: t.dashboard.portfolioOverviewUsdHeading,
+                          ilsHeading: t.dashboard.portfolioOverviewIlsHeading,
+                          totalValue: t.dashboard.portfolioOverviewTotalValue,
+                          openPositions: t.dashboard.portfolioOverviewOpenLabel,
+                          realizedCash: t.dashboard.portfolioOverviewRealizedLabel,
+                          taxesPaid: t.dashboard.portfolioOverviewTaxesLabel,
+                          netPnl: t.dashboard.portfolioOverviewNetLabel,
+                        }}
                       />
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Area
                     type="monotone"
-                    dataKey="totalPnLUsd"
+                    dataKey="totalValueUsd"
                     stroke="#2563EB"
                     strokeWidth={2.5}
-                    fill="url(#portfolioPnlGradient)"
+                    fill="url(#portfolioValueUsd)"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="totalValueIls"
+                    stroke="#0EA5E9"
+                    strokeWidth={2.5}
+                    fill="url(#portfolioValueIls)"
                     dot={false}
                     isAnimationActive={false}
                   />
@@ -198,20 +298,46 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.currentPnL}</p>
+              <p className="text-sm font-medium text-slate-500">{t.dashboard.netWorth}</p>
               <p className={`text-3xl font-semibold ${toneClass}`}>
-                {currencyFormatter(currentPnL)}
+                {currencyFormatter(netWorthUsd)}
               </p>
+              <p className="text-xs font-medium text-slate-500">{currencyFormatterIls(netWorthIls)}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
               <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(projectedPnL)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.openHoldingsValue}
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(openValueUsd)}</p>
+                <p className="text-xs text-slate-500">{currencyFormatterIls(openValueIls)}</p>
               </div>
               <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.combinedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(combinedPnL)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.realizedCashValue}
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(realizedCashUsd)}</p>
+                <p className="text-xs text-slate-500">{currencyFormatterIls(realizedCashIls)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+              <div className="rounded-xl bg-slate-50/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.taxesPaidValue}
+                </p>
+                <p className="mt-1 font-semibold text-rose-600">{currencyFormatter(taxesPaidUsd)}</p>
+                <p className="text-xs text-slate-500">{currencyFormatterIls(taxesPaidIls)}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.netPnl}
+                </p>
+                <p className={`mt-1 font-semibold ${netPnLUsd >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {currencyFormatter(netPnLUsd)}
+                </p>
+                <p className="text-xs text-slate-500">{currencyFormatterIls(netPnLIls)}</p>
               </div>
             </div>
 
@@ -238,8 +364,10 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </p>
               <p className="mt-2 leading-relaxed">
                 {t.dashboard.portfolioOverviewSummary(
-                  currencyFormatter(currentPnL),
-                  currencyFormatter(projectedPnL)
+                  currencyFormatter(netWorthUsd),
+                  currencyFormatter(openValueUsd),
+                  currencyFormatter(realizedCashUsd),
+                  currencyFormatter(taxesPaidUsd)
                 )}
               </p>
             </div>

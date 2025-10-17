@@ -450,9 +450,38 @@ export function calculateReturnDistribution(returns: number[]): {
   };
 }
 
+export interface RealizedTotals {
+  proceedsUsd: number;
+  proceedsIls: number;
+  profitUsd: number;
+  profitIls: number;
+  taxesPaidUsd: number;
+  taxesPaidIls: number;
+}
+
+export interface RealizedTaxEvent {
+  timestamp: number;
+  taxUsdDelta: number;
+  taxIlsDelta: number;
+}
+
+export interface RealizedTaxResult {
+  totalTaxUsd: number;
+  totalTaxIls: number;
+  events: RealizedTaxEvent[];
+}
+
 export function calculatePortfolioSummary(
   metrics: PositionMetrics[],
-  usdToIlsRate: number
+  usdToIlsRate: number,
+  realizedTotals: RealizedTotals = {
+    proceedsUsd: 0,
+    proceedsIls: 0,
+    profitUsd: 0,
+    profitIls: 0,
+    taxesPaidUsd: 0,
+    taxesPaidIls: 0,
+  }
 ): PortfolioSummary {
   const summary = metrics.reduce(
     (acc, m) => ({
@@ -477,10 +506,85 @@ export function calculatePortfolioSummary(
     }
   );
 
+  const realized = realizedTotals ?? {
+    proceedsUsd: 0,
+    proceedsIls: 0,
+    profitUsd: 0,
+    profitIls: 0,
+    taxesPaidUsd: 0,
+    taxesPaidIls: 0,
+  };
+
+  const netWorthUsd = summary.totalValue + realized.proceedsUsd - realized.taxesPaidUsd;
+  const netWorthIls = summary.totalValue * usdToIlsRate + realized.proceedsIls - realized.taxesPaidIls;
+
   return {
     ...summary,
     usdToIlsRate,
+    realizedProceedsUsd: realized.proceedsUsd,
+    realizedProceedsIls: realized.proceedsIls,
+    realizedProfitUsd: realized.profitUsd,
+    realizedProfitIls: realized.profitIls,
+    taxesPaidUsd: realized.taxesPaidUsd,
+    taxesPaidIls: realized.taxesPaidIls,
+    netWorthUsd,
+    netWorthIls,
   };
+}
+
+export function calculateRealizedTax(
+  sales: Array<{ sellDate: string; profitUsd: number; profitIls?: number }>,
+  usdToIlsRate: number
+): RealizedTaxResult {
+  if (!Array.isArray(sales) || sales.length === 0) {
+    return { totalTaxUsd: 0, totalTaxIls: 0, events: [] };
+  }
+
+  const sorted = sales
+    .map((sale) => ({
+      timestamp: new Date(sale.sellDate).getTime(),
+      profitUsd: sale.profitUsd,
+      profitIls:
+        typeof sale.profitIls === 'number' && Number.isFinite(sale.profitIls)
+          ? sale.profitIls
+          : sale.profitUsd * usdToIlsRate,
+    }))
+    .filter((sale) => Number.isFinite(sale.timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  let cumulativeProfitUsd = 0;
+  let peakProfitUsd = 0;
+  let totalTaxUsd = 0;
+  let totalTaxIls = 0;
+  const events: RealizedTaxEvent[] = [];
+
+  sorted.forEach((sale) => {
+    cumulativeProfitUsd += sale.profitUsd;
+
+    let taxUsdDelta = 0;
+    let taxIlsDelta = 0;
+
+    if (sale.profitUsd > 0) {
+      const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+      const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
+
+      if (taxableProfitUsd > 1e-8) {
+        const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : usdToIlsRate;
+        taxUsdDelta = taxableProfitUsd * 0.25;
+        taxIlsDelta = taxUsdDelta * conversionRate;
+        totalTaxUsd += taxUsdDelta;
+        totalTaxIls += taxIlsDelta;
+      }
+
+      peakProfitUsd = newPeakProfitUsd;
+    } else {
+      peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+    }
+
+    events.push({ timestamp: sale.timestamp, taxUsdDelta, taxIlsDelta });
+  });
+
+  return { totalTaxUsd, totalTaxIls, events };
 }
 
 export function formatCurrency(value: number, currency: 'USD' | 'ILS', locale: 'he' | 'en' = 'he'): string {

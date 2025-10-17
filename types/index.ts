@@ -83,11 +83,29 @@ export interface PortfolioSummary {
   totalValue: number;
   totalCost: number;
   usdToIlsRate: number;
+  realizedProceedsUsd: number;
+  realizedProceedsIls: number;
+  realizedProfitUsd: number;
+  realizedProfitIls: number;
+  taxesPaidUsd: number;
+  taxesPaidIls: number;
+  netWorthUsd: number;
+  netWorthIls: number;
 }
 
 export interface PortfolioTimelinePoint {
   timestamp: number;
   totalPnLUsd: number;
+  openValueUsd: number;
+  openValueIls: number;
+  realizedProceedsUsd: number;
+  realizedProceedsIls: number;
+  realizedProfitUsd: number;
+  realizedProfitIls: number;
+  taxesPaidUsd: number;
+  taxesPaidIls: number;
+  totalValueUsd: number;
+  totalValueIls: number;
 }
 
 export interface Settings {
