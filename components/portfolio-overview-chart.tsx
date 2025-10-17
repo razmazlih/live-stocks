@@ -35,10 +35,12 @@ interface ChartTooltipProps {
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
+    value: string;
     net: string;
     open: string;
     realized: string;
     taxes: string;
+    expected: string;
     usd: string;
     ils: string;
   };
@@ -63,6 +65,8 @@ const ChartTooltip = ({
     return null;
   }
 
+  const totalValueUsd = point.totalValueUsd ?? 0;
+  const totalValueIls = point.totalValueIls ?? totalValueUsd * summary.usdToIlsRate;
   const openUsd = point.totalPnLUsd ?? 0;
   const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
   const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
@@ -71,14 +75,30 @@ const ChartTooltip = ({
   const realizedIls = summary.totalRealizedProfitIls;
   const taxesUsd = summary.totalTaxesPaidUsd;
   const taxesIls = summary.totalTaxesPaidIls;
+  const expectedUsd = point.expectedNetPnLUsd ?? 0;
+  const expectedIls = point.expectedNetPnLIls ?? expectedUsd * summary.usdToIlsRate;
 
   const rows = [
+    {
+      key: 'value',
+      label: labels.value,
+      usd: totalValueUsd,
+      ils: totalValueIls,
+      accent: 'from-sky-500 to-sky-400',
+    },
     {
       key: 'net',
       label: labels.net,
       usd: netUsd,
       ils: netIls,
       accent: 'from-blue-500 to-blue-400',
+    },
+    {
+      key: 'expected',
+      label: labels.expected,
+      usd: expectedUsd,
+      ils: expectedIls,
+      accent: 'from-indigo-500 to-indigo-400',
     },
     {
       key: 'open',
@@ -154,6 +174,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       }),
     [localeCode]
   );
+  const compactCurrencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(localeCode, {
+        style: 'currency',
+        currency: 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }),
+    [localeCode]
+  );
 
   const trendPoint = data[data.length - 1];
   const openPnLUsd = summary.totalCurrentPnLUsd;
@@ -167,11 +197,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
   const latestPoint = data[data.length - 1];
-  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
-  const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
-  const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
+  const firstPoint = data[0];
+  const latestValue = latestPoint?.totalValueUsd ?? 0;
+  const firstValue = firstPoint?.totalValueUsd ?? latestValue;
+  const valueDelta = latestValue - firstValue;
+  const strokeColor = valueDelta < 0 ? '#F43F5E' : valueDelta > 0 ? '#0EA5E9' : '#6366F1';
+  const gradientStartOpacity = valueDelta > 0 ? 0.85 : 0.8;
+  const gradientEndOpacity = valueDelta > 0 ? 0.2 : 0.15;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -197,11 +229,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     );
   }, [data]);
 
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
-  const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
-  const badgeClass = trendTone > 0
+  const netTrend = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const toneClass = netTrend > 0 ? 'text-emerald-600' : netTrend < 0 ? 'text-rose-600' : 'text-slate-600';
+  const badgeClass = netTrend > 0
     ? 'bg-emerald-50 text-emerald-600'
-    : trendTone < 0
+    : netTrend < 0
       ? 'bg-rose-50 text-rose-600'
       : 'bg-slate-100 text-slate-600';
 
@@ -246,6 +278,15 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     tick={{ fill: '#475569', fontSize: 12 }}
                   />
                   <YAxis
+                    yAxisId="value"
+                    orientation="left"
+                    tickFormatter={(value) => compactCurrencyFormatter.format(value)}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: '#475569', fontSize: 12 }}
+                  />
+                  <YAxis
+                    yAxisId="pnl"
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
@@ -261,18 +302,21 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
                         summary={summary}
                         labels={{
+                          value: t.dashboard.portfolioValue,
                           net: t.dashboard.netPnL,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
                           taxes: t.dashboard.taxesPaid,
+                          expected: t.dashboard.projectedPnL,
                           usd: t.dashboard.usdLabel,
                           ils: t.dashboard.ilsLabel,
                         }}
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
+                  <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Line
+                    yAxisId="pnl"
                     type="monotone"
                     dataKey="expectedNetPnLUsd"
                     stroke="#3B82F6"
@@ -281,9 +325,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     dot={false}
                     isAnimationActive={false}
                   />
-                  <Area
+                  <Line
+                    yAxisId="pnl"
                     type="monotone"
                     dataKey="netPnLUsd"
+                    stroke="#0F172A"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    yAxisId="value"
+                    type="monotone"
+                    dataKey="totalValueUsd"
                     stroke={strokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
