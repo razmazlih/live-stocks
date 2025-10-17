@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -198,6 +199,23 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       ? 'bg-rose-50 text-rose-600'
       : 'bg-slate-100 text-slate-600';
 
+  const latestNetPnL = trendPoint?.netPnLUsd ?? 0;
+  const latestExpectedPnL = trendPoint?.expectedNetPnLUsd ?? 0;
+  const areaTone: 'negative' | 'positive' | 'neutral' =
+    latestNetPnL < 0 ? 'negative' : latestNetPnL > latestExpectedPnL ? 'positive' : 'neutral';
+  const strokeColors: Record<'positive' | 'neutral' | 'negative', string> = {
+    positive: '#059669',
+    neutral: '#2563EB',
+    negative: '#E11D48',
+  };
+  const gradientIds: Record<'positive' | 'neutral' | 'negative', string> = {
+    positive: 'portfolioPnlGradientPositive',
+    neutral: 'portfolioPnlGradientNeutral',
+    negative: 'portfolioPnlGradientNegative',
+  };
+  const activeStrokeColor = strokeColors[areaTone];
+  const activeGradientId = gradientIds[areaTone];
+
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
@@ -225,9 +243,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
+                    <linearGradient id="portfolioPnlGradientNeutral" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.85} />
                       <stop offset="95%" stopColor="#2563EB" stopOpacity={0.2} />
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlGradientPositive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.85} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.2} />
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlGradientNegative" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.85} />
+                      <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.2} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -265,12 +291,21 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
+                  <Line
+                    type="monotone"
+                    dataKey="expectedNetPnLUsd"
+                    stroke="#1D4ED8"
+                    strokeDasharray="6 6"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke="#2563EB"
+                    stroke={activeStrokeColor}
                     strokeWidth={2.5}
-                    fill="url(#portfolioPnlGradient)"
+                    fill={`url(#${activeGradientId})`}
                     dot={false}
                     isAnimationActive={false}
                   />
