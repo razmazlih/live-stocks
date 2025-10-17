@@ -90,7 +90,9 @@ export default function RealizedPnLPage() {
         display: string;
         quantity: number;
         proceedsUsd: number;
+        proceedsIls: number;
         costUsd: number;
+        costIls: number;
         profitUsd: number;
         profitIls: number;
       }
@@ -103,14 +105,18 @@ export default function RealizedPnLPage() {
         display: sale.display,
         quantity: 0,
         proceedsUsd: 0,
+        proceedsIls: 0,
         costUsd: 0,
+        costIls: 0,
         profitUsd: 0,
         profitIls: 0,
       };
 
       current.quantity += sale.quantity;
       current.proceedsUsd += sale.proceedsUsd;
+      current.proceedsIls += sale.proceedsIls;
       current.costUsd += sale.costBasisUsd;
+      current.costIls += sale.costBasisIls;
       current.profitUsd += sale.profitUsd;
       current.profitIls += sale.profitIls;
 
@@ -192,6 +198,7 @@ export default function RealizedPnLPage() {
 
   const hasSales = sortedSales.length > 0;
   const netProfitUsd = totals.profitUsd - taxSummary.taxUsd;
+  const netProfitIls = totals.profitIls - taxSummary.taxIls;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
@@ -225,7 +232,12 @@ export default function RealizedPnLPage() {
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(netProfitUsd).badge}`}
                   >
                     {getTrendIcon(netProfitUsd)}
-                    {formatSignedCurrency(netProfitUsd, 'USD')}
+                    <span className="flex flex-col leading-tight">
+                      <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
+                      <span className="text-[11px] text-slate-600/80">
+                        {formatSignedCurrency(netProfitIls, 'ILS')}
+                      </span>
+                    </span>
                     <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
                   </span>
                 </div>
@@ -288,7 +300,12 @@ export default function RealizedPnLPage() {
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(netProfitUsd).badge}`}
                   >
                     {getTrendIcon(netProfitUsd)}
-                    {formatSignedCurrency(netProfitUsd, 'USD')}
+                    <span className="flex flex-col leading-tight">
+                      <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
+                      <span className="text-[11px] text-slate-600/80">
+                        {formatSignedCurrency(netProfitIls, 'ILS')}
+                      </span>
+                    </span>
                     <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
                   </span>
                       </div>
@@ -371,7 +388,12 @@ export default function RealizedPnLPage() {
                                   </div>
                                   <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>
                                     {getTrendIcon(item.profitUsd)}
-                                    {formatSignedCurrency(item.profitUsd, 'USD')}
+                                    <span className="flex flex-col leading-tight">
+                                      <span>{formatSignedCurrency(item.profitUsd, 'USD')}</span>
+                                      <span className="text-[11px]">
+                                        {formatSignedCurrency(item.profitIls, 'ILS')}
+                                      </span>
+                                    </span>
                                   </span>
                                 </div>
                                 <div className="mt-4 space-y-2 text-sm text-slate-500">
@@ -383,18 +405,27 @@ export default function RealizedPnLPage() {
                                     {t.realized.totalProceeds}:{' '}
                                     <span className="font-medium text-slate-700">
                                       {formatCurrency(item.proceedsUsd, 'USD', locale)}
+                                      <span className="mt-0.5 block text-xs text-slate-500">
+                                        {formatCurrency(item.proceedsIls, 'ILS', locale)}
+                                      </span>
                                     </span>
                                   </p>
                                   <p>
                                     {t.realized.totalCost}:{' '}
                                     <span className="font-medium text-slate-700">
                                       {formatCurrency(item.costUsd, 'USD', locale)}
+                                      <span className="mt-0.5 block text-xs text-slate-500">
+                                        {formatCurrency(item.costIls, 'ILS', locale)}
+                                      </span>
                                     </span>
                                   </p>
                                   <p>
                                     {t.realized.totalProfit}:{' '}
                                     <span className={`font-medium ${tone.text}`}>
                                       {formatSignedCurrency(item.profitUsd, 'USD')}
+                                      <span className="mt-0.5 block text-xs">
+                                        {formatSignedCurrency(item.profitIls, 'ILS')}
+                                      </span>
                                     </span>
                                   </p>
                                 </div>
@@ -436,7 +467,12 @@ export default function RealizedPnLPage() {
                                   </div>
                                   <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>
                                     {getTrendIcon(sale.profitUsd)}
-                                    {formatSignedCurrency(sale.profitUsd, 'USD')}
+                                    <span className="flex flex-col leading-tight">
+                                      <span>{formatSignedCurrency(sale.profitUsd, 'USD')}</span>
+                                      <span className="text-[11px]">
+                                        {formatSignedCurrency(sale.profitIls, 'ILS')}
+                                      </span>
+                                    </span>
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 sm:text-sm">
@@ -464,18 +500,27 @@ export default function RealizedPnLPage() {
                                     <p className="font-medium text-slate-600">{t.realized.proceeds}</p>
                                     <p className="text-slate-700">
                                       {formatCurrency(sale.proceedsUsd, 'USD', locale)}
+                                      <span className="mt-0.5 block text-xs text-slate-500">
+                                        {formatCurrency(sale.proceedsIls, 'ILS', locale)}
+                                      </span>
                                     </p>
                                   </div>
                                   <div>
                                     <p className="font-medium text-slate-600">{t.realized.costBasis}</p>
                                     <p className="text-slate-700">
                                       {formatCurrency(sale.costBasisUsd, 'USD', locale)}
+                                      <span className="mt-0.5 block text-xs text-slate-500">
+                                        {formatCurrency(sale.costBasisIls, 'ILS', locale)}
+                                      </span>
                                     </p>
                                   </div>
                                   <div>
                                     <p className="font-medium text-slate-600">{t.realized.profit}</p>
                                     <p className={`text-sm font-semibold ${tone.text}`}>
                                       {formatSignedCurrency(sale.profitUsd, 'USD')}
+                                      <span className="mt-0.5 block text-xs">
+                                        {formatSignedCurrency(sale.profitIls, 'ILS')}
+                                      </span>
                                     </p>
                                   </div>
                                   <div>
