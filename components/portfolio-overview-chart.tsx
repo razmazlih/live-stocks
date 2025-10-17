@@ -52,19 +52,6 @@ const tonePalette = {
 
 type ToneKey = keyof typeof tonePalette;
 
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
-  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
-  if (netValue < 0) {
-    return 'negative';
-  }
-
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
-    return 'underperforming';
-  }
-
-  return 'positive';
-};
-
 const ChartTooltip = ({
   active,
   payload,
@@ -196,18 +183,120 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       ];
     }
 
+    const resolveTone = (net: number, expected: number): ToneKey => {
+      if (net < 0) {
+        return 'negative';
+      }
+
+      if (net < expected) {
+        return 'underperforming';
+      }
+
+      return 'positive';
+    };
+
     if (data.length === 1) {
-      const singleTone = getPointTone(data[0]);
+      const point = data[0];
+      const net = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+      const expected = point.expectedNetPnLUsd ?? 0;
+      const singleTone = resolveTone(net, expected);
       return [
         { offset: 0, tone: singleTone },
         { offset: 100, tone: singleTone },
       ];
     }
 
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
-      tone: getPointTone(point),
-    }));
+    const stops: { offset: number; tone: ToneKey }[] = [];
+    const lastIndex = data.length - 1;
+
+    const pushStop = (offset: number, tone: ToneKey) => {
+      const clampedOffset = Number.isFinite(offset) ? Math.min(Math.max(offset, 0), 100) : 0;
+      const lastStop = stops[stops.length - 1];
+
+      if (lastStop && Math.abs(lastStop.offset - clampedOffset) < 1e-6) {
+        if (lastStop.tone !== tone) {
+          stops.push({ offset: clampedOffset, tone });
+        }
+        return;
+      }
+
+      if (!lastStop || lastStop.tone !== tone) {
+        stops.push({ offset: clampedOffset, tone });
+      }
+    };
+
+    const interpolate = (start: number, end: number, ratio: number) => start + (end - start) * ratio;
+
+    const initialPoint = data[0];
+    const initialNet = initialPoint.netPnLUsd ?? initialPoint.totalPnLUsd ?? 0;
+    const initialExpected = initialPoint.expectedNetPnLUsd ?? 0;
+    pushStop(0, resolveTone(initialNet, initialExpected));
+
+    const computeCrossings = (startValue: number, endValue: number, target = 0) => {
+      const startDiff = startValue - target;
+      const endDiff = endValue - target;
+      const ratios: number[] = [];
+
+      if (!Number.isFinite(startDiff) || !Number.isFinite(endDiff)) {
+        return ratios;
+      }
+
+      if ((startDiff < 0 && endDiff > 0) || (startDiff > 0 && endDiff < 0)) {
+        const denominator = startDiff - endDiff;
+        if (denominator !== 0) {
+          ratios.push(startDiff / denominator);
+        }
+      }
+
+      if (startDiff === 0) {
+        ratios.push(0);
+      }
+
+      if (endDiff === 0) {
+        ratios.push(1);
+      }
+
+      return ratios;
+    };
+
+    for (let index = 1; index < data.length; index += 1) {
+      const previous = data[index - 1];
+      const current = data[index];
+
+      const prevNet = previous.netPnLUsd ?? previous.totalPnLUsd ?? 0;
+      const currNet = current.netPnLUsd ?? current.totalPnLUsd ?? 0;
+      const prevExpected = previous.expectedNetPnLUsd ?? 0;
+      const currExpected = current.expectedNetPnLUsd ?? 0;
+
+      const zeroCrossings = computeCrossings(prevNet, currNet, 0);
+      const expectedCrossings = computeCrossings(prevNet - prevExpected, currNet - currExpected, 0);
+
+      const combinedCrossings = [...zeroCrossings, ...expectedCrossings]
+        .filter((ratio) => ratio > 0 && ratio < 1)
+        .sort((a, b) => a - b);
+
+      combinedCrossings.forEach((ratio) => {
+        const offset = ((index - 1 + ratio) / lastIndex) * 100;
+        const sampleRatio = Math.min(ratio + 1e-4, 1);
+        const netValue = interpolate(prevNet, currNet, sampleRatio);
+        const expectedValue = interpolate(prevExpected, currExpected, sampleRatio);
+        pushStop(offset, resolveTone(netValue, expectedValue));
+      });
+
+      const segmentEndOffset = (index / lastIndex) * 100;
+      pushStop(segmentEndOffset, resolveTone(currNet, currExpected));
+    }
+
+    if (stops[0]?.offset !== 0) {
+      stops.unshift({ offset: 0, tone: stops[0].tone });
+    }
+
+    const lastStop = stops[stops.length - 1];
+    if (!lastStop || lastStop.offset !== 100) {
+      stops.push({ offset: 100, tone: lastStop ? lastStop.tone : 'positive' });
+    }
+
+    return stops;
   }, [data]);
 
   const strokeGradientStops = useMemo(() => {
