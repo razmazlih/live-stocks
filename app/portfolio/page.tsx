@@ -18,12 +18,22 @@ import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
+import { PositionCard } from '@/components/position-card';
 
 export default function PortfolioPage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
-    usePortfolioData();
+  const {
+    loading,
+    positions,
+    metrics,
+    summary,
+    sparklineData,
+    portfolioTimeline,
+    usdToIls,
+    lastUpdate,
+    reload,
+  } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -80,6 +90,15 @@ export default function PortfolioPage() {
   };
 
   const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
+  const openMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity > 0),
+    [metrics]
+  );
+  const closedMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity <= 0),
+    [metrics]
+  );
+  const totalPositions = metrics.length;
   const totalDailyChangeUsd = metrics.reduce(
     (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
     0
@@ -118,13 +137,26 @@ export default function PortfolioPage() {
     toneClass?: string;
   };
 
-  const generalStats: GeneralStat[] = summary
-    ? [
-        {
-          key: 'positions',
-          label: t.portfolio.totalPositions,
-          value: positions.length.toString(),
-        },
+  const generalStats: GeneralStat[] = [
+    {
+      key: 'totalPositions',
+      label: t.portfolio.totalPositions,
+      value: totalPositions.toString(),
+    },
+    {
+      key: 'activePositions',
+      label: t.portfolio.activePositions,
+      value: openMetrics.length.toString(),
+    },
+    {
+      key: 'closedPositions',
+      label: t.portfolio.closedPositions,
+      value: closedMetrics.length.toString(),
+    },
+  ];
+
+  if (summary) {
+    generalStats.push(
         {
           key: 'averageReturn',
           label: t.portfolio.averageReturn,
@@ -152,9 +184,23 @@ export default function PortfolioPage() {
           key: 'usdToIls',
           label: t.portfolio.usdToIlsRate,
           value: formatCurrency(currentRate, 'ILS', locale),
-        },
-      ]
-    : [];
+        }
+      );
+  }
+
+  const positionComparison = useMemo(
+    () =>
+      metrics.map((metric) => ({
+        key: metric.position.id || metric.position.symbol,
+        name: metric.position.display || metric.position.symbol,
+        symbol: metric.position.symbol,
+        isClosed: metric.position.quantity <= 0,
+        currentPnL: metric.positionPnLUsd,
+        projectedPnL: metric.projectedPnLUsd,
+        delta: metric.positionPnLUsd - metric.projectedPnLUsd,
+      })),
+    [metrics]
+  );
 
   type SummaryCard = {
     key: string;
@@ -407,6 +453,104 @@ export default function PortfolioPage() {
                               )}
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(openMetrics.length > 0 || closedMetrics.length > 0) && (
+                      <div className="space-y-6">
+                        {openMetrics.length > 0 && (
+                          <div className="space-y-4">
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.positionsTitle}</h2>
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                              {openMetrics.map((metric) => (
+                                <PositionCard
+                                  key={`open-${metric.position.id || metric.position.symbol}`}
+                                  metrics={metric}
+                                  sparklineData={sparklineData[metric.position.symbol] || []}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {closedMetrics.length > 0 && (
+                          <div className="space-y-4">
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.closedPositionsTitle}</h2>
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                              {closedMetrics.map((metric) => (
+                                <PositionCard
+                                  key={`closed-${metric.position.id || metric.position.symbol}`}
+                                  metrics={metric}
+                                  sparklineData={sparklineData[metric.position.symbol] || []}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {positionComparison.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.comparisonTitle}</h2>
+                            <p className="text-sm text-slate-500">{t.portfolio.comparisonDescription}</p>
+                          </div>
+                        </div>
+                        <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-inner">
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200 text-left">
+                              <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
+                                <tr>
+                                  <th scope="col" className="px-4 py-3 font-semibold">
+                                    {t.portfolio.comparisonColumns.position}
+                                  </th>
+                                  <th scope="col" className="px-4 py-3 font-semibold">
+                                    {t.portfolio.comparisonColumns.current}
+                                  </th>
+                                  <th scope="col" className="px-4 py-3 font-semibold">
+                                    {t.portfolio.comparisonColumns.projected}
+                                  </th>
+                                  <th scope="col" className="px-4 py-3 font-semibold">
+                                    {t.portfolio.comparisonColumns.delta}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200/80 text-sm text-slate-600">
+                                {positionComparison.map((row) => {
+                                  const deltaTone = getTrendTone(row.delta);
+                                  const projectedTone = getTrendTone(row.projectedPnL);
+                                  const currentTone = getTrendTone(row.currentPnL);
+                                  return (
+                                    <tr key={row.key} className="hover:bg-blue-50/40">
+                                      <td className="px-4 py-3">
+                                        <div className="flex flex-col">
+                                          <span className="font-semibold text-slate-900">{row.name}</span>
+                                          <span className="text-xs text-slate-500">{row.symbol}</span>
+                                          {row.isClosed && (
+                                            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                                              {t.dashboard.closedBadge}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className={`px-4 py-3 font-semibold ${currentTone.text}`}>
+                                        {formatSignedCurrency(row.currentPnL, 'USD')}
+                                      </td>
+                                      <td className={`px-4 py-3 font-semibold ${projectedTone.text}`}>
+                                        {formatSignedCurrency(row.projectedPnL, 'USD')}
+                                      </td>
+                                      <td className={`px-4 py-3 font-semibold ${deltaTone.text}`}>
+                                        {formatSignedCurrency(row.delta, 'USD')}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     )}
