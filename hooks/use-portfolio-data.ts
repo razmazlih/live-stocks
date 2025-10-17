@@ -42,7 +42,13 @@ type NormalizedLot = {
   timestamp: number;
 };
 
-function buildPositionTimeline(position: Position, points: HistoricalPoint[]): PortfolioTimelinePoint[] {
+const MS_IN_YEAR = 1000 * 60 * 60 * 24 * 365.25;
+
+function buildPositionTimeline(
+  position: Position,
+  points: HistoricalPoint[],
+  annualGrowthRate: number
+): PortfolioTimelinePoint[] {
   if (!points.length) {
     return [];
   }
@@ -86,24 +92,37 @@ function buildPositionTimeline(position: Position, points: HistoricalPoint[]): P
         totalPnLIls: 0,
         netPnLUsd: 0,
         netPnLIls: 0,
+        expectedNetPnLUsd: 0,
+        expectedNetPnLIls: 0,
       }));
     }
 
+    const entryTimestamp = new Date(position.entryDate).getTime();
+
     return points.map((point) => {
       const openPnL = (point.close - position.entryPrice) * position.quantity;
+      const yearsHeld = Number.isFinite(entryTimestamp)
+        ? Math.max((point.timestamp - entryTimestamp) / MS_IN_YEAR, 0)
+        : 0;
+      const costBasis = position.entryPrice * position.quantity;
+      const expectedGrowthFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+      const expectedOpenPnL = costBasis * (expectedGrowthFactor - 1);
       return {
         timestamp: point.timestamp,
         totalPnLUsd: openPnL,
         totalPnLIls: 0,
         netPnLUsd: openPnL,
         netPnLIls: 0,
+        expectedNetPnLUsd: expectedOpenPnL,
+        expectedNetPnLIls: 0,
       };
     });
   }
 
-  const openLots: Array<{ quantity: number; price: number }> = [];
+  const openLots: Array<{ quantity: number; price: number; timestamp: number }> = [];
   const timeline: PortfolioTimelinePoint[] = [];
   let realizedPnL = 0;
+  let expectedRealizedPnL = 0;
   let lotIndex = 0;
 
   for (const point of points) {
@@ -119,7 +138,7 @@ function buildPositionTimeline(position: Position, points: HistoricalPoint[]): P
       }
 
       if (lot.type === 'BUY') {
-        openLots.push({ quantity, price: lot.price });
+        openLots.push({ quantity, price: lot.price, timestamp: lot.timestamp });
         continue;
       }
 
@@ -128,6 +147,11 @@ function buildPositionTimeline(position: Position, points: HistoricalPoint[]): P
         const current = openLots[0];
         const matched = Math.min(remaining, current.quantity);
         realizedPnL += matched * (lot.price - current.price);
+        const yearsHeld = Math.max((timestamp - current.timestamp) / MS_IN_YEAR, 0);
+        const costBasis = current.price * matched;
+        const expectedGrowthFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+        const expectedProfit = costBasis * (expectedGrowthFactor - 1);
+        expectedRealizedPnL += expectedProfit;
         current.quantity -= matched;
         remaining -= matched;
 
@@ -141,6 +165,16 @@ function buildPositionTimeline(position: Position, points: HistoricalPoint[]): P
     const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
     const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
     const netPnL = openPnL + realizedPnL;
+    const expectedOpenPnL = openLots.reduce((sum, lot) => {
+      if (lot.quantity <= 0) {
+        return sum;
+      }
+      const yearsHeld = Math.max((timestamp - lot.timestamp) / MS_IN_YEAR, 0);
+      const lotCostBasis = lot.price * lot.quantity;
+      const expectedGrowthFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+      return sum + lotCostBasis * (expectedGrowthFactor - 1);
+    }, 0);
+    const expectedNetPnL = expectedOpenPnL + expectedRealizedPnL;
 
     timeline.push({
       timestamp,
@@ -148,6 +182,8 @@ function buildPositionTimeline(position: Position, points: HistoricalPoint[]): P
       totalPnLIls: 0,
       netPnLUsd: netPnL,
       netPnLIls: 0,
+      expectedNetPnLUsd: expectedNetPnL,
+      expectedNetPnLIls: 0,
     });
   }
 
@@ -209,7 +245,7 @@ export function usePortfolioData() {
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const timeline = buildPositionTimeline(position, points);
+            const timeline = buildPositionTimeline(position, points, settings.annualGrowthRate);
 
             return {
               symbol: position.symbol,
@@ -228,12 +264,21 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
-      const aggregatedTimeline = new Map<number, { totalPnLUsd: number; netPnLUsd: number }>();
+      const aggregatedTimeline = new Map<
+        number,
+        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
+      >();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
-          const current = aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0 };
+          const current =
+            aggregatedTimeline.get(point.timestamp) ?? {
+              totalPnLUsd: 0,
+              netPnLUsd: 0,
+              expectedNetPnLUsd: 0,
+            };
           current.totalPnLUsd += point.totalPnLUsd;
           current.netPnLUsd += point.netPnLUsd;
+          current.expectedNetPnLUsd += point.expectedNetPnLUsd;
           aggregatedTimeline.set(point.timestamp, current);
         });
       });
@@ -246,6 +291,8 @@ export function usePortfolioData() {
           totalPnLIls: 0,
           netPnLUsd: values.netPnLUsd,
           netPnLIls: 0,
+          expectedNetPnLUsd: values.expectedNetPnLUsd,
+          expectedNetPnLIls: 0,
         }));
       const sparklineData = Object.fromEntries(sparklineEntries);
 
@@ -254,7 +301,7 @@ export function usePortfolioData() {
         portfolioTimeline: sortedTimeline,
       };
     },
-    [settings.finnhubToken]
+    [settings.annualGrowthRate, settings.finnhubToken]
   );
 
   const loadData = useCallback(
@@ -372,12 +419,16 @@ export function usePortfolioData() {
           const totalPnLIls = point.totalPnLUsd * rate;
           const netPnLUsdBeforeTax = point.netPnLUsd;
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
+          const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
+          const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
 
           return {
             ...point,
             totalPnLIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
+            expectedNetPnLUsd: expectedNetPnLUsdBeforeTax - currentTaxUsd,
+            expectedNetPnLIls: expectedNetPnLIlsBeforeTax - currentTaxIls,
           };
         });
 

@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -166,6 +167,27 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
 
+  const latestNetPnL = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const latestExpectedNetPnL = trendPoint?.expectedNetPnLUsd ?? 0;
+
+  const areaPalette = latestNetPnL < 0
+    ? {
+        stroke: '#E11D48',
+        start: '#FB7185',
+        end: 'rgba(244, 63, 94, 0.15)',
+      }
+    : latestNetPnL >= latestExpectedNetPnL
+      ? {
+          stroke: '#059669',
+          start: '#34D399',
+          end: 'rgba(16, 185, 129, 0.15)',
+        }
+      : {
+          stroke: '#2563EB',
+          start: '#3B82F6',
+          end: 'rgba(59, 130, 246, 0.2)',
+        };
+
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
       return { bestPoint: null, worstPoint: null };
@@ -190,7 +212,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     );
   }, [data]);
 
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const trendTone = latestNetPnL;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
   const badgeClass = trendTone > 0
     ? 'bg-emerald-50 text-emerald-600'
@@ -226,8 +248,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor={areaPalette.start} stopOpacity={0.9} />
+                      <stop offset="95%" stopColor={areaPalette.end} stopOpacity={1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -265,10 +287,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
+                  <Line
+                    type="monotone"
+                    dataKey="expectedNetPnLUsd"
+                    stroke="#1D4ED8"
+                    strokeWidth={2}
+                    strokeDasharray="6 6"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke="#2563EB"
+                    stroke={areaPalette.stroke}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
                     dot={false}
