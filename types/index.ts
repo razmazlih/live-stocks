@@ -80,6 +80,12 @@ export interface PortfolioSummary {
   totalProjectedPnLIls: number;
   totalCombinedUsd: number;
   totalCombinedIls: number;
+  totalRealizedProfitUsd: number;
+  totalRealizedProfitIls: number;
+  totalTaxesPaidUsd: number;
+  totalTaxesPaidIls: number;
+  totalNetPnLUsd: number;
+  totalNetPnLIls: number;
   totalValue: number;
   totalCost: number;
   usdToIlsRate: number;
@@ -88,6 +94,9 @@ export interface PortfolioSummary {
 export interface PortfolioTimelinePoint {
   timestamp: number;
   totalPnLUsd: number;
+  totalPnLIls: number;
+  netPnLUsd: number;
+  netPnLIls: number;
 }
 
 export interface Settings {

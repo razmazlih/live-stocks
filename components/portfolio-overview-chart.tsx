@@ -27,38 +27,103 @@ type TooltipValueType = number | string;
 
 interface ChartTooltipProps {
   active?: boolean;
-  payload?: { value: TooltipValueType }[];
+  payload?: { value: TooltipValueType; payload: PortfolioTimelinePoint }[];
   label?: TooltipValueType;
-  valueFormatter: (value: number) => string;
+  formatUsd: (value: number) => string;
+  formatIls: (value: number) => string;
   labelFormatter: (label: TooltipValueType) => string;
+  summary: PortfolioSummary;
+  labels: {
+    net: string;
+    open: string;
+    realized: string;
+    taxes: string;
+    usd: string;
+    ils: string;
+  };
 }
 
-const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }: ChartTooltipProps) => {
+const ChartTooltip = ({
+  active,
+  payload,
+  label,
+  formatUsd,
+  formatIls,
+  labelFormatter,
+  summary,
+  labels,
+}: ChartTooltipProps) => {
   if (!active || !payload?.length) {
     return null;
   }
 
+  const point = payload[0]?.payload;
+  if (!point) {
+    return null;
+  }
+
+  const openUsd = point.totalPnLUsd ?? 0;
+  const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
+  const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
+  const netIls = point.netPnLIls ?? openIls + summary.totalRealizedProfitIls - summary.totalTaxesPaidIls;
+  const realizedUsd = summary.totalRealizedProfitUsd;
+  const realizedIls = summary.totalRealizedProfitIls;
+  const taxesUsd = summary.totalTaxesPaidUsd;
+  const taxesIls = summary.totalTaxesPaidIls;
+
+  const rows = [
+    {
+      key: 'net',
+      label: labels.net,
+      usd: netUsd,
+      ils: netIls,
+      accent: 'from-blue-500 to-blue-400',
+    },
+    {
+      key: 'open',
+      label: labels.open,
+      usd: openUsd,
+      ils: openIls,
+      accent: 'from-slate-500 to-slate-400',
+    },
+    {
+      key: 'realized',
+      label: labels.realized,
+      usd: realizedUsd,
+      ils: realizedIls,
+      accent: 'from-emerald-500 to-emerald-400',
+    },
+    {
+      key: 'taxes',
+      label: labels.taxes,
+      usd: taxesUsd * -1,
+      ils: taxesIls * -1,
+      accent: 'from-rose-500 to-rose-400',
+    },
+  ];
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
-      <div className="mt-2 space-y-1">
-        {payload.map((item, index) => {
-          if (item?.value === undefined || item?.value === null) {
-            return null;
-          }
-
-          const numericValue = typeof item.value === 'number' ? item.value : Number(item.value);
-
-          return (
-            <div key={index} className="flex items-center gap-2 text-slate-600">
+      <div className="mt-3 space-y-3">
+        {rows.map((row) => (
+          <div key={row.key} className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
-                <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 to-blue-400" />
+                <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${row.accent}`} />
               </span>
-              <span className="text-xs font-medium sm:text-sm">P/L</span>
-              <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
+              {row.label}
             </div>
-          );
-        })}
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span className="font-medium text-slate-500">{labels.usd}</span>
+              <span className="font-semibold text-slate-900">{formatUsd(row.usd)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span className="font-medium">{labels.ils}</span>
+              <span className="font-semibold text-slate-700">{formatIls(row.ils)}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -69,7 +134,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const { t } = useTranslation(locale);
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
-  const currencyFormatter = (value: number) => formatCurrency(value, 'USD', locale);
+  const usdFormatter = (value: number) => formatCurrency(value, 'USD', locale);
+  const ilsFormatter = (value: number) => formatCurrency(value, 'ILS', locale);
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(localeCode, {
@@ -89,9 +155,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   );
 
   const trendPoint = data[data.length - 1];
-  const currentPnL = summary.totalCurrentPnLUsd;
-  const projectedPnL = summary.totalProjectedPnLUsd;
-  const combinedPnL = summary.totalCombinedUsd;
+  const openPnLUsd = summary.totalCurrentPnLUsd;
+  const openPnLIls = summary.totalCurrentPnLIls;
+  const realizedPnLUsd = summary.totalRealizedProfitUsd;
+  const realizedPnLIls = summary.totalRealizedProfitIls;
+  const taxesUsd = summary.totalTaxesPaidUsd;
+  const taxesIls = summary.totalTaxesPaidIls;
+  const netPnLUsd = summary.totalNetPnLUsd;
+  const netPnLIls = summary.totalNetPnLIls;
+  const projectedPnLUsd = summary.totalProjectedPnLUsd;
+  const projectedPnLIls = summary.totalProjectedPnLIls;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -100,11 +173,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
     return data.reduce(
       (acc, point) => {
-        if (!acc.bestPoint || point.totalPnLUsd > acc.bestPoint.totalPnLUsd) {
+        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
+        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
+        if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
           acc.bestPoint = point;
         }
 
-        if (!acc.worstPoint || point.totalPnLUsd < acc.worstPoint.totalPnLUsd) {
+        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
+        if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
           acc.worstPoint = point;
         }
 
@@ -114,7 +190,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     );
   }, [data]);
 
-  const trendTone = trendPoint?.totalPnLUsd ?? currentPnL;
+  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
   const badgeClass = trendTone > 0
     ? 'bg-emerald-50 text-emerald-600'
@@ -125,8 +201,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValue = bestPoint ? currencyFormatter(bestPoint.totalPnLUsd) : '—';
-  const formattedWorstValue = worstPoint ? currencyFormatter(worstPoint.totalPnLUsd) : '—';
+  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
+  const formattedBestValueIls = bestPoint
+    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
+    : '—';
+  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
+  const formattedWorstValueIls = worstPoint
+    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
+    : '—';
 
   return (
     <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
@@ -167,15 +249,25 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
                     content={
                       <ChartTooltip
-                        valueFormatter={currencyFormatter}
+                        formatUsd={usdFormatter}
+                        formatIls={ilsFormatter}
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
+                        summary={summary}
+                        labels={{
+                          net: t.dashboard.netPnL,
+                          open: t.dashboard.currentPnL,
+                          realized: t.dashboard.realizedPnL,
+                          taxes: t.dashboard.taxesPaid,
+                          usd: t.dashboard.usdLabel,
+                          ils: t.dashboard.ilsLabel,
+                        }}
                       />
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Area
                     type="monotone"
-                    dataKey="totalPnLUsd"
+                    dataKey="netPnLUsd"
                     stroke="#2563EB"
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
@@ -198,20 +290,34 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.currentPnL}</p>
-              <p className={`text-3xl font-semibold ${toneClass}`}>
-                {currencyFormatter(currentPnL)}
-              </p>
+              <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
+              <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
+              <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
               <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(projectedPnL)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.currentPnL}</p>
+                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
+                <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
               </div>
               <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.combinedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(combinedPnL)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.realizedPnL}</p>
+                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
+                <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
+                <p className="mt-1 font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
+                <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
+                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
+                <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
               </div>
             </div>
 
@@ -220,15 +326,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
                   {t.dashboard.bestPnL}
                 </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedBestValue}</p>
-                <p className="text-xs text-slate-500">{formattedBestDate}</p>
+                <p className="mt-1 font-semibold text-slate-900">{formattedBestValueUsd}</p>
+                <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
+                <p className="text-xs text-slate-400">{formattedBestDate}</p>
               </div>
               <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
                   {t.dashboard.worstPnL}
                 </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedWorstValue}</p>
-                <p className="text-xs text-slate-500">{formattedWorstDate}</p>
+                <p className="mt-1 font-semibold text-slate-900">{formattedWorstValueUsd}</p>
+                <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
+                <p className="text-xs text-slate-400">{formattedWorstDate}</p>
               </div>
             </div>
 
@@ -238,8 +346,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </p>
               <p className="mt-2 leading-relaxed">
                 {t.dashboard.portfolioOverviewSummary(
-                  currencyFormatter(currentPnL),
-                  currencyFormatter(projectedPnL)
+                  usdFormatter(openPnLUsd),
+                  usdFormatter(realizedPnLUsd),
+                  usdFormatter(Math.abs(taxesUsd))
                 )}
               </p>
             </div>

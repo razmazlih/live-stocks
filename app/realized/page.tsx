@@ -17,7 +17,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 
 export default function RealizedPnLPage() {
@@ -126,34 +126,16 @@ export default function RealizedPnLPage() {
     return Array.from(map.values()).sort((a, b) => b.profitUsd - a.profitUsd);
   }, [sortedSales]);
 
-  const taxSummary = useMemo(() => {
-    let cumulativeProfitUsd = 0;
-    let peakProfitUsd = 0;
-    let taxUsd = 0;
-    let taxIls = 0;
-
-    chronologicalSales.forEach((sale) => {
-      cumulativeProfitUsd += sale.profitUsd;
-
-      if (sale.profitUsd > 0) {
-        const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
-        const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
-
-        if (taxableProfitUsd > 1e-8) {
-          const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : 0;
-          taxUsd += taxableProfitUsd * 0.25;
-          taxIls += taxableProfitUsd * conversionRate * 0.25;
-        }
-
-        peakProfitUsd = newPeakProfitUsd;
-        return;
-      }
-
-      peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
-    });
-
-    return { taxUsd, taxIls };
-  }, [chronologicalSales]);
+  const taxSummary = useMemo(
+    () =>
+      calculateRealizedTaxLiability(
+        chronologicalSales.map((sale) => ({
+          profitUsd: sale.profitUsd,
+          profitIls: sale.profitIls,
+        }))
+      ),
+    [chronologicalSales]
+  );
 
   const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
     const formatted = formatCurrency(value, currency, locale);

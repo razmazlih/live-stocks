@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { mapPositionRow } from '@/lib/positions';
+import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
   mapCandleDataToPoints,
+  calculateRealizedTaxLiability,
 } from '@/lib/calculations';
 import {
   CandleData,
@@ -92,6 +93,9 @@ export function usePortfolioData() {
             const timeline = points.map<PortfolioTimelinePoint>((point) => ({
               timestamp: point.timestamp,
               totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
+              totalPnLIls: 0,
+              netPnLUsd: 0,
+              netPnLIls: 0,
             }));
 
             return {
@@ -123,7 +127,13 @@ export function usePortfolioData() {
 
       const sortedTimeline = Array.from(aggregatedTimeline.entries())
         .sort((a, b) => a[0] - b[0])
-        .map(([timestamp, totalPnLUsd]) => ({ timestamp, totalPnLUsd }));
+        .map(([timestamp, totalPnLUsd]) => ({
+          timestamp,
+          totalPnLUsd,
+          totalPnLIls: 0,
+          netPnLUsd: totalPnLUsd,
+          netPnLIls: 0,
+        }));
       const sparklineData = Object.fromEntries(sparklineEntries);
 
       return {
@@ -185,15 +195,66 @@ export function usePortfolioData() {
 
         const calculatedMetrics = await Promise.all(metricsPromises);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
+        const realizedSales = mappedPositions.flatMap((position) => computeRealizedSales(position));
+        const realizedTotals = realizedSales.reduce(
+          (acc, sale) => {
+            acc.proceedsUsd += sale.proceedsUsd;
+            acc.costUsd += sale.costBasisUsd;
+            acc.profitUsd += sale.profitUsd;
+            acc.proceedsIls += sale.proceedsUsd * rate;
+            acc.costIls += sale.costBasisUsd * rate;
+            acc.profitIls += sale.profitUsd * rate;
+            return acc;
+          },
+          {
+            proceedsUsd: 0,
+            costUsd: 0,
+            profitUsd: 0,
+            proceedsIls: 0,
+            costIls: 0,
+            profitIls: 0,
+          }
+        );
+
+        const chronologicalSales = realizedSales
+          .slice()
+          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
+          .map((sale) => ({
+            profitUsd: sale.profitUsd,
+            profitIls: sale.profitUsd * rate,
+          }));
+
+        const taxSummary = calculateRealizedTaxLiability(chronologicalSales);
+
+        const enrichedSummary: PortfolioSummary = {
+          ...portfolioSummary,
+          totalRealizedProfitUsd: realizedTotals.profitUsd,
+          totalRealizedProfitIls: realizedTotals.profitIls,
+          totalTaxesPaidUsd: taxSummary.taxUsd,
+          totalTaxesPaidIls: taxSummary.taxIls,
+          totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
+          totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+        };
+
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
+
+        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
+          const totalPnLIls = point.totalPnLUsd * rate;
+          return {
+            ...point,
+            totalPnLIls,
+            netPnLUsd: point.totalPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
+            netPnLIls: totalPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+          };
+        });
 
         setPositions(mappedPositions);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
-        setSummary(portfolioSummary);
+        setSummary(enrichedSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(nextPortfolioTimeline);
+        setPortfolioTimeline(adjustedTimeline);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);

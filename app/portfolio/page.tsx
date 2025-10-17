@@ -18,9 +18,10 @@ import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
+import { computeRealizedSales } from '@/lib/positions';
 
 export default function PortfolioPage() {
-  const { locale } = useApp();
+  const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const { loading, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
     usePortfolioData();
@@ -79,6 +80,85 @@ export default function PortfolioPage() {
     return <Minus className="h-4 w-4" />;
   };
 
+  const openMetrics = useMemo(() => metrics.filter((metric) => metric.position.quantity > 0), [metrics]);
+  const rateForSummary = summary?.usdToIlsRate ?? usdToIls;
+
+  const realizedSales = useMemo(
+    () =>
+      positions.flatMap((position) =>
+        computeRealizedSales(position).map((sale) => ({
+          ...sale,
+          proceedsIls: sale.proceedsUsd * rateForSummary,
+          costBasisIls: sale.costBasisUsd * rateForSummary,
+          profitIls: sale.profitUsd * rateForSummary,
+        }))
+      ),
+    [positions, rateForSummary]
+  );
+
+  const closedSummary = useMemo(() => {
+    if (realizedSales.length === 0) {
+      return null;
+    }
+
+    const totals = realizedSales.reduce(
+      (acc, sale) => {
+        acc.totalProceedsUsd += sale.proceedsUsd;
+        acc.totalProceedsIls += sale.proceedsIls;
+        acc.totalCostUsd += sale.costBasisUsd;
+        acc.totalCostIls += sale.costBasisIls;
+        acc.totalProfitUsd += sale.profitUsd;
+        acc.totalProfitIls += sale.profitIls;
+        acc.totalQuantity += sale.quantity;
+        acc.weightedHoldingDays += sale.holdingPeriodDays * sale.quantity;
+        return acc;
+      },
+      {
+        totalProceedsUsd: 0,
+        totalProceedsIls: 0,
+        totalCostUsd: 0,
+        totalCostIls: 0,
+        totalProfitUsd: 0,
+        totalProfitIls: 0,
+        totalQuantity: 0,
+        weightedHoldingDays: 0,
+      }
+    );
+
+    const averageHoldingDays = totals.totalQuantity > 0 ? totals.weightedHoldingDays / totals.totalQuantity : 0;
+    const expectedProfitUsd = realizedSales.reduce((acc, sale) => {
+      const yearsHeld = sale.holdingPeriodDays / 365.25;
+      const expectedReturnFactor = Math.pow(1 + settings.annualGrowthRate, yearsHeld);
+      const expectedProfit = sale.costBasisUsd * (expectedReturnFactor - 1);
+      return acc + expectedProfit;
+    }, 0);
+
+    const expectedProfitIls = expectedProfitUsd * rateForSummary;
+    const performanceDeltaUsd = totals.totalProfitUsd - expectedProfitUsd;
+    const performanceDeltaIls = totals.totalProfitIls - expectedProfitIls;
+    const performanceDeltaPercent = expectedProfitUsd !== 0
+      ? (performanceDeltaUsd / Math.abs(expectedProfitUsd)) * 100
+      : 0;
+
+    const uniqueSymbols = new Set(realizedSales.map((sale) => sale.symbol));
+
+    return {
+      totalProceedsUsd: totals.totalProceedsUsd,
+      totalProceedsIls: totals.totalProceedsIls,
+      totalCostUsd: totals.totalCostUsd,
+      totalCostIls: totals.totalCostIls,
+      totalProfitUsd: totals.totalProfitUsd,
+      totalProfitIls: totals.totalProfitIls,
+      expectedProfitUsd,
+      expectedProfitIls,
+      performanceDeltaUsd,
+      performanceDeltaIls,
+      performanceDeltaPercent,
+      averageHoldingDays,
+      uniqueSymbols: uniqueSymbols.size,
+    };
+  }, [realizedSales, rateForSummary, settings.annualGrowthRate]);
+
   const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
   const totalDailyChangeUsd = metrics.reduce(
     (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
@@ -87,7 +167,7 @@ export default function PortfolioPage() {
   const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
   const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
 
-  const currentRate = summary?.usdToIlsRate ?? usdToIls;
+  const currentRate = rateForSummary;
   const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
@@ -95,6 +175,9 @@ export default function PortfolioPage() {
   const averageReturnPercent = metrics.length
     ? metrics.reduce((acc, metric) => acc + metric.roiPercent, 0) / metrics.length
     : 0;
+
+  const openPositionsCount = openMetrics.length;
+  const closedPositionsCount = closedSummary?.uniqueSymbols ?? 0;
 
   const bestMetric = metrics.reduce((best, metric) => {
     if (!best || metric.positionPnLUsd > best.positionPnLUsd) {
@@ -121,10 +204,22 @@ export default function PortfolioPage() {
   const generalStats: GeneralStat[] = summary
     ? [
         {
-          key: 'positions',
-          label: t.portfolio.totalPositions,
-          value: positions.length.toString(),
+          key: 'openPositions',
+          label: t.portfolio.openPositions,
+          value: openPositionsCount.toString(),
         },
+        ...(closedSummary
+          ? [
+              {
+                key: 'closedPositions',
+                label: t.portfolio.closedPositions,
+                value: closedPositionsCount.toString(),
+                helper: t.portfolio.closedPositionsHelper(
+                  formatCurrency(closedSummary.totalProceedsUsd, 'USD', locale)
+                ),
+              },
+            ]
+          : []),
         {
           key: 'averageReturn',
           label: t.portfolio.averageReturn,
@@ -167,57 +262,135 @@ export default function PortfolioPage() {
     footnote?: string;
   };
 
-  const summaryCards: SummaryCard[] = summary
+  const summaryCards: SummaryCard[] = [];
+
+  if (summary) {
+    const taxesUsdDisplay = summary.totalTaxesPaidUsd * -1;
+    const taxesIlsDisplay = summary.totalTaxesPaidIls * -1;
+
+    summaryCards.push(
+      {
+        key: 'value',
+        label: t.dashboard.totalValue,
+        value: formatCurrency(summary.totalValue, 'USD', locale),
+        valueClass: 'text-3xl font-semibold text-slate-900',
+        secondary: {
+          label: 'ILS',
+          value: formatCurrency(totalValueIls, 'ILS', locale),
+        },
+        helper: [
+          { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
+          { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
+        ],
+        badge: {
+          value: formatSignedPercent(totalReturnPercent),
+          tone: getTrendTone(totalReturnUsd),
+          icon: getTrendIcon(totalReturnUsd),
+        },
+        footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+      },
+      {
+        key: 'net',
+        label: t.dashboard.netPnL,
+        value: formatSignedCurrency(summary.totalNetPnLUsd, 'USD'),
+        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalNetPnLUsd).text}`,
+        secondary: {
+          label: 'ILS',
+          value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
+        },
+      },
+      {
+        key: 'current',
+        label: t.dashboard.currentPnL,
+        value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
+        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+        secondary: {
+          label: 'ILS',
+          value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
+        },
+      },
+      {
+        key: 'projected',
+        label: t.dashboard.projectedPnL,
+        value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
+        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+        secondary: {
+          label: 'ILS',
+          value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+        },
+      },
+      {
+        key: 'taxes',
+        label: t.dashboard.taxesPaid,
+        value: formatSignedCurrency(taxesUsdDisplay, 'USD'),
+        valueClass: `text-3xl font-semibold ${getTrendTone(taxesUsdDisplay).text}`,
+        secondary: {
+          label: 'ILS',
+          value: formatSignedCurrency(taxesIlsDisplay, 'ILS'),
+        },
+      }
+    );
+  }
+
+  if (closedSummary) {
+    summaryCards.push({
+      key: 'realized',
+      label: t.portfolio.realizedPnLCard,
+      value: formatSignedCurrency(closedSummary.totalProfitUsd, 'USD'),
+      valueClass: `text-3xl font-semibold ${getTrendTone(closedSummary.totalProfitUsd).text}`,
+      secondary: {
+        label: 'ILS',
+        value: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS'),
+      },
+      helper: [
+        {
+          label: t.portfolio.expectedProfitLabel,
+          value: formatSignedCurrency(closedSummary.expectedProfitUsd, 'USD'),
+        },
+        {
+          label: t.portfolio.performanceVsExpectedShort,
+          value: formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD'),
+        },
+      ],
+      badge: {
+        value: formatSignedPercent(closedSummary.performanceDeltaPercent),
+        tone: getTrendTone(closedSummary.performanceDeltaUsd),
+        icon: getTrendIcon(closedSummary.performanceDeltaUsd),
+      },
+      footnote: t.portfolio.closedPositionsFootnote(closedSummary.uniqueSymbols),
+    });
+  }
+
+  const closedStats: GeneralStat[] = closedSummary
     ? [
         {
-          key: 'value',
-          label: t.dashboard.totalValue,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-3xl font-semibold text-slate-900',
-          secondary: {
-            label: 'ILS',
-            value: formatCurrency(totalValueIls, 'ILS', locale),
-          },
-          helper: [
-            { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
-          ],
-          badge: {
-            value: formatSignedPercent(totalReturnPercent),
-            tone: getTrendTone(totalReturnUsd),
-            icon: getTrendIcon(totalReturnUsd),
-          },
-          footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+          key: 'closedProceeds',
+          label: t.portfolio.closedTotalProceeds,
+          value: formatCurrency(closedSummary.totalProceedsUsd, 'USD', locale),
+          helper: formatCurrency(closedSummary.totalProceedsIls, 'ILS', locale),
         },
         {
-          key: 'current',
-          label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
-          },
+          key: 'closedProfit',
+          label: t.portfolio.closedTotalProfit,
+          value: formatSignedCurrency(closedSummary.totalProfitUsd, 'USD'),
+          helper: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS'),
+          toneClass: getTrendTone(closedSummary.totalProfitUsd).text,
         },
         {
-          key: 'projected',
-          label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
-          },
+          key: 'expectedProfit',
+          label: t.portfolio.expectedProfitLabel,
+          value: formatSignedCurrency(closedSummary.expectedProfitUsd, 'USD'),
+          helper: formatSignedCurrency(closedSummary.expectedProfitIls, 'ILS'),
+          toneClass: getTrendTone(closedSummary.expectedProfitUsd).text,
         },
         {
-          key: 'combined',
-          label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
-          },
+          key: 'performanceDelta',
+          label: t.portfolio.performanceVsExpectedLabel,
+          value: formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD'),
+          helper: `${formatSignedCurrency(closedSummary.performanceDeltaIls, 'ILS')} · ${formatSignedPercent(
+            closedSummary.performanceDeltaPercent
+          )}`,
+          toneClass: getTrendTone(closedSummary.performanceDeltaUsd).text,
         },
       ]
     : [];
@@ -408,6 +581,45 @@ export default function PortfolioPage() {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {closedSummary && closedStats.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
+                            <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(closedSummary.performanceDeltaUsd).badge}`}
+                          >
+                            {getTrendIcon(closedSummary.performanceDeltaUsd)}
+                            {formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD')}
+                            <span className="text-xs font-medium text-slate-600/80">
+                              {t.portfolio.performanceVsExpectedPill}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                          {closedStats.map((stat) => (
+                            <div
+                              key={stat.key}
+                              className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                            >
+                              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
+                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                                {stat.value}
+                              </p>
+                              {stat.helper && (
+                                <p className="text-xs font-medium text-slate-500">{stat.helper}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs font-medium text-slate-500">
+                          {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
+                        </p>
                       </div>
                     )}
 
