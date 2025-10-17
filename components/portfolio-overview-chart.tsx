@@ -35,6 +35,8 @@ interface ChartTooltipProps {
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
+    totalValue: string;
+    expectedValue: string;
     net: string;
     open: string;
     realized: string;
@@ -63,6 +65,10 @@ const ChartTooltip = ({
     return null;
   }
 
+  const totalValueUsd = point.totalValueUsd ?? summary.totalValue;
+  const totalValueIls = point.totalValueIls ?? totalValueUsd * summary.usdToIlsRate;
+  const expectedValueUsd = point.expectedTotalValueUsd ?? totalValueUsd;
+  const expectedValueIls = point.expectedTotalValueIls ?? expectedValueUsd * summary.usdToIlsRate;
   const openUsd = point.totalPnLUsd ?? 0;
   const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
   const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
@@ -74,11 +80,25 @@ const ChartTooltip = ({
 
   const rows = [
     {
+      key: 'value',
+      label: labels.totalValue,
+      usd: totalValueUsd,
+      ils: totalValueIls,
+      accent: 'from-emerald-500 to-emerald-400',
+    },
+    {
+      key: 'expectedValue',
+      label: labels.expectedValue,
+      usd: expectedValueUsd,
+      ils: expectedValueIls,
+      accent: 'from-blue-500 to-blue-400',
+    },
+    {
       key: 'net',
       label: labels.net,
       usd: netUsd,
       ils: netIls,
-      accent: 'from-blue-500 to-blue-400',
+      accent: 'from-slate-500 to-slate-400',
     },
     {
       key: 'open',
@@ -168,8 +188,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLIls = summary.totalProjectedPnLIls;
   const latestPoint = data[data.length - 1];
   const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
+  const latestValue = latestPoint?.totalValueUsd ?? summary.totalValue;
+  const latestExpectedValue = latestPoint?.expectedTotalValueUsd ?? latestValue;
+  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestValue < latestExpectedValue ? '#2563EB' : '#10B981';
   const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
   const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
 
@@ -180,13 +201,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
     return data.reduce(
       (acc, point) => {
-        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
-        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
+        const pointValue = point.totalValueUsd ?? point.netPnLUsd ?? point.totalPnLUsd;
+        const bestValue = acc.bestPoint
+          ? acc.bestPoint.totalValueUsd ?? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd
+          : undefined;
         if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
           acc.bestPoint = point;
         }
 
-        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
+        const worstValue = acc.worstPoint
+          ? acc.worstPoint.totalValueUsd ?? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd
+          : undefined;
         if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
           acc.worstPoint = point;
         }
@@ -208,13 +233,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
+  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.totalValueUsd) : '—';
   const formattedBestValueIls = bestPoint
-    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
+    ? ilsFormatter(bestPoint.totalValueIls ?? bestPoint.totalValueUsd * summary.usdToIlsRate)
     : '—';
-  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
+  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.totalValueUsd) : '—';
   const formattedWorstValueIls = worstPoint
-    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
+    ? ilsFormatter(worstPoint.totalValueIls ?? worstPoint.totalValueUsd * summary.usdToIlsRate)
     : '—';
 
   return (
@@ -261,6 +286,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
                         summary={summary}
                         labels={{
+                          totalValue: t.dashboard.portfolioValueLabel,
+                          expectedValue: t.dashboard.expectedValueLabel,
                           net: t.dashboard.netPnL,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
@@ -274,7 +301,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Line
                     type="monotone"
-                    dataKey="expectedNetPnLUsd"
+                    dataKey="expectedTotalValueUsd"
                     stroke="#3B82F6"
                     strokeWidth={2}
                     strokeDasharray="6 6"
@@ -283,7 +310,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Area
                     type="monotone"
-                    dataKey="netPnLUsd"
+                    dataKey="totalValueUsd"
                     stroke={strokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"

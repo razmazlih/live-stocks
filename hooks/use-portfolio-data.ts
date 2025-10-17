@@ -93,6 +93,10 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: 0,
         expectedNetPnLIls: 0,
+        totalValueUsd: 0,
+        totalValueIls: 0,
+        expectedTotalValueUsd: 0,
+        expectedTotalValueIls: 0,
       }));
     }
 
@@ -101,9 +105,11 @@ function buildPositionTimeline(
 
     return points.map((point) => {
       const openPnL = (point.close - position.entryPrice) * position.quantity;
+      const openValue = point.close * position.quantity;
       const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
       const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
+      const expectedValue = position.entryPrice * position.quantity * expectedFactor;
       return {
         timestamp: point.timestamp,
         totalPnLUsd: openPnL,
@@ -112,6 +118,10 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: expectedPnL,
         expectedNetPnLIls: 0,
+        totalValueUsd: openValue,
+        totalValueIls: 0,
+        expectedTotalValueUsd: expectedValue,
+        expectedTotalValueIls: 0,
       };
     });
   }
@@ -159,6 +169,7 @@ function buildPositionTimeline(
     const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
     const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
     const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
+    const openValue = point.close * openQuantity;
     const netPnL = openPnL + realizedPnL;
     const expectedOpenPnL = openLots.reduce((sum, lot) => {
       const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
@@ -166,6 +177,11 @@ function buildPositionTimeline(
       return sum + lot.quantity * lot.price * (expectedFactor - 1);
     }, 0);
     const expectedNetPnL = expectedOpenPnL + expectedRealizedPnL;
+    const expectedOpenValue = openLots.reduce((sum, lot) => {
+      const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
+      const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
+      return sum + lot.quantity * lot.price * expectedFactor;
+    }, 0);
 
     timeline.push({
       timestamp,
@@ -175,6 +191,10 @@ function buildPositionTimeline(
       netPnLIls: 0,
       expectedNetPnLUsd: expectedNetPnL,
       expectedNetPnLIls: 0,
+      totalValueUsd: openValue,
+      totalValueIls: 0,
+      expectedTotalValueUsd: expectedOpenValue,
+      expectedTotalValueIls: 0,
     });
   }
 
@@ -257,15 +277,29 @@ export function usePortfolioData() {
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
       const aggregatedTimeline = new Map<
         number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
+        {
+          totalPnLUsd: number;
+          netPnLUsd: number;
+          expectedNetPnLUsd: number;
+          totalValueUsd: number;
+          expectedTotalValueUsd: number;
+        }
       >();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
           const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
+            aggregatedTimeline.get(point.timestamp) ?? {
+              totalPnLUsd: 0,
+              netPnLUsd: 0,
+              expectedNetPnLUsd: 0,
+              totalValueUsd: 0,
+              expectedTotalValueUsd: 0,
+            };
           current.totalPnLUsd += point.totalPnLUsd;
           current.netPnLUsd += point.netPnLUsd;
           current.expectedNetPnLUsd += point.expectedNetPnLUsd;
+          current.totalValueUsd += point.totalValueUsd;
+          current.expectedTotalValueUsd += point.expectedTotalValueUsd;
           aggregatedTimeline.set(point.timestamp, current);
         });
       });
@@ -280,6 +314,10 @@ export function usePortfolioData() {
           netPnLIls: 0,
           expectedNetPnLUsd: values.expectedNetPnLUsd,
           expectedNetPnLIls: 0,
+          totalValueUsd: values.totalValueUsd,
+          totalValueIls: 0,
+          expectedTotalValueUsd: values.expectedTotalValueUsd,
+          expectedTotalValueIls: 0,
         }));
       const sparklineData = Object.fromEntries(sparklineEntries);
 
@@ -404,18 +442,22 @@ export function usePortfolioData() {
           }
 
           const totalPnLIls = point.totalPnLUsd * rate;
+          const totalValueIls = point.totalValueUsd * rate;
           const netPnLUsdBeforeTax = point.netPnLUsd;
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
           const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
+          const expectedTotalValueIls = point.expectedTotalValueUsd * rate;
 
           return {
             ...point,
             totalPnLIls,
+            totalValueIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax - currentTaxUsd,
             expectedNetPnLIls: expectedNetPnLIlsBeforeTax - currentTaxIls,
+            expectedTotalValueIls,
           };
         });
 
