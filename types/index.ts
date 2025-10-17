@@ -29,8 +29,11 @@ export interface RealizedSale {
   sellPrice: number;
   sellDate: string;
   proceedsUsd: number;
+  proceedsIls?: number;
   costBasisUsd: number;
+  costBasisIls?: number;
   profitUsd: number;
+  profitIls?: number;
   profitPercent: number;
   averageEntryPrice: number;
   holdingPeriodDays: number;
