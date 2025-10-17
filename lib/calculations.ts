@@ -450,17 +450,42 @@ export function calculateReturnDistribution(returns: number[]): {
   };
 }
 
+export interface RealizedTaxInput {
+  profitUsd: number;
+  profitIls: number;
+  timestamp?: number;
+}
+
+export interface RealizedTaxEvent {
+  timestamp: number;
+  cumulativeProfitUsd: number;
+  taxUsd: number;
+  taxIls: number;
+  cumulativeTaxUsd: number;
+  cumulativeTaxIls: number;
+}
+
+export interface RealizedTaxSummary {
+  taxUsd: number;
+  taxIls: number;
+  timeline: RealizedTaxEvent[];
+}
+
 export function calculateRealizedTaxLiability(
-  sales: Array<{ profitUsd: number; profitIls: number }>,
+  sales: RealizedTaxInput[],
   taxRate: number = 0.25
-): { taxUsd: number; taxIls: number } {
+): RealizedTaxSummary {
   let cumulativeProfitUsd = 0;
   let peakProfitUsd = 0;
-  let taxUsd = 0;
-  let taxIls = 0;
+  let cumulativeTaxUsd = 0;
+  let cumulativeTaxIls = 0;
+  const timeline: RealizedTaxEvent[] = [];
 
   sales.forEach((sale) => {
     cumulativeProfitUsd += sale.profitUsd;
+
+    let taxIncrementUsd = 0;
+    let taxIncrementIls = 0;
 
     if (sale.profitUsd > 0) {
       const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
@@ -468,18 +493,30 @@ export function calculateRealizedTaxLiability(
 
       if (taxableProfitUsd > 1e-8) {
         const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : 0;
-        taxUsd += taxableProfitUsd * taxRate;
-        taxIls += taxableProfitUsd * conversionRate * taxRate;
+        taxIncrementUsd = taxableProfitUsd * taxRate;
+        taxIncrementIls = taxableProfitUsd * conversionRate * taxRate;
+        cumulativeTaxUsd += taxIncrementUsd;
+        cumulativeTaxIls += taxIncrementIls;
       }
 
       peakProfitUsd = newPeakProfitUsd;
-      return;
+    } else {
+      peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
     }
 
-    peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+    if (typeof sale.timestamp === 'number') {
+      timeline.push({
+        timestamp: sale.timestamp,
+        cumulativeProfitUsd,
+        taxUsd: taxIncrementUsd,
+        taxIls: taxIncrementIls,
+        cumulativeTaxUsd,
+        cumulativeTaxIls,
+      });
+    }
   });
 
-  return { taxUsd, taxIls };
+  return { taxUsd: cumulativeTaxUsd, taxIls: cumulativeTaxIls, timeline };
 }
 
 export function calculatePortfolioSummary(

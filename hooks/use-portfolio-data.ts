@@ -196,14 +196,28 @@ export function usePortfolioData() {
         const calculatedMetrics = await Promise.all(metricsPromises);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const realizedSales = mappedPositions.flatMap((position) => computeRealizedSales(position));
-        const realizedTotals = realizedSales.reduce(
+        const chronologicalSales = realizedSales
+          .slice()
+          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
+          .map((sale) => {
+            const sellTimestamp = new Date(sale.sellDate).getTime();
+            return {
+              ...sale,
+              proceedsIls: sale.proceedsUsd * rate,
+              costBasisIls: sale.costBasisUsd * rate,
+              profitIls: sale.profitUsd * rate,
+              timestamp: Number.isFinite(sellTimestamp) ? Math.floor(sellTimestamp / 1000) : undefined,
+            };
+          });
+
+        const realizedTotals = chronologicalSales.reduce(
           (acc, sale) => {
             acc.proceedsUsd += sale.proceedsUsd;
             acc.costUsd += sale.costBasisUsd;
             acc.profitUsd += sale.profitUsd;
-            acc.proceedsIls += sale.proceedsUsd * rate;
-            acc.costIls += sale.costBasisUsd * rate;
-            acc.profitIls += sale.profitUsd * rate;
+            acc.proceedsIls += sale.proceedsIls;
+            acc.costIls += sale.costBasisIls;
+            acc.profitIls += sale.profitIls;
             return acc;
           },
           {
@@ -216,15 +230,13 @@ export function usePortfolioData() {
           }
         );
 
-        const chronologicalSales = realizedSales
-          .slice()
-          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
-          .map((sale) => ({
+        const taxSummary = calculateRealizedTaxLiability(
+          chronologicalSales.map((sale) => ({
             profitUsd: sale.profitUsd,
-            profitIls: sale.profitUsd * rate,
-          }));
-
-        const taxSummary = calculateRealizedTaxLiability(chronologicalSales);
+            profitIls: sale.profitIls,
+            timestamp: sale.timestamp,
+          }))
+        );
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -239,13 +251,85 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
-        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
-          const totalPnLIls = point.totalPnLUsd * rate;
+        const baseTimeline = nextPortfolioTimeline.map((point) => ({
+          ...point,
+          totalPnLIls: point.totalPnLUsd * rate,
+        }));
+
+        const realizedTimeline = (() => {
+          let cumulativeProfitUsd = 0;
+          let cumulativeProfitIls = 0;
+          return chronologicalSales
+            .filter((sale) => typeof sale.timestamp === 'number')
+            .map((sale) => {
+              cumulativeProfitUsd += sale.profitUsd;
+              cumulativeProfitIls += sale.profitIls;
+              return {
+                timestamp: sale.timestamp as number,
+                cumulativeProfitUsd,
+                cumulativeProfitIls,
+              };
+            });
+        })();
+
+        const taxTimeline = (taxSummary.timeline ?? []).filter((event) => Number.isFinite(event.timestamp));
+
+        const combinedTimestamps = new Set<number>();
+        baseTimeline.forEach((point) => combinedTimestamps.add(point.timestamp));
+        realizedTimeline.forEach((event) => combinedTimestamps.add(event.timestamp));
+
+        const sortedTimestamps = Array.from(combinedTimestamps).sort((a, b) => a - b);
+        const sortedBaseTimeline = baseTimeline.slice().sort((a, b) => a.timestamp - b.timestamp);
+        const sortedRealizedTimeline = realizedTimeline.slice().sort((a, b) => a.timestamp - b.timestamp);
+        const sortedTaxTimeline = taxTimeline.slice().sort((a, b) => a.timestamp - b.timestamp);
+
+        let baseIndex = 0;
+        let realizedIndex = 0;
+        let taxIndex = 0;
+        let currentBaseUsd = 0;
+        let currentBaseIls = 0;
+        let currentRealizedUsd = 0;
+        let currentRealizedIls = 0;
+        let currentTaxUsd = 0;
+        let currentTaxIls = 0;
+
+        const adjustedTimeline = sortedTimestamps.map((timestamp) => {
+          while (
+            baseIndex < sortedBaseTimeline.length &&
+            sortedBaseTimeline[baseIndex].timestamp <= timestamp
+          ) {
+            currentBaseUsd = sortedBaseTimeline[baseIndex].totalPnLUsd;
+            currentBaseIls = sortedBaseTimeline[baseIndex].totalPnLIls;
+            baseIndex += 1;
+          }
+
+          while (
+            realizedIndex < sortedRealizedTimeline.length &&
+            sortedRealizedTimeline[realizedIndex].timestamp <= timestamp
+          ) {
+            currentRealizedUsd = sortedRealizedTimeline[realizedIndex].cumulativeProfitUsd;
+            currentRealizedIls = sortedRealizedTimeline[realizedIndex].cumulativeProfitIls;
+            realizedIndex += 1;
+          }
+
+          while (
+            taxIndex < sortedTaxTimeline.length &&
+            sortedTaxTimeline[taxIndex].timestamp <= timestamp
+          ) {
+            currentTaxUsd = sortedTaxTimeline[taxIndex].cumulativeTaxUsd;
+            currentTaxIls = sortedTaxTimeline[taxIndex].cumulativeTaxIls;
+            taxIndex += 1;
+          }
+
+          const totalPnLUsd = currentBaseUsd + currentRealizedUsd;
+          const totalPnLIls = currentBaseIls + currentRealizedIls;
+
           return {
-            ...point,
+            timestamp,
+            totalPnLUsd,
             totalPnLIls,
-            netPnLUsd: point.totalPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-            netPnLIls: totalPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+            netPnLUsd: totalPnLUsd - currentTaxUsd,
+            netPnLIls: totalPnLIls - currentTaxIls,
           };
         });
 
