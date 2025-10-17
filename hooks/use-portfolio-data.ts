@@ -87,6 +87,10 @@ function buildPositionTimeline(
     if (position.quantity <= 0) {
       return points.map((point) => ({
         timestamp: point.timestamp,
+        totalValueUsd: 0,
+        totalValueIls: 0,
+        expectedTotalValueUsd: 0,
+        expectedTotalValueIls: 0,
         totalPnLUsd: 0,
         totalPnLIls: 0,
         netPnLUsd: 0,
@@ -104,8 +108,14 @@ function buildPositionTimeline(
       const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
       const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
+      const totalValueUsd = point.close * position.quantity;
+      const expectedTotalValueUsd = position.entryPrice * position.quantity + expectedPnL;
       return {
         timestamp: point.timestamp,
+        totalValueUsd,
+        totalValueIls: 0,
+        expectedTotalValueUsd,
+        expectedTotalValueIls: 0,
         totalPnLUsd: openPnL,
         totalPnLIls: 0,
         netPnLUsd: openPnL,
@@ -158,7 +168,8 @@ function buildPositionTimeline(
 
     const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
     const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
-    const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
+    const openValueUsd = openQuantity > 0 ? point.close * openQuantity : 0;
+    const openPnL = openQuantity > 0 ? openValueUsd - costBasis : 0;
     const netPnL = openPnL + realizedPnL;
     const expectedOpenPnL = openLots.reduce((sum, lot) => {
       const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
@@ -166,9 +177,14 @@ function buildPositionTimeline(
       return sum + lot.quantity * lot.price * (expectedFactor - 1);
     }, 0);
     const expectedNetPnL = expectedOpenPnL + expectedRealizedPnL;
+    const expectedOpenValueUsd = costBasis + expectedOpenPnL;
 
     timeline.push({
       timestamp,
+      totalValueUsd: openValueUsd,
+      totalValueIls: 0,
+      expectedTotalValueUsd: expectedOpenValueUsd,
+      expectedTotalValueIls: 0,
       totalPnLUsd: openPnL,
       totalPnLIls: 0,
       netPnLUsd: netPnL,
@@ -257,12 +273,26 @@ export function usePortfolioData() {
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
       const aggregatedTimeline = new Map<
         number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
+        {
+          totalValueUsd: number;
+          expectedTotalValueUsd: number;
+          totalPnLUsd: number;
+          netPnLUsd: number;
+          expectedNetPnLUsd: number;
+        }
       >();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
           const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
+            aggregatedTimeline.get(point.timestamp) ?? {
+              totalValueUsd: 0,
+              expectedTotalValueUsd: 0,
+              totalPnLUsd: 0,
+              netPnLUsd: 0,
+              expectedNetPnLUsd: 0,
+            };
+          current.totalValueUsd += point.totalValueUsd;
+          current.expectedTotalValueUsd += point.expectedTotalValueUsd;
           current.totalPnLUsd += point.totalPnLUsd;
           current.netPnLUsd += point.netPnLUsd;
           current.expectedNetPnLUsd += point.expectedNetPnLUsd;
@@ -274,6 +304,10 @@ export function usePortfolioData() {
         .sort((a, b) => a[0] - b[0])
         .map(([timestamp, values]) => ({
           timestamp,
+          totalValueUsd: values.totalValueUsd,
+          totalValueIls: 0,
+          expectedTotalValueUsd: values.expectedTotalValueUsd,
+          expectedTotalValueIls: 0,
           totalPnLUsd: values.totalPnLUsd,
           totalPnLIls: 0,
           netPnLUsd: values.netPnLUsd,
@@ -404,18 +438,22 @@ export function usePortfolioData() {
           }
 
           const totalPnLIls = point.totalPnLUsd * rate;
+          const totalValueIls = point.totalValueUsd * rate;
           const netPnLUsdBeforeTax = point.netPnLUsd;
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
           const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
+          const expectedTotalValueIls = point.expectedTotalValueUsd * rate;
 
           return {
             ...point,
             totalPnLIls,
+            totalValueIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax - currentTaxUsd,
             expectedNetPnLIls: expectedNetPnLIlsBeforeTax - currentTaxIls,
+            expectedTotalValueIls,
           };
         });
 

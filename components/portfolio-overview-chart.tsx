@@ -35,6 +35,7 @@ interface ChartTooltipProps {
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
+    value: string;
     net: string;
     open: string;
     realized: string;
@@ -63,6 +64,8 @@ const ChartTooltip = ({
     return null;
   }
 
+  const valueUsd = point.totalValueUsd ?? 0;
+  const valueIls = point.totalValueIls ?? valueUsd * summary.usdToIlsRate;
   const openUsd = point.totalPnLUsd ?? 0;
   const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
   const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
@@ -73,6 +76,13 @@ const ChartTooltip = ({
   const taxesIls = summary.totalTaxesPaidIls;
 
   const rows = [
+    {
+      key: 'value',
+      label: labels.value,
+      usd: valueUsd,
+      ils: valueIls,
+      accent: 'from-sky-500 to-sky-400',
+    },
     {
       key: 'net',
       label: labels.net,
@@ -168,8 +178,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLIls = summary.totalProjectedPnLIls;
   const latestPoint = data[data.length - 1];
   const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
+  const latestValueUsd = latestPoint?.totalValueUsd ?? 0;
+  const latestExpectedValueUsd = latestPoint?.expectedTotalValueUsd ?? latestValueUsd;
+  const strokeColor = latestNetPnL < 0
+    ? '#F43F5E'
+    : latestValueUsd < latestExpectedValueUsd
+      ? '#2563EB'
+      : '#10B981';
   const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
   const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
 
@@ -261,6 +276,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
                         summary={summary}
                         labels={{
+                          value: t.dashboard.totalValue,
                           net: t.dashboard.netPnL,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
@@ -274,7 +290,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Line
                     type="monotone"
-                    dataKey="expectedNetPnLUsd"
+                    dataKey="expectedTotalValueUsd"
                     stroke="#3B82F6"
                     strokeWidth={2}
                     strokeDasharray="6 6"
@@ -283,7 +299,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Area
                     type="monotone"
-                    dataKey="netPnLUsd"
+                    dataKey="totalValueUsd"
                     stroke={strokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
