@@ -31,6 +31,8 @@ interface LoadSparklinesResult {
   portfolioTimeline: PortfolioTimelinePoint[];
 }
 
+const REALIZED_TAX_RATE = 0.25;
+
 interface LoadOptions {
   background?: boolean;
 }
@@ -90,13 +92,103 @@ export function usePortfolioData() {
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const timeline = points.map<PortfolioTimelinePoint>((point) => ({
-              timestamp: point.timestamp,
-              totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
-              totalPnLIls: 0,
-              netPnLUsd: 0,
-              netPnLIls: 0,
-            }));
+            const lots = Array.isArray(position.lots)
+              ? [...position.lots].sort(
+                  (a, b) => new Date(a.executedAt).getTime() - new Date(b.executedAt).getTime()
+                )
+              : [];
+
+            if (lots.length === 0) {
+              const fallbackQuantity = Number.isFinite(position.quantity) ? position.quantity : 0;
+              const fallbackEntryPrice = Number.isFinite(position.entryPrice) ? position.entryPrice : 0;
+
+              const timeline = points.map<PortfolioTimelinePoint>((point) => ({
+                timestamp: point.timestamp,
+                totalPnLUsd: (point.close - fallbackEntryPrice) * fallbackQuantity,
+                totalPnLIls: 0,
+                netPnLUsd: 0,
+                netPnLIls: 0,
+              }));
+
+              return {
+                symbol: position.symbol,
+                points,
+                timeline,
+              };
+            }
+
+            const normalizeQuantity = (quantity: number) =>
+              Number.isFinite(quantity) ? Math.max(quantity, 0) : 0;
+
+            const toDayStart = (value: string) => {
+              const date = new Date(value);
+              if (Number.isNaN(date.getTime())) {
+                return null;
+              }
+
+              return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+            };
+
+            type OpenBuy = { price: number; quantity: number };
+            const openBuys: OpenBuy[] = [];
+            let lotIndex = 0;
+
+            const timeline = points.map<PortfolioTimelinePoint>((point) => {
+              const pointTimeMs = point.timestamp * 1000;
+
+              while (lotIndex < lots.length) {
+                const lot = lots[lotIndex];
+                const lotDayStart = toDayStart(lot.executedAt);
+
+                if (lotDayStart === null) {
+                  lotIndex += 1;
+                  continue;
+                }
+
+                if (lotDayStart > pointTimeMs) {
+                  break;
+                }
+
+                const quantity = normalizeQuantity(lot.quantity);
+
+                if (lot.type === 'BUY') {
+                  if (quantity > 0) {
+                    openBuys.push({ price: lot.price, quantity });
+                  }
+                } else if (lot.type === 'SELL' && quantity > 0) {
+                  let remaining = quantity;
+
+                  while (remaining > 0 && openBuys.length) {
+                    const current = openBuys[0];
+                    if (current.quantity > remaining) {
+                      current.quantity -= remaining;
+                      remaining = 0;
+                      if (current.quantity <= 1e-8) {
+                        openBuys.shift();
+                      }
+                    } else {
+                      remaining -= current.quantity;
+                      openBuys.shift();
+                    }
+                  }
+                }
+
+                lotIndex += 1;
+              }
+
+              const totalQuantity = openBuys.reduce((sum, buy) => sum + buy.quantity, 0);
+              const costBasis = openBuys.reduce((sum, buy) => sum + buy.price * buy.quantity, 0);
+              const averageEntryPrice = totalQuantity > 0 ? costBasis / totalQuantity : position.entryPrice;
+              const totalPnLUsd = totalQuantity > 0 ? (point.close - averageEntryPrice) * totalQuantity : 0;
+
+              return {
+                timestamp: point.timestamp,
+                totalPnLUsd,
+                totalPnLIls: 0,
+                netPnLUsd: 0,
+                netPnLIls: 0,
+              };
+            });
 
             return {
               symbol: position.symbol,
@@ -219,12 +311,20 @@ export function usePortfolioData() {
         const chronologicalSales = realizedSales
           .slice()
           .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
-          .map((sale) => ({
-            profitUsd: sale.profitUsd,
-            profitIls: sale.profitUsd * rate,
-          }));
+          .map((sale) => {
+            const sellDate = new Date(sale.sellDate);
+            const timestamp = Number.isNaN(sellDate.getTime())
+              ? null
+              : Math.floor(sellDate.getTime() / 1000);
 
-        const taxSummary = calculateRealizedTaxLiability(chronologicalSales);
+            return {
+              profitUsd: sale.profitUsd,
+              profitIls: sale.profitUsd * rate,
+              timestamp,
+            };
+          });
+
+        const taxSummary = calculateRealizedTaxLiability(chronologicalSales, REALIZED_TAX_RATE);
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -239,13 +339,97 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
-        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
-          const totalPnLIls = point.totalPnLUsd * rate;
+        const openTimeline = nextPortfolioTimeline.map((point) => ({
+          ...point,
+          totalPnLIls: point.totalPnLUsd * rate,
+        }));
+
+        const realizedEvents = chronologicalSales
+          .filter((sale): sale is typeof sale & { timestamp: number } => sale.timestamp !== null)
+          .map((sale) => ({
+            timestamp: sale.timestamp,
+            profitUsd: sale.profitUsd,
+            profitIls: sale.profitIls,
+          }));
+
+        let cumulativeProfitUsd = 0;
+        let peakProfitUsd = 0;
+        let cumulativeRealizedUsd = 0;
+        let cumulativeRealizedIls = 0;
+        let cumulativeTaxUsd = 0;
+        let cumulativeTaxIls = 0;
+
+        const realizedTimeline = realizedEvents.map((event) => {
+          cumulativeProfitUsd += event.profitUsd;
+          cumulativeRealizedUsd += event.profitUsd;
+          cumulativeRealizedIls += event.profitIls;
+
+          if (event.profitUsd > 0) {
+            const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+            const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
+
+            if (taxableProfitUsd > 1e-8) {
+              const conversionRate = event.profitUsd !== 0 ? event.profitIls / event.profitUsd : 0;
+              cumulativeTaxUsd += taxableProfitUsd * REALIZED_TAX_RATE;
+              cumulativeTaxIls += taxableProfitUsd * conversionRate * REALIZED_TAX_RATE;
+            }
+
+            peakProfitUsd = newPeakProfitUsd;
+          } else {
+            peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+          }
+
           return {
-            ...point,
-            totalPnLIls,
-            netPnLUsd: point.totalPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-            netPnLIls: totalPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+            timestamp: event.timestamp,
+            realizedUsd: cumulativeRealizedUsd,
+            realizedIls: cumulativeRealizedIls,
+            taxesUsd: cumulativeTaxUsd,
+            taxesIls: cumulativeTaxIls,
+          };
+        });
+
+        const openMap = new Map<number, PortfolioTimelinePoint>();
+        openTimeline.forEach((point) => {
+          openMap.set(point.timestamp, point);
+        });
+
+        const realizedMap = new Map<number, (typeof realizedTimeline)[number]>();
+        realizedTimeline.forEach((event) => {
+          realizedMap.set(event.timestamp, event);
+        });
+
+        const combinedTimestamps = Array.from(
+          new Set([...openMap.keys(), ...realizedMap.keys()])
+        ).sort((a, b) => a - b);
+
+        let currentOpenUsd = 0;
+        let currentOpenIls = 0;
+        let currentRealizedUsd = 0;
+        let currentRealizedIls = 0;
+        let currentTaxUsd = 0;
+        let currentTaxIls = 0;
+
+        const adjustedTimeline = combinedTimestamps.map((timestamp) => {
+          const openPoint = openMap.get(timestamp);
+          if (openPoint) {
+            currentOpenUsd = openPoint.totalPnLUsd;
+            currentOpenIls = openPoint.totalPnLIls;
+          }
+
+          const realizedPoint = realizedMap.get(timestamp);
+          if (realizedPoint) {
+            currentRealizedUsd = realizedPoint.realizedUsd;
+            currentRealizedIls = realizedPoint.realizedIls;
+            currentTaxUsd = realizedPoint.taxesUsd;
+            currentTaxIls = realizedPoint.taxesIls;
+          }
+
+          return {
+            timestamp,
+            totalPnLUsd: currentOpenUsd,
+            totalPnLIls: currentOpenIls,
+            netPnLUsd: currentOpenUsd + currentRealizedUsd - currentTaxUsd,
+            netPnLIls: currentOpenIls + currentRealizedIls - currentTaxIls,
           };
         });
 
