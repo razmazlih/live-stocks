@@ -375,12 +375,19 @@ export function usePortfolioData() {
           }))
         );
 
+        const projectedWithClosedUsd =
+          portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+        const projectedWithClosedIls =
+          portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
           totalRealizedProfitUsd: realizedTotals.profitUsd,
           totalRealizedProfitIls: realizedTotals.profitIls,
           totalTaxesPaidUsd: taxSummary.taxUsd,
           totalTaxesPaidIls: taxSummary.taxIls,
+          totalProjectedPnLUsd: projectedWithClosedUsd,
+          totalProjectedPnLIls: projectedWithClosedIls,
           totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
           totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
         };

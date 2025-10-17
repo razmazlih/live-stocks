@@ -52,17 +52,21 @@ const tonePalette = {
 
 type ToneKey = keyof typeof tonePalette;
 
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
-  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+const getToneFromValues = (netValue: number, expectedValue?: number): ToneKey => {
   if (netValue < 0) {
     return 'negative';
   }
 
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
+  if (typeof expectedValue === 'number' && Number.isFinite(expectedValue) && netValue < expectedValue) {
     return 'underperforming';
   }
 
   return 'positive';
+};
+
+const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
+  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+  return getToneFromValues(netValue, point.expectedNetPnLUsd);
 };
 
 const ChartTooltip = ({
@@ -204,10 +208,125 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       ];
     }
 
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
-      tone: getPointTone(point),
-    }));
+    const stops: { offset: number; tone: ToneKey }[] = [];
+    const lastIndex = data.length - 1;
+
+    const getOffset = (index: number, fraction = 0) => {
+      if (lastIndex <= 0) {
+        return 0;
+      }
+
+      const rawOffset = ((index + fraction) / lastIndex) * 100;
+      return Number.isFinite(rawOffset) ? Math.min(Math.max(rawOffset, 0), 100) : 0;
+    };
+
+    const pushStop = (offset: number, tone: ToneKey) => {
+      const clampedOffset = Number.isFinite(offset) ? Math.min(Math.max(offset, 0), 100) : 0;
+      const lastStop = stops[stops.length - 1];
+
+      if (!lastStop || lastStop.offset !== clampedOffset || lastStop.tone !== tone) {
+        stops.push({ offset: clampedOffset, tone });
+      }
+    };
+
+    for (let index = 0; index < lastIndex; index += 1) {
+      const current = data[index];
+      const next = data[index + 1];
+
+      const netCurrent = current.netPnLUsd ?? current.totalPnLUsd ?? 0;
+      const netNext = next.netPnLUsd ?? next.totalPnLUsd ?? 0;
+      const expectedCurrent = current.expectedNetPnLUsd;
+      const expectedNext = next.expectedNetPnLUsd;
+
+      let currentTone = getToneFromValues(netCurrent, expectedCurrent);
+
+      if (index === 0) {
+        pushStop(0, currentTone);
+      }
+
+      const transitions: { fraction: number; net: number; expected?: number; priority: number }[] = [];
+
+      const zeroDenominator = netNext - netCurrent;
+      if (zeroDenominator !== 0) {
+        const zeroFraction = (0 - netCurrent) / zeroDenominator;
+        if (zeroFraction > 0 && zeroFraction < 1) {
+          const hasExpectedCurrent = typeof expectedCurrent === 'number' && Number.isFinite(expectedCurrent);
+          const hasExpectedNext = typeof expectedNext === 'number' && Number.isFinite(expectedNext);
+          const expectedAtZero =
+            hasExpectedCurrent && hasExpectedNext
+              ? expectedCurrent + zeroFraction * (expectedNext - expectedCurrent)
+              : hasExpectedCurrent
+                ? expectedCurrent
+                : hasExpectedNext
+                  ? expectedNext
+                  : undefined;
+
+          transitions.push({
+            fraction: zeroFraction,
+            net: 0,
+            expected: expectedAtZero,
+            priority: 0,
+          });
+        }
+      }
+
+      if (typeof expectedCurrent === 'number' && typeof expectedNext === 'number') {
+        const deltaCurrent = netCurrent - expectedCurrent;
+        const deltaNext = netNext - expectedNext;
+        const expectedDenominator = deltaNext - deltaCurrent;
+
+        if (expectedDenominator !== 0) {
+          const expectedFraction = -deltaCurrent / expectedDenominator;
+
+          if (expectedFraction > 0 && expectedFraction < 1) {
+            const netAtFraction = netCurrent + expectedFraction * (netNext - netCurrent);
+
+            if (netAtFraction >= 0) {
+              const expectedAtFraction = expectedCurrent + expectedFraction * (expectedNext - expectedCurrent);
+
+              transitions.push({
+                fraction: expectedFraction,
+                net: netAtFraction,
+                expected: expectedAtFraction,
+                priority: 1,
+              });
+            }
+          }
+        }
+      }
+
+      transitions
+        .sort((a, b) => {
+          if (a.fraction === b.fraction) {
+            return a.priority - b.priority;
+          }
+          return a.fraction - b.fraction;
+        })
+        .forEach((transition) => {
+          const offset = getOffset(index, transition.fraction);
+          pushStop(offset, currentTone);
+
+          const nextTone = getToneFromValues(transition.net, transition.expected);
+          if (nextTone !== currentTone) {
+            pushStop(offset, nextTone);
+            currentTone = nextTone;
+          }
+        });
+
+      const endTone = getToneFromValues(netNext, expectedNext);
+      const endOffset = getOffset(index + 1);
+      pushStop(endOffset, endTone);
+      currentTone = endTone;
+    }
+
+    if (!stops.length) {
+      return [
+        { offset: 0, tone: getPointTone(data[0]) },
+        { offset: 100, tone: getPointTone(data[data.length - 1]) },
+      ];
+    }
+
+    return stops;
   }, [data]);
 
   const strokeGradientStops = useMemo(() => {
