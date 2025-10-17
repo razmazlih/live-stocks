@@ -155,6 +155,23 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
+  const chartData = useMemo(() => {
+    return data.map((point) => {
+      const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+      const expectedValue = point.expectedNetPnLUsd ?? netValue;
+
+      const isNegative = netValue < 0;
+      const isBelowExpected = !isNegative && netValue < expectedValue;
+
+      return {
+        ...point,
+        negativeValue: isNegative ? netValue : null,
+        belowExpectedValue: isBelowExpected ? netValue : null,
+        positiveValue: !isNegative && !isBelowExpected ? netValue : null,
+      };
+    });
+  }, [data]);
+
   const trendPoint = data[data.length - 1];
   const openPnLUsd = summary.totalCurrentPnLUsd;
   const openPnLIls = summary.totalCurrentPnLIls;
@@ -166,12 +183,6 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
-  const latestPoint = data[data.length - 1];
-  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
-  const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
-  const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -230,11 +241,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
           <div className="flex-1">
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={strokeColor} stopOpacity={gradientStartOpacity} />
-                      <stop offset="95%" stopColor={strokeColor} stopOpacity={gradientEndOpacity} />
+                    <linearGradient id="portfolioPnlNegative" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.25} />
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlBelowExpected" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.25} />
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlPositive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.85} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.2} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -283,11 +302,32 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Area
                     type="monotone"
-                    dataKey="netPnLUsd"
-                    stroke={strokeColor}
+                    dataKey="negativeValue"
+                    stroke="#F43F5E"
                     strokeWidth={2.5}
-                    fill="url(#portfolioPnlGradient)"
+                    fill="url(#portfolioPnlNegative)"
                     dot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="belowExpectedValue"
+                    stroke="#2563EB"
+                    strokeWidth={2.5}
+                    fill="url(#portfolioPnlBelowExpected)"
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="positiveValue"
+                    stroke="#10B981"
+                    strokeWidth={2.5}
+                    fill="url(#portfolioPnlPositive)"
+                    dot={false}
+                    connectNulls={false}
                     isAnimationActive={false}
                   />
                 </AreaChart>
