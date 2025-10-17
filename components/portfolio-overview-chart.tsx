@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -165,6 +166,12 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
+  const latestPoint = data[data.length - 1];
+  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
+  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
+  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
+  const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
+  const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -226,8 +233,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor={strokeColor} stopOpacity={gradientStartOpacity} />
+                      <stop offset="95%" stopColor={strokeColor} stopOpacity={gradientEndOpacity} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -265,10 +272,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     }
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
+                  <Line
+                    type="monotone"
+                    dataKey="expectedNetPnLUsd"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    strokeDasharray="6 6"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke="#2563EB"
+                    stroke={strokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
                     dot={false}
