@@ -167,11 +167,60 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
   const latestPoint = data[data.length - 1];
-  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
-  const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
-  const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
+  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd;
+
+  const getPointColor = (point: PortfolioTimelinePoint | undefined) => {
+    if (!point) {
+      return '#10B981';
+    }
+
+    const net = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+    const expected = point.expectedNetPnLUsd ?? latestExpectedPnL;
+
+    if (net < 0) {
+      return '#F43F5E';
+    }
+
+    if (expected !== undefined && net < expected) {
+      return '#2563EB';
+    }
+
+    return '#10B981';
+  };
+
+  const defaultStrokeColor = getPointColor(latestPoint);
+
+  const gradientStops = useMemo(() => {
+    if (data.length <= 1) {
+      return [
+        { offset: 0, color: defaultStrokeColor },
+        { offset: 1, color: defaultStrokeColor },
+      ];
+    }
+
+    const stops: { offset: number; color: string }[] = [];
+    const lastIndex = data.length - 1;
+    let previousColor = getPointColor(data[0]);
+    stops.push({ offset: 0, color: previousColor });
+
+    data.forEach((point, index) => {
+      if (index === 0) {
+        return;
+      }
+
+      const pointColor = getPointColor(point);
+      const offset = index / lastIndex;
+
+      if (pointColor !== previousColor) {
+        stops.push({ offset, color: previousColor });
+        stops.push({ offset, color: pointColor });
+        previousColor = pointColor;
+      }
+    });
+
+    stops.push({ offset: 1, color: previousColor });
+    return stops;
+  }, [data, defaultStrokeColor, latestExpectedPnL]);
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -232,9 +281,24 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={strokeColor} stopOpacity={gradientStartOpacity} />
-                      <stop offset="95%" stopColor={strokeColor} stopOpacity={gradientEndOpacity} />
+                    <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
+                      {gradientStops.map((stop, index) => (
+                        <stop
+                          key={`stroke-${index}-${stop.offset}`}
+                          offset={`${(stop.offset * 100).toFixed(2)}%`}
+                          stopColor={stop.color}
+                        />
+                      ))}
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlFill" x1="0" y1="0" x2="1" y2="0">
+                      {gradientStops.map((stop, index) => (
+                        <stop
+                          key={`fill-${index}-${stop.offset}`}
+                          offset={`${(stop.offset * 100).toFixed(2)}%`}
+                          stopColor={stop.color}
+                          stopOpacity={stop.color === '#10B981' ? 0.22 : 0.18}
+                        />
+                      ))}
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -284,9 +348,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke={strokeColor}
+                    stroke="url(#portfolioPnlStroke)"
                     strokeWidth={2.5}
-                    fill="url(#portfolioPnlGradient)"
+                    fill="url(#portfolioPnlFill)"
                     dot={false}
                     isAnimationActive={false}
                   />
