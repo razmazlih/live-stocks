@@ -4,13 +4,15 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { useMemo } from 'react';
+import type { TooltipProps } from 'recharts';
+import { useCallback, useMemo } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
@@ -23,53 +25,19 @@ interface PortfolioOverviewChartProps {
   summary: PortfolioSummary;
 }
 
-type TooltipValueType = number | string;
-
-interface ChartTooltipProps {
-  active?: boolean;
-  payload?: { value: TooltipValueType }[];
-  label?: TooltipValueType;
-  valueFormatter: (value: number) => string;
-  labelFormatter: (label: TooltipValueType) => string;
-}
-
-const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }: ChartTooltipProps) => {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
-      <div className="mt-2 space-y-1">
-        {payload.map((item, index) => {
-          if (item?.value === undefined || item?.value === null) {
-            return null;
-          }
-
-          const numericValue = typeof item.value === 'number' ? item.value : Number(item.value);
-
-          return (
-            <div key={index} className="flex items-center gap-2 text-slate-600">
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
-                <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 to-blue-400" />
-              </span>
-              <span className="text-xs font-medium sm:text-sm">P/L</span>
-              <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
-  const currencyFormatter = (value: number) => formatCurrency(value, 'USD', locale);
+  const currencyFormatterUsd = useCallback(
+    (value: number) => formatCurrency(value, 'USD', locale),
+    [locale]
+  );
+  const currencyFormatterIls = useCallback(
+    (value: number) => formatCurrency(value, 'ILS', locale),
+    [locale]
+  );
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(localeCode, {
@@ -125,8 +93,87 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValue = bestPoint ? currencyFormatter(bestPoint.totalPnLUsd) : '—';
-  const formattedWorstValue = worstPoint ? currencyFormatter(worstPoint.totalPnLUsd) : '—';
+  const formattedBestValue = bestPoint ? currencyFormatterUsd(bestPoint.totalPnLUsd) : '—';
+  const formattedWorstValue = worstPoint ? currencyFormatterUsd(worstPoint.totalPnLUsd) : '—';
+
+  const renderTooltip = useCallback(
+    ({ active, payload, label }: TooltipProps<number, string>) => {
+      if (!active || !payload?.length) {
+        return null;
+      }
+
+      const point = payload[0]?.payload as PortfolioTimelinePoint | undefined;
+      if (!point) {
+        return null;
+      }
+
+      const formattedLabel = typeof label === 'number'
+        ? dateFormatter.format(new Date(label))
+        : label
+          ? String(label)
+          : '';
+
+      const rows: Array<{
+        key: string;
+        label: string;
+        usd: number;
+        ils: number;
+        color: string;
+      }> = [
+        {
+          key: 'netWorth',
+          label: t.dashboard.timelineNetWorth,
+          usd: point.netWorthUsd,
+          ils: point.netWorthIls,
+          color: 'bg-blue-500',
+        },
+        {
+          key: 'openValue',
+          label: t.dashboard.timelineOpenPositions,
+          usd: point.openValueUsd,
+          ils: point.openValueIls,
+          color: 'bg-emerald-500',
+        },
+        {
+          key: 'realized',
+          label: t.dashboard.timelineRealized,
+          usd: point.realizedProfitUsd,
+          ils: point.realizedProfitIls,
+          color: 'bg-amber-500',
+        },
+        {
+          key: 'taxes',
+          label: t.dashboard.timelineTaxes,
+          usd: point.taxesPaidUsd,
+          ils: point.taxesPaidIls,
+          color: 'bg-rose-500',
+        },
+      ];
+
+      return (
+        <div className="min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{formattedLabel}</p>
+          <div className="mt-3 space-y-3">
+            {rows.map((row) => (
+              <div key={row.key} className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <span className={`h-2.5 w-2.5 rounded-full ${row.color}`} />
+                  <span className="truncate">{row.label}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pl-4 text-[11px] text-slate-500 sm:text-xs">
+                  <span className="font-medium text-slate-600">{t.dashboard.timelineUsdLabel}</span>
+                  <span className="text-right font-semibold text-slate-900">{currencyFormatterUsd(row.usd)}</span>
+                  <span className="font-medium text-slate-600">{t.dashboard.timelineIlsLabel}</span>
+                  <span className="text-right font-semibold text-slate-900">{currencyFormatterIls(row.ils)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    },
+    [currencyFormatterIls, currencyFormatterUsd, dateFormatter, t]
+  );
 
   return (
     <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
@@ -165,22 +212,47 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Tooltip
                     cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
-                    content={
-                      <ChartTooltip
-                        valueFormatter={currencyFormatter}
-                        labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
-                      />
-                    }
+                    content={renderTooltip}
                   />
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Area
                     type="monotone"
-                    dataKey="totalPnLUsd"
+                    dataKey="netWorthUsd"
                     stroke="#2563EB"
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
                     dot={false}
                     isAnimationActive={false}
+                    name={t.dashboard.timelineNetWorth}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="openValueUsd"
+                    stroke="#10B981"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                    name={t.dashboard.timelineOpenPositions}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="realizedProfitUsd"
+                    stroke="#F59E0B"
+                    strokeWidth={1.75}
+                    dot={false}
+                    strokeDasharray="4 4"
+                    isAnimationActive={false}
+                    name={t.dashboard.timelineRealized}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="taxesPaidUsd"
+                    stroke="#F43F5E"
+                    strokeWidth={1.75}
+                    dot={false}
+                    strokeDasharray="2 4"
+                    isAnimationActive={false}
+                    name={t.dashboard.timelineTaxes}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -200,18 +272,18 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-500">{t.dashboard.currentPnL}</p>
               <p className={`text-3xl font-semibold ${toneClass}`}>
-                {currencyFormatter(currentPnL)}
+                {currencyFormatterUsd(currentPnL)}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
               <div className="rounded-xl bg-slate-50/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(projectedPnL)}</p>
+                <p className="mt-1 font-semibold text-slate-900">{currencyFormatterUsd(projectedPnL)}</p>
               </div>
               <div className="rounded-xl bg-slate-50/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.combinedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{currencyFormatter(combinedPnL)}</p>
+                <p className="mt-1 font-semibold text-slate-900">{currencyFormatterUsd(combinedPnL)}</p>
               </div>
             </div>
 
@@ -238,8 +310,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </p>
               <p className="mt-2 leading-relaxed">
                 {t.dashboard.portfolioOverviewSummary(
-                  currencyFormatter(currentPnL),
-                  currencyFormatter(projectedPnL)
+                  currencyFormatterUsd(currentPnL),
+                  currencyFormatterUsd(projectedPnL)
                 )}
               </p>
             </div>

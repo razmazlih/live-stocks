@@ -88,6 +88,15 @@ export interface PortfolioSummary {
 export interface PortfolioTimelinePoint {
   timestamp: number;
   totalPnLUsd: number;
+  totalPnLIls: number;
+  openValueUsd: number;
+  openValueIls: number;
+  realizedProfitUsd: number;
+  realizedProfitIls: number;
+  taxesPaidUsd: number;
+  taxesPaidIls: number;
+  netWorthUsd: number;
+  netWorthIls: number;
 }
 
 export interface Settings {
