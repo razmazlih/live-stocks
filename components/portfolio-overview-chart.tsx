@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -35,6 +36,7 @@ interface ChartTooltipProps {
   summary: PortfolioSummary;
   labels: {
     net: string;
+    expected: string;
     open: string;
     realized: string;
     taxes: string;
@@ -66,6 +68,8 @@ const ChartTooltip = ({
   const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
   const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
   const netIls = point.netPnLIls ?? openIls + summary.totalRealizedProfitIls - summary.totalTaxesPaidIls;
+  const expectedUsd = point.expectedPnLUsd ?? 0;
+  const expectedIls = point.expectedPnLIls ?? expectedUsd * summary.usdToIlsRate;
   const realizedUsd = summary.totalRealizedProfitUsd;
   const realizedIls = summary.totalRealizedProfitIls;
   const taxesUsd = summary.totalTaxesPaidUsd;
@@ -78,6 +82,13 @@ const ChartTooltip = ({
       usd: netUsd,
       ils: netIls,
       accent: 'from-blue-500 to-blue-400',
+    },
+    {
+      key: 'expected',
+      label: labels.expected,
+      usd: expectedUsd,
+      ils: expectedIls,
+      accent: 'from-sky-500 to-sky-400',
     },
     {
       key: 'open',
@@ -198,6 +209,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       ? 'bg-rose-50 text-rose-600'
       : 'bg-slate-100 text-slate-600';
 
+  const latestPoint = data[data.length - 1];
+  const latestNetPnL = latestPoint?.netPnLUsd ?? netPnLUsd;
+  const latestExpectedPnL = latestPoint?.expectedPnLUsd ?? 0;
+  const areaStrokeColor =
+    latestNetPnL < 0
+      ? '#DC2626'
+      : latestNetPnL > latestExpectedPnL
+        ? '#059669'
+        : '#2563EB';
+
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
@@ -226,8 +247,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor={areaStrokeColor} stopOpacity={0.9} />
+                      <stop offset="95%" stopColor={areaStrokeColor} stopOpacity={0.15} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -246,7 +267,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     tick={{ fill: '#475569', fontSize: 12 }}
                   />
                   <Tooltip
-                    cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
+                    cursor={{ strokeDasharray: '4 4', stroke: areaStrokeColor, strokeOpacity: 0.35 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -255,6 +276,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         summary={summary}
                         labels={{
                           net: t.dashboard.netPnL,
+                          expected: t.dashboard.expectedVsBenchmark,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
                           taxes: t.dashboard.taxesPaid,
@@ -268,9 +290,18 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke="#2563EB"
+                    stroke={areaStrokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="expectedPnLUsd"
+                    stroke="#2563EB"
+                    strokeDasharray="6 4"
+                    strokeWidth={2}
                     dot={false}
                     isAnimationActive={false}
                   />
