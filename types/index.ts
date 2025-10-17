@@ -90,6 +90,16 @@ export interface PortfolioTimelinePoint {
   totalPnLUsd: number;
 }
 
+export interface PortfolioTimelineSnapshot extends PortfolioTimelinePoint {
+  openPnLIls: number;
+  realizedProfitUsd: number;
+  realizedProfitIls: number;
+  taxUsd: number;
+  taxIls: number;
+  netWorthUsd: number;
+  netWorthIls: number;
+}
+
 export interface Settings {
   annualGrowthRate: number;
   currency: 'USD' | 'ILS';
