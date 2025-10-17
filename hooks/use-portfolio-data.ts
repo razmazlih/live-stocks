@@ -363,6 +363,14 @@ export function usePortfolioData() {
           }
         );
 
+        const expectedRealizedProfitUsd = realizedSales.reduce((acc, sale) => {
+          const yearsHeld = sale.holdingPeriodDays / 365.25;
+          const expectedReturnFactor = Math.pow(1 + settings.annualGrowthRate, Math.max(yearsHeld, 0));
+          const expectedProfitUsd = sale.costBasisUsd * (expectedReturnFactor - 1);
+          return acc + expectedProfitUsd;
+        }, 0);
+        const expectedRealizedProfitIls = expectedRealizedProfitUsd * rate;
+
         const chronologicalSales = realizedSales
           .slice()
           .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
@@ -375,6 +383,14 @@ export function usePortfolioData() {
           }))
         );
 
+        const projectedPnLUsdFromOpen = portfolioSummary.totalProjectedPnLUsd;
+        const projectedPnLIlsFromOpen = portfolioSummary.totalProjectedPnLIls;
+
+        const projectedPnLUsdForPortfolio =
+          projectedPnLUsdFromOpen + expectedRealizedProfitUsd - taxSummary.taxUsd;
+        const projectedPnLIlsForPortfolio =
+          projectedPnLIlsFromOpen + expectedRealizedProfitIls - taxSummary.taxIls;
+
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
           totalRealizedProfitUsd: realizedTotals.profitUsd,
@@ -383,6 +399,8 @@ export function usePortfolioData() {
           totalTaxesPaidIls: taxSummary.taxIls,
           totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
           totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+          totalProjectedPnLUsd: projectedPnLUsdForPortfolio,
+          totalProjectedPnLIls: projectedPnLIlsForPortfolio,
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
@@ -419,10 +437,20 @@ export function usePortfolioData() {
           };
         });
 
+        const finalExpectedPoint = adjustedTimeline[adjustedTimeline.length - 1];
+        const totalProjectedPnLUsd =
+          finalExpectedPoint?.expectedNetPnLUsd ?? projectedPnLUsdForPortfolio;
+        const totalProjectedPnLIls =
+          finalExpectedPoint?.expectedNetPnLIls ?? projectedPnLIlsForPortfolio;
+
         setPositions(mappedPositions);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
-        setSummary(enrichedSummary);
+        setSummary({
+          ...enrichedSummary,
+          totalProjectedPnLUsd,
+          totalProjectedPnLIls,
+        });
         setSparklineData(nextSparklineData);
         setPortfolioTimeline(adjustedTimeline);
         setLastUpdate(new Date());
