@@ -99,6 +99,9 @@ export interface PortfolioTimelinePoint {
   netPnLIls: number;
   expectedNetPnLUsd: number;
   expectedNetPnLIls: number;
+  totalValueUsd: number;
+  totalValueIls: number;
+  totalQuantity: number;
 }
 
 export interface Settings {

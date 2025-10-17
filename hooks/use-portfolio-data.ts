@@ -93,6 +93,9 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: 0,
         expectedNetPnLIls: 0,
+        totalValueUsd: 0,
+        totalValueIls: 0,
+        totalQuantity: 0,
       }));
     }
 
@@ -104,6 +107,7 @@ function buildPositionTimeline(
       const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
       const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
+      const totalValueUsd = point.close * position.quantity;
       return {
         timestamp: point.timestamp,
         totalPnLUsd: openPnL,
@@ -112,6 +116,9 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: expectedPnL,
         expectedNetPnLIls: 0,
+        totalValueUsd,
+        totalValueIls: 0,
+        totalQuantity: position.quantity,
       };
     });
   }
@@ -158,7 +165,8 @@ function buildPositionTimeline(
 
     const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
     const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
-    const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
+    const openValueUsd = openQuantity > 0 ? point.close * openQuantity : 0;
+    const openPnL = openValueUsd - costBasis;
     const netPnL = openPnL + realizedPnL;
     const expectedOpenPnL = openLots.reduce((sum, lot) => {
       const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
@@ -175,6 +183,9 @@ function buildPositionTimeline(
       netPnLIls: 0,
       expectedNetPnLUsd: expectedNetPnL,
       expectedNetPnLIls: 0,
+      totalValueUsd: openValueUsd,
+      totalValueIls: 0,
+      totalQuantity: openQuantity,
     });
   }
 
@@ -257,15 +268,29 @@ export function usePortfolioData() {
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
       const aggregatedTimeline = new Map<
         number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
+        {
+          totalPnLUsd: number;
+          netPnLUsd: number;
+          expectedNetPnLUsd: number;
+          totalValueUsd: number;
+          totalQuantity: number;
+        }
       >();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
           const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
+            aggregatedTimeline.get(point.timestamp) ?? {
+              totalPnLUsd: 0,
+              netPnLUsd: 0,
+              expectedNetPnLUsd: 0,
+              totalValueUsd: 0,
+              totalQuantity: 0,
+            };
           current.totalPnLUsd += point.totalPnLUsd;
           current.netPnLUsd += point.netPnLUsd;
           current.expectedNetPnLUsd += point.expectedNetPnLUsd;
+          current.totalValueUsd += point.totalValueUsd;
+          current.totalQuantity += point.totalQuantity;
           aggregatedTimeline.set(point.timestamp, current);
         });
       });
@@ -280,6 +305,9 @@ export function usePortfolioData() {
           netPnLIls: 0,
           expectedNetPnLUsd: values.expectedNetPnLUsd,
           expectedNetPnLIls: 0,
+          totalValueUsd: values.totalValueUsd,
+          totalValueIls: 0,
+          totalQuantity: values.totalQuantity,
         }));
       const sparklineData = Object.fromEntries(sparklineEntries);
 
@@ -404,6 +432,7 @@ export function usePortfolioData() {
           }
 
           const totalPnLIls = point.totalPnLUsd * rate;
+          const totalValueIls = point.totalValueUsd * rate;
           const netPnLUsdBeforeTax = point.netPnLUsd;
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
@@ -412,6 +441,7 @@ export function usePortfolioData() {
           return {
             ...point,
             totalPnLIls,
+            totalValueIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax - currentTaxUsd,

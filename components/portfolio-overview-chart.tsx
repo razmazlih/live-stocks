@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Line,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useMemo } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +25,7 @@ interface ChartTooltipProps {
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
+    value: string;
     net: string;
     open: string;
     realized: string;
@@ -63,6 +54,8 @@ const ChartTooltip = ({
     return null;
   }
 
+  const totalValueUsd = point.totalValueUsd ?? 0;
+  const totalValueIls = point.totalValueIls ?? totalValueUsd * summary.usdToIlsRate;
   const openUsd = point.totalPnLUsd ?? 0;
   const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
   const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
@@ -73,6 +66,13 @@ const ChartTooltip = ({
   const taxesIls = summary.totalTaxesPaidIls;
 
   const rows = [
+    {
+      key: 'value',
+      label: labels.value,
+      usd: totalValueUsd,
+      ils: totalValueIls,
+      accent: 'from-violet-500 to-violet-400',
+    },
     {
       key: 'net',
       label: labels.net,
@@ -155,7 +155,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
-  const trendPoint = data[data.length - 1];
+  const startPoint = data[0];
   const openPnLUsd = summary.totalCurrentPnLUsd;
   const openPnLIls = summary.totalCurrentPnLIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
@@ -167,9 +167,10 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
   const latestPoint = data[data.length - 1];
-  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
+  const firstValue = startPoint?.totalValueUsd ?? 0;
+  const latestValue = latestPoint?.totalValueUsd ?? 0;
+  const valueChange = latestValue - firstValue;
+  const strokeColor = valueChange < 0 ? '#F43F5E' : valueChange === 0 ? '#2563EB' : '#10B981';
   const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
   const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
 
@@ -180,13 +181,15 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
     return data.reduce(
       (acc, point) => {
-        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
-        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
+        const pointValue = point.totalValueUsd ?? point.netPnLUsd ?? point.totalPnLUsd;
+        const bestValue = acc.bestPoint ? acc.bestPoint.totalValueUsd ?? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
         if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
           acc.bestPoint = point;
         }
 
-        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
+        const worstValue = acc.worstPoint
+          ? acc.worstPoint.totalValueUsd ?? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd
+          : undefined;
         if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
           acc.worstPoint = point;
         }
@@ -197,7 +200,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     );
   }, [data]);
 
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const trendTone = valueChange;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
   const badgeClass = trendTone > 0
     ? 'bg-emerald-50 text-emerald-600'
@@ -208,14 +211,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
-  const formattedBestValueIls = bestPoint
-    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
-  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
+  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.totalValueUsd) : '—';
+  const formattedBestValueIls = bestPoint ? ilsFormatter(bestPoint.totalValueIls || bestPoint.totalValueUsd * summary.usdToIlsRate) : '—';
+  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.totalValueUsd) : '—';
   const formattedWorstValueIls = worstPoint
-    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
+    ? ilsFormatter(worstPoint.totalValueIls || worstPoint.totalValueUsd * summary.usdToIlsRate)
     : '—';
+  const latestValueUsd = usdFormatter(latestValue);
+  const latestValueIls = ilsFormatter(latestPoint?.totalValueIls ?? latestValue * summary.usdToIlsRate);
 
   return (
     <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
@@ -261,6 +264,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
                         summary={summary}
                         labels={{
+                          value: t.dashboard.portfolioValue,
                           net: t.dashboard.netPnL,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
@@ -271,19 +275,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
-                  <Line
-                    type="monotone"
-                    dataKey="expectedNetPnLUsd"
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="6 6"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
                   <Area
                     type="monotone"
-                    dataKey="netPnLUsd"
+                    dataKey="totalValueUsd"
                     stroke={strokeColor}
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlGradient)"
@@ -306,12 +300,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-              <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-              <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+              <p className="text-sm font-medium text-slate-500">{t.dashboard.portfolioValue}</p>
+              <p className={`text-3xl font-semibold ${toneClass}`}>{latestValueUsd}</p>
+              <p className="text-xs text-slate-500">{latestValueIls}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+              <div className="rounded-xl bg-slate-50/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.netPnL}</p>
+                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(netPnLUsd)}</p>
+                <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+              </div>
               <div className="rounded-xl bg-slate-50/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.currentPnL}</p>
                 <p className="mt-1 font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
