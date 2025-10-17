@@ -375,16 +375,6 @@ export function usePortfolioData() {
           }))
         );
 
-        const enrichedSummary: PortfolioSummary = {
-          ...portfolioSummary,
-          totalRealizedProfitUsd: realizedTotals.profitUsd,
-          totalRealizedProfitIls: realizedTotals.profitIls,
-          totalTaxesPaidUsd: taxSummary.taxUsd,
-          totalTaxesPaidIls: taxSummary.taxIls,
-          totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-          totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
-        };
-
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
@@ -418,6 +408,35 @@ export function usePortfolioData() {
             expectedNetPnLIls: expectedNetPnLIlsBeforeTax - currentTaxIls,
           };
         });
+
+        const finalTimelinePoint = adjustedTimeline.length
+          ? adjustedTimeline[adjustedTimeline.length - 1]
+          : null;
+
+        const finalNetPnLUsd = finalTimelinePoint
+          ? finalTimelinePoint.netPnLUsd
+          : portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+        const finalNetPnLIls = finalTimelinePoint
+          ? finalTimelinePoint.netPnLIls
+          : portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+        const finalExpectedPnLUsd = finalTimelinePoint
+          ? finalTimelinePoint.expectedNetPnLUsd
+          : portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+        const finalExpectedPnLIls = finalTimelinePoint
+          ? finalTimelinePoint.expectedNetPnLIls
+          : portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+
+        const enrichedSummary: PortfolioSummary = {
+          ...portfolioSummary,
+          totalRealizedProfitUsd: realizedTotals.profitUsd,
+          totalRealizedProfitIls: realizedTotals.profitIls,
+          totalTaxesPaidUsd: taxSummary.taxUsd,
+          totalTaxesPaidIls: taxSummary.taxIls,
+          totalNetPnLUsd: finalNetPnLUsd,
+          totalNetPnLIls: finalNetPnLIls,
+          totalProjectedPnLUsd: finalExpectedPnLUsd,
+          totalProjectedPnLIls: finalExpectedPnLIls,
+        };
 
         setPositions(mappedPositions);
         setUsdToIls(rate);
