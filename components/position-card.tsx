@@ -11,8 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from './sparkline';
 import Link from 'next/link';
-import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, LineChart, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const FORECAST_FEATURE_ENABLED =
+  process.env.NEXT_PUBLIC_FORECAST_URL === '1' || process.env.FORECAST_URL === '1';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -410,10 +413,19 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               </div>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {FORECAST_FEATURE_ENABLED && (
+                <Link
+                  href={`/forecast/${position.symbol}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-100"
+                >
+                  {t.dashboard.viewForecast}
+                  <LineChart className="h-4 w-4" />
+                </Link>
+              )}
               <Link
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                className="group inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
               >
                 {t.dashboard.viewDetails}
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -540,10 +552,19 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               </div>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {FORECAST_FEATURE_ENABLED && (
+                <Link
+                  href={`/forecast/${position.symbol}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-100"
+                >
+                  {t.dashboard.viewForecast}
+                  <LineChart className="h-4 w-4" />
+                </Link>
+              )}
               <Link
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                className="group inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
               >
                 {t.dashboard.viewDetails}
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

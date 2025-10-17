@@ -147,6 +147,22 @@ export interface HistoricalPoint {
   volume?: number;
 }
 
+export interface ForecastHorizon {
+  horizon_days: number;
+  target_date: string;
+  pred_return: number;
+  pred_close: number;
+  p_up: number;
+  p_down: number;
+}
+
+export interface ForecastResponse {
+  ticker: string;
+  as_of_date: string;
+  close_last: number;
+  horizons: ForecastHorizon[];
+}
+
 export interface PositionAnalytics {
   symbol: string;
   display: string;
