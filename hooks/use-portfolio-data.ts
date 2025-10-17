@@ -35,6 +35,125 @@ interface LoadOptions {
   background?: boolean;
 }
 
+type NormalizedLot = {
+  type: 'BUY' | 'SELL';
+  price: number;
+  quantity: number;
+  timestamp: number;
+};
+
+function buildPositionTimeline(position: Position, points: HistoricalPoint[]): PortfolioTimelinePoint[] {
+  if (!points.length) {
+    return [];
+  }
+
+  const normalizedLots: NormalizedLot[] = Array.isArray(position.lots)
+    ? position.lots
+        .map((lot, index) => ({
+          type: lot.type,
+          price: Number.isFinite(lot.price) ? lot.price : 0,
+          quantity: Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0,
+          timestamp: new Date(lot.executedAt).getTime(),
+          index,
+        }))
+        .filter((lot) => lot.quantity > 0 && Number.isFinite(lot.timestamp))
+        .sort((a, b) => {
+          if (a.timestamp === b.timestamp) {
+            return a.index - b.index;
+          }
+          return a.timestamp - b.timestamp;
+        })
+        .map(({ index: _index, ...lot }) => lot)
+    : [];
+
+  if (normalizedLots.length === 0 && position.quantity > 0) {
+    const entryTimestamp = new Date(position.entryDate).getTime();
+    if (Number.isFinite(entryTimestamp)) {
+      normalizedLots.push({
+        type: 'BUY',
+        price: position.entryPrice,
+        quantity: position.quantity,
+        timestamp: entryTimestamp,
+      });
+    }
+  }
+
+  if (normalizedLots.length === 0) {
+    if (position.quantity <= 0) {
+      return points.map((point) => ({
+        timestamp: point.timestamp,
+        totalPnLUsd: 0,
+        totalPnLIls: 0,
+        netPnLUsd: 0,
+        netPnLIls: 0,
+      }));
+    }
+
+    return points.map((point) => {
+      const openPnL = (point.close - position.entryPrice) * position.quantity;
+      return {
+        timestamp: point.timestamp,
+        totalPnLUsd: openPnL,
+        totalPnLIls: 0,
+        netPnLUsd: openPnL,
+        netPnLIls: 0,
+      };
+    });
+  }
+
+  const openLots: Array<{ quantity: number; price: number }> = [];
+  const timeline: PortfolioTimelinePoint[] = [];
+  let realizedPnL = 0;
+  let lotIndex = 0;
+
+  for (const point of points) {
+    const timestamp = point.timestamp;
+
+    while (lotIndex < normalizedLots.length && normalizedLots[lotIndex].timestamp <= timestamp) {
+      const lot = normalizedLots[lotIndex];
+      lotIndex += 1;
+
+      const quantity = Math.max(lot.quantity, 0);
+      if (quantity === 0) {
+        continue;
+      }
+
+      if (lot.type === 'BUY') {
+        openLots.push({ quantity, price: lot.price });
+        continue;
+      }
+
+      let remaining = quantity;
+      while (remaining > 0 && openLots.length) {
+        const current = openLots[0];
+        const matched = Math.min(remaining, current.quantity);
+        realizedPnL += matched * (lot.price - current.price);
+        current.quantity -= matched;
+        remaining -= matched;
+
+        if (current.quantity <= 1e-8) {
+          openLots.shift();
+        }
+      }
+    }
+
+    const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
+    const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
+    const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
+    const netPnL = openPnL + realizedPnL;
+
+    timeline.push({
+      timestamp,
+      totalPnLUsd: openPnL,
+      totalPnLIls: 0,
+      netPnLUsd: netPnL,
+      netPnLIls: 0,
+    });
+  }
+
+  return timeline;
+}
+
 export function usePortfolioData() {
   const { settings, refreshTrigger } = useApp();
 
@@ -90,13 +209,7 @@ export function usePortfolioData() {
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const timeline = points.map<PortfolioTimelinePoint>((point) => ({
-              timestamp: point.timestamp,
-              totalPnLUsd: (point.close - position.entryPrice) * position.quantity,
-              totalPnLIls: 0,
-              netPnLUsd: 0,
-              netPnLIls: 0,
-            }));
+            const timeline = buildPositionTimeline(position, points);
 
             return {
               symbol: position.symbol,
@@ -115,23 +228,23 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
-      const aggregatedTimeline = new Map<number, number>();
+      const aggregatedTimeline = new Map<number, { totalPnLUsd: number; netPnLUsd: number }>();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
-          aggregatedTimeline.set(
-            point.timestamp,
-            (aggregatedTimeline.get(point.timestamp) ?? 0) + point.totalPnLUsd
-          );
+          const current = aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0 };
+          current.totalPnLUsd += point.totalPnLUsd;
+          current.netPnLUsd += point.netPnLUsd;
+          aggregatedTimeline.set(point.timestamp, current);
         });
       });
 
       const sortedTimeline = Array.from(aggregatedTimeline.entries())
         .sort((a, b) => a[0] - b[0])
-        .map(([timestamp, totalPnLUsd]) => ({
+        .map(([timestamp, values]) => ({
           timestamp,
-          totalPnLUsd,
+          totalPnLUsd: values.totalPnLUsd,
           totalPnLIls: 0,
-          netPnLUsd: totalPnLUsd,
+          netPnLUsd: values.netPnLUsd,
           netPnLIls: 0,
         }));
       const sparklineData = Object.fromEntries(sparklineEntries);
@@ -218,13 +331,15 @@ export function usePortfolioData() {
 
         const chronologicalSales = realizedSales
           .slice()
-          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
-          .map((sale) => ({
+          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
+
+        const taxSummary = calculateRealizedTaxLiability(
+          chronologicalSales.map((sale) => ({
             profitUsd: sale.profitUsd,
             profitIls: sale.profitUsd * rate,
-          }));
-
-        const taxSummary = calculateRealizedTaxLiability(chronologicalSales);
+            timestamp: new Date(sale.sellDate).getTime(),
+          }))
+        );
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -239,13 +354,30 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
+        const taxTimeline = taxSummary.timeline
+          .slice()
+          .sort((a, b) => a.timestamp - b.timestamp);
+
+        let currentTaxUsd = 0;
+        let currentTaxIls = 0;
+        let taxIndex = 0;
+
         const adjustedTimeline = nextPortfolioTimeline.map((point) => {
+          while (taxIndex < taxTimeline.length && taxTimeline[taxIndex].timestamp <= point.timestamp) {
+            currentTaxUsd = taxTimeline[taxIndex].cumulativeTaxUsd;
+            currentTaxIls = taxTimeline[taxIndex].cumulativeTaxIls;
+            taxIndex += 1;
+          }
+
           const totalPnLIls = point.totalPnLUsd * rate;
+          const netPnLUsdBeforeTax = point.netPnLUsd;
+          const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
+
           return {
             ...point,
             totalPnLIls,
-            netPnLUsd: point.totalPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-            netPnLIls: totalPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+            netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
+            netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
           };
         });
 

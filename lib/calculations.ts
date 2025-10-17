@@ -451,13 +451,18 @@ export function calculateReturnDistribution(returns: number[]): {
 }
 
 export function calculateRealizedTaxLiability(
-  sales: Array<{ profitUsd: number; profitIls: number }>,
+  sales: Array<{ profitUsd: number; profitIls: number; timestamp?: number }>,
   taxRate: number = 0.25
-): { taxUsd: number; taxIls: number } {
+): {
+  taxUsd: number;
+  taxIls: number;
+  timeline: Array<{ timestamp: number; cumulativeTaxUsd: number; cumulativeTaxIls: number }>;
+} {
   let cumulativeProfitUsd = 0;
   let peakProfitUsd = 0;
   let taxUsd = 0;
   let taxIls = 0;
+  const timeline: Array<{ timestamp: number; cumulativeTaxUsd: number; cumulativeTaxIls: number }> = [];
 
   sales.forEach((sale) => {
     cumulativeProfitUsd += sale.profitUsd;
@@ -473,13 +478,21 @@ export function calculateRealizedTaxLiability(
       }
 
       peakProfitUsd = newPeakProfitUsd;
-      return;
     }
 
     peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+
+    const timestamp = typeof sale.timestamp === 'number' ? sale.timestamp : Number.NaN;
+    if (!Number.isNaN(timestamp)) {
+      timeline.push({
+        timestamp,
+        cumulativeTaxUsd: taxUsd,
+        cumulativeTaxIls: taxIls,
+      });
+    }
   });
 
-  return { taxUsd, taxIls };
+  return { taxUsd, taxIls, timeline };
 }
 
 export function calculatePortfolioSummary(
