@@ -44,6 +44,27 @@ interface ChartTooltipProps {
   };
 }
 
+const tonePalette = {
+  negative: { color: '#F43F5E', strokeOpacity: 0.95, fillOpacity: 0.28 },
+  underperforming: { color: '#2563EB', strokeOpacity: 0.92, fillOpacity: 0.24 },
+  positive: { color: '#10B981', strokeOpacity: 0.95, fillOpacity: 0.22 },
+} as const;
+
+type ToneKey = keyof typeof tonePalette;
+
+const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
+  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+  if (netValue < 0) {
+    return 'negative';
+  }
+
+  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
+    return 'underperforming';
+  }
+
+  return 'positive';
+};
+
 const ChartTooltip = ({
   active,
   payload,
@@ -166,12 +187,80 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
-  const latestPoint = data[data.length - 1];
-  const latestNetPnL = latestPoint?.netPnLUsd ?? 0;
-  const latestExpectedPnL = latestPoint?.expectedNetPnLUsd ?? 0;
-  const strokeColor = latestNetPnL < 0 ? '#F43F5E' : latestNetPnL < latestExpectedPnL ? '#2563EB' : '#10B981';
-  const gradientStartOpacity = strokeColor === '#10B981' ? 0.85 : 0.9;
-  const gradientEndOpacity = strokeColor === '#10B981' ? 0.25 : 0.2;
+
+  const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
+    if (!data.length) {
+      return [
+        { offset: 0, tone: 'positive' as ToneKey },
+        { offset: 100, tone: 'positive' as ToneKey },
+      ];
+    }
+
+    if (data.length === 1) {
+      const singleTone = getPointTone(data[0]);
+      return [
+        { offset: 0, tone: singleTone },
+        { offset: 100, tone: singleTone },
+      ];
+    }
+
+    return data.map((point, index) => ({
+      offset: (index / (data.length - 1)) * 100,
+      tone: getPointTone(point),
+    }));
+  }, [data]);
+
+  const strokeGradientStops = useMemo(() => {
+    const stops: { offset: string; color: string; opacity: number }[] = [];
+
+    colorStops.forEach((stop, index) => {
+      const palette = tonePalette[stop.tone];
+      const offset = `${stop.offset}%`;
+
+      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
+        const previousPalette = tonePalette[colorStops[index - 1].tone];
+        stops.push({
+          offset,
+          color: previousPalette.color,
+          opacity: previousPalette.strokeOpacity,
+        });
+      }
+
+      stops.push({
+        offset,
+        color: palette.color,
+        opacity: palette.strokeOpacity,
+      });
+    });
+
+    return stops;
+  }, [colorStops]);
+
+  const fillGradientStops = useMemo(() => {
+    const stops: { offset: string; color: string; opacity: number }[] = [];
+
+    colorStops.forEach((stop, index) => {
+      const palette = tonePalette[stop.tone];
+      const offset = `${stop.offset}%`;
+
+      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
+        const previousPalette = tonePalette[colorStops[index - 1].tone];
+        stops.push({
+          offset,
+          color: previousPalette.color,
+          opacity: previousPalette.fillOpacity,
+        });
+      }
+
+      stops.push({
+        offset,
+        color: palette.color,
+        opacity: palette.fillOpacity,
+      });
+    });
+
+    return stops;
+  }, [colorStops]);
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!data.length) {
@@ -232,9 +321,25 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={strokeColor} stopOpacity={gradientStartOpacity} />
-                      <stop offset="95%" stopColor={strokeColor} stopOpacity={gradientEndOpacity} />
+                    <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
+                      {strokeGradientStops.map((stop, index) => (
+                        <stop
+                          key={`stroke-stop-${index}`}
+                          offset={stop.offset}
+                          stopColor={stop.color}
+                          stopOpacity={stop.opacity}
+                        />
+                      ))}
+                    </linearGradient>
+                    <linearGradient id="portfolioPnlFill" x1="0" y1="0" x2="1" y2="0">
+                      {fillGradientStops.map((stop, index) => (
+                        <stop
+                          key={`fill-stop-${index}`}
+                          offset={stop.offset}
+                          stopColor={stop.color}
+                          stopOpacity={stop.opacity}
+                        />
+                      ))}
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
@@ -284,9 +389,10 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Area
                     type="monotone"
                     dataKey="netPnLUsd"
-                    stroke={strokeColor}
+                    stroke="url(#portfolioPnlStroke)"
                     strokeWidth={2.5}
-                    fill="url(#portfolioPnlGradient)"
+                    fill="url(#portfolioPnlFill)"
+                    fillOpacity={1}
                     dot={false}
                     isAnimationActive={false}
                   />
