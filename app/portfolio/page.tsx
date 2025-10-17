@@ -18,12 +18,23 @@ import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
+import { PositionCard } from '@/components/position-card';
+import { computeRealizedSales } from '@/lib/positions';
 
 export default function PortfolioPage() {
-  const { locale } = useApp();
+  const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
-    usePortfolioData();
+  const {
+    loading,
+    positions,
+    metrics,
+    summary,
+    sparklineData,
+    portfolioTimeline,
+    usdToIls,
+    lastUpdate,
+    reload,
+  } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -92,6 +103,16 @@ export default function PortfolioPage() {
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
+  const openMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity > 0),
+    [metrics]
+  );
+
+  const closedMetrics = useMemo(
+    () => metrics.filter((metric) => metric.position.quantity <= 0),
+    [metrics]
+  );
+
   const averageReturnPercent = metrics.length
     ? metrics.reduce((acc, metric) => acc + metric.roiPercent, 0) / metrics.length
     : 0;
@@ -121,9 +142,19 @@ export default function PortfolioPage() {
   const generalStats: GeneralStat[] = summary
     ? [
         {
-          key: 'positions',
+          key: 'totalPositions',
           label: t.portfolio.totalPositions,
-          value: positions.length.toString(),
+          value: metrics.length.toString(),
+        },
+        {
+          key: 'activePositions',
+          label: t.portfolio.activePositions,
+          value: openMetrics.length.toString(),
+        },
+        {
+          key: 'closedPositions',
+          label: t.portfolio.closedPositions,
+          value: closedMetrics.length.toString(),
         },
         {
           key: 'averageReturn',
@@ -155,6 +186,81 @@ export default function PortfolioPage() {
         },
       ]
     : [];
+
+  type PerformanceEntry = {
+    key: string;
+    name: string;
+    status: 'active' | 'closed';
+    actualUsd: number;
+    expectedUsd: number;
+    varianceUsd: number;
+  };
+
+  const performanceEntries: PerformanceEntry[] = useMemo(() => {
+    return metrics.map((metric) => {
+      const key = metric.position.id || metric.position.symbol;
+      const name = metric.position.display || metric.position.symbol;
+
+      if (metric.position.quantity > 0) {
+        const actualUsd = metric.positionPnLUsd;
+        const expectedUsd = metric.projectedPnLUsd;
+        return {
+          key,
+          name,
+          status: 'active',
+          actualUsd,
+          expectedUsd,
+          varianceUsd: actualUsd - expectedUsd,
+        };
+      }
+
+      const realized = computeRealizedSales(metric.position);
+
+      if (!realized.length) {
+        return {
+          key,
+          name,
+          status: 'closed',
+          actualUsd: 0,
+          expectedUsd: 0,
+          varianceUsd: 0,
+        };
+      }
+
+      const totals = realized.reduce(
+        (acc, sale) => {
+          acc.totalQuantity += sale.quantity;
+          acc.totalCostUsd += sale.costBasisUsd;
+          acc.totalProfitUsd += sale.profitUsd;
+          acc.weightedHoldingDays += sale.holdingPeriodDays * sale.quantity;
+          return acc;
+        },
+        {
+          totalQuantity: 0,
+          totalCostUsd: 0,
+          totalProfitUsd: 0,
+          weightedHoldingDays: 0,
+        }
+      );
+
+      const yearsHeld =
+        totals.totalQuantity > 0 ? totals.weightedHoldingDays / totals.totalQuantity / 365.25 : 0;
+      const expectedUsd =
+        totals.totalCostUsd > 0
+          ? totals.totalCostUsd * (Math.pow(1 + settings.annualGrowthRate, yearsHeld) - 1)
+          : 0;
+      const actualUsd = totals.totalProfitUsd;
+
+      return {
+        key,
+        name,
+        status: 'closed',
+        actualUsd,
+        expectedUsd,
+        varianceUsd: actualUsd - expectedUsd,
+      };
+    });
+  }, [metrics, settings.annualGrowthRate]);
 
   type SummaryCard = {
     key: string;
@@ -408,6 +514,108 @@ export default function PortfolioPage() {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {performanceEntries.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.performanceTitle}</h2>
+                            <p className="text-sm text-slate-500">{t.portfolio.performanceDescription}</p>
+                          </div>
+                        </div>
+                        <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-inner">
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200 text-sm">
+                              <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <tr>
+                                  <th className="px-4 py-3 text-left">{t.portfolio.performanceColumns.symbol}</th>
+                                  <th className="px-4 py-3 text-left">{t.portfolio.performanceColumns.status}</th>
+                                  <th className="px-4 py-3 text-right">{t.portfolio.performanceColumns.actual}</th>
+                                  <th className="px-4 py-3 text-right">{t.portfolio.performanceColumns.expected}</th>
+                                  <th className="px-4 py-3 text-right">{t.portfolio.performanceColumns.variance}</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white/90">
+                                {performanceEntries.map((entry) => {
+                                  const varianceTone = getTrendTone(entry.varianceUsd).text;
+                                  const statusTone =
+                                    entry.status === 'active'
+                                      ? 'bg-emerald-50 text-emerald-600'
+                                      : 'bg-slate-100 text-slate-600';
+
+                                  return (
+                                    <tr key={entry.key} className="text-slate-700">
+                                      <td className="px-4 py-3">
+                                        <div className="font-medium text-slate-900">{entry.name}</div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span
+                                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone}`}
+                                        >
+                                          {entry.status === 'active' ? t.portfolio.statusActive : t.portfolio.statusClosed}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-right font-medium text-slate-900">
+                                        {formatSignedCurrency(entry.actualUsd, 'USD')}
+                                      </td>
+                                      <td className="px-4 py-3 text-right text-slate-600">
+                                        {formatSignedCurrency(entry.expectedUsd, 'USD')}
+                                      </td>
+                                      <td className={`px-4 py-3 text-right font-semibold ${varianceTone}`}>
+                                        {formatSignedCurrency(entry.varianceUsd, 'USD')}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {(openMetrics.length > 0 || closedMetrics.length > 0) && (
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.positionsBreakdownTitle}</h2>
+                            <p className="text-sm text-slate-500">{t.portfolio.positionsBreakdownDescription}</p>
+                          </div>
+                        </div>
+                        {openMetrics.length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                              {t.portfolio.activePositionsTitle}
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                              {openMetrics.map((metric) => (
+                                <PositionCard
+                                  key={metric.position.id || metric.position.symbol}
+                                  metrics={metric}
+                                  sparklineData={sparklineData[metric.position.symbol] || []}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {closedMetrics.length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                              {t.portfolio.closedPositionsTitle}
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                              {closedMetrics.map((metric) => (
+                                <PositionCard
+                                  key={`closed-${metric.position.id || metric.position.symbol}`}
+                                  metrics={metric}
+                                  sparklineData={sparklineData[metric.position.symbol] || []}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
