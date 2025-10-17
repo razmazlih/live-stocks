@@ -450,6 +450,38 @@ export function calculateReturnDistribution(returns: number[]): {
   };
 }
 
+export function calculateRealizedTaxLiability(
+  sales: Array<{ profitUsd: number; profitIls: number }>,
+  taxRate: number = 0.25
+): { taxUsd: number; taxIls: number } {
+  let cumulativeProfitUsd = 0;
+  let peakProfitUsd = 0;
+  let taxUsd = 0;
+  let taxIls = 0;
+
+  sales.forEach((sale) => {
+    cumulativeProfitUsd += sale.profitUsd;
+
+    if (sale.profitUsd > 0) {
+      const newPeakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+      const taxableProfitUsd = Math.max(0, newPeakProfitUsd - peakProfitUsd);
+
+      if (taxableProfitUsd > 1e-8) {
+        const conversionRate = sale.profitUsd !== 0 ? sale.profitIls / sale.profitUsd : 0;
+        taxUsd += taxableProfitUsd * taxRate;
+        taxIls += taxableProfitUsd * conversionRate * taxRate;
+      }
+
+      peakProfitUsd = newPeakProfitUsd;
+      return;
+    }
+
+    peakProfitUsd = Math.max(peakProfitUsd, cumulativeProfitUsd);
+  });
+
+  return { taxUsd, taxIls };
+}
+
 export function calculatePortfolioSummary(
   metrics: PositionMetrics[],
   usdToIlsRate: number
@@ -479,6 +511,12 @@ export function calculatePortfolioSummary(
 
   return {
     ...summary,
+    totalRealizedProfitUsd: 0,
+    totalRealizedProfitIls: 0,
+    totalTaxesPaidUsd: 0,
+    totalTaxesPaidIls: 0,
+    totalNetPnLUsd: summary.totalCurrentPnLUsd,
+    totalNetPnLIls: summary.totalCurrentPnLIls,
     usdToIlsRate,
   };
 }
