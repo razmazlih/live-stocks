@@ -132,6 +132,7 @@ export default function RealizedPnLPage() {
         chronologicalSales.map((sale) => ({
           profitUsd: sale.profitUsd,
           profitIls: sale.profitIls,
+          timestamp: new Date(sale.sellDate).getTime(),
         }))
       ),
     [chronologicalSales]
