@@ -218,13 +218,15 @@ export function usePortfolioData() {
 
         const chronologicalSales = realizedSales
           .slice()
-          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime())
-          .map((sale) => ({
+          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
+
+        const taxSummary = calculateRealizedTaxLiability(
+          chronologicalSales.map((sale) => ({
             profitUsd: sale.profitUsd,
             profitIls: sale.profitUsd * rate,
-          }));
-
-        const taxSummary = calculateRealizedTaxLiability(chronologicalSales);
+            timestamp: new Date(sale.sellDate).getTime(),
+          }))
+        );
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -239,13 +241,82 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
-        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
-          const totalPnLIls = point.totalPnLUsd * rate;
+        const realizedTimeline = (() => {
+          let cumulativeRealizedUsd = 0;
+          let cumulativeRealizedIls = 0;
+
+          return chronologicalSales
+            .map((sale) => {
+              const timestamp = new Date(sale.sellDate).getTime();
+              if (Number.isNaN(timestamp)) {
+                return null;
+              }
+
+              cumulativeRealizedUsd += sale.profitUsd;
+              cumulativeRealizedIls += sale.profitUsd * rate;
+
+              return {
+                timestamp,
+                realizedUsd: cumulativeRealizedUsd,
+                realizedIls: cumulativeRealizedIls,
+              };
+            })
+            .filter((point): point is { timestamp: number; realizedUsd: number; realizedIls: number } => point !== null);
+        })();
+
+        const taxTimeline = taxSummary.timeline.filter(
+          (point): point is { timestamp: number; taxUsd: number; taxIls: number; cumulativeProfitUsd: number } =>
+            typeof point.timestamp === 'number'
+        );
+
+        const openTimeline = nextPortfolioTimeline.map((point) => ({
+          ...point,
+          totalPnLIls: point.totalPnLIls || point.totalPnLUsd * rate,
+        }));
+
+        const combinedTimestamps = Array.from(
+          new Set([
+            ...openTimeline.map((point) => point.timestamp),
+            ...realizedTimeline.map((point) => point.timestamp),
+            ...taxTimeline.map((point) => point.timestamp),
+          ])
+        ).sort((a, b) => a - b);
+
+        let openIndex = 0;
+        let realizedIndex = 0;
+        let taxIndex = 0;
+        let currentOpenUsd = 0;
+        let currentOpenIls = 0;
+        let currentRealizedUsd = 0;
+        let currentRealizedIls = 0;
+        let currentTaxUsd = 0;
+        let currentTaxIls = 0;
+
+        const adjustedTimeline = combinedTimestamps.map((timestamp) => {
+          while (openIndex < openTimeline.length && openTimeline[openIndex].timestamp <= timestamp) {
+            currentOpenUsd = openTimeline[openIndex].totalPnLUsd;
+            currentOpenIls = openTimeline[openIndex].totalPnLIls;
+            openIndex += 1;
+          }
+
+          while (realizedIndex < realizedTimeline.length && realizedTimeline[realizedIndex].timestamp <= timestamp) {
+            currentRealizedUsd = realizedTimeline[realizedIndex].realizedUsd;
+            currentRealizedIls = realizedTimeline[realizedIndex].realizedIls;
+            realizedIndex += 1;
+          }
+
+          while (taxIndex < taxTimeline.length && taxTimeline[taxIndex].timestamp <= timestamp) {
+            currentTaxUsd = taxTimeline[taxIndex].taxUsd;
+            currentTaxIls = taxTimeline[taxIndex].taxIls;
+            taxIndex += 1;
+          }
+
           return {
-            ...point,
-            totalPnLIls,
-            netPnLUsd: point.totalPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-            netPnLIls: totalPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+            timestamp,
+            totalPnLUsd: currentOpenUsd,
+            totalPnLIls: currentOpenIls,
+            netPnLUsd: currentOpenUsd + currentRealizedUsd - currentTaxUsd,
+            netPnLIls: currentOpenIls + currentRealizedIls - currentTaxIls,
           };
         });
 
