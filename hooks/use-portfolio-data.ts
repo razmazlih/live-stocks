@@ -10,6 +10,7 @@ import {
   calculatePositionMetrics,
   mapCandleDataToPoints,
   calculateRealizedTaxLiability,
+  calculateExpectedPortfolioPnL,
 } from '@/lib/calculations';
 import {
   CandleData,
@@ -342,6 +343,11 @@ export function usePortfolioData() {
 
         const calculatedMetrics = await Promise.all(metricsPromises);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
+        const expectedPortfolioPnL = calculateExpectedPortfolioPnL(
+          mappedPositions,
+          settings.annualGrowthRate,
+          rate
+        );
         const realizedSales = mappedPositions.flatMap((position) => computeRealizedSales(position));
         const realizedTotals = realizedSales.reduce(
           (acc, sale) => {
@@ -375,10 +381,10 @@ export function usePortfolioData() {
           }))
         );
 
-        const projectedPortfolioUsd =
-          portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
-        const projectedPortfolioIls =
-          portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+        const netPortfolioUsd =
+          portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+        const netPortfolioIls =
+          portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -386,10 +392,12 @@ export function usePortfolioData() {
           totalRealizedProfitIls: realizedTotals.profitIls,
           totalTaxesPaidUsd: taxSummary.taxUsd,
           totalTaxesPaidIls: taxSummary.taxIls,
-          totalProjectedPnLUsd: projectedPortfolioUsd,
-          totalProjectedPnLIls: projectedPortfolioIls,
-          totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-          totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+          totalProjectedPnLUsd: expectedPortfolioPnL.usd,
+          totalProjectedPnLIls: expectedPortfolioPnL.ils,
+          totalNetPnLUsd: netPortfolioUsd,
+          totalNetPnLIls: netPortfolioIls,
+          totalCombinedUsd: netPortfolioUsd - expectedPortfolioPnL.usd,
+          totalCombinedIls: netPortfolioIls - expectedPortfolioPnL.ils,
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =

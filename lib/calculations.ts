@@ -534,6 +534,101 @@ export function calculatePortfolioSummary(
   };
 }
 
+export function calculateExpectedPortfolioPnL(
+  positions: Position[],
+  annualGrowthRate: number,
+  usdToIlsRate: number,
+  asOf: Date = new Date()
+): { usd: number; ils: number } {
+  const growthBase = 1 + annualGrowthRate;
+  if (!Number.isFinite(growthBase) || growthBase <= 0) {
+    return { usd: 0, ils: 0 };
+  }
+
+  const asOfTime = asOf.getTime();
+  const expectedUsd = positions.reduce((portfolioTotal, position) => {
+    const lots = Array.isArray(position.lots) ? position.lots.slice() : [];
+    const normalizedLots = lots
+      .map((lot, index) => ({
+        type: lot.type,
+        price: Number.isFinite(lot.price) ? lot.price : 0,
+        quantity: Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0,
+        timestamp: new Date(lot.executedAt).getTime(),
+        index,
+      }))
+      .filter((lot) => lot.quantity > 0 && Number.isFinite(lot.timestamp))
+      .sort((a, b) => {
+        if (a.timestamp === b.timestamp) {
+          return a.index - b.index;
+        }
+        return a.timestamp - b.timestamp;
+      })
+      .map(({ index: _index, ...lot }) => lot);
+
+    if (normalizedLots.length === 0) {
+      if (!Number.isFinite(position.quantity) || position.quantity <= 0) {
+        return portfolioTotal;
+      }
+
+      const entryTime = new Date(position.entryDate).getTime();
+      if (!Number.isFinite(entryTime)) {
+        return portfolioTotal;
+      }
+
+      const holdingYears = Math.max((asOfTime - entryTime) / MS_PER_YEAR, 0);
+      const expectedFactor = Math.pow(growthBase, holdingYears);
+      const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
+      return portfolioTotal + expectedPnL;
+    }
+
+    type OpenLot = { quantity: number; price: number; timestamp: number };
+    const openLots: OpenLot[] = [];
+    let expectedRealized = 0;
+
+    for (const lot of normalizedLots) {
+      const { quantity, price, timestamp } = lot;
+
+      if (lot.type === 'BUY') {
+        openLots.push({ quantity, price, timestamp });
+        continue;
+      }
+
+      let remaining = quantity;
+      while (remaining > 0 && openLots.length) {
+        const current = openLots[0];
+        const matched = Math.min(remaining, current.quantity);
+        const holdingYears = Math.max((timestamp - current.timestamp) / MS_PER_YEAR, 0);
+        const expectedFactor = Math.pow(growthBase, holdingYears);
+        expectedRealized += matched * current.price * (expectedFactor - 1);
+
+        current.quantity -= matched;
+        remaining -= matched;
+
+        if (current.quantity <= 1e-8) {
+          openLots.shift();
+        }
+      }
+    }
+
+    const expectedOpen = openLots.reduce((sum, lot) => {
+      if (lot.quantity <= 0) {
+        return sum;
+      }
+
+      const holdingYears = Math.max((asOfTime - lot.timestamp) / MS_PER_YEAR, 0);
+      const expectedFactor = Math.pow(growthBase, holdingYears);
+      return sum + lot.price * lot.quantity * (expectedFactor - 1);
+    }, 0);
+
+    return portfolioTotal + expectedRealized + expectedOpen;
+  }, 0);
+
+  return {
+    usd: expectedUsd,
+    ils: expectedUsd * usdToIlsRate,
+  };
+}
+
 export function formatCurrency(value: number, currency: 'USD' | 'ILS', locale: 'he' | 'en' = 'he'): string {
   return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
     style: 'currency',
