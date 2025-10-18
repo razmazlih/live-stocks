@@ -177,8 +177,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   );
 
   const trendPoint = data[data.length - 1];
-  const openPnLUsd = summary.totalCurrentPnLUsd;
-  const openPnLIls = summary.totalCurrentPnLIls;
+  const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
+  const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
   const realizedPnLIls = summary.totalRealizedProfitIls;
   const taxesUsd = summary.totalTaxesPaidUsd;

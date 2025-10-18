@@ -25,8 +25,17 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 export default function HomePage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, sparklineData, usdToIls, lastUpdate, reload } =
-    usePortfolioData();
+  const {
+    loading,
+    positions,
+    metrics,
+    summary: portfolioSummary,
+    openSummary,
+    sparklineData,
+    usdToIls,
+    lastUpdate,
+    reload,
+  } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -90,6 +99,7 @@ export default function HomePage() {
   const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
   const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
 
+  const summary = openSummary ?? portfolioSummary;
   const currentRate = summary?.usdToIlsRate ?? usdToIls;
   const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
@@ -380,11 +390,11 @@ export default function HomePage() {
                       )}
                     </div>
 
-                    {summary && (
+                    {summary && openMetrics.length > 0 && (
                       <div className="space-y-4 border-t border-slate-100 pt-6">
                         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
                         <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations metrics={metrics} summary={summary} />
+                          <PortfolioVisualizations metrics={openMetrics} summary={summary} />
                         </div>
                       </div>
                     )}
