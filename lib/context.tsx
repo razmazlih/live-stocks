@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Locale, Settings } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 interface AppContextType {
   locale: Locale;
@@ -38,6 +39,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Failed to parse saved settings:', e);
       }
     }
+
+    const fetchRemoteSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('*')
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setSettings({
+            annualGrowthRate: parseFloat(data.annual_growth_rate.toString()),
+            currency: data.currency,
+            refreshInterval: data.refresh_interval,
+            finnhubToken: data.finnhub_token || '',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load settings from Supabase:', error);
+      }
+    };
+
+    fetchRemoteSettings();
   }, []);
 
   useEffect(() => {
