@@ -375,14 +375,34 @@ export function usePortfolioData() {
           }))
         );
 
+        const realizedProfitUsd = realizedTotals.profitUsd;
+        const realizedProfitIls = realizedTotals.profitIls;
+        const realizedProfitUsdPositive = Math.max(realizedProfitUsd, 0);
+        const realizedProfitIlsPositive = realizedProfitUsdPositive * rate;
+
+        const totalCurrentPnLUsd = portfolioSummary.totalCurrentPnLUsd + realizedProfitUsd;
+        const totalCurrentPnLIls = portfolioSummary.totalCurrentPnLIls + realizedProfitIls;
+
+        const totalProjectedPnLUsd = Math.max(portfolioSummary.totalProjectedPnLUsd, 0) + realizedProfitUsdPositive;
+        const totalProjectedPnLIls = Math.max(portfolioSummary.totalProjectedPnLIls, 0) + realizedProfitIlsPositive;
+
+        const totalCombinedUsd = totalCurrentPnLUsd - totalProjectedPnLUsd;
+        const totalCombinedIls = totalCurrentPnLIls - totalProjectedPnLIls;
+
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
-          totalRealizedProfitUsd: realizedTotals.profitUsd,
-          totalRealizedProfitIls: realizedTotals.profitIls,
+          totalCurrentPnLUsd,
+          totalCurrentPnLIls,
+          totalProjectedPnLUsd,
+          totalProjectedPnLIls,
+          totalCombinedUsd,
+          totalCombinedIls,
+          totalRealizedProfitUsd: realizedProfitUsd,
+          totalRealizedProfitIls: realizedProfitIls,
           totalTaxesPaidUsd: taxSummary.taxUsd,
           totalTaxesPaidIls: taxSummary.taxIls,
-          totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-          totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+          totalNetPnLUsd: totalCurrentPnLUsd - taxSummary.taxUsd,
+          totalNetPnLIls: totalCurrentPnLIls - taxSummary.taxIls,
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
