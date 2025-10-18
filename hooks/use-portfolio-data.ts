@@ -345,12 +345,22 @@ export function usePortfolioData() {
         const realizedSales = mappedPositions.flatMap((position) => computeRealizedSales(position));
         const realizedTotals = realizedSales.reduce(
           (acc, sale) => {
+            const proceedsIls = sale.proceedsUsd * rate;
+            const costIls = sale.costBasisUsd * rate;
+            const profitIls = sale.profitUsd * rate;
+            const holdingYears = Math.max(sale.holdingPeriodDays / 365.25, 0);
+            const expectedFactor = Math.pow(1 + settings.annualGrowthRate, holdingYears);
+            const expectedProfitUsd = sale.costBasisUsd * (expectedFactor - 1);
+            const expectedProfitIls = expectedProfitUsd * rate;
+
             acc.proceedsUsd += sale.proceedsUsd;
             acc.costUsd += sale.costBasisUsd;
             acc.profitUsd += sale.profitUsd;
-            acc.proceedsIls += sale.proceedsUsd * rate;
-            acc.costIls += sale.costBasisUsd * rate;
-            acc.profitIls += sale.profitUsd * rate;
+            acc.proceedsIls += proceedsIls;
+            acc.costIls += costIls;
+            acc.profitIls += profitIls;
+            acc.expectedProfitUsd += expectedProfitUsd;
+            acc.expectedProfitIls += expectedProfitIls;
             return acc;
           },
           {
@@ -360,6 +370,8 @@ export function usePortfolioData() {
             proceedsIls: 0,
             costIls: 0,
             profitIls: 0,
+            expectedProfitUsd: 0,
+            expectedProfitIls: 0,
           }
         );
 
@@ -376,9 +388,12 @@ export function usePortfolioData() {
         );
 
         const projectedPortfolioUsd =
-          portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+          portfolioSummary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd;
         const projectedPortfolioIls =
-          portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+          portfolioSummary.totalProjectedPnLIls + realizedTotals.expectedProfitIls;
+
+        const realizedVsExpectedGapUsd = realizedTotals.profitUsd - realizedTotals.expectedProfitUsd;
+        const realizedVsExpectedGapIls = realizedTotals.profitIls - realizedTotals.expectedProfitIls;
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
@@ -388,6 +403,8 @@ export function usePortfolioData() {
           totalTaxesPaidIls: taxSummary.taxIls,
           totalProjectedPnLUsd: projectedPortfolioUsd,
           totalProjectedPnLIls: projectedPortfolioIls,
+          totalCombinedUsd: portfolioSummary.totalCombinedUsd + realizedVsExpectedGapUsd,
+          totalCombinedIls: portfolioSummary.totalCombinedIls + realizedVsExpectedGapIls,
           totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
           totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
         };
