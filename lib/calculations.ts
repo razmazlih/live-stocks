@@ -89,7 +89,9 @@ export function calculatePositionMetrics(
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
   const projectedPrice = normalizedQuantity > 0
-    ? calculateWeightedProjectedPrice(lots, annualGrowthRate, now)
+    ? hasLots
+      ? calculateWeightedProjectedPrice(lots, annualGrowthRate, now)
+      : normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld)
     : normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
 
   const projectedPnLUsd = (projectedPrice - normalizedEntryPrice) * normalizedQuantity;
