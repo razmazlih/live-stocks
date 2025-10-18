@@ -513,7 +513,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                                 x1={forecastStart}
                                 x2={chartData[chartData.length - 1]?.timestamp}
                                 fill="rgba(37, 99, 235, 0.08)"
-                                stroke={false}
+                                stroke="none"
                               />
                             ) : null}
                             <XAxis
