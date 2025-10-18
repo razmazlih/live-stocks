@@ -351,6 +351,11 @@ export function usePortfolioData() {
             acc.proceedsIls += sale.proceedsUsd * rate;
             acc.costIls += sale.costBasisUsd * rate;
             acc.profitIls += sale.profitUsd * rate;
+            const positiveProfitUsd = Math.max(sale.profitUsd, 0);
+            if (positiveProfitUsd > 0) {
+              acc.positiveProfitUsd += positiveProfitUsd;
+              acc.positiveProfitIls += positiveProfitUsd * rate;
+            }
             return acc;
           },
           {
@@ -360,6 +365,8 @@ export function usePortfolioData() {
             proceedsIls: 0,
             costIls: 0,
             profitIls: 0,
+            positiveProfitUsd: 0,
+            positiveProfitIls: 0,
           }
         );
 
@@ -375,8 +382,23 @@ export function usePortfolioData() {
           }))
         );
 
+        const totalProjectedPnLUsd = Math.max(
+          0,
+          portfolioSummary.totalProjectedPnLUsd + realizedTotals.positiveProfitUsd
+        );
+        const totalProjectedPnLIls = Math.max(
+          0,
+          portfolioSummary.totalProjectedPnLIls + realizedTotals.positiveProfitIls
+        );
+        const totalCombinedUsd = portfolioSummary.totalCurrentPnLUsd - totalProjectedPnLUsd;
+        const totalCombinedIls = portfolioSummary.totalCurrentPnLIls - totalProjectedPnLIls;
+
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
+          totalProjectedPnLUsd,
+          totalProjectedPnLIls,
+          totalCombinedUsd,
+          totalCombinedIls,
           totalRealizedProfitUsd: realizedTotals.profitUsd,
           totalRealizedProfitIls: realizedTotals.profitIls,
           totalTaxesPaidUsd: taxSummary.taxUsd,
@@ -408,14 +430,16 @@ export function usePortfolioData() {
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
           const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
+          const expectedNetPnLUsdAfterTax = Math.max(0, expectedNetPnLUsdBeforeTax - currentTaxUsd);
+          const expectedNetPnLIlsAfterTax = Math.max(0, expectedNetPnLIlsBeforeTax - currentTaxIls);
 
           return {
             ...point,
             totalPnLIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
-            expectedNetPnLUsd: expectedNetPnLUsdBeforeTax - currentTaxUsd,
-            expectedNetPnLIls: expectedNetPnLIlsBeforeTax - currentTaxIls,
+            expectedNetPnLUsd: expectedNetPnLUsdAfterTax,
+            expectedNetPnLIls: expectedNetPnLIlsAfterTax,
           };
         });
 
