@@ -116,6 +116,13 @@ export default function HomePage() {
     footnote?: string;
   };
 
+  const projectedPnLUsd = summary
+    ? summary.totalProjectedPnLUsd + summary.totalRealizedProfitUsd
+    : 0;
+  const projectedPnLIls = summary
+    ? summary.totalProjectedPnLIls + summary.totalRealizedProfitIls
+    : 0;
+
   const summaryCards: SummaryCard[] = summary
     ? [
         {
@@ -151,11 +158,11 @@ export default function HomePage() {
         {
           key: 'projected',
           label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+          value: formatSignedCurrency(projectedPnLUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(projectedPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+            value: formatSignedCurrency(projectedPnLIls, 'ILS'),
           },
         },
         {

@@ -267,6 +267,8 @@ export default function PortfolioPage() {
   if (summary) {
     const taxesUsdDisplay = summary.totalTaxesPaidUsd * -1;
     const taxesIlsDisplay = summary.totalTaxesPaidIls * -1;
+    const projectedPnLUsd = summary.totalProjectedPnLUsd + summary.totalRealizedProfitUsd;
+    const projectedPnLIls = summary.totalProjectedPnLIls + summary.totalRealizedProfitIls;
 
     summaryCards.push(
       {
@@ -312,11 +314,11 @@ export default function PortfolioPage() {
       {
         key: 'projected',
         label: t.dashboard.projectedPnL,
-        value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
-        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+        value: formatSignedCurrency(projectedPnLUsd, 'USD'),
+        valueClass: `text-3xl font-semibold ${getTrendTone(projectedPnLUsd).text}`,
         secondary: {
           label: 'ILS',
-          value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+          value: formatSignedCurrency(projectedPnLIls, 'ILS'),
         },
       },
       {

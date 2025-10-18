@@ -185,8 +185,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const taxesIls = summary.totalTaxesPaidIls;
   const netPnLUsd = summary.totalNetPnLUsd;
   const netPnLIls = summary.totalNetPnLIls;
-  const projectedPnLUsd = summary.totalProjectedPnLUsd;
-  const projectedPnLIls = summary.totalProjectedPnLIls;
+  const projectedPnLUsd = summary.totalProjectedPnLUsd + summary.totalRealizedProfitUsd;
+  const projectedPnLIls = summary.totalProjectedPnLIls + summary.totalRealizedProfitIls;
 
   const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
     if (!data.length) {
