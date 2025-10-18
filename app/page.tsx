@@ -25,7 +25,16 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 export default function HomePage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, sparklineData, usdToIls, lastUpdate, reload } =
+  const {
+    loading,
+    positions,
+    metrics,
+    openSummary,
+    sparklineData,
+    usdToIls,
+    lastUpdate,
+    reload,
+  } =
     usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
@@ -82,19 +91,6 @@ export default function HomePage() {
     return <Minus className="h-4 w-4" />;
   };
 
-  const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
-  const totalDailyChangeUsd = metrics.reduce(
-    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
-    0
-  );
-  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
-  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
-
-  const currentRate = summary?.usdToIlsRate ?? usdToIls;
-  const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
-  const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
-  const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
-
   const openMetrics = useMemo(
     () => metrics.filter((metric) => metric.position.quantity > 0),
     [metrics]
@@ -104,6 +100,22 @@ export default function HomePage() {
     [metrics]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
+  const hasDailyChange = openMetrics.some((metric) => typeof metric.dailyChange === 'number');
+  const totalDailyChangeUsd = openMetrics.reduce(
+    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
+    0
+  );
+  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
+  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
+
+  const dashboardSummary = openSummary ?? null;
+  const currentRate = dashboardSummary?.usdToIlsRate ?? usdToIls;
+  const totalValueIls = dashboardSummary ? dashboardSummary.totalValue * dashboardSummary.usdToIlsRate : 0;
+  const totalReturnUsd = dashboardSummary ? dashboardSummary.totalValue - dashboardSummary.totalCost : 0;
+  const totalReturnPercent = dashboardSummary && dashboardSummary.totalCost !== 0
+    ? (totalReturnUsd / dashboardSummary.totalCost) * 100
+    : 0;
 
   type SummaryCard = {
     key: string;
@@ -116,19 +128,22 @@ export default function HomePage() {
     footnote?: string;
   };
 
-  const summaryCards: SummaryCard[] = summary
+  const summaryCards: SummaryCard[] = dashboardSummary
     ? [
         {
           key: 'value',
           label: t.dashboard.totalValue,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
+          value: formatCurrency(dashboardSummary.totalValue, 'USD', locale),
           valueClass: 'text-3xl font-semibold text-slate-900',
           secondary: {
             label: 'ILS',
             value: formatCurrency(totalValueIls, 'ILS', locale),
           },
           helper: [
-            { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
+            {
+              label: t.dashboard.totalCost,
+              value: formatCurrency(dashboardSummary.totalCost, 'USD', locale),
+            },
             { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
           ],
           badge: {
@@ -141,31 +156,31 @@ export default function HomePage() {
         {
           key: 'current',
           label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+          value: formatSignedCurrency(dashboardSummary.totalCurrentPnLUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(dashboardSummary.totalCurrentPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
+            value: formatSignedCurrency(dashboardSummary.totalCurrentPnLIls, 'ILS'),
           },
         },
         {
           key: 'projected',
           label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+          value: formatSignedCurrency(dashboardSummary.totalProjectedPnLUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(dashboardSummary.totalProjectedPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+            value: formatSignedCurrency(dashboardSummary.totalProjectedPnLIls, 'ILS'),
           },
         },
         {
           key: 'combined',
           label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
+          value: formatSignedCurrency(dashboardSummary.totalCombinedUsd, 'USD'),
+          valueClass: `text-3xl font-semibold ${getTrendTone(dashboardSummary.totalCombinedUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
+            value: formatSignedCurrency(dashboardSummary.totalCombinedIls, 'ILS'),
           },
         },
       ]
@@ -295,7 +310,7 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
+                    {dashboardSummary && summaryCards.length > 0 && (
                       <div className="space-y-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
@@ -380,11 +395,11 @@ export default function HomePage() {
                       )}
                     </div>
 
-                    {summary && (
+                    {openSummary && (
                       <div className="space-y-4 border-t border-slate-100 pt-6">
                         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
                         <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations metrics={metrics} summary={summary} />
+                          <PortfolioVisualizations metrics={openMetrics} summary={openSummary} />
                         </div>
                       </div>
                     )}
