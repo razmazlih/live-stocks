@@ -88,9 +88,13 @@ export function calculatePositionMetrics(
   const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
-  const projectedPrice = normalizedQuantity > 0
+  const weightedProjectedPrice = normalizedQuantity > 0
     ? calculateWeightedProjectedPrice(lots, annualGrowthRate, now)
-    : normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
+    : 0;
+
+  const fallbackProjectedPrice = normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
+
+  const projectedPrice = weightedProjectedPrice > 0 ? weightedProjectedPrice : fallbackProjectedPrice;
 
   const projectedPnLUsd = (projectedPrice - normalizedEntryPrice) * normalizedQuantity;
   const projectedPnLIls = projectedPnLUsd * usdToIlsRate;
