@@ -147,6 +147,22 @@ export interface HistoricalPoint {
   volume?: number;
 }
 
+export interface ForecastPriceHistoryPoint {
+  date: string;
+  close?: number;
+  price?: number;
+  [key: string]: string | number | undefined;
+}
+
+export interface ForecastApiResponse {
+  ticker: string;
+  horizon: number;
+  price_quantiles: Record<string, number>;
+  price_history?: ForecastPriceHistoryPoint[];
+  generated_at?: string;
+  [key: string]: unknown;
+}
+
 export interface PositionAnalytics {
   symbol: string;
   display: string;

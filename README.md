@@ -123,6 +123,7 @@ supabase/
 | `DEFAULT_GROWTH_RATE` | קצב צמיחה שנתי לחיזוי | לא | `0.05` | 
 | `DEFAULT_USD_TO_ILS_RATE` | שער דולר-שקל fallback | לא | `3.7` |
 | `EXCHANGE_RATE_URL` | מקור חלופי לשערי מטבע | לא | `https://open.er-api.com/v6/latest/USD` |
+| `NEXT_PUBLIC_FORECAST_URL` | בסיס API לשרות החיזוי (השאר ריק כדי לכבות) | לא | `http://localhost:8080` |
 | `OPENAI_API_KEY` | לשימוש ב-Supabase Studio (אופציונלי) | לא | — |
 
 > **הערה**: ניתן להזין טוקן Finnhub גם מתוך מסך ההגדרות – הערך נשמר בטבלת `settings`.
@@ -153,4 +154,3 @@ supabase/
 - הרחבת כיסוי בדיקות (unit + e2e) לרכיבי חישוב וזרימת נתונים.
 - תמיכה במטבעות נוספים והרחבת סימולציות (`What-if`) לדינמיקת ריביות ומסים.
 - אינטגרציה עם שירותי ניתוח נוספים (למשל Alpha Vantage) וריבוי טוקנים למשתמשים שונים.
-
