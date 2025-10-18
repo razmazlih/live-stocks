@@ -375,10 +375,8 @@ export function usePortfolioData() {
           }))
         );
 
-        const projectedPortfolioUsd =
-          portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
-        const projectedPortfolioIls =
-          portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+        const projectedPortfolioUsd = portfolioSummary.totalProjectedPnLUsd;
+        const projectedPortfolioIls = portfolioSummary.totalProjectedPnLIls;
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
