@@ -375,14 +375,27 @@ export function usePortfolioData() {
           }))
         );
 
+        const totalCurrentPnLUsd = portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd;
+        const totalCurrentPnLIls = portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls;
+        const totalProjectedPnLUsd = portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd;
+        const totalProjectedPnLIls = portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls;
+        const totalCombinedUsd = totalCurrentPnLUsd - totalProjectedPnLUsd;
+        const totalCombinedIls = totalCurrentPnLIls - totalProjectedPnLIls;
+
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
+          totalCurrentPnLUsd,
+          totalCurrentPnLIls,
+          totalProjectedPnLUsd,
+          totalProjectedPnLIls,
+          totalCombinedUsd,
+          totalCombinedIls,
           totalRealizedProfitUsd: realizedTotals.profitUsd,
           totalRealizedProfitIls: realizedTotals.profitIls,
           totalTaxesPaidUsd: taxSummary.taxUsd,
           totalTaxesPaidIls: taxSummary.taxIls,
-          totalNetPnLUsd: portfolioSummary.totalCurrentPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd,
-          totalNetPnLIls: portfolioSummary.totalCurrentPnLIls + realizedTotals.profitIls - taxSummary.taxIls,
+          totalNetPnLUsd: totalCurrentPnLUsd - taxSummary.taxUsd,
+          totalNetPnLIls: totalCurrentPnLIls - taxSummary.taxIls,
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
