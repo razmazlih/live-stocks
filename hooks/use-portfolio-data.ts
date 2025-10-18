@@ -20,6 +20,8 @@ import {
   PortfolioTimelinePoint,
 } from '@/types';
 
+const DAYS_PER_YEAR = 365.25;
+
 interface SparklineResult {
   symbol: string;
   points: HistoricalPoint[];
@@ -375,10 +377,16 @@ export function usePortfolioData() {
           }))
         );
 
-        const projectedPortfolioUsd =
-          portfolioSummary.totalProjectedPnLUsd + realizedTotals.profitUsd - taxSummary.taxUsd;
+        const expectedRealizedPnLUsd = realizedSales.reduce((acc, sale) => {
+          const yearsHeld = Math.max(sale.holdingPeriodDays / DAYS_PER_YEAR, 0);
+          const expectedFactor = Math.pow(1 + settings.annualGrowthRate, yearsHeld);
+          const expectedProfit = sale.costBasisUsd * (expectedFactor - 1);
+          return acc + expectedProfit;
+        }, 0);
+
+        const projectedPortfolioUsd = portfolioSummary.totalProjectedPnLUsd + expectedRealizedPnLUsd;
         const projectedPortfolioIls =
-          portfolioSummary.totalProjectedPnLIls + realizedTotals.profitIls - taxSummary.taxIls;
+          portfolioSummary.totalProjectedPnLIls + expectedRealizedPnLUsd * rate;
 
         const enrichedSummary: PortfolioSummary = {
           ...portfolioSummary,
