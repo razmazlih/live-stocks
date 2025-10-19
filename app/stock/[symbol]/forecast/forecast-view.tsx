@@ -8,8 +8,8 @@ import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
@@ -365,6 +365,50 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     );
   }, [forecastSets, horizonLabel, localeCode]);
 
+  const groupedRows = useMemo(() => {
+    const groups = new Map<
+      number,
+      {
+        horizon: number;
+        horizonLabel: string;
+        rows: {
+          id: string;
+          horizon: number;
+          horizonLabel: string;
+          modelName: string;
+          ticker?: string;
+          date?: string;
+          dateLabel: string | null;
+          pUp?: number;
+          pDown?: number;
+          pricePoint?: number;
+          priceP10?: number;
+          priceP50?: number;
+          priceP90?: number;
+          qualityScore?: number;
+          flags?: string;
+        }[];
+      }
+    >();
+
+    for (const row of tableRows) {
+      const existing = groups.get(row.horizon);
+
+      if (existing) {
+        existing.rows.push(row);
+        continue;
+      }
+
+      groups.set(row.horizon, {
+        horizon: row.horizon,
+        horizonLabel: row.horizonLabel,
+        rows: [row],
+      });
+    }
+
+    return Array.from(groups.values()).sort((a, b) => a.horizon - b.horizon);
+  }, [tableRows]);
+
   const summaryForecast = useMemo(() => {
     if (forecastSets.length === 0) {
       return null;
@@ -649,93 +693,165 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                 <CardDescription>{t.stock.forecastView.table.subtitle}</CardDescription>
               </CardHeader>
               <CardContent>
-                {tableRows.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-40">{t.stock.forecastView.table.horizon}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.model}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.probabilityUp}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.probabilityDown}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.pricePoint}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.priceP10}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.priceP50}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.priceP90}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.quality}</TableHead>
-                          <TableHead>{t.stock.forecastView.table.flags}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tableRows.map((row) => {
-                          const flagTokens =
-                            typeof row.flags === 'string'
-                              ? row.flags
-                                  .split(',')
-                                  .map((token) => token.trim())
-                                  .filter((token) => token.length > 0)
-                              : [];
+                {groupedRows.length > 0 ? (
+                  <div className="space-y-6">
+                    {groupedRows.map((group) => (
+                      <div
+                        key={group.horizon}
+                        className="space-y-4 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/5"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.stock.forecastView.table.horizon}
+                            </p>
+                            <p className="text-lg font-semibold text-slate-900">{group.horizonLabel}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                              {group.rows.length}
+                            </span>
+                            <span className="text-xs font-medium text-slate-500">
+                              {t.stock.forecastView.table.model}
+                            </span>
+                          </div>
+                        </div>
 
-                          return (
-                            <TableRow key={row.id}>
-                              <TableCell className="font-medium">{row.horizonLabel}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-slate-900">{row.modelName}</span>
-                                  {row.dateLabel ? (
-                                    <span className="text-xs text-slate-500">{row.dateLabel}</span>
-                                  ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.pUp === 'number' ? percentageFormatter.format(row.pUp) : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.pDown === 'number' ? percentageFormatter.format(row.pDown) : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.pricePoint === 'number'
-                                  ? formatCurrency(row.pricePoint, 'USD', locale)
-                                  : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.priceP10 === 'number'
-                                  ? formatCurrency(row.priceP10, 'USD', locale)
-                                  : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.priceP50 === 'number'
-                                  ? formatCurrency(row.priceP50, 'USD', locale)
-                                  : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.priceP90 === 'number'
-                                  ? formatCurrency(row.priceP90, 'USD', locale)
-                                  : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {typeof row.qualityScore === 'number'
-                                  ? qualityFormatter.format(row.qualityScore)
-                                  : '—'}
-                              </TableCell>
-                              <TableCell>
-                                {flagTokens.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {flagTokens.map((token) => (
-                                      <Badge key={token} variant="outline" className="text-xs uppercase tracking-wide">
-                                        {token}
-                                      </Badge>
-                                    ))}
+                        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                          {group.rows.map((row) => {
+                            const flagTokens =
+                              typeof row.flags === 'string'
+                                ? row.flags
+                                    .split(',')
+                                    .map((token) => token.trim())
+                                    .filter((token) => token.length > 0)
+                                : [];
+
+                            const pricePointLabel =
+                              typeof row.pricePoint === 'number'
+                                ? formatCurrency(row.pricePoint, 'USD', locale)
+                                : '—';
+                            const priceP10Label =
+                              typeof row.priceP10 === 'number'
+                                ? formatCurrency(row.priceP10, 'USD', locale)
+                                : '—';
+                            const priceP50Label =
+                              typeof row.priceP50 === 'number'
+                                ? formatCurrency(row.priceP50, 'USD', locale)
+                                : '—';
+                            const priceP90Label =
+                              typeof row.priceP90 === 'number'
+                                ? formatCurrency(row.priceP90, 'USD', locale)
+                                : '—';
+
+                            const probabilityUpLabel =
+                              typeof row.pUp === 'number' ? percentageFormatter.format(row.pUp) : '—';
+                            const probabilityDownLabel =
+                              typeof row.pDown === 'number' ? percentageFormatter.format(row.pDown) : '—';
+
+                            return (
+                              <div
+                                key={row.id}
+                                className="flex h-full flex-col justify-between rounded-xl border border-white/70 bg-white/80 p-4 shadow-sm"
+                              >
+                                <div className="space-y-4">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                      <p className="text-base font-semibold text-slate-900">{row.modelName}</p>
+                                      {row.ticker ? (
+                                        <p className="text-xs uppercase tracking-wide text-slate-400">{row.ticker}</p>
+                                      ) : null}
+                                      {row.dateLabel ? (
+                                        <p className="text-xs text-slate-500">{row.dateLabel}</p>
+                                      ) : null}
+                                    </div>
+                                    {typeof row.qualityScore === 'number' ? (
+                                      <div className="text-right">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                          {t.stock.forecastView.table.quality}
+                                        </p>
+                                        <p className="text-sm font-semibold text-slate-900">
+                                          {qualityFormatter.format(row.qualityScore)}
+                                        </p>
+                                      </div>
+                                    ) : null}
                                   </div>
-                                ) : (
-                                  '—'
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+
+                                  <div className="space-y-3">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+                                        <span>{t.stock.forecastView.table.probabilityUp}</span>
+                                        <span className="text-slate-700">{probabilityUpLabel}</span>
+                                      </div>
+                                      {typeof row.pUp === 'number' ? (
+                                        <Progress
+                                          value={row.pUp * 100}
+                                          className="h-2 bg-emerald-100 [&>div]:bg-emerald-500"
+                                        />
+                                      ) : null}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+                                        <span>{t.stock.forecastView.table.probabilityDown}</span>
+                                        <span className="text-slate-700">{probabilityDownLabel}</span>
+                                      </div>
+                                      {typeof row.pDown === 'number' ? (
+                                        <Progress
+                                          value={row.pDown * 100}
+                                          className="h-2 bg-rose-100 [&>div]:bg-rose-500"
+                                        />
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {t.stock.forecastView.table.pricePoint}
+                                      </p>
+                                      <p className="font-medium text-slate-900">{pricePointLabel}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {t.stock.forecastView.table.priceP10}
+                                      </p>
+                                      <p className="font-medium text-slate-900">{priceP10Label}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {t.stock.forecastView.table.priceP50}
+                                      </p>
+                                      <p className="font-medium text-slate-900">{priceP50Label}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {t.stock.forecastView.table.priceP90}
+                                      </p>
+                                      <p className="font-medium text-slate-900">{priceP90Label}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {flagTokens.length > 0 ? (
+                                  <div className="mt-4 space-y-2">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      {t.stock.forecastView.table.flags}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {flagTokens.map((token) => (
+                                        <Badge key={token} variant="outline" className="text-xs uppercase tracking-wide">
+                                          {token}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">{t.stock.forecastView.states.empty}</p>
