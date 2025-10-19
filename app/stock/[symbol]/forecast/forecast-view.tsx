@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCcw } from 'lucide-react';
+import type { TooltipProps } from 'recharts';
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
@@ -27,8 +28,141 @@ type QuantileDefinition = {
 
 const QUANTILE_COLORS = ['#2563EB', '#0EA5E9', '#6366F1', '#22C55E', '#F97316', '#EC4899', '#A855F7'];
 
+const CONFIDENCE_BASE_KEY = '__confidenceBase';
+const CONFIDENCE_RANGE_KEY = '__confidenceRange';
+const CONFIDENCE_LOWER_KEY = '__confidenceLower';
+const CONFIDENCE_UPPER_KEY = '__confidenceUpper';
+
+const QUANTILE_SORT_PRIORITY = [
+  'price_point',
+  'price_p50',
+  'price_median',
+  'price_mean',
+  'price_p90',
+  'price_p75',
+  'price_p10',
+  'price_p25',
+];
+
+type AggregatedForecastResult = {
+  quantiles: Record<string, number>;
+  probability?: number;
+};
+
 function sanitizeQuantileKey(key: string) {
   return `q_${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+}
+
+function getModelWeight(model: NormalizedForecastModel) {
+  const score = model.qualityScore;
+  if (typeof score === 'number' && Number.isFinite(score) && score > 0) {
+    return score;
+  }
+
+  return 1;
+}
+
+function aggregateForecastModels(models: NormalizedForecastModel[]): AggregatedForecastResult | null {
+  if (models.length === 0) {
+    return null;
+  }
+
+  const quantileKeys = new Set<string>();
+
+  for (const model of models) {
+    const quantiles = model.priceQuantiles ?? {};
+    for (const key of Object.keys(quantiles)) {
+      quantileKeys.add(key);
+    }
+  }
+
+  const quantiles: Record<string, number> = {};
+
+  for (const key of quantileKeys) {
+    let weightedSum = 0;
+    let weightSum = 0;
+
+    for (const model of models) {
+      const value = model.priceQuantiles?.[key];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const weight = getModelWeight(model);
+        weightedSum += value * weight;
+        weightSum += weight;
+      }
+    }
+
+    if (weightSum > 0) {
+      quantiles[key] = weightedSum / weightSum;
+    }
+  }
+
+  let probability: number | undefined;
+  let probabilitySum = 0;
+  let probabilityWeightSum = 0;
+
+  for (const model of models) {
+    if (typeof model.pUp === 'number' && Number.isFinite(model.pUp)) {
+      const weight = getModelWeight(model);
+      probabilitySum += model.pUp * weight;
+      probabilityWeightSum += weight;
+    }
+  }
+
+  if (probabilityWeightSum > 0) {
+    probability = probabilitySum / probabilityWeightSum;
+  }
+
+  if (Object.keys(quantiles).length === 0 && typeof probability !== 'number') {
+    return null;
+  }
+
+  return { quantiles, probability };
+}
+
+function findQuantileValueFromMap(quantiles: Record<string, number>, candidates: string[]) {
+  for (const candidate of candidates) {
+    const value = quantiles[candidate];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getQuantileSortValue(label: string) {
+  const normalized = label.toLowerCase();
+  const exactIndex = QUANTILE_SORT_PRIORITY.findIndex((token) => normalized === token);
+  if (exactIndex !== -1) {
+    return exactIndex;
+  }
+
+  const partialIndex = QUANTILE_SORT_PRIORITY.findIndex((token) => normalized.includes(token));
+  if (partialIndex !== -1) {
+    return QUANTILE_SORT_PRIORITY.length + partialIndex;
+  }
+
+  return QUANTILE_SORT_PRIORITY.length * 2 + normalized.length;
+}
+
+function findQuantileChartKey(definitions: QuantileDefinition[], candidates: string[]) {
+  const lowered = candidates.map((candidate) => candidate.toLowerCase());
+
+  for (const candidate of lowered) {
+    const match = definitions.find((definition) => definition.label.toLowerCase() === candidate);
+    if (match) {
+      return match.chartKey;
+    }
+  }
+
+  for (const candidate of lowered) {
+    const match = definitions.find((definition) => definition.label.toLowerCase().includes(candidate));
+    if (match) {
+      return match.chartKey;
+    }
+  }
+
+  return null;
 }
 
 type ForecastUpstreamPayload = unknown;
@@ -203,6 +337,107 @@ function ForecastSkeleton() {
   );
 }
 
+interface ForecastChartTooltipProps extends TooltipProps<number, string> {
+  formatPrice: (value: number) => string;
+  formatProbability: (value: number) => string;
+  labels: {
+    confidence: string;
+    median: string;
+    pricePoint: string;
+    probability: string;
+  };
+  medianKey: string | null;
+  pricePointKey: string | null;
+}
+
+function ForecastChartTooltip({
+  active,
+  payload,
+  label,
+  formatPrice,
+  formatProbability,
+  labels,
+  medianKey,
+  pricePointKey,
+}: ForecastChartTooltipProps) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+
+  const source = payload[0]?.payload as QuantileChartDatum | undefined;
+
+  if (!source) {
+    return null;
+  }
+
+  const lower =
+    typeof source[CONFIDENCE_LOWER_KEY] === 'number' ? (source[CONFIDENCE_LOWER_KEY] as number) : null;
+  const upper =
+    typeof source[CONFIDENCE_UPPER_KEY] === 'number' ? (source[CONFIDENCE_UPPER_KEY] as number) : null;
+
+  const items: { key: string; label: string; value: string; color: string }[] = [];
+
+  if (lower !== null && upper !== null) {
+    items.push({
+      key: 'confidence',
+      label: labels.confidence,
+      value: `${formatPrice(lower)} – ${formatPrice(upper)}`,
+      color: '#2563EB',
+    });
+  }
+
+  if (medianKey && typeof source[medianKey] === 'number') {
+    items.push({
+      key: 'median',
+      label: labels.median,
+      value: formatPrice(source[medianKey] as number),
+      color: '#1D4ED8',
+    });
+  }
+
+  if (pricePointKey && pricePointKey !== medianKey && typeof source[pricePointKey] === 'number') {
+    items.push({
+      key: 'pricePoint',
+      label: labels.pricePoint,
+      value: formatPrice(source[pricePointKey] as number),
+      color: '#0EA5E9',
+    });
+  }
+
+  const probabilityValue =
+    typeof source.probability === 'number' ? formatProbability(source.probability as number) : null;
+
+  if (items.length === 0 && !probabilityValue) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200/70 bg-white/95 p-3 shadow-xl backdrop-blur">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <div className="mt-2 space-y-1">
+        {items.map((item) => (
+          <div key={item.key} className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2 text-slate-500">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>
+            <span className="font-semibold text-slate-900">{item.value}</span>
+          </div>
+        ))}
+        {probabilityValue ? (
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2 text-slate-500">
+              <span className="h-2 w-2 rounded-full bg-[#F97316]" />
+              {labels.probability}
+            </span>
+            <span className="font-semibold text-slate-900">{probabilityValue}</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 interface ForecastViewProps {
   symbol: string;
 }
@@ -289,44 +524,65 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     [forecastSets]
   );
 
-  const quantileDefinitions = useMemo<QuantileDefinition[]>(() => {
-    const entries = new Map<string, string>();
+  const { quantileDefinitions, quantileChartData } = useMemo(() => {
+    const definitionEntries = new Map<string, string>();
+    const rows: QuantileChartDatum[] = [];
 
-    for (const forecast of primaryModels) {
-      const quantiles = forecast.priceQuantiles ?? {};
-      for (const [key] of Object.entries(quantiles)) {
+    for (const dataset of forecastSets) {
+      const aggregated = aggregateForecastModels(dataset.models);
+      if (!aggregated) {
+        continue;
+      }
+
+      const base: QuantileChartDatum = {
+        horizon: dataset.horizon,
+        label: horizonLabel(dataset.horizon),
+      };
+
+      for (const [key, value] of Object.entries(aggregated.quantiles)) {
         const chartKey = sanitizeQuantileKey(key);
-        if (!entries.has(chartKey)) {
-          entries.set(chartKey, key);
+        base[chartKey] = value;
+
+        if (!definitionEntries.has(chartKey)) {
+          definitionEntries.set(chartKey, key);
         }
       }
+
+      if (typeof aggregated.probability === 'number') {
+        base.probability = aggregated.probability;
+      }
+
+      const lower = findQuantileValueFromMap(aggregated.quantiles, [
+        'price_p10',
+        'price_p20',
+        'price_point',
+        'price_p50',
+      ]);
+      const upper = findQuantileValueFromMap(aggregated.quantiles, [
+        'price_p90',
+        'price_p80',
+        'price_point',
+        'price_p50',
+      ]);
+
+      if (typeof lower === 'number' && typeof upper === 'number' && upper >= lower) {
+        base[CONFIDENCE_BASE_KEY] = lower;
+        base[CONFIDENCE_RANGE_KEY] = upper - lower;
+        base[CONFIDENCE_LOWER_KEY] = lower;
+        base[CONFIDENCE_UPPER_KEY] = upper;
+      }
+
+      rows.push(base);
     }
 
-    return Array.from(entries.entries()).map(([chartKey, label]) => ({ chartKey, label }));
-  }, [primaryModels]);
+    rows.sort((a, b) => (a.horizon as number) - (b.horizon as number));
 
-  const quantileChartData = useMemo<QuantileChartDatum[]>(() => {
-    return primaryModels
-      .map((forecast) => {
-        const base: QuantileChartDatum = {
-          horizon: forecast.horizon,
-          label: horizonLabel(forecast.horizon),
-        };
+    const definitions = Array.from(definitionEntries.entries())
+      .map(([chartKey, label]) => ({ chartKey, label }))
+      .sort((a, b) => getQuantileSortValue(a.label) - getQuantileSortValue(b.label));
 
-        const quantiles = forecast.priceQuantiles ?? {};
-        for (const [key, value] of Object.entries(quantiles)) {
-          const chartKey = sanitizeQuantileKey(key);
-          base[chartKey] = value;
-        }
-
-        if (typeof forecast.pUp === 'number') {
-          base.probability = forecast.pUp;
-        }
-
-        return base;
-      })
-      .sort((a, b) => (a.horizon as number) - (b.horizon as number));
-  }, [primaryModels, horizonLabel]);
+    return { quantileDefinitions: definitions, quantileChartData: rows };
+  }, [forecastSets, horizonLabel]);
 
   const tableRows = useMemo(() => {
     return forecastSets.flatMap((dataset) =>
@@ -456,6 +712,45 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         maximumFractionDigits: 2,
       }),
     [localeCode]
+  );
+
+  const pricePointChartKey = useMemo(
+    () => findQuantileChartKey(quantileDefinitions, ['price_point', 'point']),
+    [quantileDefinitions]
+  );
+
+  const medianChartKey = useMemo(
+    () => findQuantileChartKey(quantileDefinitions, ['price_p50', 'median']),
+    [quantileDefinitions]
+  );
+
+  const hasConfidenceBand = useMemo(
+    () =>
+      quantileChartData.some(
+        (row) =>
+          typeof row[CONFIDENCE_BASE_KEY] === 'number' &&
+          typeof row[CONFIDENCE_RANGE_KEY] === 'number'
+      ),
+    [quantileChartData]
+  );
+
+  const renderTooltip = useCallback(
+    (props: TooltipProps<number, string>) => (
+      <ForecastChartTooltip
+        {...props}
+        formatPrice={(value: number) => formatCurrency(value, 'USD', locale)}
+        formatProbability={(value: number) => percentageFormatter.format(value)}
+        labels={{
+          confidence: t.stock.forecastView.chart.confidenceBand,
+          median: t.stock.forecastView.chart.medianLine,
+          pricePoint: t.stock.forecastView.chart.pricePointLine,
+          probability: t.stock.forecastView.chart.probabilityLine,
+        }}
+        medianKey={medianChartKey}
+        pricePointKey={pricePointChartKey}
+      />
+    ),
+    [locale, medianChartKey, percentageFormatter, pricePointChartKey, t]
   );
 
   const summaryPricePoint =
@@ -607,16 +902,23 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </CardHeader>
               <CardContent className="space-y-6">
                 {hasQuantiles ? (
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={quantileChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.35)" />
+                  <div className="space-y-3">
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={quantileChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
+                        <defs>
+                          <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
+                            <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.05} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="6 8" stroke="rgba(148, 163, 184, 0.35)" />
                         <XAxis dataKey="label" tick={{ fill: '#475569' }} tickLine={false} axisLine={false} />
                         <YAxis
                           yAxisId="price"
                           tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
                           tick={{ fill: '#475569' }}
-                          width={80}
+                          width={90}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -633,39 +935,77 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           />
                         ) : null}
                         <Tooltip
-                          formatter={(value: number, _name: string, entry) => {
-                            const dataKey = entry?.dataKey?.toString();
-                            if (dataKey === 'probability') {
-                              return [
-                                percentageFormatter.format(value),
-                                t.stock.forecastView.chart.probabilityLine,
-                              ];
-                            }
-                            const definition = quantileDefinitions.find((definition) => definition.chartKey === dataKey);
-                            return [
-                              formatCurrency(value, 'USD', locale),
-                              definition?.label ?? dataKey ?? '',
-                            ];
-                          }}
-                          labelFormatter={(label: string) => label}
+                          content={renderTooltip}
+                          cursor={{ stroke: 'rgba(148, 163, 184, 0.45)', strokeDasharray: '4 4' }}
                         />
-                        <Legend />
-                        {quantileDefinitions.map((definition, index) => {
-                          const color = QUANTILE_COLORS[index % QUANTILE_COLORS.length];
-                          return (
+                        <Legend wrapperStyle={{ paddingTop: 12 }} />
+                        {hasConfidenceBand ? (
+                          <>
                             <Area
-                              key={definition.chartKey}
                               type="monotone"
-                              dataKey={definition.chartKey}
-                              stroke={color}
-                              fill={`${color}1f`}
-                              strokeWidth={2}
-                              dot={false}
+                              dataKey={CONFIDENCE_BASE_KEY}
+                              stackId="confidence"
+                              stroke="none"
+                              fill="transparent"
                               yAxisId="price"
-                              name={definition.label}
+                              activeDot={false}
+                              isAnimationActive={false}
                             />
-                          );
-                        })}
+                            <Area
+                              type="monotone"
+                              dataKey={CONFIDENCE_RANGE_KEY}
+                              stackId="confidence"
+                              stroke="none"
+                              fill="url(#confidenceGradient)"
+                              yAxisId="price"
+                              activeDot={false}
+                              name={t.stock.forecastView.chart.confidenceBand}
+                            />
+                          </>
+                        ) : null}
+                        {medianChartKey ? (
+                          <Line
+                            type="monotone"
+                            dataKey={medianChartKey}
+                            yAxisId="price"
+                            stroke="#2563EB"
+                            strokeWidth={3}
+                            dot={{ r: 3, strokeWidth: 0 }}
+                            activeDot={{ r: 5 }}
+                            name={t.stock.forecastView.chart.medianLine}
+                          />
+                        ) : null}
+                        {pricePointChartKey && pricePointChartKey !== medianChartKey ? (
+                          <Line
+                            type="monotone"
+                            dataKey={pricePointChartKey}
+                            yAxisId="price"
+                            stroke="#0EA5E9"
+                            strokeWidth={2}
+                            strokeDasharray="6 4"
+                            dot={{ r: 2, strokeWidth: 0 }}
+                            activeDot={{ r: 4 }}
+                            name={t.stock.forecastView.chart.pricePointLine}
+                          />
+                        ) : null}
+                        {!medianChartKey && !pricePointChartKey
+                          ? quantileDefinitions.map((definition, index) => {
+                              const color = QUANTILE_COLORS[index % QUANTILE_COLORS.length];
+                              return (
+                                <Line
+                                  key={definition.chartKey}
+                                  type="monotone"
+                                  dataKey={definition.chartKey}
+                                  yAxisId="price"
+                                  stroke={color}
+                                  strokeWidth={2}
+                                  dot={{ r: 2 }}
+                                  activeDot={{ r: 4 }}
+                                  name={definition.label}
+                                />
+                              );
+                            })
+                          : null}
                         {hasProbabilitySeries ? (
                           <Line
                             type="monotone"
@@ -678,8 +1018,12 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             name={t.stock.forecastView.chart.probabilityLine}
                           />
                         ) : null}
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {t.stock.forecastView.chart.weightedNote}
+                    </p>
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">{t.stock.forecastView.noQuantiles}</p>

@@ -253,6 +253,10 @@ export const translations = {
         },
         chart: {
           probabilityLine: 'הסתברות לעלייה',
+          confidenceBand: 'תחום אמון משוקלל (P10–P90)',
+          medianLine: 'חציון משוקלל',
+          pricePointLine: 'מחיר נקודת אמצע משוקלל',
+          weightedNote: 'הערכים מבוססים על ממוצע משוקלל לפי ציון האיכות של כל מודל.',
         },
         noQuantiles: 'אין אחוזונים להצגה עבור התחזית.',
         table: {
@@ -627,6 +631,10 @@ export const translations = {
         },
         chart: {
           probabilityLine: 'Upside probability',
+          confidenceBand: 'Weighted confidence band (P10–P90)',
+          medianLine: 'Weighted median price',
+          pricePointLine: 'Weighted midpoint price',
+          weightedNote: 'Values reflect a quality-weighted blend of all available models.',
         },
         noQuantiles: 'No quantile data is available.',
         table: {
