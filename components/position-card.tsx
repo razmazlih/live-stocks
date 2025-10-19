@@ -433,7 +433,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex gap-4 items-start justify-between">
               <div className="flex items-start gap-4">
                 <div className="relative">
                   <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
