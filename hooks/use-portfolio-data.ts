@@ -282,11 +282,34 @@ export function usePortfolioData() {
           expectedNetPnLUsd: values.expectedNetPnLUsd,
           expectedNetPnLIls: 0,
         }));
+
+      const dedupedTimeline = (() => {
+        if (sortedTimeline.length <= 1) {
+          return sortedTimeline;
+        }
+
+        const byDay = new Map<number, PortfolioTimelinePoint>();
+
+        sortedTimeline.forEach((point) => {
+          const dayKey = new Date(point.timestamp);
+          dayKey.setHours(0, 0, 0, 0);
+          const key = dayKey.getTime();
+
+          const existing = byDay.get(key);
+          if (!existing || point.timestamp > existing.timestamp) {
+            byDay.set(key, point);
+          }
+        });
+
+        return Array.from(byDay.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([, point]) => point);
+      })();
       const sparklineData = Object.fromEntries(sparklineEntries);
 
       return {
         sparklineData,
-        portfolioTimeline: sortedTimeline,
+        portfolioTimeline: dedupedTimeline,
       };
     },
     [settings.finnhubToken]
