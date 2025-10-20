@@ -12,12 +12,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, mapCandleDataToPoints } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
+import { CandleData, HistoricalPoint } from '@/types';
 
 const FORECAST_HORIZONS = [1, 7, 30, 60, 90, 180, 365] as const;
+const HISTORICAL_LOOKBACK_DAYS = 30;
+const DAY_SECONDS = 60 * 60 * 24;
+const HISTORICAL_PRICE_KEY = '__historicalPrice';
+const HORIZON_LABEL_KEY = '__horizonLabel';
+const DATA_TYPE_KEY = '__timelineType';
 
 type QuantileChartDatum = Record<string, number | string>;
 
@@ -78,7 +84,7 @@ function aggregateForecastModels(models: NormalizedForecastModel[]): AggregatedF
 
   const quantiles: Record<string, number> = {};
 
-  for (const key of quantileKeys) {
+  for (const key of Array.from(quantileKeys)) {
     let weightedSum = 0;
     let weightSum = 0;
 
@@ -340,11 +346,13 @@ function ForecastSkeleton() {
 interface ForecastChartTooltipProps extends TooltipProps<number, string> {
   formatPrice: (value: number) => string;
   formatProbability: (value: number) => string;
+  formatLabel: (value: number | string) => string;
   labels: {
     confidence: string;
     median: string;
     pricePoint: string;
     probability: string;
+    historical: string;
   };
   medianKey: string | null;
   pricePointKey: string | null;
@@ -356,6 +364,7 @@ function ForecastChartTooltip({
   label,
   formatPrice,
   formatProbability,
+  formatLabel,
   labels,
   medianKey,
   pricePointKey,
@@ -370,12 +379,26 @@ function ForecastChartTooltip({
     return null;
   }
 
+  const resolvedLabel =
+    typeof source.label === 'string' && source.label.length > 0
+      ? source.label
+      : formatLabel(label ?? '');
+
   const lower =
     typeof source[CONFIDENCE_LOWER_KEY] === 'number' ? (source[CONFIDENCE_LOWER_KEY] as number) : null;
   const upper =
     typeof source[CONFIDENCE_UPPER_KEY] === 'number' ? (source[CONFIDENCE_UPPER_KEY] as number) : null;
 
   const items: { key: string; label: string; value: string; color: string }[] = [];
+
+  if (typeof source[HISTORICAL_PRICE_KEY] === 'number') {
+    items.push({
+      key: 'historical',
+      label: labels.historical,
+      value: formatPrice(source[HISTORICAL_PRICE_KEY] as number),
+      color: '#1E293B',
+    });
+  }
 
   if (lower !== null && upper !== null) {
     items.push({
@@ -413,7 +436,7 @@ function ForecastChartTooltip({
 
   return (
     <div className="rounded-xl border border-slate-200/70 bg-white/95 p-3 shadow-xl backdrop-blur">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
       <div className="mt-2 space-y-1">
         {items.map((item) => (
           <div key={item.key} className="flex items-center justify-between text-sm">
@@ -455,6 +478,8 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historicalPoints, setHistoricalPoints] = useState<HistoricalPoint[]>([]);
+  const [historicalLoading, setHistoricalLoading] = useState(true);
 
   useEffect(() => {
     if (!featureEnabled) {
@@ -519,6 +544,60 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     setReloadKey((value) => value + 1);
   }, []);
 
+  useEffect(() => {
+    if (!featureEnabled) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadHistory() {
+      try {
+        setHistoricalLoading(true);
+
+        const now = Math.floor(Date.now() / 1000);
+        const from = now - HISTORICAL_LOOKBACK_DAYS * DAY_SECONDS;
+        const url = `/api/candles?symbol=${encodeURIComponent(normalizedSymbol)}&resolution=D&from=${from}&to=${now}`;
+        const response = await fetch(url, { signal: controller.signal });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const payload = (await response.json()) as CandleData & { error?: string };
+
+        if (payload.error) {
+          throw new Error(payload.error);
+        }
+
+        const points = mapCandleDataToPoints(payload);
+
+        if (!controller.signal.aborted) {
+          setHistoricalPoints(points);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.warn('Failed to load historical price data:', err);
+        if (!controller.signal.aborted) {
+          setHistoricalPoints([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setHistoricalLoading(false);
+        }
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      controller.abort();
+    };
+  }, [featureEnabled, normalizedSymbol]);
+
   const primaryModels = useMemo(
     () => forecastSets.map((dataset) => dataset.primary),
     [forecastSets]
@@ -537,6 +616,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
       const base: QuantileChartDatum = {
         horizon: dataset.horizon,
         label: horizonLabel(dataset.horizon),
+        [HORIZON_LABEL_KEY]: horizonLabel(dataset.horizon),
       };
 
       for (const [key, value] of Object.entries(aggregated.quantiles)) {
@@ -734,25 +814,6 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     [quantileChartData]
   );
 
-  const renderTooltip = useCallback(
-    (props: TooltipProps<number, string>) => (
-      <ForecastChartTooltip
-        {...props}
-        formatPrice={(value: number) => formatCurrency(value, 'USD', locale)}
-        formatProbability={(value: number) => percentageFormatter.format(value)}
-        labels={{
-          confidence: t.stock.forecastView.chart.confidenceBand,
-          median: t.stock.forecastView.chart.medianLine,
-          pricePoint: t.stock.forecastView.chart.pricePointLine,
-          probability: t.stock.forecastView.chart.probabilityLine,
-        }}
-        medianKey={medianChartKey}
-        pricePointKey={pricePointChartKey}
-      />
-    ),
-    [locale, medianChartKey, percentageFormatter, pricePointChartKey, t]
-  );
-
   const summaryPricePoint =
     summaryForecast?.pricePoint ??
     summaryForecast?.priceP50 ??
@@ -770,8 +831,83 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   const summaryQuality = summaryForecast?.qualityScore ?? null;
 
   const hasForecasts = forecastSets.length > 0;
-  const hasQuantiles = quantileDefinitions.length > 0 && quantileChartData.length > 0;
-  const hasProbabilitySeries = quantileChartData.some((row) => typeof row.probability === 'number');
+  const hasHistorical = historicalPoints.length > 0;
+
+  const chartDateFormatter = useCallback(
+    (timestamp: number | string) => {
+      if (typeof timestamp !== 'number') {
+        return String(timestamp ?? '');
+      }
+
+      const date = new Date(timestamp);
+      return date.toLocaleDateString(localeCode, {
+        day: 'numeric',
+        month: 'short',
+        year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+      });
+    },
+    [localeCode]
+  );
+
+  const timelineChartData = useMemo(() => {
+    const rows: Array<QuantileChartDatum & { timestamp: number }> = [];
+
+    for (const point of historicalPoints) {
+      rows.push({
+        timestamp: point.timestamp,
+        label: chartDateFormatter(point.timestamp),
+        [DATA_TYPE_KEY]: 'historical',
+        [HISTORICAL_PRICE_KEY]: point.close,
+      });
+    }
+
+    const lastHistoricalTimestamp = historicalPoints[historicalPoints.length - 1]?.timestamp ?? Date.now();
+
+    for (const entry of quantileChartData) {
+      const horizonDays = typeof entry.horizon === 'number' ? entry.horizon : 0;
+      const targetTimestamp = lastHistoricalTimestamp + horizonDays * DAY_SECONDS * 1000;
+      const horizonLabelValue =
+        typeof entry[HORIZON_LABEL_KEY] === 'string' ? (entry[HORIZON_LABEL_KEY] as string) : undefined;
+      const displayLabel = horizonLabelValue
+        ? `${chartDateFormatter(targetTimestamp)} · ${horizonLabelValue}`
+        : chartDateFormatter(targetTimestamp);
+
+      rows.push({
+        ...entry,
+        timestamp: targetTimestamp,
+        label: displayLabel,
+        [DATA_TYPE_KEY]: 'forecast',
+      });
+    }
+
+    return rows.sort((a, b) => a.timestamp - b.timestamp);
+  }, [chartDateFormatter, historicalPoints, quantileChartData]);
+
+  const hasChartData = timelineChartData.length > 0;
+  const hasProbabilitySeries = timelineChartData.some((row) => typeof row.probability === 'number');
+
+  const showSkeleton = (loading && !hasForecasts) || (historicalLoading && !hasHistorical);
+
+  const renderTooltip = useCallback(
+    (props: TooltipProps<number, string>) => (
+      <ForecastChartTooltip
+        {...props}
+        formatPrice={(value: number) => formatCurrency(value, 'USD', locale)}
+        formatProbability={(value: number) => percentageFormatter.format(value)}
+        formatLabel={chartDateFormatter}
+        labels={{
+          confidence: t.stock.forecastView.chart.confidenceBand,
+          median: t.stock.forecastView.chart.medianLine,
+          pricePoint: t.stock.forecastView.chart.pricePointLine,
+          probability: t.stock.forecastView.chart.probabilityLine,
+          historical: t.stock.forecastView.chart.historicalLine,
+        }}
+        medianKey={medianChartKey}
+        pricePointKey={pricePointChartKey}
+      />
+    ),
+    [chartDateFormatter, locale, medianChartKey, percentageFormatter, pricePointChartKey, t]
+  );
 
   if (!featureEnabled) {
     return null;
@@ -801,7 +937,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
           <p className="max-w-2xl text-sm text-slate-600">{t.stock.forecastView.subtitle}</p>
         </div>
 
-        {loading && !hasForecasts ? (
+        {showSkeleton ? (
           <ForecastSkeleton />
         ) : error ? (
           <Card className="bg-white/80 border border-red-200 text-red-700">
@@ -901,49 +1037,76 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                 <CardDescription>{t.stock.forecastView.quantilesCardDescription}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {hasQuantiles ? (
+                {hasChartData ? (
                   <div className="space-y-3">
                     <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={quantileChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
-                        <defs>
-                          <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
-                            <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.05} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="6 8" stroke="rgba(148, 163, 184, 0.35)" />
-                        <XAxis dataKey="label" tick={{ fill: '#475569' }} tickLine={false} axisLine={false} />
-                        <YAxis
-                          yAxisId="price"
-                          tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
-                          tick={{ fill: '#475569' }}
-                          width={90}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        {hasProbabilitySeries ? (
-                          <YAxis
-                            yAxisId="probability"
-                            orientation={isRtl ? 'left' : 'right'}
-                            tickFormatter={(value: number) => percentageFormatter.format(value)}
+                        <ComposedChart data={timelineChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
+                          <defs>
+                            <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
+                              <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.05} />
+                            </linearGradient>
+                            <linearGradient id="historicalGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#1E293B" stopOpacity={0.18} />
+                              <stop offset="100%" stopColor="#1E293B" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(148, 163, 184, 0.35)" />
+                          <XAxis
+                            dataKey="timestamp"
+                            type="number"
+                            scale="time"
+                            domain={['dataMin', 'dataMax']}
+                            tickFormatter={(value: number) => chartDateFormatter(value)}
                             tick={{ fill: '#475569' }}
-                            width={70}
+                            tickLine={false}
+                            axisLine={false}
+                            minTickGap={24}
+                          />
+                          <YAxis
+                            yAxisId="price"
+                            tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
+                            tick={{ fill: '#475569' }}
+                            width={90}
                             axisLine={false}
                             tickLine={false}
-                            domain={[0, 1]}
                           />
-                        ) : null}
-                        <Tooltip
-                          content={renderTooltip}
-                          cursor={{ stroke: 'rgba(148, 163, 184, 0.45)', strokeDasharray: '4 4' }}
-                        />
-                        <Legend wrapperStyle={{ paddingTop: 12 }} />
-                        {hasConfidenceBand ? (
-                          <>
+                          {hasProbabilitySeries ? (
+                            <YAxis
+                              yAxisId="probability"
+                              orientation={isRtl ? 'left' : 'right'}
+                              tickFormatter={(value: number) => percentageFormatter.format(value)}
+                              tick={{ fill: '#475569' }}
+                              width={70}
+                              axisLine={false}
+                              tickLine={false}
+                              domain={[0, 1]}
+                            />
+                          ) : null}
+                          <Tooltip
+                            content={renderTooltip}
+                            cursor={{ stroke: 'rgba(148, 163, 184, 0.45)', strokeDasharray: '4 4' }}
+                          />
+                          <Legend wrapperStyle={{ paddingTop: 12 }} />
+                          {hasHistorical ? (
                             <Area
                               type="monotone"
-                              dataKey={CONFIDENCE_BASE_KEY}
+                              dataKey={HISTORICAL_PRICE_KEY}
+                              stroke="#1E293B"
+                              strokeWidth={2.5}
+                              fill="url(#historicalGradient)"
+                              yAxisId="price"
+                              name={t.stock.forecastView.chart.historicalLine}
+                              dot={false}
+                              activeDot={{ r: 4 }}
+                            />
+                          ) : null}
+                          {hasConfidenceBand ? (
+                            <>
+                              <Area
+                                type="monotone"
+                                dataKey={CONFIDENCE_BASE_KEY}
                               stackId="confidence"
                               stroke="none"
                               fill="transparent"
@@ -1017,7 +1180,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             activeDot={{ r: 5 }}
                             name={t.stock.forecastView.chart.probabilityLine}
                           />
-                        ) : null}
+                          ) : null}
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
