@@ -23,7 +23,7 @@ import { computeRealizedSales } from '@/lib/positions';
 export default function PortfolioPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
+  const { loading, refreshing, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
     usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
@@ -437,8 +437,14 @@ export default function PortfolioPage() {
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.portfolio.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button variant="outline" size="sm" onClick={reload} disabled={loading} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={reload}
+                    disabled={loading || refreshing}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">{t.common.refresh}</span>
                   </Button>
                   <Button asChild variant="secondary" size="sm" className="gap-2">
