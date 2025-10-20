@@ -32,6 +32,7 @@ export default function HomePage() {
   const { t } = useTranslation(locale);
   const {
     loading,
+    refreshing,
     positions,
     metrics,
     summary: portfolioSummary,
@@ -135,9 +136,9 @@ export default function HomePage() {
       icon: RefreshCw,
       label: t.common.refresh,
       onClick: reload,
-      disabled: loading,
+      disabled: loading || refreshing,
       variant: 'outline',
-      iconClassName: loading ? 'animate-spin' : undefined,
+      iconClassName: loading || refreshing ? 'animate-spin' : undefined,
       labelClassName: 'hidden sm:inline',
     },
     {
