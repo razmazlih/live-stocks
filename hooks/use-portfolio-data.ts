@@ -447,39 +447,7 @@ export function usePortfolioData() {
           totalNetPnLIls: totalCurrentPnLIls - taxSummary.taxIls,
         };
 
-        const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
-          await loadSparklines(mappedPositions);
-
-        const taxTimeline = taxSummary.timeline
-          .slice()
-          .sort((a, b) => a.timestamp - b.timestamp);
-
-        let currentTaxUsd = 0;
-        let currentTaxIls = 0;
-        let taxIndex = 0;
-
-        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
-          while (taxIndex < taxTimeline.length && taxTimeline[taxIndex].timestamp <= point.timestamp) {
-            currentTaxUsd = taxTimeline[taxIndex].cumulativeTaxUsd;
-            currentTaxIls = taxTimeline[taxIndex].cumulativeTaxIls;
-            taxIndex += 1;
-          }
-
-          const totalPnLIls = point.totalPnLUsd * rate;
-          const netPnLUsdBeforeTax = point.netPnLUsd;
-          const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
-          const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
-          const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
-
-          return {
-            ...point,
-            totalPnLIls,
-            netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
-            netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
-            expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,
-            expectedNetPnLIls: expectedNetPnLIlsBeforeTax,
-          };
-        });
+        const { sparklineData: nextSparklineData } = await loadSparklines(mappedPositions);
 
         setPositions(mappedPositions);
         setUsdToIls(rate);
@@ -487,7 +455,19 @@ export function usePortfolioData() {
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(adjustedTimeline);
+        const today = new Date();
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+        const netPoint: PortfolioTimelinePoint = {
+          timestamp: todayMidnight,
+          totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
+          totalPnLIls: enrichedSummary.totalCurrentPnLIls,
+          netPnLUsd: enrichedSummary.totalNetPnLUsd,
+          netPnLIls: enrichedSummary.totalNetPnLIls,
+          expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
+          expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+        };
+
+        setPortfolioTimeline([netPoint]);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);

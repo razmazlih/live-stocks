@@ -177,6 +177,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   );
 
   const trendPoint = data[data.length - 1];
+  const isSinglePoint = data.length <= 1;
+  const singlePointTone = isSinglePoint && data[0] ? tonePalette[getPointTone(data[0])] : null;
   const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
   const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
@@ -393,7 +395,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     strokeWidth={2.5}
                     fill="url(#portfolioPnlFill)"
                     fillOpacity={1}
-                    dot={false}
+                    dot={isSinglePoint && singlePointTone
+                      ? {
+                          r: 6,
+                          strokeWidth: 2,
+                          stroke: '#FFFFFF',
+                          fill: singlePointTone.color,
+                        }
+                      : false}
                     isAnimationActive={false}
                   />
                 </AreaChart>
