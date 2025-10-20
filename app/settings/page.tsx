@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { isNasdaqTradingHours } from '@/lib/utils/trading-hours';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -17,6 +18,7 @@ export default function SettingsPage() {
   const { t } = useTranslation(locale);
   const [formData, setFormData] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const marketOpen = isNasdaqTradingHours();
 
   useEffect(() => {
     loadSettings();
@@ -44,6 +46,10 @@ export default function SettingsPage() {
       console.error('Error loading settings:', error);
     }
   }
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, refreshInterval: settings.refreshInterval }));
+  }, [settings.refreshInterval]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,11 +149,14 @@ export default function SettingsPage() {
               <Input
                 id="refreshInterval"
                 type="number"
-                min="1"
-                max="1440"
                 value={formData.refreshInterval}
-                onChange={(e) => setFormData({ ...formData, refreshInterval: parseInt(e.target.value) })}
+                readOnly
+                disabled
               />
+              <p className="text-sm text-gray-500">{t.settings.refreshIntervalDescription}</p>
+              <p className="text-sm text-gray-500">
+                {marketOpen ? t.settings.refreshIntervalActive : t.settings.refreshIntervalInactive}
+              </p>
             </div>
 
             <div className="space-y-2">

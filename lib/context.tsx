@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Locale, Settings } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 
 interface AppContextType {
   locale: Locale;
@@ -74,6 +75,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('settings', JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    const updateRefreshInterval = () => {
+      const newInterval = getNasdaqRefreshInterval();
+      setSettings(prev => {
+        if (prev.refreshInterval === newInterval) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          refreshInterval: newInterval,
+        };
+      });
+    };
+
+    updateRefreshInterval();
+
+    const intervalId = setInterval(updateRefreshInterval, 60 * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [setSettings]);
 
   const triggerRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
