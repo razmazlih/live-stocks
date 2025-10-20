@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 import { StockQuote } from '@/types';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
@@ -29,13 +30,31 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const symbol = searchParams.get('symbol');
-    const token = searchParams.get('token') || process.env.FINNHUB_TOKEN;
+    let token = searchParams.get('token');
 
     if (!symbol) {
       return NextResponse.json(
         { error: 'Symbol parameter is required' },
         { status: 400, headers: NO_STORE_HEADERS }
       );
+    }
+
+    if (!token) {
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('settings')
+        .select('finnhub_token')
+        .limit(1)
+        .maybeSingle();
+
+      if (settingsError && settingsError.code !== 'PGRST116') {
+        console.error('Failed to load settings for Finnhub token:', settingsError);
+        return NextResponse.json(
+          { error: 'Failed to load Finnhub token configuration' },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      token = settingsData?.finnhub_token || process.env.FINNHUB_TOKEN || undefined;
     }
 
     if (!token) {
