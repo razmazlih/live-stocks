@@ -886,6 +886,59 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   const hasChartData = timelineChartData.length > 0;
   const hasProbabilitySeries = timelineChartData.some((row) => typeof row.probability === 'number');
 
+  // Determine exactly which price series are rendered, to compute a strict domain
+  const priceSeriesKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (hasHistorical) keys.add(HISTORICAL_PRICE_KEY);
+    if (hasConfidenceBand) {
+      keys.add(CONFIDENCE_LOWER_KEY);
+      keys.add(CONFIDENCE_UPPER_KEY);
+    }
+    if (medianChartKey) keys.add(medianChartKey);
+    if (pricePointChartKey && pricePointChartKey !== medianChartKey) keys.add(pricePointChartKey);
+    // If neither median nor pricePoint are rendered, fall back to all quantile lines
+    if (!medianChartKey && !pricePointChartKey) {
+      for (const def of quantileDefinitions) keys.add(def.chartKey);
+    }
+    return Array.from(keys);
+  }, [hasHistorical, hasConfidenceBand, medianChartKey, pricePointChartKey, quantileDefinitions]);
+
+  // Compute strict domain from the actually-rendered price series only
+  const priceDomain = useMemo<[number, number] | null>(() => {
+    if (timelineChartData.length === 0 || priceSeriesKeys.length === 0) return null;
+
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+
+    for (const row of timelineChartData) {
+      for (const key of priceSeriesKeys) {
+        const v = (row as Record<string, unknown>)[key];
+        if (typeof v === 'number' && Number.isFinite(v)) {
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+      }
+    }
+
+    if (min === Number.POSITIVE_INFINITY || max === Number.NEGATIVE_INFINITY) return null;
+
+    if (min === max) {
+      const pad = Math.max(1, Math.abs(min) * 0.01);
+      return [min - pad, max + pad];
+    }
+    return [min, max];
+  }, [timelineChartData, priceSeriesKeys]);
+
+  // Use functional domain to force Recharts to respect the exact min/max on every render
+  const yAxisDomainFn = useMemo(
+    () =>
+      [
+        (dataMin: number) => (priceDomain ? priceDomain[0] : dataMin),
+        (dataMax: number) => (priceDomain ? priceDomain[1] : dataMax),
+      ] as unknown as [number | 'auto', number | 'auto'],
+    [priceDomain]
+  );
+
   const showSkeleton = (loading && !hasForecasts) || (historicalLoading && !hasHistorical);
 
   const renderTooltip = useCallback(
@@ -1071,6 +1124,8 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             width={90}
                             axisLine={false}
                             tickLine={false}
+                            domain={yAxisDomainFn}
+                            allowDataOverflow
                           />
                           {hasProbabilitySeries ? (
                             <YAxis
