@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 export default function RealizedPnLPage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, summary, usdToIls, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, positions, summary, usdToIls, lastUpdate, reload } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -228,8 +228,14 @@ export default function RealizedPnLPage() {
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.realized.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button variant="outline" size="sm" onClick={reload} disabled={loading} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={reload}
+                    disabled={loading || refreshing}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">{t.common.refresh}</span>
                   </Button>
                   <Button asChild variant="secondary" size="sm" className="gap-2">
