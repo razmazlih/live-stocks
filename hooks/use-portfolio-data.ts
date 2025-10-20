@@ -185,6 +185,7 @@ export function usePortfolioData() {
   const { settings, refreshTrigger } = useApp();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
@@ -295,7 +296,9 @@ export function usePortfolioData() {
   const loadData = useCallback(
     async ({ background = false }: LoadOptions = {}) => {
       try {
-        if (!background) {
+        if (background) {
+          setRefreshing(true);
+        } else {
           setLoading(true);
         }
 
@@ -515,7 +518,9 @@ export function usePortfolioData() {
       } catch (error) {
         console.error('Error loading portfolio data:', error);
       } finally {
-        if (!background) {
+        if (background) {
+          setRefreshing(false);
+        } else {
           setLoading(false);
         }
       }
@@ -544,6 +549,7 @@ export function usePortfolioData() {
 
   return {
     loading,
+    refreshing,
     positions,
     metrics,
     summary,
@@ -552,6 +558,8 @@ export function usePortfolioData() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
-    reload: () => loadData(),
+    reload: () => {
+      void loadData({ background: true });
+    },
   };
 }
