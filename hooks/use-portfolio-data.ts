@@ -42,6 +42,33 @@ type NormalizedLot = {
   timestamp: number;
 };
 
+function buildDateKey(timestamp: number): string {
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  return `${year}-${month + 1}-${day}`;
+}
+
+function deduplicateTimelineByDay(points: PortfolioTimelinePoint[]): PortfolioTimelinePoint[] {
+  if (points.length <= 1) {
+    return points;
+  }
+
+  const latestByDay = new Map<string, PortfolioTimelinePoint>();
+
+  for (const point of points) {
+    const key = buildDateKey(point.timestamp);
+    const existing = latestByDay.get(key);
+
+    if (!existing || point.timestamp >= existing.timestamp) {
+      latestByDay.set(key, point);
+    }
+  }
+
+  return Array.from(latestByDay.values()).sort((a, b) => a.timestamp - b.timestamp);
+}
+
 function buildPositionTimeline(
   position: Position,
   points: HistoricalPoint[],
@@ -481,13 +508,15 @@ export function usePortfolioData() {
           };
         });
 
+        const deduplicatedTimeline = deduplicateTimelineByDay(adjustedTimeline);
+
         setPositions(mappedPositions);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(adjustedTimeline);
+        setPortfolioTimeline(deduplicatedTimeline);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);
