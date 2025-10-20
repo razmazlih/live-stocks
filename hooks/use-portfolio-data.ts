@@ -481,13 +481,36 @@ export function usePortfolioData() {
           };
         });
 
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const startOfTodayMs = startOfToday.getTime();
+        const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
+
+        const timelineWithoutToday = adjustedTimeline.filter(
+          (point) => point.timestamp < startOfTodayMs || point.timestamp > endOfTodayMs
+        );
+
+        const todayPoint: PortfolioTimelinePoint = {
+          timestamp: startOfTodayMs,
+          totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
+          totalPnLIls: enrichedSummary.totalCurrentPnLIls,
+          netPnLUsd: enrichedSummary.totalNetPnLUsd,
+          netPnLIls: enrichedSummary.totalNetPnLIls,
+          expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
+          expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+        };
+
+        const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
+          (a, b) => a.timestamp - b.timestamp
+        );
+
         setPositions(mappedPositions);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(adjustedTimeline);
+        setPortfolioTimeline(finalTimeline);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);
