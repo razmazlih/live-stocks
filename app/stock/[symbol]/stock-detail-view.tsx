@@ -260,24 +260,27 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
         setPosition(mappedPosition);
 
-        const quoteUrl = `/api/quote?symbol=${encodeURIComponent(normalizedSymbol)}${
-          settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-        }`;
+        const trimmedToken = settings.finnhubToken?.trim();
+        const quoteUrl = trimmedToken
+          ? `/api/quote?symbol=${encodeURIComponent(normalizedSymbol)}&token=${encodeURIComponent(trimmedToken)}`
+          : null;
         const [quoteResponse, rateResponse] = await Promise.all([
-          fetch(quoteUrl),
+          quoteUrl ? fetch(quoteUrl) : Promise.resolve<null | Response>(null),
           fetch('/api/exchange-rate'),
         ]);
 
         let fetchedQuote: StockQuote | null = null;
-        if (quoteResponse.ok) {
-          const quoteData = (await quoteResponse.json()) as QuoteResponse;
-          if (!quoteData.error && quoteData.c) {
-            fetchedQuote = quoteData;
-          } else if (quoteData.error) {
-            console.warn('Quote API error:', quoteData.error);
+        if (quoteResponse) {
+          if (quoteResponse.ok) {
+            const quoteData = (await quoteResponse.json()) as QuoteResponse;
+            if (!quoteData.error && quoteData.c) {
+              fetchedQuote = quoteData;
+            } else if (quoteData.error) {
+              console.warn('Quote API error:', quoteData.error);
+            }
+          } else {
+            console.warn(`Quote request failed with status ${quoteResponse.status}`);
           }
-        } else {
-          console.warn(`Quote request failed with status ${quoteResponse.status}`);
         }
 
         let rate = 3.7;

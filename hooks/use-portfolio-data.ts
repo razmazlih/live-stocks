@@ -311,34 +311,48 @@ export function usePortfolioData() {
         const rateData = await rateResponse.json();
         const rate = rateData.usdToIls || 3.7;
 
+        const trimmedToken = settings.finnhubToken?.trim();
+
         const metricsPromises = mappedPositions.map(async (position) => {
           try {
-            const quoteResponse = await fetch(
-              `/api/quote?symbol=${position.symbol}${
-              settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-            }`
-          );
-          const quoteData = await quoteResponse.json();
+            let quoteData: { c?: number; d?: number; error?: string } | null = null;
 
-          const currentPrice = quoteData.c || position.entryPrice;
-          const dailyChange = quoteData.d;
+            if (trimmedToken) {
+              const quoteResponse = await fetch(
+                `/api/quote?symbol=${encodeURIComponent(position.symbol)}&token=${encodeURIComponent(trimmedToken)}`
+              );
 
-          return calculatePositionMetrics(
-            position,
-            currentPrice,
-            rate,
-            settings.annualGrowthRate,
-            dailyChange
-          );
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-          return calculatePositionMetrics(
-            position,
-            position.entryPrice,
-            rate,
-            settings.annualGrowthRate
-          );
-        }
+              if (quoteResponse.ok) {
+                const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
+                if (!parsed.error) {
+                  quoteData = parsed;
+                } else {
+                  console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
+                }
+              } else {
+                console.warn(`Quote request failed with status ${quoteResponse.status} for ${position.symbol}`);
+              }
+            }
+
+            const currentPrice = quoteData?.c ?? position.entryPrice;
+            const dailyChange = quoteData?.d;
+
+            return calculatePositionMetrics(
+              position,
+              currentPrice,
+              rate,
+              settings.annualGrowthRate,
+              dailyChange
+            );
+          } catch (error) {
+            console.error(`Failed to fetch quote for ${position.symbol}:`, error);
+            return calculatePositionMetrics(
+              position,
+              position.entryPrice,
+              rate,
+              settings.annualGrowthRate
+            );
+          }
         });
 
         const calculatedMetrics = await Promise.all(metricsPromises);
