@@ -193,6 +193,7 @@ export function usePortfolioData() {
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadSparklines = useCallback(
     async (positionsList: Position[]): Promise<LoadSparklinesResult> => {
@@ -523,6 +524,22 @@ export function usePortfolioData() {
     [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]
   );
 
+  const reload = useCallback(() => {
+    if (loading || refreshing) {
+      return;
+    }
+
+    setRefreshing(true);
+
+    void (async () => {
+      try {
+        await loadData({ background: true });
+      } finally {
+        setRefreshing(false);
+      }
+    })();
+  }, [loadData, loading, refreshing]);
+
   useEffect(() => {
     void loadData();
   }, [loadData, refreshTrigger]);
@@ -544,6 +561,7 @@ export function usePortfolioData() {
 
   return {
     loading,
+    refreshing,
     positions,
     metrics,
     summary,
@@ -552,6 +570,6 @@ export function usePortfolioData() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
-    reload: () => loadData(),
+    reload,
   };
 }
