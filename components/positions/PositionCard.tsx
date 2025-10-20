@@ -9,7 +9,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sparkline, SparklineEvent } from './sparkline';
+import { Sparkline, SparklineEvent } from '@/components/charts';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';

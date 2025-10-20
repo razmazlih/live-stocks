@@ -16,7 +16,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
-import { PortfolioOverviewChart } from '@/components/portfolio-overview-chart';
+import { PortfolioOverviewChart } from '@/components/dashboard/portfolio';
 import { Button } from '@/components/ui/button';
 import { computeRealizedSales } from '@/lib/positions';
 
