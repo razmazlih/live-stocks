@@ -37,7 +37,11 @@ app/
   ├─ settings/              # הגדרות משתמש: שפה, מטבע, טוקן Finnhub ועוד
   └─ api/                   # מסלולי API לנתונים חיים (quote, candles, exchange-rate, portfolio)
 components/
-  ├─ position-card.tsx, portfolio-visualizations.tsx, portfolio-overview-chart.tsx ועוד
+  ├─ portfolio/
+  │   ├─ cards/             # כרטיסי פוזיציות ותקצירים (למשל PositionCard)
+  │   └─ charts/            # גרפים ייעודיים לתיק (PortfolioOverviewChart, PortfolioVisualizations)
+  ├─ shared/
+  │   └─ visuals/           # רכיבי הדמיה משותפים (למשל Sparkline)
   └─ ui/                    # רכיבי בסיס (Button, Card, Table, Sonner וכו')
 hooks/
   └─ use-portfolio-data.ts  # קריאת Supabase, הבאת נתונים חיצוניים וחישוב מדדים
@@ -58,7 +62,7 @@ supabase/
 2. **`usePortfolioData`** מושך פוזיציות וטבלאות בתתי-שאילתות מ-Supabase, מביא שער דולר וגרף נרות לכל מניה, מחשב מדדים ויוצר ציר זמן של PnL. 【F:hooks/use-portfolio-data.ts†L1-L119】【F:hooks/use-portfolio-data.ts†L119-L210】
 3. **חישובי ביצועים** מתבצעים ב-`lib/calculations.ts`, כולל המרת מטבע, תשואות, נתוני עזר להדמיות והצעות איזון. 【F:lib/calculations.ts†L1-L200】
 4. **תרגומים** נלקחים מ-`lib/translations.ts` לכל רכיב ועמוד, עם פונקציות דינמיות לטקסטים מורכבים. 【F:lib/translations.ts†L1-L170】
-5. **רכיבים חזותיים** משתמשים במידע המחושב להצגת כרטיסי פוזיציה, גרפים (Recharts, Embla), סיכומים ופעולות. 【F:components/portfolio-visualizations.tsx†L1-L160】
+5. **רכיבים חזותיים** משתמשים במידע המחושב להצגת כרטיסי פוזיציה, גרפים (Recharts, Embla), סיכומים ופעולות. 【F:components/portfolio/charts/portfolio-visualizations.tsx†L1-L160】
 
 ## עמודים וחוויית משתמש
 - **דף הבית (`/`)**: תצוגת מצב מהירה, כרטיסי תקציר, פעולות מהירות וקישורים למסכים ייעודיים. 【F:app/page.tsx†L1-L200】

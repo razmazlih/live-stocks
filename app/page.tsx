@@ -3,8 +3,8 @@
 import { useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { PositionCard } from '@/components/position-card';
-import { PortfolioVisualizations } from '@/components/portfolio-visualizations';
+import { PositionCard } from '@/components/portfolio/cards/position-card';
+import { PortfolioVisualizations } from '@/components/portfolio/charts/portfolio-visualizations';
 import { Button } from '@/components/ui/button';
 import {
   TrendingUp,
