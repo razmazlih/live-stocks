@@ -24,6 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { getQuickActionClasses } from '@/lib/quick-actions';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
@@ -136,39 +137,36 @@ export default function HomePage() {
       label: t.common.refresh,
       onClick: reload,
       disabled: loading || refreshing,
-      variant: 'outline',
+      className: getQuickActionClasses('refresh'),
       iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-      labelClassName: 'hidden sm:inline',
     },
     {
       key: 'portfolio',
       icon: LineChart,
       label: t.portfolio.quickAction,
       href: '/portfolio',
-      className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+      className: getQuickActionClasses('portfolio'),
     },
     {
       key: 'realized',
       icon: CircleDollarSign,
       label: t.realized.quickAction,
       href: '/realized',
-      className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
+      className: getQuickActionClasses('realized'),
     },
     {
       key: 'positions',
       icon: Plus,
       label: t.positions.add,
       href: '/positions',
-      variant: 'secondary',
+      className: getQuickActionClasses('positions'),
     },
     {
       key: 'settings',
       icon: Settings,
       label: t.settings.title,
       href: '/settings',
-      variant: 'ghost',
-      className: 'text-slate-600 hover:text-slate-900',
-      labelClassName: 'hidden sm:inline',
+      className: getQuickActionClasses('settings'),
     },
   ];
 

@@ -10,11 +10,14 @@ import {
   ArrowDownRight,
   Minus,
   CircleDollarSign,
+  Settings,
+  Plus,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { getQuickActionClasses } from '@/lib/quick-actions';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
@@ -438,16 +441,15 @@ export default function PortfolioPage() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.portfolio.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={reload}
                     disabled={loading || refreshing}
-                    className="gap-2"
+                    className={`gap-2 ${getQuickActionClasses('refresh')}`}
                   >
                     <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
+                    <span>{t.common.refresh}</span>
                   </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('home')}`}>
                     <Link href="/">
                       <Home className="h-4 w-4" />
                       <span>{t.app.title}</span>
@@ -456,11 +458,27 @@ export default function PortfolioPage() {
                   <Button
                     asChild
                     size="sm"
-                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]"
+                    className={`gap-2 ${getQuickActionClasses('realized')}`}
                   >
                     <Link href="/realized">
                       <CircleDollarSign className="h-4 w-4" />
                       <span>{t.realized.quickAction}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('positions')}`}>
+                    <Link href="/positions">
+                      <Plus className="h-4 w-4" />
+                      <span>{t.positions.add}</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className={`gap-2 ${getQuickActionClasses('settings')}`}
+                  >
+                    <Link href="/settings">
+                      <Settings className="h-4 w-4" />
+                      <span>{t.settings.title}</span>
                     </Link>
                   </Button>
                 </div>

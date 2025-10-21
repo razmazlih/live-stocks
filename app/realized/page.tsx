@@ -11,6 +11,9 @@ import {
   Minus,
   Receipt,
   TrendingUp,
+  LineChart,
+  Plus,
+  Settings,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -18,6 +21,7 @@ import { useTranslation } from '@/lib/translations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
+import { getQuickActionClasses } from '@/lib/quick-actions';
 import { Button } from '@/components/ui/button';
 
 export default function RealizedPnLPage() {
@@ -229,25 +233,36 @@ export default function RealizedPnLPage() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.realized.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={reload}
                     disabled={loading || refreshing}
-                    className="gap-2"
+                    className={`gap-2 ${getQuickActionClasses('refresh')}`}
                   >
                     <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
+                    <span>{t.common.refresh}</span>
                   </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('home')}`}>
                     <Link href="/">
                       <Home className="h-4 w-4" />
                       <span>{t.app.title}</span>
                     </Link>
                   </Button>
-                  <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900">
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('portfolio')}`}>
+                    <Link href="/portfolio">
+                      <LineChart className="h-4 w-4" />
+                      <span>{t.portfolio.quickAction}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('positions')}`}>
                     <Link href="/positions">
-                      <Receipt className="h-4 w-4" />
-                      <span>{t.realized.goToPositions}</span>
+                      <Plus className="h-4 w-4" />
+                      <span>{t.positions.add}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className={`gap-2 ${getQuickActionClasses('settings')}`}>
+                    <Link href="/settings">
+                      <Settings className="h-4 w-4" />
+                      <span>{t.settings.title}</span>
                     </Link>
                   </Button>
                 </div>
