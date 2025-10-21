@@ -115,16 +115,26 @@ supabase/
   פעולה זו תיצור מחדש את הטבלאות ותפעיל את `seed.sql` (כרגע קובץ placeholder).
 
 ## משתני סביבה
-| שם משתנה | שימוש | חובה | ברירת מחדל |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | חיבור Supabase מהדפדפן | כן | — |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | מפתח אנון Supabase | כן | — |
-| `FINNHUB_TOKEN` | טוקן API להצגת נתוני שוק חיים | מומלץ | משיכה מוגבלת ללא טוקן |
-| `DEFAULT_GROWTH_RATE` | קצב צמיחה שנתי לחיזוי | לא | `0.05` | 
-| `DEFAULT_USD_TO_ILS_RATE` | שער דולר-שקל fallback | לא | `3.7` |
-| `EXCHANGE_RATE_URL` | מקור חלופי לשערי מטבע | לא | `https://open.er-api.com/v6/latest/USD` |
-| `NEXT_PUBLIC_FORECAST_URL` | בסיס API לשרות החיזוי (השאר ריק כדי לכבות) | לא | `http://localhost:8080` |
-| `OPENAI_API_KEY` | לשימוש ב-Supabase Studio (אופציונלי) | לא | — |
+
+### משתני חובה
+המשתנים הבאים חייבים להיות מוגדרים כדי שהאפליקציה תתחבר ל-Supabase:
+
+| שם משתנה | שימוש |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | חיבור Supabase מהדפדפן |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | מפתח אנון Supabase |
+
+### משתנים אופציונליים וברירות מחדל
+ניתן להשאיר את המשתנים הבאים ריקים. הם עוקפים ברירות מחדל או מאפשרים יכולות נוספות במידת הצורך:
+
+| שם משתנה | שימוש | ברירת מחדל / הערות |
+| --- | --- | --- |
+| `FINNHUB_TOKEN` | טוקן API להצגת נתוני שוק חיים | מומלץ לספק טוקן כדי להסיר מגבלות קצב |
+| `DEFAULT_GROWTH_RATE` | קצב צמיחה שנתי לחיזוי | `0.05` |
+| `DEFAULT_USD_TO_ILS_RATE` | שער דולר-שקל fallback | `3.7` |
+| `EXCHANGE_RATE_URL` | מקור חלופי לשערי מטבע | `https://open.er-api.com/v6/latest/USD` |
+| `NEXT_PUBLIC_FORECAST_URL` | בסיס API לשרות החיזוי | `http://localhost:8080` (השאר ריק כדי לכבות) |
+| `OPENAI_API_KEY` | לשימוש ב-Supabase Studio | אופציונלי בלבד |
 
 > **הערה**: ניתן להזין טוקן Finnhub גם מתוך מסך ההגדרות – הערך נשמר בטבלת `settings`.
 
