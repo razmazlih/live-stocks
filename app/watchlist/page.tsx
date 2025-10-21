@@ -8,6 +8,8 @@ import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-s
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
+import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -502,6 +504,45 @@ export default function WatchlistPage() {
     },
   ] as const;
 
+  const quickActions: DashboardQuickAction[] = useMemo(
+    () => [
+      {
+        key: 'refreshAll',
+        icon: RefreshCw,
+        label: t.watchlist.actions.refreshAll,
+        onClick: handleRefreshAll,
+        disabled: loading || refreshingTickers,
+        variant: 'outline',
+        iconClassName: refreshingTickers ? 'animate-spin' : undefined,
+        labelClassName: 'hidden sm:inline',
+      },
+      {
+        key: 'newGroup',
+        icon: Plus,
+        label: t.watchlist.actions.newGroup,
+        onClick: openCreateGroupDialog,
+        className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+      },
+      {
+        key: 'newTicker',
+        icon: Plus,
+        label: t.watchlist.actions.newTicker,
+        onClick: openCreateTickerDialog,
+        variant: 'secondary',
+        disabled: !selectedGroup,
+      },
+    ],
+    [
+      t,
+      handleRefreshAll,
+      loading,
+      refreshingTickers,
+      openCreateGroupDialog,
+      openCreateTickerDialog,
+      selectedGroup,
+    ]
+  );
+
   return (
     <div
       className="relative min-h-screen overflow-hidden bg-[#EEF5FF]"
@@ -542,44 +583,11 @@ export default function WatchlistPage() {
                   })}
                 </div>
               </div>
-              <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  {t.watchlist.actionsTitle}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshAll}
-                    disabled={loading || refreshingTickers}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={refreshingTickers ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-                    <span className="hidden sm:inline">{t.watchlist.actions.refreshAll}</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={openCreateGroupDialog}
-                    className="gap-2 bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t.watchlist.actions.newGroup}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={openCreateTickerDialog}
-                    disabled={!selectedGroup}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t.watchlist.actions.newTicker}
-                  </Button>
-                </div>
+              <QuickActionsSection title={t.watchlist.actionsTitle} actions={quickActions}>
                 <p className="mt-4 text-xs text-slate-500">
                   {selectedGroupSummary ?? t.watchlist.status.empty}
                 </p>
-              </div>
+              </QuickActionsSection>
             </div>
           </header>
 
