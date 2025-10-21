@@ -52,13 +52,20 @@ const tonePalette = {
 
 type ToneKey = keyof typeof tonePalette;
 
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
+type ChartDataPoint = PortfolioTimelinePoint & { growthBenchmarkUsd?: number };
+
+const getPointTone = (point: ChartDataPoint): ToneKey => {
   const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
   if (netValue < 0) {
     return 'negative';
   }
 
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
+  const benchmarkValue =
+    typeof point.growthBenchmarkUsd === 'number'
+      ? point.growthBenchmarkUsd
+      : point.expectedNetPnLUsd;
+
+  if (typeof benchmarkValue === 'number' && netValue < benchmarkValue) {
     return 'underperforming';
   }
 
@@ -152,7 +159,7 @@ const ChartTooltip = ({
 };
 
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
-  const { locale } = useApp();
+  const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
@@ -176,7 +183,43 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
-  const trendPoint = data[data.length - 1];
+  const chartData = useMemo<ChartDataPoint[]>(() => {
+    if (!data.length) {
+      return [];
+    }
+
+    const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
+    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+    const growthRate = Number.isFinite(settings.annualGrowthRate) ? settings.annualGrowthRate : 0;
+
+    const firstPoint = sortedData[0];
+    let benchmarkValue = firstPoint.marketValueUsd ?? 0;
+    let previousCostBasis = firstPoint.costBasisUsd ?? 0;
+    let lastTimestamp = firstPoint.timestamp;
+
+    return sortedData.map((point, index) => {
+      if (index === 0) {
+        const expectedPnL = benchmarkValue - previousCostBasis;
+        return { ...point, growthBenchmarkUsd: expectedPnL };
+      }
+
+      const costBasis = point.costBasisUsd ?? 0;
+      const contribution = costBasis - previousCostBasis;
+      benchmarkValue += contribution;
+
+      const deltaYears = Math.max((point.timestamp - lastTimestamp) / msPerYear, 0);
+      const growthFactor = Math.pow(1 + growthRate, deltaYears);
+      benchmarkValue = benchmarkValue * growthFactor;
+
+      lastTimestamp = point.timestamp;
+      previousCostBasis = costBasis;
+
+      const expectedPnL = benchmarkValue - costBasis;
+      return { ...point, growthBenchmarkUsd: expectedPnL };
+    });
+  }, [data, settings.annualGrowthRate]);
+
+  const trendPoint = chartData[chartData.length - 1];
   const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
   const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
@@ -189,26 +232,26 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLIls = summary.totalProjectedPnLIls;
 
   const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
-    if (!data.length) {
+    if (!chartData.length) {
       return [
         { offset: 0, tone: 'positive' as ToneKey },
         { offset: 100, tone: 'positive' as ToneKey },
       ];
     }
 
-    if (data.length === 1) {
-      const singleTone = getPointTone(data[0]);
+    if (chartData.length === 1) {
+      const singleTone = getPointTone(chartData[0]);
       return [
         { offset: 0, tone: singleTone },
         { offset: 100, tone: singleTone },
       ];
     }
 
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
+    return chartData.map((point, index) => ({
+      offset: (index / (chartData.length - 1)) * 100,
       tone: getPointTone(point),
     }));
-  }, [data]);
+  }, [chartData]);
 
   const strokeGradientStops = useMemo(() => {
     const stops: { offset: string; color: string; opacity: number }[] = [];
@@ -263,11 +306,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   }, [colorStops]);
 
   const { bestPoint, worstPoint } = useMemo(() => {
-    if (!data.length) {
+    if (!chartData.length) {
       return { bestPoint: null, worstPoint: null };
     }
 
-    return data.reduce(
+    return chartData.reduce(
       (acc, point) => {
         const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
         const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
@@ -284,7 +327,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       },
       { bestPoint: null as PortfolioTimelinePoint | null, worstPoint: null as PortfolioTimelinePoint | null }
     );
-  }, [data]);
+  }, [chartData]);
 
   const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
@@ -319,7 +362,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
           <div className="flex-1">
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
                       {strokeGradientStops.map((stop, index) => (
@@ -379,7 +422,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
                   <Line
                     type="monotone"
-                    dataKey="expectedNetPnLUsd"
+                    dataKey="growthBenchmarkUsd"
                     stroke="#3B82F6"
                     strokeWidth={2}
                     strokeDasharray="6 6"
