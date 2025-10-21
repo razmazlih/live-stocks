@@ -9,6 +9,7 @@ import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -504,18 +505,20 @@ export default function WatchlistPage() {
     },
   ] as const;
 
-  const quickActions: DashboardQuickAction[] = useMemo(
-    () => [
-      {
-        key: 'refreshAll',
-        icon: RefreshCw,
-        label: t.watchlist.actions.refreshAll,
-        onClick: handleRefreshAll,
-        disabled: loading || refreshingTickers,
-        variant: 'outline',
-        iconClassName: refreshingTickers ? 'animate-spin' : undefined,
-        labelClassName: 'hidden sm:inline',
+  const quickActions: DashboardQuickAction[] = useMemo(() => {
+    const baseActions = createCommonQuickActions(t, {
+      exclude: ['watchlist'],
+      overrides: {
+        reload: {
+          label: t.watchlist.actions.refreshAll,
+          onClick: handleRefreshAll,
+          disabled: loading || refreshingTickers,
+          iconClassName: refreshingTickers ? 'animate-spin' : undefined,
+        },
       },
+    });
+
+    const extraActions: DashboardQuickAction[] = [
       {
         key: 'newGroup',
         icon: Plus,
@@ -531,17 +534,25 @@ export default function WatchlistPage() {
         variant: 'secondary',
         disabled: !selectedGroup,
       },
-    ],
-    [
-      t,
-      handleRefreshAll,
-      loading,
-      refreshingTickers,
-      openCreateGroupDialog,
-      openCreateTickerDialog,
-      selectedGroup,
-    ]
-  );
+    ];
+
+    const reloadAction = baseActions.find((action) => action.key === 'reload');
+    const navigationActions = baseActions.filter((action) => action.key !== 'reload');
+
+    return [
+      ...(reloadAction ? [reloadAction] : []),
+      ...extraActions,
+      ...navigationActions,
+    ];
+  }, [
+    t,
+    handleRefreshAll,
+    loading,
+    refreshingTickers,
+    openCreateGroupDialog,
+    openCreateTickerDialog,
+    selectedGroup,
+  ]);
 
   return (
     <div
