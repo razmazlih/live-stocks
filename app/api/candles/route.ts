@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithRetry } from '@/lib/http';
 import { CandleData } from '@/types';
 
 const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
@@ -6,30 +7,6 @@ const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
-
-async function fetchWithRetry(url: string, retries = 3, delay = 1000): Promise<Response> {
-  let lastError: unknown = null;
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (response.ok) {
-        return response;
-      }
-
-      lastError = new Error(`HTTP ${response.status}`);
-      if (attempt < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, attempt)));
-      }
-    } catch (error) {
-      lastError = error;
-      if (attempt < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, attempt)));
-      }
-    }
-  }
-
-  throw lastError ?? new Error('Max retries reached');
-}
 
 function resolveInterval(resolution: string): string {
   switch (resolution) {
@@ -93,7 +70,11 @@ export async function GET(request: NextRequest) {
     const interval = resolveInterval(resolution);
     const url = `${YAHOO_BASE_URL}/${encodeURIComponent(symbol)}?period1=${fromSeconds}&period2=${toSeconds}&interval=${interval}&includeAdjustedClose=true`;
 
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(
+      url,
+      { cache: 'no-store' },
+      { shouldRetry: response => !response.ok },
+    );
     const data = (await response.json()) as YahooChartResponse;
 
     const result = data.chart?.result?.[0];
