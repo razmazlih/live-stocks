@@ -48,36 +48,41 @@ export function WatchlistGroupSelector({
   return (
     <div
       className={cn(
-        'flex h-full w-full min-w-[260px] max-w-xs flex-col border-l border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900',
+        'flex h-full w-full min-w-[260px] max-w-xs flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/70',
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-2 border-b border-white/60 bg-white/60 px-5 py-4 dark:border-slate-700/60 dark:bg-slate-900/40">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
           {description ? (
             <span className="text-xs text-slate-500 dark:text-slate-400">{description}</span>
           ) : null}
         </div>
         {onCreate ? (
-          <Button variant="outline" size="sm" onClick={onCreate} className="gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCreate}
+            className="gap-1 rounded-full border-blue-100 bg-white/80 text-blue-600 hover:bg-white"
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">{addLabel}</span>
           </Button>
         ) : null}
       </div>
       <ScrollArea className="flex-1">
-        <div className="space-y-1 p-3">
+        <div className="space-y-2 p-4">
           {isLoading ? (
-            <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+            <div className="flex items-center gap-2 rounded-2xl border border-dashed border-white/60 bg-white/80 px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>{loadingText}</span>
             </div>
           ) : groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/60 bg-white/75 px-5 py-10 text-center text-sm text-slate-600 shadow-inner dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-300">
               <span>{emptyStateText}</span>
               {onCreate ? (
-                <Button size="sm" onClick={onCreate} className="gap-1">
+                <Button size="sm" onClick={onCreate} className="gap-1 rounded-full">
                   <Plus className="h-4 w-4" />
                   {addLabel}
                 </Button>
@@ -92,14 +97,15 @@ export function WatchlistGroupSelector({
                   <div
                     key={group.id ?? group.name}
                     className={cn(
-                      'group relative flex cursor-pointer items-start justify-between gap-2 rounded-lg border px-3 py-2 transition-shadow',
-                      'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600',
-                      isActive && 'border-slate-900 shadow-sm dark:border-slate-200'
+                      'group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-4 py-3 transition-all',
+                      'border-white/60 bg-white/80 shadow-sm hover:border-blue-200/70 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/60 dark:hover:border-slate-600',
+                      isActive &&
+                        'border-blue-400/70 bg-blue-50/80 text-blue-700 shadow-md dark:border-blue-500/60 dark:bg-slate-800/70 dark:text-blue-100'
                     )}
                     onClick={() => group.id && onSelect(group.id)}
                   >
                     <div className="flex flex-1 flex-col">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{group.name}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{group.name}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
                         {group.description || ''}
                       </span>
@@ -113,7 +119,7 @@ export function WatchlistGroupSelector({
                           variant="ghost"
                           size="icon"
                           aria-label={editLabel}
-                          className="h-8 w-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                          className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                           onClick={(event) => {
                             event.stopPropagation();
                             onEdit(group);
@@ -127,7 +133,7 @@ export function WatchlistGroupSelector({
                           variant="ghost"
                           size="icon"
                           aria-label={deleteLabel}
-                          className="h-8 w-8 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400"
+                          className="h-8 w-8 rounded-full text-slate-400 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400"
                           onClick={(event) => {
                             event.stopPropagation();
                             onDelete(group);
@@ -145,7 +151,7 @@ export function WatchlistGroupSelector({
         </div>
       </ScrollArea>
       {isRefreshing ? (
-        <div className="flex items-center justify-center gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        <div className="flex items-center justify-center gap-2 border-t border-white/60 bg-white/60 px-4 py-2 text-xs text-slate-500 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-400">
           <Loader2 className="h-3 w-3 animate-spin" />
           <span>{loadingText}</span>
         </div>

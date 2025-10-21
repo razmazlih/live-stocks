@@ -22,6 +22,7 @@ import {
   LineChart,
   CircleDollarSign,
   Plus,
+  Eye,
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
@@ -153,6 +154,13 @@ export default function HomePage() {
       label: t.realized.quickAction,
       href: '/realized',
       className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
+    },
+    {
+      key: 'watchlist',
+      icon: Eye,
+      label: t.watchlist.quickAction,
+      href: '/watchlist',
+      className: 'bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]',
     },
     {
       key: 'positions',
