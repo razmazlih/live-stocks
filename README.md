@@ -34,14 +34,17 @@ app/
   ├─ portfolio/             # סקירת התיק הכולל והיסטוריית PnL
   ├─ positions/, realized/  # דפי פירוט לפוזיציות פתוחות וסגורות
   ├─ settings/              # הגדרות משתמש: שפה, מטבע, טוקן Finnhub ועוד
+  ├─ watchlist/             # רשימת צפייה עם קבוצות, כרטיסי מניות וגרפים
   └─ api/                   # מסלולי API לנתונים חיים (quote, candles, exchange-rate, portfolio)
 components/
   ├─ dashboard/             # Hero, פעולות מהירות, מצבי ריק וגריד סיכומים
   ├─ portfolio/             # כרטיסי פוזיציה והדמיות תיק
   ├─ charts/                # גרפים משותפים (Sparkline, Portfolio Overview)
+  ├─ watchlist/             # רכיבי Watchlist (בחירת קבוצות, כרטיס מניה, טווחי זמן)
   └─ ui/                    # רכיבי בסיס (Button, Card, Table, Sonner וכו')
 hooks/
-  └─ use-portfolio-data.ts  # קריאת Supabase, הבאת נתונים חיצוניים וחישוב מדדים
+  ├─ use-portfolio-data.ts  # קריאת Supabase, הבאת נתונים חיצוניים וחישוב מדדים
+  └─ use-watchlist.ts       # ניהול קבוצות רשימת צפייה ומניות דרך Supabase
 lib/
   ├─ http.ts                # עטיפת fetch עם מנגנון retry/backoff אחיד
   ├─ services/              # שירותי נתונים חיצוניים (Finnhub, שערי מטבע)
@@ -53,6 +56,7 @@ lib/
   ├─ calculations.ts        # פונקציות חישוב לרווח/הפסד, מדדים מצטברים, גרפים
   ├─ context.tsx            # AppProvider: שפה, הגדרות, טריגר רענון
   ├─ positions.ts           # מיפוי תוצאות Supabase ל-Position + lots
+  ├─ watchlist.ts           # מיפוי רשימות מעקב ופריטי מניה מ-Supabase ל-Typescript
   ├─ supabase.ts            # יצירת לקוח Supabase בדפדפן
   └─ translations.ts        # מילון דו-לשוני (עברית/אנגלית)
 supabase/
@@ -74,6 +78,7 @@ supabase/
 - **Positions / Realized**: פירוט מלא של פוזיציות פעילות ולוגים היסטוריים עם פילוחים לפי lots. 【F:app/positions/page.tsx†L1-L160】【F:app/realized/page.tsx†L1-L160】
 - **Settings (`/settings`)**: שליטה בשפה, מטבע יעד, קצב רענון, טוקן Finnhub ואיפוס נתונים מקומיים. 【F:app/settings/page.tsx†L1-L180】
 - **Stock (`/stock/[symbol]`)**: דף מניה בודדת עם היסטוריית מחירים, תחזיות וניתוח משלים. 【F:app/stock/[symbol]/page.tsx†L1-L200】
+- **Watchlist (`/watchlist`)**: ניהול קבוצות רשימת צפייה, הוספה/עריכה של מניות וגרפים רספונסיביים לפי טווחי זמן. 【F:app/watchlist/page.tsx†L1-L360】
 
 ## שכבת ה-API
 - `GET /api/quote` – מחזיר מחיר חי ושינוי יומי מממשק Finnhub עם מנגנון retry. 【F:app/api/quote/route.ts†L1-L80】
@@ -89,6 +94,8 @@ supabase/
   - `positions`: נתוני בסיס לכל מניה בתיק (סמל, מחיר כניסה, כמות, תאריך וכו'). 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L5-L44】
   - `position_lots`: תיעוד קניות/מכירות חלקיות, עם טריגר לסנכרון `updated_at`. 【F:supabase/migrations/20241015100000_add_position_lots.sql†L1-L33】
   - `settings`: תצורה גלובלית (קצב צמיחה, מטבע, טוקן Finnhub). 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L46-L74】
+  - `watchlist_groups`: קבוצות רשימת צפייה עם שם, תיאור ומועדי יצירה/עדכון. 【F:supabase/migrations/20241020110000_create_watchlist_tables.sql†L1-L36】
+  - `watchlist_tickers`: פריטי רשימת צפייה לכל קבוצה (סימול, שם תצוגה, הערות, סדר הצגה). 【F:supabase/migrations/20241020110000_create_watchlist_tables.sql†L38-L74】
 - **מדיניות RLS**: כל הטבלאות פתוחות לקריאה/כתיבה לצרכי סביבה מקומית, עם טריגרים לעדכון `updated_at`. 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L18-L80】【F:supabase/migrations/20241015100000_add_position_lots.sql†L17-L36】
 - **תצורה מקומית**: הפורטים והשרותים (API, DB, Studio, Realtime) מוגדרים ב-`supabase/config.toml`, כולל הפעלת זרעים ואימות מקומי. 【F:supabase/config.toml†L1-L160】
 
@@ -152,6 +159,7 @@ supabase/
 - `npm run start` – הרצת הבילד שנוצר.
 - `npm run lint` – בדיקת תקינות ESLint.
 - `npm run typecheck` – בדיקות TypeScript ללא פליטה. 【F:package.json†L1-L48】
+- `npm test` – הרצת בדיקות יחידה וקומפוננטה עם Vitest. 【F:package.json†L1-L52】
 
 ## עקרונות עיצוב ופיתוח
 - **RTL ו-LTR**: שינוי שפה מעדכן את כיוון המסמך, שומר במקומי ומחיל תרגומים דינמיים. 【F:lib/context.tsx†L29-L44】
@@ -162,6 +170,7 @@ supabase/
 
 ## בדיקות וצעדי וידוא
 - הרצת `npm run lint` ו-`npm run typecheck` לפני PR.
+- הרצת `npm test` כדי לוודא שרכיבי ה-Watchlist וה-utilים החדשים עוברים בדיקות יחידה.
 - בדיקת ניווט בין מסכים בשתי שפות, כולל מצבי RTL.
 - אימות שה-API החיצוניים מגיבים כמצופה (כולל תרחישי כשל והודעות שגיאה למשתמש).
 - ווידוא שהמיגרציות והזרעים של Supabase נטענים בהצלחה אחרי `supabase db reset`.

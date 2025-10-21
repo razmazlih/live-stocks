@@ -72,6 +72,64 @@ export type Database = {
           updated_at?: string;
         };
       };
+      watchlist_groups: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      watchlist_tickers: {
+        Row: {
+          id: string;
+          group_id: string;
+          symbol: string;
+          display: string | null;
+          image_url: string | null;
+          note: string | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          symbol: string;
+          display?: string | null;
+          image_url?: string | null;
+          note?: string | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          symbol?: string;
+          display?: string | null;
+          image_url?: string | null;
+          note?: string | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
