@@ -423,6 +423,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
+  const priceDomain = useMemo<[number, number]>(() => {
+    if (chartData.length === 0) {
+      return [0, 0];
+    }
+
+    const prices = chartData.map((point) => point.close ?? 0);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    if (minPrice === maxPrice) {
+      const buffer = Math.max(Math.abs(minPrice) * 0.01, 1);
+      return [minPrice - buffer, maxPrice + buffer];
+    }
+
+    return [minPrice, maxPrice];
+  }, [chartData]);
+
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
 
@@ -746,29 +763,55 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     {t.stock.historyUnavailable}
                   </div>
                 ) : (
-                  <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
+                  <div
+                    className={cn(
+                      'relative w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white via-slate-50 to-sky-50 p-4 shadow-sm backdrop-blur'
+                    )}
+                    style={{ height: showVolume ? 360 : 300 }}
+                  >
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                      <ComposedChart data={chartData} margin={{ top: 16, right: 24, bottom: 24, left: 0 }}>
                         <defs>
                           <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#1D4ED8" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#1D4ED8" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(148, 163, 184, 0.55)" />
+                            <stop offset="100%" stopColor="rgba(148, 163, 184, 0.15)" />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
+                        <CartesianGrid stroke="rgba(148, 163, 184, 0.18)" strokeDasharray="4 6" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           tickLine={false}
                           axisLine={false}
+                          tickMargin={12}
+                          tick={{ fill: '#475569', fontSize: 12, fontWeight: 500 }}
                           tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
                         />
                         <YAxis
                           yAxisId="price"
                           tickLine={false}
                           axisLine={false}
+                          width={80}
+                          tickMargin={12}
+                          domain={priceDomain}
+                          tick={{ fill: '#475569', fontSize: 12, fontWeight: 500 }}
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
+                          cursor={{ stroke: 'rgba(37, 99, 235, 0.25)', strokeWidth: 2 }}
+                          contentStyle={{
+                            borderRadius: 12,
+                            border: '1px solid rgba(148, 163, 184, 0.18)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                            color: '#F8FAFC',
+                            boxShadow: '0 12px 32px rgba(15, 23, 42, 0.25)',
+                            backdropFilter: 'blur(6px)',
+                          }}
+                          labelStyle={{ color: '#E2E8F0', fontWeight: 600 }}
+                          itemStyle={{ color: '#F8FAFC', fontWeight: 500 }}
                           formatter={(value, name) => {
                             if (name === 'volume') {
                               return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
@@ -793,21 +836,25 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             yAxisId="volume"
                             dataKey="volume"
                             name={t.stock.detailView.tooltip.volume}
-                            barSize={14}
-                            fill="rgba(148, 163, 184, 0.35)"
+                            barSize={16}
+                            radius={[6, 6, 0, 0]}
+                            fill="url(#volumeGradient)"
                           />
                         )}
                         <Area
                           type="monotone"
                           dataKey="close"
                           yAxisId="price"
-                          stroke="#2563EB"
-                          strokeWidth={2.5}
+                          stroke="#1D4ED8"
+                          strokeWidth={2.75}
+                          strokeLinecap="round"
                           fill="url(#priceGradient)"
+                          activeDot={{ r: 5, strokeWidth: 0, fill: '#1D4ED8' }}
                           name={t.stock.detailView.chartPriceLabel}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]" />
                   </div>
                 )}
                 <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
