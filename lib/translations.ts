@@ -217,6 +217,30 @@ export const translations = {
     watchlist: {
       title: 'רשימת מעקב',
       subtitle: 'קבץ מניות לקבוצות, נתח מגמות ונהל את הנתונים בזמן אמת.',
+      quickAction: 'רשימת מעקב',
+      actionPanelTitle: 'ניהול רשימת המעקב',
+      hero: {
+        totalGroups: (count: number) => {
+          if (count === 0) {
+            return 'אין קבוצות מעקב';
+          }
+          if (count === 1) {
+            return 'קבוצת מעקב אחת';
+          }
+          return `${count} קבוצות מעקב`;
+        },
+        totalTickers: (count: number) => {
+          if (count === 0) {
+            return 'אין מניות במעקב';
+          }
+          if (count === 1) {
+            return 'מניה אחת במעקב';
+          }
+          return `${count} מניות במעקב`;
+        },
+        activeGroup: (name: string) => `קבוצה נבחרת: ${name}`,
+        noActiveGroup: 'לא נבחרה קבוצה',
+      },
       actions: {
         refreshAll: 'רענן הכל',
         newGroup: 'קבוצה חדשה',
@@ -627,6 +651,30 @@ export const translations = {
     watchlist: {
       title: 'Watchlist',
       subtitle: 'Group tickers into focused lists, compare performance, and react to movements instantly.',
+      quickAction: 'Watchlist',
+      actionPanelTitle: 'Watchlist actions',
+      hero: {
+        totalGroups: (count: number) => {
+          if (count === 0) {
+            return 'No watchlist groups yet';
+          }
+          if (count === 1) {
+            return '1 group tracked';
+          }
+          return `${count} groups tracked`;
+        },
+        totalTickers: (count: number) => {
+          if (count === 0) {
+            return 'No tickers tracked';
+          }
+          if (count === 1) {
+            return '1 ticker tracked';
+          }
+          return `${count} tickers tracked`;
+        },
+        activeGroup: (name: string) => `Selected group: ${name}`,
+        noActiveGroup: 'No group selected',
+      },
       actions: {
         refreshAll: 'Refresh all',
         newGroup: 'New group',
