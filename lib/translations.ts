@@ -283,8 +283,14 @@ export const translations = {
       },
       labels: {
         price: 'מחיר נוכחי',
-        change: 'שינוי יומי',
+        change: 'שינוי מצטבר',
+        changeSince: (date: string) => `שינוי מאז ${date}`,
         note: 'הערות',
+        startDate: 'תאריך התחלה',
+        startDatePlaceholder: 'בחר תאריך',
+        startDateReset: 'איפוס תאריך',
+        activeStart: (date: string) => `מציג נתונים מאז ${date}`,
+        customRangeActive: 'טווח מותאם',
       },
       status: {
         errorTitle: 'תקלה ברשימת המעקב',
@@ -701,7 +707,13 @@ export const translations = {
       labels: {
         price: 'Price',
         change: 'Change',
+        changeSince: (date: string) => `Change since ${date}`,
         note: 'Notes',
+        startDate: 'Starting from',
+        startDatePlaceholder: 'Pick a date',
+        startDateReset: 'Reset date',
+        activeStart: (date: string) => `Data since ${date}`,
+        customRangeActive: 'Custom date',
       },
       status: {
         errorTitle: 'Watchlist error',

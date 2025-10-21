@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
+import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
@@ -25,7 +27,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { mapCandleDataToPoints } from '@/lib/calculations';
+import { formatDate, mapCandleDataToPoints } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import type {
@@ -57,6 +59,7 @@ interface TickerState {
   quote: StockQuote | null;
   historical: HistoricalPoint[];
   range: TimeRange;
+  startDateKey: number | null;
   lastUpdated: number | null;
 }
 
@@ -68,32 +71,165 @@ function createEmptyTickerForm(): TickerFormState {
   return { id: null, symbol: '', display: '', imageUrl: '', note: '' };
 }
 
-function getRangeParams(range: TimeRange): { from: number; resolution: string } {
+function getDefaultStartDate(range: TimeRange): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const day = 24 * 60 * 60 * 1000;
+
+  switch (range) {
+    case '1D': {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 2);
+      return start;
+    }
+    case '1W': {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 7);
+      return start;
+    }
+    case '1M': {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 30);
+      return start;
+    }
+    case '3M': {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 90);
+      return start;
+    }
+    case '6M': {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 180);
+      return start;
+    }
+    case 'YTD':
+      return new Date(new Date().getFullYear(), 0, 1);
+    case '1Y': {
+      const start = new Date(now);
+      start.setFullYear(start.getFullYear() - 1);
+      return start;
+    }
+    case 'All': {
+      const start = new Date(now);
+      start.setFullYear(start.getFullYear() - 5);
+      return start;
+    }
+    default: {
+      const start = new Date(now);
+      start.setTime(start.getTime() - day * 90);
+      return start;
+    }
+  }
+}
+
+function normalizeDateKey(date?: Date | null): number | null {
+  if (!date) {
+    return null;
+  }
+
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+
+  const timestamp = normalized.getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function clampStartDate(date: Date): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  const timestamp = normalized.getTime();
+
+  if (Number.isNaN(timestamp)) {
+    const fallback = new Date(now);
+    fallback.setDate(fallback.getDate() - 1);
+    return fallback;
+  }
+
+  if (timestamp > now.getTime()) {
+    return new Date(now);
+  }
+
+  return normalized;
+}
+
+function getRangeParams(range: TimeRange, startDate?: Date | null): { from: number; resolution: string } {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const day = 24 * 60 * 60;
 
-  switch (range) {
-    case '1D':
-      return { from: nowSeconds - day * 2, resolution: '60' };
-    case '1W':
-      return { from: nowSeconds - day * 7, resolution: '60' };
-    case '1M':
-      return { from: nowSeconds - day * 30, resolution: 'D' };
-    case '3M':
-      return { from: nowSeconds - day * 90, resolution: 'D' };
-    case '6M':
-      return { from: nowSeconds - day * 180, resolution: 'D' };
-    case 'YTD': {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      return { from: Math.floor(startOfYear.getTime() / 1000), resolution: 'D' };
+  let fromSeconds: number;
+
+  if (startDate) {
+    const clamped = clampStartDate(startDate);
+    const startMillis = clamped.getTime();
+    fromSeconds = Math.floor(startMillis / 1000);
+
+    const minimumWindowSeconds = 60 * 60;
+    if (nowSeconds - fromSeconds < minimumWindowSeconds) {
+      fromSeconds = nowSeconds - minimumWindowSeconds;
     }
-    case '1Y':
-      return { from: nowSeconds - day * 365, resolution: 'D' };
-    case 'All':
-      return { from: nowSeconds - day * 365 * 5, resolution: 'W' };
-    default:
-      return { from: nowSeconds - day * 90, resolution: 'D' };
+  } else {
+    switch (range) {
+      case '1D':
+        fromSeconds = nowSeconds - day * 2;
+        break;
+      case '1W':
+        fromSeconds = nowSeconds - day * 7;
+        break;
+      case '1M':
+        fromSeconds = nowSeconds - day * 30;
+        break;
+      case '3M':
+        fromSeconds = nowSeconds - day * 90;
+        break;
+      case '6M':
+        fromSeconds = nowSeconds - day * 180;
+        break;
+      case 'YTD': {
+        const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+        fromSeconds = Math.floor(startOfYear.getTime() / 1000);
+        break;
+      }
+      case '1Y':
+        fromSeconds = nowSeconds - day * 365;
+        break;
+      case 'All':
+        fromSeconds = nowSeconds - day * 365 * 5;
+        break;
+      default:
+        fromSeconds = nowSeconds - day * 90;
+        break;
+    }
   }
+
+  const spanSeconds = Math.max(nowSeconds - fromSeconds, day);
+  const spanDays = spanSeconds / day;
+
+  let resolution: string;
+
+  if (!startDate) {
+    switch (range) {
+      case '1D':
+      case '1W':
+        resolution = '60';
+        break;
+      case 'All':
+        resolution = 'W';
+        break;
+      default:
+        resolution = 'D';
+        break;
+    }
+  } else if (spanDays <= 10) {
+    resolution = '60';
+  } else if (spanDays <= 730) {
+    resolution = 'D';
+  } else {
+    resolution = 'W';
+  }
+
+  return { from: fromSeconds, resolution };
 }
 
 function getTickerKey(ticker: WatchlistTickerType): string {
@@ -123,6 +259,8 @@ export default function WatchlistPage() {
   } = useWatchlist();
 
   const [range, setRange] = useState<TimeRange>('1M');
+  const [startDate, setStartDate] = useState<Date>(() => clampStartDate(getDefaultStartDate('1M')));
+  const [isCustomStart, setIsCustomStart] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<GroupFormState>(createEmptyGroupForm);
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
@@ -134,6 +272,7 @@ export default function WatchlistPage() {
 
   const chartErrorMessage = t.watchlist.charts.error;
   const chartLoadingMessage = t.watchlist.charts.loading;
+  const normalizedStartDateKey = useMemo(() => normalizeDateKey(startDate), [startDate]);
 
   useEffect(() => {
     const validKeys = new Set(
@@ -154,14 +293,22 @@ export default function WatchlistPage() {
   const fetchTickerData = useCallback(
     async (
       ticker: WatchlistTickerType,
-      options?: { range?: TimeRange; force?: boolean }
+      options?: { range?: TimeRange; force?: boolean; startDate?: Date | null }
     ) => {
       const targetRange = options?.range ?? range;
+      const customStartDate = options?.startDate ?? startDate;
+      const startDateKey = normalizeDateKey(customStartDate);
       const key = getTickerKey(ticker);
 
       setTickerStates((prev) => {
         const existing = prev[key];
-        if (!options?.force && existing && existing.loading && existing.range === targetRange) {
+        if (
+          !options?.force &&
+          existing &&
+          existing.loading &&
+          existing.range === targetRange &&
+          existing.startDateKey === startDateKey
+        ) {
           return prev;
         }
 
@@ -173,6 +320,7 @@ export default function WatchlistPage() {
             loading: true,
             error: null,
             range: targetRange,
+            startDateKey,
             lastUpdated: existing?.lastUpdated ?? null,
           },
         };
@@ -181,7 +329,7 @@ export default function WatchlistPage() {
       try {
         const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
-        const { from, resolution } = getRangeParams(targetRange);
+        const { from, resolution } = getRangeParams(targetRange, customStartDate);
 
         const quoteParams = new URLSearchParams({ symbol });
         if (finnhubToken) {
@@ -240,6 +388,7 @@ export default function WatchlistPage() {
             loading: false,
             error: errorMessage,
             range: targetRange,
+            startDateKey,
             lastUpdated: Date.now(),
           },
         }));
@@ -253,12 +402,13 @@ export default function WatchlistPage() {
             loading: false,
             error: chartErrorMessage,
             range: targetRange,
+            startDateKey,
             lastUpdated: Date.now(),
           },
         }));
       }
     },
-    [chartErrorMessage, finnhubToken, range]
+    [chartErrorMessage, finnhubToken, range, startDate]
   );
 
   useEffect(() => {
@@ -269,13 +419,13 @@ export default function WatchlistPage() {
     selectedGroup.tickers.forEach((ticker) => {
       const key = getTickerKey(ticker);
       const state = tickerStates[key];
-      if (!state || state.range !== range) {
-        fetchTickerData(ticker, { range }).catch((error) => {
+      if (!state || state.range !== range || state.startDateKey !== normalizedStartDateKey) {
+        fetchTickerData(ticker, { range, startDate }).catch((error) => {
           console.error('Failed to load ticker data', error);
         });
       }
     });
-  }, [fetchTickerData, range, selectedGroup, tickerStates]);
+  }, [fetchTickerData, normalizedStartDateKey, range, selectedGroup, startDate, tickerStates]);
 
   const timeRangeLabels = useMemo(() => t.watchlist.timeRange, [t.watchlist.timeRange]);
 
@@ -384,7 +534,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerUpdated);
-          await fetchTickerData(updated, { force: true });
+          await fetchTickerData(updated, { force: true, startDate });
         } else {
           const created = await createTicker(selectedGroupId, {
             symbol: trimmedSymbol,
@@ -393,7 +543,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerCreated);
-          await fetchTickerData(created, { force: true });
+          await fetchTickerData(created, { force: true, startDate });
         }
 
         setTickerDialogOpen(false);
@@ -403,7 +553,19 @@ export default function WatchlistPage() {
         toast.error(t.watchlist.notifications.error);
       }
     },
-    [createTicker, fetchTickerData, selectedGroupId, t.watchlist.notifications.error, t.watchlist.notifications.tickerCreated, t.watchlist.notifications.tickerUpdated, t.watchlist.tickers.errors.groupRequired, t.watchlist.tickers.errors.symbolRequired, tickerForm, updateTicker]
+    [
+      createTicker,
+      fetchTickerData,
+      selectedGroupId,
+      startDate,
+      t.watchlist.notifications.error,
+      t.watchlist.notifications.tickerCreated,
+      t.watchlist.notifications.tickerUpdated,
+      t.watchlist.tickers.errors.groupRequired,
+      t.watchlist.tickers.errors.symbolRequired,
+      tickerForm,
+      updateTicker,
+    ]
   );
 
   const handleDeleteGroup = useCallback(
@@ -456,7 +618,9 @@ export default function WatchlistPage() {
     setRefreshingTickers(true);
     try {
       if (selectedGroup) {
-        await Promise.all(selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true })));
+        await Promise.all(
+          selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true, startDate }))
+        );
       }
       await refresh();
       toast.success(t.watchlist.notifications.refreshed);
@@ -466,7 +630,15 @@ export default function WatchlistPage() {
     } finally {
       setRefreshingTickers(false);
     }
-  }, [fetchTickerData, refresh, refreshingTickers, selectedGroup, t.watchlist.notifications.error, t.watchlist.notifications.refreshed]);
+  }, [
+    fetchTickerData,
+    refresh,
+    refreshingTickers,
+    selectedGroup,
+    startDate,
+    t.watchlist.notifications.error,
+    t.watchlist.notifications.refreshed,
+  ]);
 
   const handleSelectGroup = useCallback(
     (groupId: string) => {
@@ -474,6 +646,26 @@ export default function WatchlistPage() {
     },
     [selectGroup]
   );
+
+  const handleRangeChange = useCallback((nextRange: TimeRange) => {
+    setRange(nextRange);
+    setStartDate(clampStartDate(getDefaultStartDate(nextRange)));
+    setIsCustomStart(false);
+  }, []);
+
+  const handleStartDateChange = useCallback((date?: Date) => {
+    if (!date) {
+      return;
+    }
+
+    setStartDate(clampStartDate(date));
+    setIsCustomStart(true);
+  }, []);
+
+  const handleResetStartDate = useCallback(() => {
+    setStartDate(clampStartDate(getDefaultStartDate(range)));
+    setIsCustomStart(false);
+  }, [range]);
 
   const tickerList = selectedGroup?.tickers ?? [];
 
@@ -504,6 +696,23 @@ export default function WatchlistPage() {
       iconClassName: 'text-blue-500/80',
     },
   ] as const;
+
+  const formattedStartDate = useMemo(() => formatDate(startDate, locale), [startDate, locale]);
+  const changeLabelText = useMemo(() => {
+    if (formattedStartDate) {
+      return t.watchlist.labels.changeSince(formattedStartDate);
+    }
+    return t.watchlist.labels.change;
+  }, [formattedStartDate, t.watchlist.labels]);
+  const activeStartLabel = useMemo(() => {
+    if (!formattedStartDate) {
+      return null;
+    }
+    return t.watchlist.labels.activeStart(formattedStartDate);
+  }, [formattedStartDate, t.watchlist.labels]);
+  const startDateButtonLabel = formattedStartDate ?? t.watchlist.labels.startDatePlaceholder;
+  const startDateResetLabel = t.watchlist.labels.startDateReset;
+  const startDateLabel = t.watchlist.labels.startDate;
 
   const quickActions: DashboardQuickAction[] = useMemo(() => {
     const baseActions = createCommonQuickActions(t, {
@@ -658,14 +867,69 @@ export default function WatchlistPage() {
                         <p className="text-xs font-medium text-slate-400">
                           {renderTickerCount(selectedGroup)}
                         </p>
+                        {activeStartLabel ? (
+                          <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                            <CalendarDays className="h-4 w-4 text-blue-500/80" />
+                            <span>{activeStartLabel}</span>
+                            {isCustomStart ? (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                {t.watchlist.labels.customRangeActive}
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
                         <TimeRangeTabs
                           value={range}
-                          onChange={setRange}
+                          onChange={handleRangeChange}
                           labels={timeRangeLabels}
                           className="min-w-[220px] lg:min-w-[260px]"
                         />
+                        <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-3 py-1.5 text-xs shadow-sm">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                            {startDateLabel}
+                          </span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                  'h-8 gap-2 rounded-full border bg-white px-3 text-xs font-medium shadow-sm transition-colors',
+                                  isCustomStart
+                                    ? 'border-blue-500/70 text-blue-600 hover:bg-blue-50'
+                                    : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                                )}
+                              >
+                                <CalendarDays className="h-4 w-4 text-blue-500" />
+                                <span>{startDateButtonLabel}</span>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-auto rounded-2xl border border-slate-200/60 bg-white p-3 shadow-xl" sideOffset={8}>
+                              <Calendar
+                                mode="single"
+                                selected={startDate}
+                                onSelect={handleStartDateChange}
+                                toDate={new Date()}
+                                captionLayout="dropdown"
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleResetStartDate}
+                            disabled={!isCustomStart}
+                            className="h-8 w-8 rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="sr-only">{startDateResetLabel}</span>
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           onClick={openCreateTickerDialog}
@@ -694,9 +958,9 @@ export default function WatchlistPage() {
                             error={state?.error}
                             onEdit={openEditTickerDialog}
                             onDelete={handleDeleteTicker}
-                            onRefresh={(item) => fetchTickerData(item, { force: true })}
+                            onRefresh={(item) => fetchTickerData(item, { force: true, startDate })}
                             priceLabel={t.watchlist.labels.price}
-                            changeLabel={t.watchlist.labels.change}
+                            changeLabel={changeLabelText}
                             noteLabel={t.watchlist.labels.note}
                             emptySeriesLabel={t.watchlist.charts.empty}
                             errorLabel={t.watchlist.charts.error}
@@ -704,7 +968,7 @@ export default function WatchlistPage() {
                             refreshLabel={t.watchlist.actions.refreshTicker}
                             editLabel={t.watchlist.actions.editTicker}
                             deleteLabel={t.watchlist.actions.deleteTicker}
-                            className="border-white/60 bg-white/90 shadow-lg backdrop-blur-sm"
+                            className="border-transparent bg-gradient-to-br from-white/95 via-white/80 to-white/70 shadow-xl ring-1 ring-slate-200/70 backdrop-blur-sm"
                           />
                         );
                       })}

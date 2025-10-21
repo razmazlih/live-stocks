@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
@@ -79,28 +79,85 @@ export function TickerCard({
     return '--';
   }, [currency, historical, locale, quote]);
 
-  const changeText = useMemo(() => {
-    if (!quote) {
-      return '--';
+  const formatSignedCurrency = useCallback(
+    (value: number) => {
+      const formatted = formatCurrency(Math.abs(value), currency, locale);
+      if (value > 0) {
+        return `+${formatted}`;
+      }
+      if (value < 0) {
+        return `-${formatted}`;
+      }
+      return formatted;
+    },
+    [currency, locale]
+  );
+
+  const formatSignedPercent = useCallback(
+    (value: number) => {
+      const formatted = formatPercent(Math.abs(value), locale);
+      if (value > 0) {
+        return `+${formatted}`;
+      }
+      if (value < 0) {
+        return `-${formatted}`;
+      }
+      return formatted;
+    },
+    [locale]
+  );
+
+  const { changeText, changeTone } = useMemo(() => {
+    if (historical && historical.length > 1) {
+      const firstPoint = historical.find((point) => typeof point.close === 'number');
+      const lastPoint = [...historical]
+        .reverse()
+        .find((point) => typeof point.close === 'number');
+
+      if (firstPoint?.close !== undefined && lastPoint?.close !== undefined) {
+        const absoluteChange = lastPoint.close - firstPoint.close;
+        const percentChange = firstPoint.close !== 0 ? (absoluteChange / firstPoint.close) * 100 : null;
+
+        const formattedAbsolute = formatSignedCurrency(absoluteChange);
+        const formattedPercent =
+          percentChange !== null && Number.isFinite(percentChange)
+            ? formatSignedPercent(percentChange)
+            : null;
+
+        const parts = [formattedAbsolute, formattedPercent].filter((part): part is string => Boolean(part));
+
+        return {
+          changeText: parts.length ? parts.join(' · ') : formattedAbsolute,
+          changeTone: resolveTone(absoluteChange),
+        };
+      }
     }
 
-    const { d: absoluteChange, dp: percentChange } = quote;
-    const parts: string[] = [];
+    if (quote) {
+      const { d: absoluteChange, dp: percentChange } = quote;
+      const parts: string[] = [];
 
-    if (typeof absoluteChange === 'number' && Number.isFinite(absoluteChange)) {
-      const formatted = formatCurrency(absoluteChange, currency, locale);
-      parts.push(absoluteChange > 0 ? `+${formatted}` : formatted);
+      if (typeof absoluteChange === 'number' && Number.isFinite(absoluteChange)) {
+        parts.push(formatSignedCurrency(absoluteChange));
+      }
+
+      if (typeof percentChange === 'number' && Number.isFinite(percentChange)) {
+        parts.push(formatSignedPercent(percentChange));
+      }
+
+      return {
+        changeText: parts.length ? parts.join(' · ') : '--',
+        changeTone: resolveTone(absoluteChange ?? percentChange ?? null),
+      };
     }
 
-    if (typeof percentChange === 'number' && Number.isFinite(percentChange)) {
-      const formattedPercent = formatPercent(percentChange, locale);
-      parts.push(percentChange > 0 ? `+${formattedPercent}` : formattedPercent);
-    }
+    return { changeText: '--', changeTone: resolveTone(null) };
+  }, [formatSignedCurrency, formatSignedPercent, historical, quote]);
 
-    return parts.length ? parts.join(' · ') : '--';
-  }, [currency, locale, quote]);
-
-  const changeTone = useMemo(() => resolveTone(quote?.d ?? quote?.dp), [quote?.d, quote?.dp]);
+  const formatValueForChart = useCallback(
+    (value: number) => formatCurrency(value, currency, locale),
+    [currency, locale]
+  );
 
   const trendColor = useMemo(() => {
     if (!historical || historical.length < 2) {
@@ -119,7 +176,12 @@ export function TickerCard({
   }, [historical]);
 
   return (
-    <Card className={cn('flex h-full flex-col border-slate-200 dark:border-slate-800', className)}>
+    <Card
+      className={cn(
+        'group flex h-full flex-col overflow-hidden border-slate-200 transition-transform duration-200 ease-out hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800',
+        className
+      )}
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
         <div className="min-w-0">
           <div className="flex items-baseline gap-2">
@@ -187,7 +249,14 @@ export function TickerCard({
               {error || errorLabel}
             </div>
           ) : historical && historical.length > 1 ? (
-            <Sparkline points={historical} color={trendColor} className="h-full w-full" />
+            <Sparkline
+              points={historical}
+              color={trendColor}
+              className="h-full w-full"
+              showPriceScale
+              locale={locale}
+              formatValue={formatValueForChart}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
               {emptySeriesLabel}

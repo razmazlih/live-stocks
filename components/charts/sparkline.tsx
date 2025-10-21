@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import { HistoricalPoint, PositionLotType } from '@/types';
+import type { HistoricalPoint, Locale, PositionLotType } from '@/types';
 
 export interface SparklineEvent {
   id: string;
@@ -31,6 +31,9 @@ interface SparklineProps {
   yearsHeld?: number;
   events?: SparklineEvent[];
   className?: string;
+  showPriceScale?: boolean;
+  locale?: Locale;
+  formatValue?: (value: number) => string;
 }
 
 type SparklineSegment = {
@@ -66,7 +69,10 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
-  className = ''
+  className = '',
+  showPriceScale = false,
+  locale = 'he',
+  formatValue: formatValueProp,
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
@@ -75,15 +81,17 @@ export function Sparkline({
   const strokeGradientId = `${gradientId}-stroke`;
   const glowId = `${gradientId}-glow`;
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const chartAreaRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<NormalizedPoint | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const element = containerRef.current;
+    const element = chartAreaRef.current;
 
     if (!element) {
       return;
@@ -118,9 +126,11 @@ export function Sparkline({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [showPriceScale]);
 
-  const effectiveWidth = Math.max(1, measuredWidth ?? width);
+  const PRICE_SCALE_WIDTH = 72;
+  const fallbackWidth = showPriceScale ? width - PRICE_SCALE_WIDTH : width;
+  const effectiveWidth = Math.max(1, measuredWidth ?? fallbackWidth);
 
   const normalized = useMemo(() => {
     if (!points || points.length < 2) {
@@ -232,7 +242,16 @@ export function Sparkline({
       .filter((event): event is NormalizedEvent => event !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    return { points: normalizedPoints, closes, baselineY, projectedY, projectionPoints, events: normalizedEvents };
+    return {
+      points: normalizedPoints,
+      closes,
+      baselineY,
+      projectedY,
+      projectionPoints,
+      events: normalizedEvents,
+      min,
+      max,
+    };
   }, [
     points,
     baseline,
@@ -384,10 +403,43 @@ export function Sparkline({
     setHoveredEventId(null);
   };
 
+  const numberFormatter = useMemo(() => {
+    return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, [locale]);
+
+  const formatValue = useMemo(() => {
+    if (typeof formatValueProp === 'function') {
+      return (value: number) => formatValueProp(value);
+    }
+
+    return (value: number) => numberFormatter.format(value);
+  }, [formatValueProp, numberFormatter]);
+
+  const hoverFormatter = useMemo(() => {
+    return new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : 'en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }, [locale]);
+
+  const priceScaleWidth = showPriceScale ? PRICE_SCALE_WIDTH : 0;
+
+  const handlePointerLeave = () => {
+    setHoverPoint(null);
+    handleWrapperLeave();
+  };
+
+  useEffect(() => {
+    setHoverPoint(null);
+  }, [points]);
+
   if (!normalized) {
     return (
       <div
-        ref={containerRef}
+        ref={wrapperRef}
         className={`relative ${className}`}
         style={{ width: '100%', height }}
         onPointerLeave={handleWrapperLeave}
@@ -397,7 +449,15 @@ export function Sparkline({
     );
   }
 
-  const { points: normalizedPoints, baselineY, projectedY, projectionPoints, events: normalizedEvents } = normalized;
+  const {
+    points: normalizedPoints,
+    baselineY,
+    projectedY,
+    projectionPoints,
+    events: normalizedEvents,
+    min,
+    max,
+  } = normalized;
   const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${effectiveWidth} ${height}`, 'Z'].join(' ');
   const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const lastPoint = normalizedPoints[normalizedPoints.length - 1];
@@ -416,26 +476,59 @@ export function Sparkline({
     setSelectedEventId(null);
   };
 
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!chartAreaRef.current || !normalizedPoints.length) {
+      return;
+    }
+
+    const rect = chartAreaRef.current.getBoundingClientRect();
+    const relativeX = event.clientX - rect.left;
+    const clampedX = Math.max(0, Math.min(relativeX, effectiveWidth));
+
+    let closestPoint = normalizedPoints[0];
+    let minDistance = Math.abs(clampedX - closestPoint.x);
+
+    for (let index = 1; index < normalizedPoints.length; index += 1) {
+      const point = normalizedPoints[index];
+      const distance = Math.abs(point.x - clampedX);
+      if (distance < minDistance) {
+        closestPoint = point;
+        minDistance = distance;
+      }
+    }
+
+    setHoverPoint(closestPoint);
+  };
+
   return (
     <div
-      ref={containerRef}
+      ref={wrapperRef}
       className={`relative ${className}`}
       style={{ width: '100%', height }}
       onClick={handleWrapperClick}
-      onPointerLeave={handleWrapperLeave}
-      onTouchCancel={handleWrapperLeave}
-      onTouchEnd={handleWrapperLeave}
+      onTouchCancel={handlePointerLeave}
+      onTouchEnd={handlePointerLeave}
       role="presentation"
     >
-      <svg
-        width={effectiveWidth}
-        height={height}
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${effectiveWidth} ${height}`}
-        role="img"
-        aria-hidden="true"
-        preserveAspectRatio="none"
+      <div
+        ref={chartAreaRef}
+        className="absolute inset-y-0 left-0"
+        style={{ right: priceScaleWidth }}
+        onPointerMove={handlePointerMove}
+        onPointerEnter={handlePointerMove}
+        onPointerDown={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        role="presentation"
       >
+        <svg
+          width={effectiveWidth}
+          height={height}
+          className="absolute inset-0 h-full w-full"
+          viewBox={`0 0 ${effectiveWidth} ${height}`}
+          role="img"
+          aria-hidden="true"
+          preserveAspectRatio="none"
+        >
         <defs>
           <linearGradient
             id={areaGradientId}
@@ -534,6 +627,30 @@ export function Sparkline({
           strokeWidth={1.2}
         />
 
+        {hoverPoint && (
+          <g pointerEvents="none">
+            <line
+              x1={hoverPoint.x}
+              y1={0}
+              x2={hoverPoint.x}
+              y2={height}
+              stroke="rgba(15, 23, 42, 0.2)"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            <line
+              x1={0}
+              y1={hoverPoint.y}
+              x2={effectiveWidth}
+              y2={hoverPoint.y}
+              stroke="rgba(15, 23, 42, 0.15)"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            <circle cx={hoverPoint.x} cy={hoverPoint.y} r={3.6} fill="#ffffff" stroke={color} strokeWidth={1.4} />
+          </g>
+        )}
+
         {normalizedEvents.map((event) => {
           const isActive = activeEventId === event.id;
           const tone = event.type === 'BUY'
@@ -576,19 +693,60 @@ export function Sparkline({
         })}
       </svg>
 
-      {activeEvent && (
+        {hoverPoint && (
           <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+            className="pointer-events-none absolute z-20 min-w-[140px] -translate-y-3 rounded-xl bg-slate-900/85 px-3 py-2 text-[11px] text-white shadow-lg ring-1 ring-black/10"
             style={{
-              left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
-              top: Math.max(activeEvent.y - 12, 12),
+              left: Math.min(Math.max(hoverPoint.x - 70, 8), Math.max(effectiveWidth - 140, 8)),
+              top: Math.max(hoverPoint.y - 40, 8),
             }}
+          >
+            <div className="font-semibold text-white/90">{hoverFormatter.format(new Date(hoverPoint.timestamp))}</div>
+            <div className="mt-1 text-sm font-semibold tracking-tight text-white">{formatValue(hoverPoint.close)}</div>
+          </div>
+        )}
+      </div>
+
+      {showPriceScale ? (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 flex h-full w-[72px] flex-col justify-between rounded-2xl border border-slate-200/70 bg-gradient-to-b from-white/90 via-white/70 to-white/60 px-3 py-3 text-[10px] font-medium text-slate-500 shadow-inner backdrop-blur"
+          aria-hidden="true"
+        >
+          <span className="text-right text-[11px] font-semibold text-slate-600">{formatValue(max)}</span>
+          <div className="relative flex flex-1 flex-col justify-center py-2">
+            <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+            <span className="mt-1 text-right text-[10px] text-slate-400">{formatValue((max + min) / 2)}</span>
+          </div>
+          <span className="text-right text-[11px] font-semibold text-slate-600">{formatValue(min)}</span>
+
+          {hoverPoint ? (
+            <div
+              className="pointer-events-none absolute inset-x-1 flex justify-end"
+              style={{
+                top: Math.min(Math.max(hoverPoint.y - 14, 6), height - 28),
+              }}
+            >
+              <span className="rounded-full bg-slate-900/90 px-2 py-1 text-[10px] font-semibold text-white shadow-md">
+                {formatValue(hoverPoint.close)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {activeEvent && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+          style={{
+            left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
+            top: Math.max(activeEvent.y - 12, 12),
+          }}
         >
           <div className="font-semibold text-slate-800">
             {activeEvent.typeLabel ?? activeEvent.type}
           </div>
           <div className="text-slate-500">
-            {new Date(activeEvent.timestamp).toLocaleDateString()}
+            {new Date(activeEvent.timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US')}
           </div>
           <div className="mt-1 text-slate-600">
             <span className="font-medium text-slate-800">{activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}</span>
