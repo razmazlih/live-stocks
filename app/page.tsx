@@ -21,6 +21,7 @@ import {
   Minus,
   LineChart,
   CircleDollarSign,
+  Eye,
   Plus,
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
@@ -146,6 +147,13 @@ export default function HomePage() {
       label: t.portfolio.quickAction,
       href: '/portfolio',
       className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+    },
+    {
+      key: 'watchlist',
+      icon: Eye,
+      label: t.watchlist.quickAction,
+      href: '/watchlist',
+      className: 'bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]',
     },
     {
       key: 'realized',

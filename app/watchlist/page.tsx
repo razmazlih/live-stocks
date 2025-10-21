@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Eye, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
@@ -274,6 +274,15 @@ export default function WatchlistPage() {
   }, [fetchTickerData, range, selectedGroup, tickerStates]);
 
   const timeRangeLabels = useMemo(() => t.watchlist.timeRange, [t.watchlist.timeRange]);
+  const totalGroups = groups.length;
+  const totalTickers = useMemo(
+    () => groups.reduce((acc, group) => acc + group.tickers.length, 0),
+    [groups]
+  );
+  const layoutDirectionClass = isRtl ? 'lg:flex-row-reverse' : 'lg:flex-row';
+  const headerLayoutDirectionClass = isRtl
+    ? 'lg:flex-row-reverse lg:items-center lg:justify-between'
+    : 'lg:flex-row lg:items-center lg:justify-between';
 
   const renderTickerCount = useCallback(
     (group: WatchlistGroupType) => t.watchlist.groups.count(group.tickers.length),
@@ -474,156 +483,195 @@ export default function WatchlistPage() {
   const tickerList = selectedGroup?.tickers ?? [];
 
   return (
-    <div className="flex min-h-screen flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-            {t.watchlist.title}
-          </h1>
-          <p className="max-w-2xl text-sm text-slate-500 dark:text-slate-400">{t.watchlist.subtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshAll}
-            disabled={loading || refreshingTickers}
-            className="gap-2"
-          >
-            <RefreshCw className={refreshingTickers ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-            {t.watchlist.actions.refreshAll}
-          </Button>
-          <Button
-            size="sm"
-            onClick={openCreateGroupDialog}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {t.watchlist.actions.newGroup}
-          </Button>
-        </div>
-      </div>
-
-      <div
-        className={`flex flex-1 flex-col gap-6 lg:gap-8 ${isRtl ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}
-      >
-        <div className="lg:w-80 lg:flex-none">
-          <WatchlistGroupSelector
-            groups={groups}
-            selectedGroupId={selectedGroupId}
-            onSelect={handleSelectGroup}
-            onCreate={openCreateGroupDialog}
-            onEdit={openEditGroupDialog}
-            onDelete={handleDeleteGroup}
-            isLoading={loading}
-            isRefreshing={refreshing}
-            title={t.watchlist.groups.title}
-            description={t.watchlist.groups.description}
-            addLabel={t.watchlist.actions.newGroup}
-            emptyStateText={t.watchlist.groups.empty}
-            loadingText={t.watchlist.groups.loading}
-            renderTickerCount={renderTickerCount}
-            editLabel={t.watchlist.actions.editGroup}
-            deleteLabel={t.watchlist.actions.deleteGroup}
-          />
-        </div>
-
-        <div className="flex flex-1 flex-col gap-6">
-          {watchlistError ? (
-            <Alert variant="destructive">
-              <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
-              <AlertDescription className="flex flex-wrap items-center gap-2">
-                <span>{t.watchlist.status.error}</span>
-                <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  {t.watchlist.actions.retry}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {selectedGroup ? (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      {selectedGroup.name}
-                    </h2>
-                    {selectedGroup.description ? (
-                      <p className="max-w-xl text-sm text-slate-500 dark:text-slate-400">
-                        {selectedGroup.description}
-                      </p>
-                    ) : null}
+    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+      <div className="relative">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-sky-100/50 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 right-0 h-60 w-60 rounded-full bg-indigo-100/40 blur-3xl" />
+            <div className="relative z-10 space-y-6">
+              <div className={`flex flex-col gap-6 ${headerLayoutDirectionClass}`}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/20 via-indigo-500/20 to-transparent text-sky-600 shadow-inner">
+                    <Eye className="h-8 w-8" />
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <TimeRangeTabs
-                      value={range}
-                      onChange={setRange}
-                      labels={timeRangeLabels}
-                      className="min-w-[220px]"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={openCreateTickerDialog}
-                      className="gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t.watchlist.actions.newTicker}
-                    </Button>
+                  <div>
+                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.watchlist.title}</h1>
+                    <p className="mt-2 max-w-2xl text-base text-slate-600">{t.watchlist.subtitle}</p>
                   </div>
                 </div>
-              </div>
-
-              {tickerList.length ? (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {tickerList.map((ticker) => {
-                    const state = tickerStates[getTickerKey(ticker)];
-                    return (
-                      <TickerCard
-                        key={ticker.id ?? ticker.symbol}
-                        ticker={ticker}
-                        quote={state?.quote}
-                        historical={state?.historical}
-                        range={range}
-                        locale={locale}
-                        loading={state?.loading}
-                        error={state?.error}
-                        onEdit={openEditTickerDialog}
-                        onDelete={handleDeleteTicker}
-                        onRefresh={(item) => fetchTickerData(item, { force: true })}
-                        priceLabel={t.watchlist.labels.price}
-                        changeLabel={t.watchlist.labels.change}
-                        noteLabel={t.watchlist.labels.note}
-                        emptySeriesLabel={t.watchlist.charts.empty}
-                        errorLabel={t.watchlist.charts.error}
-                        loadingLabel={chartLoadingMessage}
-                        refreshLabel={t.watchlist.actions.refreshTicker}
-                        editLabel={t.watchlist.actions.editTicker}
-                        deleteLabel={t.watchlist.actions.deleteTicker}
-                      />
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
-                  <p>{t.watchlist.status.noTickers}</p>
-                  <Button onClick={openCreateTickerDialog} className="gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshAll}
+                    disabled={loading || refreshingTickers}
+                    className="gap-2 bg-white/70 text-slate-700 shadow-sm hover:bg-white disabled:bg-white/50"
+                  >
+                    <RefreshCw className={refreshingTickers ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                    {t.watchlist.actions.refreshAll}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openCreateGroupDialog}
+                    className="gap-2 bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t.watchlist.actions.newGroup}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openCreateTickerDialog}
+                    disabled={!selectedGroupId}
+                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7] disabled:bg-slate-200 disabled:text-slate-500"
+                  >
                     <Plus className="h-4 w-4" />
                     {t.watchlist.actions.newTicker}
                   </Button>
                 </div>
-              )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full bg-sky-50/80 px-3 py-1 text-sky-600 shadow-sm">
+                  <span className="h-2 w-2 rounded-full bg-sky-400" />
+                  {t.watchlist.groups.title}: {totalGroups}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-slate-600 shadow-sm">
+                  <span className="h-2 w-2 rounded-full bg-indigo-400" />
+                  {t.watchlist.groups.count(totalTickers)}
+                </span>
+                {selectedGroup ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50/80 px-3 py-1 text-emerald-600 shadow-sm">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    {selectedGroup.name}
+                  </span>
+                ) : null}
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
-              <p>{t.watchlist.status.empty}</p>
-              <Button onClick={openCreateGroupDialog} className="gap-2">
-                <Plus className="h-4 w-4" />
-                {t.watchlist.actions.newGroup}
-              </Button>
+          </header>
+
+          <section className="relative mt-10 overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+            <div className="pointer-events-none absolute -right-24 top-0 h-64 w-64 rounded-full bg-indigo-100/40 blur-3xl" />
+            <div className="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-sky-100/40 blur-3xl" />
+            <div className={`relative z-10 flex flex-col gap-6 lg:gap-8 ${layoutDirectionClass}`}>
+              <div className="lg:w-[320px] lg:flex-none">
+                <WatchlistGroupSelector
+                  groups={groups}
+                  selectedGroupId={selectedGroupId}
+                  onSelect={handleSelectGroup}
+                  onCreate={openCreateGroupDialog}
+                  onEdit={openEditGroupDialog}
+                  onDelete={handleDeleteGroup}
+                  isLoading={loading}
+                  isRefreshing={refreshing}
+                  title={t.watchlist.groups.title}
+                  description={t.watchlist.groups.description}
+                  addLabel={t.watchlist.actions.newGroup}
+                  emptyStateText={t.watchlist.groups.empty}
+                  loadingText={t.watchlist.groups.loading}
+                  renderTickerCount={renderTickerCount}
+                  editLabel={t.watchlist.actions.editGroup}
+                  deleteLabel={t.watchlist.actions.deleteGroup}
+                  className="h-full overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-inner backdrop-blur-sm"
+                />
+              </div>
+
+              <div className="flex flex-1 flex-col gap-6">
+                {watchlistError ? (
+                  <Alert variant="destructive" className="border-rose-100 bg-rose-50/90 text-rose-700 shadow-inner">
+                    <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center gap-2">
+                      <span>{t.watchlist.status.error}</span>
+                      <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        {t.watchlist.actions.retry}
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {selectedGroup ? (
+                  <div className="space-y-6">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/90 p-6 shadow-inner">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-1">
+                          <h2 className="text-xl font-semibold text-slate-900">{selectedGroup.name}</h2>
+                          {selectedGroup.description ? (
+                            <p className="max-w-xl text-sm text-slate-500">{selectedGroup.description}</p>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <TimeRangeTabs
+                            value={range}
+                            onChange={setRange}
+                            labels={timeRangeLabels}
+                            className="min-w-[220px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {tickerList.length ? (
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {tickerList.map((ticker) => {
+                          const state = tickerStates[getTickerKey(ticker)];
+                          return (
+                            <TickerCard
+                              key={ticker.id ?? ticker.symbol}
+                              ticker={ticker}
+                              quote={state?.quote}
+                              historical={state?.historical}
+                              range={range}
+                              locale={locale}
+                              loading={state?.loading}
+                              error={state?.error}
+                              onEdit={openEditTickerDialog}
+                              onDelete={handleDeleteTicker}
+                              onRefresh={(item) => fetchTickerData(item, { force: true })}
+                              priceLabel={t.watchlist.labels.price}
+                              changeLabel={t.watchlist.labels.change}
+                              noteLabel={t.watchlist.labels.note}
+                              emptySeriesLabel={t.watchlist.charts.empty}
+                              errorLabel={t.watchlist.charts.error}
+                              loadingLabel={chartLoadingMessage}
+                              refreshLabel={t.watchlist.actions.refreshTicker}
+                              editLabel={t.watchlist.actions.editTicker}
+                              deleteLabel={t.watchlist.actions.deleteTicker}
+                              className="border-white/60 bg-white/90 shadow-inner backdrop-blur-sm"
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/70 bg-white/70 p-10 text-center text-sm text-slate-600 shadow-inner">
+                        <p>{t.watchlist.status.noTickers}</p>
+                        <Button
+                          onClick={openCreateTickerDialog}
+                          disabled={!selectedGroupId}
+                          className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8] disabled:bg-slate-200 disabled:text-slate-500"
+                        >
+                          <Plus className="h-4 w-4" />
+                          {t.watchlist.actions.newTicker}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/70 bg-white/70 p-12 text-center text-sm text-slate-600 shadow-inner">
+                    <p>{t.watchlist.status.empty}</p>
+                    <Button
+                      onClick={openCreateGroupDialog}
+                      className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {t.watchlist.actions.newGroup}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </section>
         </div>
       </div>
 
