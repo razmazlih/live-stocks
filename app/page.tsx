@@ -16,7 +16,6 @@ import type { DashboardQuickAction } from '@/components/dashboard/quick-actions'
 import {
   RefreshCw,
   Settings,
-  BarChart3,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
@@ -147,13 +146,6 @@ export default function HomePage() {
       label: t.portfolio.quickAction,
       href: '/portfolio',
       className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
-    },
-    {
-      key: 'analysis',
-      icon: BarChart3,
-      label: t.analysis.title,
-      href: '/analysis',
-      className: 'bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]',
     },
     {
       key: 'realized',
