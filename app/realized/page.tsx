@@ -11,6 +11,9 @@ import {
   Minus,
   Receipt,
   TrendingUp,
+  LineChart,
+  Plus,
+  Settings,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -19,6 +22,7 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
+import { QuickActionButton, QuickActionLink } from '@/components/quick-actions';
 
 export default function RealizedPnLPage() {
   const { locale } = useApp();
@@ -228,28 +232,33 @@ export default function RealizedPnLPage() {
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.realized.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <QuickActionButton
+                    icon={RefreshCw}
+                    label={t.common.refresh}
+                    theme="refresh"
                     onClick={reload}
-                    disabled={loading || refreshing}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
-                  </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
-                    <Link href="/">
-                      <Home className="h-4 w-4" />
-                      <span>{t.app.title}</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900">
-                    <Link href="/positions">
-                      <Receipt className="h-4 w-4" />
-                      <span>{t.realized.goToPositions}</span>
-                    </Link>
-                  </Button>
+                    loading={loading || refreshing}
+                    aria-label={t.common.refresh}
+                  />
+                  <QuickActionLink icon={Home} label={t.app.title} theme="home" href="/" />
+                  <QuickActionLink
+                    icon={LineChart}
+                    label={t.portfolio.quickAction}
+                    theme="portfolio"
+                    href="/portfolio"
+                  />
+                  <QuickActionLink
+                    icon={Plus}
+                    label={t.positions.add}
+                    theme="positions"
+                    href="/positions"
+                  />
+                  <QuickActionLink
+                    icon={Settings}
+                    label={t.settings.title}
+                    theme="settings"
+                    href="/settings"
+                  />
                 </div>
               </div>
             </div>

@@ -10,6 +10,8 @@ import {
   ArrowDownRight,
   Minus,
   CircleDollarSign,
+  Settings,
+  Plus,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -18,6 +20,7 @@ import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
+import { QuickActionButton, QuickActionLink } from '@/components/quick-actions';
 import { computeRealizedSales } from '@/lib/positions';
 
 export default function PortfolioPage() {
@@ -437,32 +440,33 @@ export default function PortfolioPage() {
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.portfolio.actions}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <QuickActionButton
+                    icon={RefreshCw}
+                    label={t.common.refresh}
+                    theme="refresh"
                     onClick={reload}
-                    disabled={loading || refreshing}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
-                  </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
-                    <Link href="/">
-                      <Home className="h-4 w-4" />
-                      <span>{t.app.title}</span>
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]"
-                  >
-                    <Link href="/realized">
-                      <CircleDollarSign className="h-4 w-4" />
-                      <span>{t.realized.quickAction}</span>
-                    </Link>
-                  </Button>
+                    loading={loading || refreshing}
+                    aria-label={t.common.refresh}
+                  />
+                  <QuickActionLink icon={Home} label={t.app.title} theme="home" href="/" />
+                  <QuickActionLink
+                    icon={CircleDollarSign}
+                    label={t.realized.quickAction}
+                    theme="realized"
+                    href="/realized"
+                  />
+                  <QuickActionLink
+                    icon={Plus}
+                    label={t.positions.add}
+                    theme="positions"
+                    href="/positions"
+                  />
+                  <QuickActionLink
+                    icon={Settings}
+                    label={t.settings.title}
+                    theme="settings"
+                    href="/settings"
+                  />
                 </div>
               </div>
             </div>
