@@ -10,6 +10,7 @@ import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
+import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -504,18 +505,25 @@ export default function WatchlistPage() {
     },
   ] as const;
 
-  const quickActions: DashboardQuickAction[] = useMemo(
-    () => [
-      {
-        key: 'refreshAll',
-        icon: RefreshCw,
-        label: t.watchlist.actions.refreshAll,
-        onClick: handleRefreshAll,
-        disabled: loading || refreshingTickers,
-        variant: 'outline',
-        iconClassName: refreshingTickers ? 'animate-spin' : undefined,
-        labelClassName: 'hidden sm:inline',
+  const quickActions: DashboardQuickAction[] = useMemo(() => {
+    const commonActions = createCommonQuickActions(t, {
+      exclude: ['watchlist'],
+      overrides: {
+        reload: {
+          onClick: handleRefreshAll,
+          disabled: loading || refreshingTickers,
+          iconClassName: refreshingTickers ? 'animate-spin' : undefined,
+          label: t.watchlist.actions.refreshAll,
+          ariaLabel: t.watchlist.actions.refreshAll,
+          labelClassName: 'hidden sm:inline',
+        },
       },
+    });
+
+    const reloadAction = commonActions.find((action) => action.key === 'reload');
+    const otherCommonActions = commonActions.filter((action) => action.key !== 'reload');
+
+    const watchlistActions: DashboardQuickAction[] = [
       {
         key: 'newGroup',
         icon: Plus,
@@ -531,17 +539,22 @@ export default function WatchlistPage() {
         variant: 'secondary',
         disabled: !selectedGroup,
       },
-    ],
-    [
-      t,
-      handleRefreshAll,
-      loading,
-      refreshingTickers,
-      openCreateGroupDialog,
-      openCreateTickerDialog,
-      selectedGroup,
-    ]
-  );
+    ];
+
+    return [
+      ...(reloadAction ? [reloadAction] : []),
+      ...watchlistActions,
+      ...otherCommonActions,
+    ];
+  }, [
+    t,
+    handleRefreshAll,
+    loading,
+    refreshingTickers,
+    openCreateGroupDialog,
+    openCreateTickerDialog,
+    selectedGroup,
+  ]);
 
   return (
     <div
