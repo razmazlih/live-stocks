@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { CircleDot, Eye, Folder, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
@@ -130,6 +130,12 @@ export default function WatchlistPage() {
 
   const chartErrorMessage = t.watchlist.charts.error;
   const chartLoadingMessage = t.watchlist.charts.loading;
+
+  const totalGroups = groups.length;
+  const totalTickers = useMemo(
+    () => groups.reduce((acc, group) => acc + group.tickers.length, 0),
+    [groups]
+  );
 
   useEffect(() => {
     const validKeys = new Set(
@@ -473,275 +479,343 @@ export default function WatchlistPage() {
 
   const tickerList = selectedGroup?.tickers ?? [];
 
+  const groupCountLabel = t.watchlist.summary.groupsCount(totalGroups);
+  const tickerCountLabel = t.watchlist.summary.tickersCount(totalTickers);
+  const activeGroupLabel = selectedGroup
+    ? t.watchlist.summary.activeGroup(
+        selectedGroup.name,
+        t.watchlist.groups.count(tickerList.length)
+      )
+    : t.watchlist.summary.noActiveGroup;
+
   return (
-    <div className="flex min-h-screen flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-            {t.watchlist.title}
-          </h1>
-          <p className="max-w-2xl text-sm text-slate-500 dark:text-slate-400">{t.watchlist.subtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshAll}
-            disabled={loading || refreshingTickers}
-            className="gap-2"
-          >
-            <RefreshCw className={refreshingTickers ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-            {t.watchlist.actions.refreshAll}
-          </Button>
-          <Button
-            size="sm"
-            onClick={openCreateGroupDialog}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {t.watchlist.actions.newGroup}
-          </Button>
-        </div>
-      </div>
-
-      <div
-        className={`flex flex-1 flex-col gap-6 lg:gap-8 ${isRtl ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}
-      >
-        <div className="lg:w-80 lg:flex-none">
-          <WatchlistGroupSelector
-            groups={groups}
-            selectedGroupId={selectedGroupId}
-            onSelect={handleSelectGroup}
-            onCreate={openCreateGroupDialog}
-            onEdit={openEditGroupDialog}
-            onDelete={handleDeleteGroup}
-            isLoading={loading}
-            isRefreshing={refreshing}
-            title={t.watchlist.groups.title}
-            description={t.watchlist.groups.description}
-            addLabel={t.watchlist.actions.newGroup}
-            emptyStateText={t.watchlist.groups.empty}
-            loadingText={t.watchlist.groups.loading}
-            renderTickerCount={renderTickerCount}
-            editLabel={t.watchlist.actions.editGroup}
-            deleteLabel={t.watchlist.actions.deleteGroup}
-          />
-        </div>
-
-        <div className="flex flex-1 flex-col gap-6">
-          {watchlistError ? (
-            <Alert variant="destructive">
-              <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
-              <AlertDescription className="flex flex-wrap items-center gap-2">
-                <span>{t.watchlist.status.error}</span>
-                <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  {t.watchlist.actions.retry}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {selectedGroup ? (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      {selectedGroup.name}
-                    </h2>
-                    {selectedGroup.description ? (
-                      <p className="max-w-xl text-sm text-slate-500 dark:text-slate-400">
-                        {selectedGroup.description}
-                      </p>
-                    ) : null}
+    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+      <div className="relative">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+            <div className="pointer-events-none absolute -right-14 top-0 h-48 w-48 rounded-full bg-blue-200/50 blur-3xl" />
+            <div className="pointer-events-none absolute -left-20 bottom-0 h-32 w-32 rounded-full bg-sky-100/40 blur-3xl" />
+            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-6">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+                    <Eye className="h-6 w-6" />
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <TimeRangeTabs
-                      value={range}
-                      onChange={setRange}
-                      labels={timeRangeLabels}
-                      className="min-w-[220px]"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={openCreateTickerDialog}
-                      className="gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t.watchlist.actions.newTicker}
-                    </Button>
+                  <div>
+                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.watchlist.title}</h1>
+                    <p className="mt-2 max-w-xl text-base text-slate-600">{t.watchlist.subtitle}</p>
                   </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
+                    <Folder className="h-4 w-4 text-blue-500" />
+                    {groupCountLabel}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    {tickerCountLabel}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
+                    <CircleDot className="h-4 w-4 text-emerald-500" />
+                    {activeGroupLabel}
+                  </span>
                 </div>
               </div>
-
-              {tickerList.length ? (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {tickerList.map((ticker) => {
-                    const state = tickerStates[getTickerKey(ticker)];
-                    return (
-                      <TickerCard
-                        key={ticker.id ?? ticker.symbol}
-                        ticker={ticker}
-                        quote={state?.quote}
-                        historical={state?.historical}
-                        range={range}
-                        locale={locale}
-                        loading={state?.loading}
-                        error={state?.error}
-                        onEdit={openEditTickerDialog}
-                        onDelete={handleDeleteTicker}
-                        onRefresh={(item) => fetchTickerData(item, { force: true })}
-                        priceLabel={t.watchlist.labels.price}
-                        changeLabel={t.watchlist.labels.change}
-                        noteLabel={t.watchlist.labels.note}
-                        emptySeriesLabel={t.watchlist.charts.empty}
-                        errorLabel={t.watchlist.charts.error}
-                        loadingLabel={chartLoadingMessage}
-                        refreshLabel={t.watchlist.actions.refreshTicker}
-                        editLabel={t.watchlist.actions.editTicker}
-                        deleteLabel={t.watchlist.actions.deleteTicker}
-                      />
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
-                  <p>{t.watchlist.status.noTickers}</p>
-                  <Button onClick={openCreateTickerDialog} className="gap-2">
+              <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {t.dashboard.quickActions}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshAll}
+                    disabled={loading || refreshingTickers}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={refreshingTickers ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                    <span className="hidden sm:inline">{t.watchlist.actions.refreshAll}</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openCreateGroupDialog}
+                    className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                  >
                     <Plus className="h-4 w-4" />
-                    {t.watchlist.actions.newTicker}
+                    <span>{t.watchlist.actions.newGroup}</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openCreateTickerDialog}
+                    disabled={!selectedGroup}
+                    className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7] disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>{t.watchlist.actions.newTicker}</span>
                   </Button>
                 </div>
-              )}
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
-              <p>{t.watchlist.status.empty}</p>
-              <Button onClick={openCreateGroupDialog} className="gap-2">
-                <Plus className="h-4 w-4" />
-                {t.watchlist.actions.newGroup}
-              </Button>
-            </div>
-          )}
+          </header>
+
+          <main className="mt-10">
+            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/40 blur-3xl" />
+              <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-sky-100/40 blur-3xl" />
+              <div className={`relative z-10 flex flex-col gap-6 lg:gap-8 ${isRtl ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
+                <div className="lg:w-80 lg:flex-none">
+                  <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/90 shadow-inner backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/60">
+                    <WatchlistGroupSelector
+                      groups={groups}
+                      selectedGroupId={selectedGroupId}
+                      onSelect={handleSelectGroup}
+                      onCreate={openCreateGroupDialog}
+                      onEdit={openEditGroupDialog}
+                      onDelete={handleDeleteGroup}
+                      isLoading={loading}
+                      isRefreshing={refreshing}
+                      title={t.watchlist.groups.title}
+                      description={t.watchlist.groups.description}
+                      addLabel={t.watchlist.actions.newGroup}
+                      emptyStateText={t.watchlist.groups.empty}
+                      loadingText={t.watchlist.groups.loading}
+                      renderTickerCount={renderTickerCount}
+                      editLabel={t.watchlist.actions.editGroup}
+                      deleteLabel={t.watchlist.actions.deleteGroup}
+                      className="border-0 bg-transparent shadow-none dark:bg-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-1 flex-col gap-6">
+                  {watchlistError ? (
+                    <Alert
+                      variant="destructive"
+                      className="rounded-xl border border-rose-200/80 bg-rose-50/90 text-rose-900"
+                    >
+                      <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
+                      <AlertDescription className="flex flex-wrap items-center gap-2">
+                        <span>{t.watchlist.status.error}</span>
+                        <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          {t.watchlist.actions.retry}
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  {selectedGroup ? (
+                    <div className="space-y-6">
+                      <div className="flex flex-col gap-4 rounded-2xl border border-white/60 bg-white/90 p-6 shadow-inner backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/60">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-1">
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                              {selectedGroup.name}
+                            </h2>
+                            {selectedGroup.description ? (
+                              <p className="max-w-xl text-sm text-slate-500 dark:text-slate-400">
+                                {selectedGroup.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <TimeRangeTabs
+                              value={range}
+                              onChange={setRange}
+                              labels={timeRangeLabels}
+                              className="min-w-[220px]"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={openCreateTickerDialog}
+                              className="gap-2 bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]"
+                            >
+                              <Plus className="h-4 w-4" />
+                              {t.watchlist.actions.newTicker}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {tickerList.length ? (
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {tickerList.map((ticker) => {
+                            const state = tickerStates[getTickerKey(ticker)];
+                            return (
+                              <TickerCard
+                                key={ticker.id ?? ticker.symbol}
+                                ticker={ticker}
+                                quote={state?.quote}
+                                historical={state?.historical}
+                                range={range}
+                                locale={locale}
+                                loading={state?.loading}
+                                error={state?.error}
+                                onEdit={openEditTickerDialog}
+                                onDelete={handleDeleteTicker}
+                                onRefresh={(item) => fetchTickerData(item, { force: true })}
+                                priceLabel={t.watchlist.labels.price}
+                                changeLabel={t.watchlist.labels.change}
+                                noteLabel={t.watchlist.labels.note}
+                                emptySeriesLabel={t.watchlist.charts.empty}
+                                errorLabel={t.watchlist.charts.error}
+                                loadingLabel={chartLoadingMessage}
+                                refreshLabel={t.watchlist.actions.refreshTicker}
+                                editLabel={t.watchlist.actions.editTicker}
+                                deleteLabel={t.watchlist.actions.deleteTicker}
+                              />
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white/80 p-10 text-center text-sm text-slate-500 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
+                          <p>{t.watchlist.status.noTickers}</p>
+                          <Button
+                            onClick={openCreateTickerDialog}
+                            className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                          >
+                            <Plus className="h-4 w-4" />
+                            {t.watchlist.actions.newTicker}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white/80 p-12 text-center text-sm text-slate-500 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
+                      <p>{t.watchlist.status.empty}</p>
+                      <Button
+                        onClick={openCreateGroupDialog}
+                        className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {t.watchlist.actions.newGroup}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </main>
+
+          <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
+                </DialogTitle>
+                <DialogDescription>
+                  {groupForm.id ? t.watchlist.groups.editDescription : t.watchlist.groups.createDescription}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleGroupSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="group-name">{t.watchlist.groups.name}</Label>
+                  <Input
+                    id="group-name"
+                    value={groupForm.name}
+                    onChange={(event) =>
+                      setGroupForm((prev) => ({ ...prev, name: event.target.value }))
+                    }
+                    placeholder={t.watchlist.groups.namePlaceholder}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="group-description">{t.watchlist.groups.descriptionLabel}</Label>
+                  <Textarea
+                    id="group-description"
+                    value={groupForm.description}
+                    onChange={(event) =>
+                      setGroupForm((prev) => ({ ...prev, description: event.target.value }))
+                    }
+                    placeholder={t.watchlist.groups.descriptionPlaceholder}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => handleGroupDialogChange(false)}>
+                    {t.watchlist.actions.cancel}
+                  </Button>
+                  <Button type="submit">
+                    {groupForm.id ? t.watchlist.groups.saveChanges : t.watchlist.groups.saveCreate}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}
+                </DialogTitle>
+                <DialogDescription>
+                  {tickerForm.id ? t.watchlist.tickers.editDescription : t.watchlist.tickers.createDescription}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleTickerSubmit} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="ticker-symbol">{t.watchlist.tickers.symbol}</Label>
+                    <Input
+                      id="ticker-symbol"
+                      value={tickerForm.symbol}
+                      onChange={(event) =>
+                        setTickerForm((prev) => ({ ...prev, symbol: event.target.value }))
+                      }
+                      placeholder={t.watchlist.tickers.symbolPlaceholder}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ticker-display">{t.watchlist.tickers.display}</Label>
+                    <Input
+                      id="ticker-display"
+                      value={tickerForm.display}
+                      onChange={(event) =>
+                        setTickerForm((prev) => ({ ...prev, display: event.target.value }))
+                      }
+                      placeholder={t.watchlist.tickers.displayPlaceholder}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="ticker-image">{t.watchlist.tickers.imageUrl}</Label>
+                    <Input
+                      id="ticker-image"
+                      value={tickerForm.imageUrl}
+                      onChange={(event) =>
+                        setTickerForm((prev) => ({ ...prev, imageUrl: event.target.value }))
+                      }
+                      placeholder={t.watchlist.tickers.imageUrlPlaceholder}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticker-note">{t.watchlist.tickers.note}</Label>
+                  <Textarea
+                    id="ticker-note"
+                    value={tickerForm.note}
+                    onChange={(event) =>
+                      setTickerForm((prev) => ({ ...prev, note: event.target.value }))
+                    }
+                    placeholder={t.watchlist.tickers.notePlaceholder}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => handleTickerDialogChange(false)}>
+                    {t.watchlist.actions.cancel}
+                  </Button>
+                  <Button type="submit">
+                    {tickerForm.id ? t.watchlist.tickers.saveChanges : t.watchlist.tickers.saveCreate}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-
-      <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
-            </DialogTitle>
-            <DialogDescription>
-              {groupForm.id ? t.watchlist.groups.editDescription : t.watchlist.groups.createDescription}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleGroupSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="group-name">{t.watchlist.groups.name}</Label>
-              <Input
-                id="group-name"
-                value={groupForm.name}
-                onChange={(event) =>
-                  setGroupForm((prev) => ({ ...prev, name: event.target.value }))
-                }
-                placeholder={t.watchlist.groups.namePlaceholder}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="group-description">{t.watchlist.groups.descriptionLabel}</Label>
-              <Textarea
-                id="group-description"
-                value={groupForm.description}
-                onChange={(event) =>
-                  setGroupForm((prev) => ({ ...prev, description: event.target.value }))
-                }
-                placeholder={t.watchlist.groups.descriptionPlaceholder}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleGroupDialogChange(false)}>
-                {t.watchlist.actions.cancel}
-              </Button>
-              <Button type="submit">
-                {groupForm.id ? t.watchlist.groups.saveChanges : t.watchlist.groups.saveCreate}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}
-            </DialogTitle>
-            <DialogDescription>
-              {tickerForm.id ? t.watchlist.tickers.editDescription : t.watchlist.tickers.createDescription}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleTickerSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="ticker-symbol">{t.watchlist.tickers.symbol}</Label>
-                <Input
-                  id="ticker-symbol"
-                  value={tickerForm.symbol}
-                  onChange={(event) =>
-                    setTickerForm((prev) => ({ ...prev, symbol: event.target.value }))
-                  }
-                  placeholder={t.watchlist.tickers.symbolPlaceholder}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticker-display">{t.watchlist.tickers.display}</Label>
-                <Input
-                  id="ticker-display"
-                  value={tickerForm.display}
-                  onChange={(event) =>
-                    setTickerForm((prev) => ({ ...prev, display: event.target.value }))
-                  }
-                  placeholder={t.watchlist.tickers.displayPlaceholder}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="ticker-image">{t.watchlist.tickers.imageUrl}</Label>
-                <Input
-                  id="ticker-image"
-                  value={tickerForm.imageUrl}
-                  onChange={(event) =>
-                    setTickerForm((prev) => ({ ...prev, imageUrl: event.target.value }))
-                  }
-                  placeholder={t.watchlist.tickers.imageUrlPlaceholder}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ticker-note">{t.watchlist.tickers.note}</Label>
-              <Textarea
-                id="ticker-note"
-                value={tickerForm.note}
-                onChange={(event) =>
-                  setTickerForm((prev) => ({ ...prev, note: event.target.value }))
-                }
-                placeholder={t.watchlist.tickers.notePlaceholder}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleTickerDialogChange(false)}>
-                {t.watchlist.actions.cancel}
-              </Button>
-              <Button type="submit">
-                {tickerForm.id ? t.watchlist.tickers.saveChanges : t.watchlist.tickers.saveCreate}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
