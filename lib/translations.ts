@@ -217,6 +217,13 @@ export const translations = {
     watchlist: {
       title: 'רשימת מעקב',
       subtitle: 'קבץ מניות לקבוצות, נתח מגמות ונהל את הנתונים בזמן אמת.',
+      quickAction: 'רשימת מעקב',
+      actionsTitle: 'פעולות בדף',
+      meta: {
+        groups: (count: number) => (count === 1 ? 'קבוצת מעקב אחת' : `${count} קבוצות מעקב`),
+        tickers: (count: number) => (count === 1 ? 'מניה במעקב' : `${count} מניות במעקב`),
+        viewing: (name: string) => `קבוצה פעילה: ${name}`,
+      },
       actions: {
         refreshAll: 'רענן הכל',
         newGroup: 'קבוצה חדשה',
@@ -627,6 +634,13 @@ export const translations = {
     watchlist: {
       title: 'Watchlist',
       subtitle: 'Group tickers into focused lists, compare performance, and react to movements instantly.',
+      quickAction: 'Watchlist',
+      actionsTitle: 'Page actions',
+      meta: {
+        groups: (count: number) => (count === 1 ? '1 watchlist group' : `${count} watchlist groups`),
+        tickers: (count: number) => (count === 1 ? '1 tracked ticker' : `${count} tracked tickers`),
+        viewing: (name: string) => `Focused on ${name}`,
+      },
       actions: {
         refreshAll: 'Refresh all',
         newGroup: 'New group',
