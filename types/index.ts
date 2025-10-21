@@ -48,6 +48,27 @@ export interface StockQuote {
   v?: number;
 }
 
+export interface WatchlistTicker {
+  id?: string;
+  groupId?: string;
+  symbol: string;
+  display?: string;
+  imageUrl?: string;
+  note?: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WatchlistGroup {
+  id?: string;
+  name: string;
+  description?: string;
+  tickers: WatchlistTicker[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ExchangeRateResponse {
   result: string;
   rates: {
