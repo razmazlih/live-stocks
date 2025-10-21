@@ -89,6 +89,8 @@ function buildPositionTimeline(
         timestamp: point.timestamp,
         totalPnLUsd: 0,
         totalPnLIls: 0,
+        totalValueUsd: 0,
+        totalValueIls: 0,
         netPnLUsd: 0,
         netPnLIls: 0,
         expectedNetPnLUsd: 0,
@@ -101,6 +103,7 @@ function buildPositionTimeline(
 
     return points.map((point) => {
       const openPnL = (point.close - position.entryPrice) * position.quantity;
+      const openValue = point.close * position.quantity;
       const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
       const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
@@ -108,6 +111,8 @@ function buildPositionTimeline(
         timestamp: point.timestamp,
         totalPnLUsd: openPnL,
         totalPnLIls: 0,
+        totalValueUsd: openValue,
+        totalValueIls: 0,
         netPnLUsd: openPnL,
         netPnLIls: 0,
         expectedNetPnLUsd: expectedPnL,
@@ -159,6 +164,7 @@ function buildPositionTimeline(
     const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
     const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
     const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
+    const openValue = openQuantity > 0 ? point.close * openQuantity : 0;
     const netPnL = openPnL + realizedPnL;
     const expectedOpenPnL = openLots.reduce((sum, lot) => {
       const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
@@ -171,6 +177,8 @@ function buildPositionTimeline(
       timestamp,
       totalPnLUsd: openPnL,
       totalPnLIls: 0,
+      totalValueUsd: openValue,
+      totalValueIls: 0,
       netPnLUsd: netPnL,
       netPnLIls: 0,
       expectedNetPnLUsd: expectedNetPnL,
@@ -259,15 +267,21 @@ export function usePortfolioData() {
       const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
       const aggregatedTimeline = new Map<
         number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
+        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number; totalValueUsd: number }
       >();
       results.forEach((result) => {
         result.timeline.forEach((point) => {
           const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
+            aggregatedTimeline.get(point.timestamp) ?? {
+              totalPnLUsd: 0,
+              netPnLUsd: 0,
+              expectedNetPnLUsd: 0,
+              totalValueUsd: 0,
+            };
           current.totalPnLUsd += point.totalPnLUsd;
           current.netPnLUsd += point.netPnLUsd;
           current.expectedNetPnLUsd += point.expectedNetPnLUsd;
+          current.totalValueUsd += point.totalValueUsd;
           aggregatedTimeline.set(point.timestamp, current);
         });
       });
@@ -278,6 +292,8 @@ export function usePortfolioData() {
           timestamp,
           totalPnLUsd: values.totalPnLUsd,
           totalPnLIls: 0,
+          totalValueUsd: values.totalValueUsd,
+          totalValueIls: 0,
           netPnLUsd: values.netPnLUsd,
           netPnLIls: 0,
           expectedNetPnLUsd: values.expectedNetPnLUsd,
@@ -469,6 +485,7 @@ export function usePortfolioData() {
           }
 
           const totalPnLIls = point.totalPnLUsd * rate;
+          const totalValueIls = point.totalValueUsd * rate;
           const netPnLUsdBeforeTax = point.netPnLUsd;
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
@@ -477,6 +494,7 @@ export function usePortfolioData() {
           return {
             ...point,
             totalPnLIls,
+            totalValueIls,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,
@@ -497,15 +515,43 @@ export function usePortfolioData() {
           timestamp: startOfTodayMs,
           totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
           totalPnLIls: enrichedSummary.totalCurrentPnLIls,
+          totalValueUsd: enrichedSummary.totalValue,
+          totalValueIls: enrichedSummary.totalValue * rate,
           netPnLUsd: enrichedSummary.totalNetPnLUsd,
           netPnLIls: enrichedSummary.totalNetPnLIls,
-          expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
-          expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+          expectedNetPnLUsd: 0,
+          expectedNetPnLIls: 0,
         };
 
         const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
           (a, b) => a.timestamp - b.timestamp
         );
+
+        const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+        const basePointIndex = finalTimeline.findIndex((point) => point.totalValueUsd > 0);
+        const basePoint =
+          basePointIndex >= 0 ? finalTimeline[basePointIndex] : finalTimeline[0];
+        const baseValueUsd = basePoint?.totalValueUsd ?? 0;
+        const baseTimestamp = basePoint?.timestamp ?? 0;
+        const growthRate = Number.isFinite(annualGrowthRate) ? annualGrowthRate : 0;
+        const growthBase = 1 + growthRate;
+
+        const timelineWithExpected = finalTimeline.map((point) => {
+          if (!basePoint || baseValueUsd <= 0 || growthBase <= 0) {
+            return { ...point, expectedNetPnLUsd: 0, expectedNetPnLIls: 0 };
+          }
+
+          const elapsedYears = Math.max(0, (point.timestamp - baseTimestamp) / msPerYear);
+          const growthFactor = Math.pow(growthBase, elapsedYears);
+          const expectedValueUsd = baseValueUsd * growthFactor;
+          const expectedPnLUsd = expectedValueUsd - baseValueUsd;
+
+          return {
+            ...point,
+            expectedNetPnLUsd: expectedPnLUsd,
+            expectedNetPnLIls: expectedPnLUsd * rate,
+          };
+        });
 
         setPositions(mappedPositions);
         setUsdToIls(rate);
@@ -513,7 +559,7 @@ export function usePortfolioData() {
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(finalTimeline);
+        setPortfolioTimeline(timelineWithExpected);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);

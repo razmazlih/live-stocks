@@ -95,6 +95,8 @@ export interface PortfolioTimelinePoint {
   timestamp: number;
   totalPnLUsd: number;
   totalPnLIls: number;
+  totalValueUsd: number;
+  totalValueIls: number;
   netPnLUsd: number;
   netPnLIls: number;
   expectedNetPnLUsd: number;
