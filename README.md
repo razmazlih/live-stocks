@@ -32,7 +32,6 @@ app/
   ├─ globals.css            # סגנונות בסיס ו-RTL
   ├─ page.tsx               # דף הבית – תקציר תיק, כרטיסי פוזיציות ופעולות מהירות
   ├─ portfolio/             # סקירת התיק הכולל והיסטוריית PnL
-  ├─ analysis/              # ניתוחים מתקדמים (סיכון, קורלציה, הצעת איזון)
   ├─ positions/, realized/  # דפי פירוט לפוזיציות פתוחות וסגורות
   ├─ settings/              # הגדרות משתמש: שפה, מטבע, טוקן Finnhub ועוד
   └─ api/                   # מסלולי API לנתונים חיים (quote, candles, exchange-rate, portfolio)
@@ -58,14 +57,13 @@ supabase/
 ## זרימת נתונים ולוגיקה עסקית
 1. **הקשר גלובלי (`AppProvider`)** שומר שפה, הגדרות (מטבע, קצב רענון, יעד צמיחה שנתי, טוקן Finnhub) וזיכרון מקומי. 【F:lib/context.tsx†L1-L66】
 2. **`usePortfolioData`** מושך פוזיציות וטבלאות בתתי-שאילתות מ-Supabase, מביא שער דולר וגרף נרות לכל מניה, מחשב מדדים ויוצר ציר זמן של PnL. 【F:hooks/use-portfolio-data.ts†L1-L119】【F:hooks/use-portfolio-data.ts†L119-L210】
-3. **חישובי ביצועים** מתבצעים ב-`lib/calculations.ts`, כולל המרת מטבע, תשואות, נתוני עזר להדמיות והצעות איזון. 【F:lib/calculations.ts†L1-L200】
+3. **חישובי ביצועים** מתבצעים ב-`lib/calculations.ts`, כולל המרת מטבע, תשואות ונתוני עזר להדמיות. 【F:lib/calculations.ts†L1-L200】
 4. **תרגומים** נלקחים מ-`lib/translations.ts` לכל רכיב ועמוד, עם פונקציות דינמיות לטקסטים מורכבים. 【F:lib/translations.ts†L1-L170】
 5. **רכיבים חזותיים** משתמשים במידע המחושב להצגת כרטיסי פוזיציה, גרפים (Recharts, Embla), סיכומים ופעולות. 【F:components/portfolio/portfolio-visualizations.tsx†L1-L160】
 
 ## עמודים וחוויית משתמש
 - **דף הבית (`/`)**: תצוגת מצב מהירה, כרטיסי תקציר, פעולות מהירות וקישורים למסכים ייעודיים. 【F:app/page.tsx†L1-L200】
 - **Portfolio (`/portfolio`)**: גרף PnL מצטבר, סטטיסטיקות כלליות, מובילים/נגררים וניתוח שינוי יומי. 【F:app/portfolio/page.tsx†L1-L200】
-- **Analysis (`/analysis`)**: מדדי סיכון (Sharpe, Sortino, VaR, ES), מטריצת קורלציה, הצעות איזון וחשיפה מטבעית. 【F:app/analysis/page.tsx†L1-L200】
 - **Positions / Realized**: פירוט מלא של פוזיציות פעילות ולוגים היסטוריים עם פילוחים לפי lots. 【F:app/positions/page.tsx†L1-L160】【F:app/realized/page.tsx†L1-L160】
 - **Settings (`/settings`)**: שליטה בשפה, מטבע יעד, קצב רענון, טוקן Finnhub ואיפוס נתונים מקומיים. 【F:app/settings/page.tsx†L1-L180】
 - **Stock (`/stock/[symbol]`)**: דף מניה בודדת עם היסטוריית מחירים, תחזיות וניתוח משלים. 【F:app/stock/[symbol]/page.tsx†L1-L200】
