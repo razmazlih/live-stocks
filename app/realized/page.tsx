@@ -11,6 +11,9 @@ import {
   Minus,
   Receipt,
   TrendingUp,
+  LineChart,
+  Plus,
+  Settings,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -19,6 +22,9 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
+import { DashboardQuickActions, type DashboardQuickAction } from '@/components/dashboard/quick-actions';
+import { QUICK_ACTION_THEMES } from '@/lib/quick-actions';
+import { cn } from '@/lib/utils';
 
 export default function RealizedPnLPage() {
   const { locale } = useApp();
@@ -183,6 +189,49 @@ export default function RealizedPnLPage() {
   const netProfitUsd = totals.profitUsd - taxSummary.taxUsd;
   const netProfitIls = totals.profitIls - taxSummary.taxIls;
 
+  const quickActions: DashboardQuickAction[] = [
+    {
+      key: 'reload',
+      icon: RefreshCw,
+      label: t.common.refresh,
+      onClick: reload,
+      disabled: loading || refreshing,
+      ...QUICK_ACTION_THEMES.reload,
+      iconClassName: cn(
+        QUICK_ACTION_THEMES.reload.iconClassName,
+        loading || refreshing ? 'animate-spin' : undefined
+      ),
+    },
+    {
+      key: 'home',
+      icon: Home,
+      label: t.app.title,
+      href: '/',
+      ...QUICK_ACTION_THEMES.home,
+    },
+    {
+      key: 'portfolio',
+      icon: LineChart,
+      label: t.portfolio.quickAction,
+      href: '/portfolio',
+      ...QUICK_ACTION_THEMES.portfolio,
+    },
+    {
+      key: 'positions',
+      icon: Plus,
+      label: t.positions.add,
+      href: '/positions',
+      ...QUICK_ACTION_THEMES.positions,
+    },
+    {
+      key: 'settings',
+      icon: Settings,
+      label: t.settings.title,
+      href: '/settings',
+      ...QUICK_ACTION_THEMES.settings,
+    },
+  ];
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -227,30 +276,7 @@ export default function RealizedPnLPage() {
               </div>
               <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.realized.actions}</p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={reload}
-                    disabled={loading || refreshing}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
-                  </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
-                    <Link href="/">
-                      <Home className="h-4 w-4" />
-                      <span>{t.app.title}</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900">
-                    <Link href="/positions">
-                      <Receipt className="h-4 w-4" />
-                      <span>{t.realized.goToPositions}</span>
-                    </Link>
-                  </Button>
-                </div>
+                <DashboardQuickActions actions={quickActions} />
               </div>
             </div>
           </header>

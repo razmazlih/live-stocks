@@ -13,6 +13,7 @@ import {
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
+import { QUICK_ACTION_THEMES } from '@/lib/quick-actions';
 import {
   RefreshCw,
   Settings,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -136,39 +138,39 @@ export default function HomePage() {
       label: t.common.refresh,
       onClick: reload,
       disabled: loading || refreshing,
-      variant: 'outline',
-      iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-      labelClassName: 'hidden sm:inline',
+      ...QUICK_ACTION_THEMES.reload,
+      iconClassName: cn(
+        QUICK_ACTION_THEMES.reload.iconClassName,
+        loading || refreshing ? 'animate-spin' : undefined
+      ),
     },
     {
       key: 'portfolio',
       icon: LineChart,
       label: t.portfolio.quickAction,
       href: '/portfolio',
-      className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+      ...QUICK_ACTION_THEMES.portfolio,
     },
     {
       key: 'realized',
       icon: CircleDollarSign,
       label: t.realized.quickAction,
       href: '/realized',
-      className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
+      ...QUICK_ACTION_THEMES.realized,
     },
     {
       key: 'positions',
       icon: Plus,
       label: t.positions.add,
       href: '/positions',
-      variant: 'secondary',
+      ...QUICK_ACTION_THEMES.positions,
     },
     {
       key: 'settings',
       icon: Settings,
       label: t.settings.title,
       href: '/settings',
-      variant: 'ghost',
-      className: 'text-slate-600 hover:text-slate-900',
-      labelClassName: 'hidden sm:inline',
+      ...QUICK_ACTION_THEMES.settings,
     },
   ];
 
