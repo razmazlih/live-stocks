@@ -21,15 +21,16 @@ export interface DashboardQuickAction {
 
 interface DashboardQuickActionsProps {
   actions: DashboardQuickAction[];
+  className?: string;
 }
 
-export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
+export function DashboardQuickActions({ actions, className }: DashboardQuickActionsProps) {
   if (!actions.length) {
     return null;
   }
 
   return (
-    <div className="mt-4 flex flex-wrap gap-3">
+    <div className={cn('mt-4 flex flex-wrap gap-3', className)}>
       {actions.map((action) => {
         const Icon = action.icon;
         const buttonContent: ReactNode = action.href ? (
