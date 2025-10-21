@@ -1,19 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
+import { CalendarIcon, Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +60,7 @@ interface TickerState {
   historical: HistoricalPoint[];
   range: TimeRange;
   lastUpdated: number | null;
+  from: number | null;
 }
 
 function createEmptyGroupForm(): GroupFormState {
@@ -68,31 +71,78 @@ function createEmptyTickerForm(): TickerFormState {
   return { id: null, symbol: '', display: '', imageUrl: '', note: '' };
 }
 
-function getRangeParams(range: TimeRange): { from: number; resolution: string } {
+function determineResolution(fromSeconds: number, toSeconds: number): string {
+  const day = 24 * 60 * 60;
+  const spanDays = Math.max((toSeconds - fromSeconds) / day, 1);
+
+  if (spanDays <= 7) {
+    return '30';
+  }
+
+  if (spanDays <= 90) {
+    return '60';
+  }
+
+  if (spanDays <= 365 * 2) {
+    return 'D';
+  }
+
+  return 'W';
+}
+
+function getRangeParams(
+  range: TimeRange,
+  options?: { startDate?: Date | null }
+): { from: number; resolution: string } {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const day = 24 * 60 * 60;
+
+  if (options?.startDate) {
+    const normalized = new Date(options.startDate);
+    normalized.setHours(0, 0, 0, 0);
+    const normalizedSeconds = Math.floor(normalized.getTime() / 1000);
+    const safeFrom = Math.max(0, Math.min(normalizedSeconds, nowSeconds - 60));
+    return { from: safeFrom, resolution: determineResolution(safeFrom, nowSeconds) };
+  }
 
   switch (range) {
     case '1D':
       return { from: nowSeconds - day * 2, resolution: '60' };
     case '1W':
       return { from: nowSeconds - day * 7, resolution: '60' };
-    case '1M':
-      return { from: nowSeconds - day * 30, resolution: 'D' };
-    case '3M':
-      return { from: nowSeconds - day * 90, resolution: 'D' };
-    case '6M':
-      return { from: nowSeconds - day * 180, resolution: 'D' };
+    case '1M': {
+      const from = nowSeconds - day * 30;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
+    case '3M': {
+      const from = nowSeconds - day * 90;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
+    case '6M': {
+      const from = nowSeconds - day * 180;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
     case 'YTD': {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      return { from: Math.floor(startOfYear.getTime() / 1000), resolution: 'D' };
+      const from = Math.floor(startOfYear.getTime() / 1000);
+      return { from, resolution: determineResolution(from, nowSeconds) };
     }
-    case '1Y':
-      return { from: nowSeconds - day * 365, resolution: 'D' };
-    case 'All':
-      return { from: nowSeconds - day * 365 * 5, resolution: 'W' };
-    default:
-      return { from: nowSeconds - day * 90, resolution: 'D' };
+    case '1Y': {
+      const from = nowSeconds - day * 365;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
+    case 'All': {
+      const from = nowSeconds - day * 365 * 5;
+      return { from, resolution: 'W' };
+    }
+    case 'Custom': {
+      const from = nowSeconds - day * 90;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
+    default: {
+      const from = nowSeconds - day * 90;
+      return { from, resolution: determineResolution(from, nowSeconds) };
+    }
   }
 }
 
@@ -123,12 +173,20 @@ export default function WatchlistPage() {
   } = useWatchlist();
 
   const [range, setRange] = useState<TimeRange>('1M');
+  const initialStartDate = useMemo(() => {
+    const { from } = getRangeParams('1M');
+    const date = new Date(from * 1000);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+  const [startDate, setStartDate] = useState<Date>(initialStartDate);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<GroupFormState>(createEmptyGroupForm);
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
   const [tickerForm, setTickerForm] = useState<TickerFormState>(createEmptyTickerForm);
   const [tickerStates, setTickerStates] = useState<Record<string, TickerState>>({});
   const [refreshingTickers, setRefreshingTickers] = useState(false);
+  const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
 
   const finnhubToken = settings.finnhubToken?.trim();
 
@@ -154,14 +212,22 @@ export default function WatchlistPage() {
   const fetchTickerData = useCallback(
     async (
       ticker: WatchlistTickerType,
-      options?: { range?: TimeRange; force?: boolean }
+      options?: { range?: TimeRange; force?: boolean; startDate?: Date | null }
     ) => {
       const targetRange = options?.range ?? range;
+      const targetStartDate = options?.startDate ?? startDate;
+      const { from, resolution } = getRangeParams(targetRange, { startDate: targetStartDate });
       const key = getTickerKey(ticker);
 
       setTickerStates((prev) => {
         const existing = prev[key];
-        if (!options?.force && existing && existing.loading && existing.range === targetRange) {
+        if (
+          !options?.force &&
+          existing &&
+          existing.loading &&
+          existing.range === targetRange &&
+          existing.from === from
+        ) {
           return prev;
         }
 
@@ -174,6 +240,7 @@ export default function WatchlistPage() {
             error: null,
             range: targetRange,
             lastUpdated: existing?.lastUpdated ?? null,
+            from,
           },
         };
       });
@@ -181,7 +248,6 @@ export default function WatchlistPage() {
       try {
         const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
-        const { from, resolution } = getRangeParams(targetRange);
 
         const quoteParams = new URLSearchParams({ symbol });
         if (finnhubToken) {
@@ -241,6 +307,7 @@ export default function WatchlistPage() {
             error: errorMessage,
             range: targetRange,
             lastUpdated: Date.now(),
+            from,
           },
         }));
       } catch (error) {
@@ -254,11 +321,17 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             lastUpdated: Date.now(),
+            from,
           },
         }));
       }
     },
-    [chartErrorMessage, finnhubToken, range]
+    [chartErrorMessage, finnhubToken, range, startDate]
+  );
+
+  const effectiveRangeParams = useMemo(
+    () => getRangeParams(range, { startDate }),
+    [range, startDate]
   );
 
   useEffect(() => {
@@ -269,19 +342,93 @@ export default function WatchlistPage() {
     selectedGroup.tickers.forEach((ticker) => {
       const key = getTickerKey(ticker);
       const state = tickerStates[key];
-      if (!state || state.range !== range) {
-        fetchTickerData(ticker, { range }).catch((error) => {
+      if (!state || state.range !== range || state.from !== effectiveRangeParams.from) {
+        fetchTickerData(ticker, { range, startDate }).catch((error) => {
           console.error('Failed to load ticker data', error);
         });
       }
     });
-  }, [fetchTickerData, range, selectedGroup, tickerStates]);
+  }, [effectiveRangeParams.from, fetchTickerData, range, selectedGroup, startDate, tickerStates]);
 
   const timeRangeLabels = useMemo(() => t.watchlist.timeRange, [t.watchlist.timeRange]);
 
   const renderTickerCount = useCallback(
     (group: WatchlistGroupType) => t.watchlist.groups.count(group.tickers.length),
     [t.watchlist.groups]
+  );
+
+  const minSelectableDate = useMemo(() => {
+    const { from } = getRangeParams('All');
+    const min = new Date(from * 1000);
+    min.setHours(0, 0, 0, 0);
+    return min;
+  }, []);
+
+  const maxSelectableDate = useMemo(() => {
+    const max = new Date();
+    max.setHours(0, 0, 0, 0);
+    return max;
+  }, []);
+
+  const startDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : 'en-US', {
+        dateStyle: 'medium',
+      }),
+    [locale]
+  );
+
+  const formattedStartDate = useMemo(
+    () => startDateFormatter.format(startDate),
+    [startDate, startDateFormatter]
+  );
+
+  const axisLabels = useMemo(
+    () => ({
+      high: t.watchlist.labels.axisHigh,
+      mid: t.watchlist.labels.axisMid,
+      low: t.watchlist.labels.axisLow,
+    }),
+    [t.watchlist.labels.axisHigh, t.watchlist.labels.axisLow, t.watchlist.labels.axisMid]
+  );
+
+  const asOfLabel = useMemo(
+    () => (typeof t.watchlist.labels.asOf === 'function' ? t.watchlist.labels.asOf : undefined),
+    [t.watchlist.labels.asOf]
+  );
+
+  const hoverValueLabel = t.watchlist.labels.hover;
+  const startDateLabelText = t.watchlist.controls.startDate ?? undefined;
+  const startDateHelperText = t.watchlist.controls.startDateHelper ?? '';
+
+  const handleRangeChange = useCallback((nextRange: TimeRange) => {
+    setRange(nextRange);
+    if (nextRange === 'Custom') {
+      return;
+    }
+    const { from } = getRangeParams(nextRange);
+    const nextDate = new Date(from * 1000);
+    nextDate.setHours(0, 0, 0, 0);
+    setStartDate(nextDate);
+  }, []);
+
+  const handleStartDateSelect = useCallback(
+    (date: Date | undefined) => {
+      if (!date) {
+        return;
+      }
+
+      const normalized = new Date(date);
+      normalized.setHours(0, 0, 0, 0);
+
+      const capped = Math.min(normalized.getTime(), maxSelectableDate.getTime());
+      const finalDate = new Date(Math.max(capped, minSelectableDate.getTime()));
+
+      setStartDate(finalDate);
+      setRange('Custom');
+      setStartDatePickerOpen(false);
+    },
+    [maxSelectableDate, minSelectableDate]
   );
 
   const handleGroupDialogChange = useCallback((open: boolean) => {
@@ -384,7 +531,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerUpdated);
-          await fetchTickerData(updated, { force: true });
+          await fetchTickerData(updated, { force: true, startDate });
         } else {
           const created = await createTicker(selectedGroupId, {
             symbol: trimmedSymbol,
@@ -393,7 +540,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerCreated);
-          await fetchTickerData(created, { force: true });
+          await fetchTickerData(created, { force: true, startDate });
         }
 
         setTickerDialogOpen(false);
@@ -403,7 +550,19 @@ export default function WatchlistPage() {
         toast.error(t.watchlist.notifications.error);
       }
     },
-    [createTicker, fetchTickerData, selectedGroupId, t.watchlist.notifications.error, t.watchlist.notifications.tickerCreated, t.watchlist.notifications.tickerUpdated, t.watchlist.tickers.errors.groupRequired, t.watchlist.tickers.errors.symbolRequired, tickerForm, updateTicker]
+    [
+      createTicker,
+      fetchTickerData,
+      selectedGroupId,
+      startDate,
+      t.watchlist.notifications.error,
+      t.watchlist.notifications.tickerCreated,
+      t.watchlist.notifications.tickerUpdated,
+      t.watchlist.tickers.errors.groupRequired,
+      t.watchlist.tickers.errors.symbolRequired,
+      tickerForm,
+      updateTicker,
+    ]
   );
 
   const handleDeleteGroup = useCallback(
@@ -456,7 +615,9 @@ export default function WatchlistPage() {
     setRefreshingTickers(true);
     try {
       if (selectedGroup) {
-        await Promise.all(selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true })));
+        await Promise.all(
+          selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true, startDate }))
+        );
       }
       await refresh();
       toast.success(t.watchlist.notifications.refreshed);
@@ -466,7 +627,15 @@ export default function WatchlistPage() {
     } finally {
       setRefreshingTickers(false);
     }
-  }, [fetchTickerData, refresh, refreshingTickers, selectedGroup, t.watchlist.notifications.error, t.watchlist.notifications.refreshed]);
+  }, [
+    fetchTickerData,
+    refresh,
+    refreshingTickers,
+    selectedGroup,
+    startDate,
+    t.watchlist.notifications.error,
+    t.watchlist.notifications.refreshed,
+  ]);
 
   const handleSelectGroup = useCallback(
     (groupId: string) => {
@@ -659,21 +828,54 @@ export default function WatchlistPage() {
                           {renderTickerCount(selectedGroup)}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <TimeRangeTabs
-                          value={range}
-                          onChange={setRange}
-                          labels={timeRangeLabels}
-                          className="min-w-[220px] lg:min-w-[260px]"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={openCreateTickerDialog}
-                          className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
-                        >
-                          <Plus className="h-4 w-4" />
-                          {t.watchlist.actions.newTicker}
-                        </Button>
+                      <div className="flex flex-col items-start gap-3 lg:items-end">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <TimeRangeTabs
+                            value={range}
+                            onChange={handleRangeChange}
+                            labels={timeRangeLabels}
+                            className="min-w-[220px] lg:min-w-[260px]"
+                          />
+                          <Popover open={startDatePickerOpen} onOpenChange={setStartDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 rounded-full border-slate-200/80 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-100 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-200"
+                                aria-label={startDateLabelText ?? formattedStartDate}
+                              >
+                                <CalendarIcon className="h-4 w-4" />
+                                <span>{formattedStartDate}</span>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xl dark:border-slate-700/70 dark:bg-slate-900/80" align={isRtl ? 'start' : 'end'}>
+                              <Calendar
+                                mode="single"
+                                selected={startDate}
+                                onSelect={handleStartDateSelect}
+                                defaultMonth={startDate}
+                                disabled={(date) =>
+                                  date > maxSelectableDate || date < minSelectableDate
+                                }
+                                locale={locale === 'he' ? 'he' : 'en-US'}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            size="sm"
+                            onClick={openCreateTickerDialog}
+                            className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                          >
+                            <Plus className="h-4 w-4" />
+                            {t.watchlist.actions.newTicker}
+                          </Button>
+                        </div>
+                        {startDateHelperText ? (
+                          <p className="max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                            {startDateHelperText}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -694,7 +896,7 @@ export default function WatchlistPage() {
                             error={state?.error}
                             onEdit={openEditTickerDialog}
                             onDelete={handleDeleteTicker}
-                            onRefresh={(item) => fetchTickerData(item, { force: true })}
+                            onRefresh={(item) => fetchTickerData(item, { force: true, startDate })}
                             priceLabel={t.watchlist.labels.price}
                             changeLabel={t.watchlist.labels.change}
                             noteLabel={t.watchlist.labels.note}
@@ -704,6 +906,11 @@ export default function WatchlistPage() {
                             refreshLabel={t.watchlist.actions.refreshTicker}
                             editLabel={t.watchlist.actions.editTicker}
                             deleteLabel={t.watchlist.actions.deleteTicker}
+                            startDateLabel={startDateLabelText}
+                            startDateText={formattedStartDate}
+                            hoverValueLabel={hoverValueLabel}
+                            axisLabels={axisLabels}
+                            asOfLabel={asOfLabel}
                             className="border-white/60 bg-white/90 shadow-lg backdrop-blur-sm"
                           />
                         );

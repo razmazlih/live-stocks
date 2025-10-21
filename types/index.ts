@@ -139,7 +139,7 @@ export interface CandleData {
   s: string;
 }
 
-export type TimeRange = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'All';
+export type TimeRange = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'All' | 'Custom';
 
 export type Locale = 'he' | 'en';
 

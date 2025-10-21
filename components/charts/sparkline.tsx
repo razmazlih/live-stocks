@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
 
@@ -31,6 +32,9 @@ interface SparklineProps {
   yearsHeld?: number;
   events?: SparklineEvent[];
   className?: string;
+  interactive?: boolean;
+  onHoverPoint?: (point: { close: number; timestamp: number } | null) => void;
+  hoverFormatter?: (point: { close: number; timestamp: number }) => string;
 }
 
 type SparklineSegment = {
@@ -66,7 +70,10 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
-  className = ''
+  className = '',
+  interactive = false,
+  onHoverPoint,
+  hoverFormatter,
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
@@ -77,6 +84,7 @@ export function Sparkline({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -244,6 +252,31 @@ export function Sparkline({
     events,
   ]);
 
+  useEffect(() => {
+    if (!onHoverPoint) {
+      return;
+    }
+
+    if (!interactive) {
+      onHoverPoint(null);
+      return;
+    }
+
+    if (!normalized || !normalized.points.length || hoveredPointIndex === null) {
+      onHoverPoint(null);
+      return;
+    }
+
+    const point = normalized.points[hoveredPointIndex];
+
+    if (!point) {
+      onHoverPoint(null);
+      return;
+    }
+
+    onHoverPoint({ close: point.close, timestamp: point.timestamp });
+  }, [hoveredPointIndex, interactive, normalized, onHoverPoint]);
+
   const segments = useMemo(() => {
     if (!normalized || !normalized.points || normalized.points.length < 2) {
       return [] as SparklineSegment[];
@@ -382,7 +415,41 @@ export function Sparkline({
 
   const handleWrapperLeave = () => {
     setHoveredEventId(null);
+    setHoveredPointIndex(null);
+    if (interactive && onHoverPoint) {
+      onHoverPoint(null);
+    }
   };
+
+  const handlePointerInteraction = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!interactive || !normalized || !normalized.points.length) {
+        return;
+      }
+
+      if (event.pointerType === 'touch') {
+        event.preventDefault();
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const relativeX = event.clientX - rect.left;
+
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      for (let index = 0; index < normalized.points.length; index += 1) {
+        const point = normalized.points[index];
+        const distance = Math.abs(point.x - relativeX);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      }
+
+      setHoveredPointIndex((current) => (current === nearestIndex ? current : nearestIndex));
+    },
+    [interactive, normalized]
+  );
 
   if (!normalized) {
     return (
@@ -403,6 +470,27 @@ export function Sparkline({
   const lastPoint = normalizedPoints[normalizedPoints.length - 1];
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
+  const activePoint =
+    interactive && hoveredPointIndex !== null
+      ? normalizedPoints[Math.min(hoveredPointIndex, normalizedPoints.length - 1)] ?? null
+      : null;
+  const activePointColor =
+    activePoint && segments.length
+      ? (() => {
+          const segment = segments.find((segmentItem) => {
+            const minX = Math.min(segmentItem.start.x, segmentItem.end.x);
+            const maxX = Math.max(segmentItem.start.x, segmentItem.end.x);
+            return activePoint.x >= minX && activePoint.x <= maxX;
+          });
+          return segment?.color ?? lastSegmentColor;
+        })()
+      : lastSegmentColor;
+  const hoverLabel =
+    activePoint && (hoverFormatter || interactive)
+      ? hoverFormatter
+        ? hoverFormatter({ close: activePoint.close, timestamp: activePoint.timestamp })
+        : activePoint.close.toLocaleString()
+      : null;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
@@ -420,8 +508,10 @@ export function Sparkline({
     <div
       ref={containerRef}
       className={`relative ${className}`}
-      style={{ width: '100%', height }}
+      style={{ width: '100%', height, cursor: interactive ? 'crosshair' : undefined }}
       onClick={handleWrapperClick}
+      onPointerMove={handlePointerInteraction}
+      onPointerDown={handlePointerInteraction}
       onPointerLeave={handleWrapperLeave}
       onTouchCancel={handleWrapperLeave}
       onTouchEnd={handleWrapperLeave}
@@ -534,6 +624,28 @@ export function Sparkline({
           strokeWidth={1.2}
         />
 
+        {interactive && activePoint && (
+          <g pointerEvents="none">
+            <line
+              x1={activePoint.x}
+              y1={0}
+              x2={activePoint.x}
+              y2={height}
+              stroke="rgba(15, 23, 42, 0.24)"
+              strokeWidth={1.2}
+              strokeDasharray="4 4"
+            />
+            <circle
+              cx={activePoint.x}
+              cy={activePoint.y}
+              r={4}
+              fill="#ffffff"
+              stroke={activePointColor}
+              strokeWidth={1.6}
+            />
+          </g>
+        )}
+
         {normalizedEvents.map((event) => {
           const isActive = activeEventId === event.id;
           const tone = event.type === 'BUY'
@@ -575,6 +687,18 @@ export function Sparkline({
           );
         })}
       </svg>
+
+      {interactive && activePoint && hoverLabel && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-2 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-lg ring-1 ring-slate-900/5 backdrop-blur"
+          style={{
+            left: Math.min(Math.max(activePoint.x, 64), effectiveWidth - 64),
+            top: Math.max(activePoint.y - 16, 8),
+          }}
+        >
+          {hoverLabel}
+        </div>
+      )}
 
       {activeEvent && (
           <div

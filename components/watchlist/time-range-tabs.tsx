@@ -12,7 +12,7 @@ interface TimeRangeTabsProps {
   className?: string;
 }
 
-const DEFAULT_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y'];
+const DEFAULT_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'All', 'Custom'];
 
 export function TimeRangeTabs({
   value,

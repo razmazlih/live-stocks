@@ -282,9 +282,19 @@ export const translations = {
         empty: 'אין נתונים זמינים לטווח הזמן שבחרת.',
       },
       labels: {
-        price: 'מחיר נוכחי',
-        change: 'שינוי יומי',
+        price: 'מחיר אחרון',
+        change: 'שינוי מאז התאריך שנבחר',
+        hover: 'מחיר בזמן ההצבעה',
         note: 'הערות',
+        axisHigh: 'גבוה',
+        axisMid: 'אמצע',
+        axisLow: 'נמוך',
+        asOf: (value: string) => `נכון ל-${value}`,
+      },
+      controls: {
+        startDate: 'תאריך התחלה',
+        startDatePlaceholder: 'בחר תאריך התחלה',
+        startDateHelper: 'הגרפים והחישובים יתבססו על התאריך הזה.',
       },
       status: {
         errorTitle: 'תקלה ברשימת המעקב',
@@ -315,6 +325,7 @@ export const translations = {
         'YTD': 'השנה',
         '1Y': 'שנה',
         'All': 'הכל',
+        Custom: 'מותאם אישית',
       },
     },
     realized: {
@@ -699,9 +710,19 @@ export const translations = {
         empty: 'No data available for the selected range.',
       },
       labels: {
-        price: 'Price',
-        change: 'Change',
+        price: 'Last price',
+        change: 'Change since selected date',
+        hover: 'Price at pointer',
         note: 'Notes',
+        axisHigh: 'High',
+        axisMid: 'Mid',
+        axisLow: 'Low',
+        asOf: (value: string) => `As of ${value}`,
+      },
+      controls: {
+        startDate: 'Start date',
+        startDatePlaceholder: 'Select start date',
+        startDateHelper: 'Charts and calculations begin from this date.',
       },
       status: {
         errorTitle: 'Watchlist error',
@@ -732,6 +753,7 @@ export const translations = {
         'YTD': 'YTD',
         '1Y': '1Y',
         'All': 'All',
+        Custom: 'Custom',
       },
     },
     realized: {
