@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { buildQuickAction } from '@/lib/quick-actions';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -130,46 +131,35 @@ export default function HomePage() {
     : null;
 
   const quickActions: DashboardQuickAction[] = [
-    {
-      key: 'reload',
+    buildQuickAction('reload', {
       icon: RefreshCw,
       label: t.common.refresh,
       onClick: reload,
       disabled: loading || refreshing,
-      variant: 'outline',
+      ariaLabel: t.common.refresh,
       iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-      labelClassName: 'hidden sm:inline',
-    },
-    {
-      key: 'portfolio',
+    }),
+    buildQuickAction('portfolio', {
       icon: LineChart,
       label: t.portfolio.quickAction,
       href: '/portfolio',
-      className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
-    },
-    {
-      key: 'realized',
+    }),
+    buildQuickAction('realized', {
       icon: CircleDollarSign,
       label: t.realized.quickAction,
       href: '/realized',
-      className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
-    },
-    {
-      key: 'positions',
+    }),
+    buildQuickAction('positions', {
       icon: Plus,
       label: t.positions.add,
       href: '/positions',
-      variant: 'secondary',
-    },
-    {
-      key: 'settings',
+    }),
+    buildQuickAction('settings', {
       icon: Settings,
       label: t.settings.title,
       href: '/settings',
-      variant: 'ghost',
-      className: 'text-slate-600 hover:text-slate-900',
-      labelClassName: 'hidden sm:inline',
-    },
+      ariaLabel: t.settings.title,
+    }),
   ];
 
   const summaryCards: SummaryCard[] = summary
