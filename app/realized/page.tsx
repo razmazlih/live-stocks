@@ -2,19 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import {
-  RefreshCw,
-  Home,
-  CircleDollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  Receipt,
-  TrendingUp,
-  LineChart,
-  Plus,
-  Settings,
-} from 'lucide-react';
+import { RefreshCw, CircleDollarSign, ArrowUpRight, ArrowDownRight, Minus, Receipt, TrendingUp, LineChart } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -22,6 +10,8 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { computeRealizedSales } from '@/lib/positions';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
+import { QuickActionsCard } from '@/components/dashboard/quick-actions-card';
+import { useDashboardQuickActions } from '@/hooks/use-dashboard-quick-actions';
 
 export default function RealizedPnLPage() {
   const { locale } = useApp();
@@ -182,6 +172,11 @@ export default function RealizedPnLPage() {
     return <Minus className="h-4 w-4" />;
   };
 
+  const quickActions = useDashboardQuickActions({
+    onReload: reload,
+    isReloading: loading || refreshing,
+  });
+
   const hasSales = sortedSales.length > 0;
   const netProfitUsd = totals.profitUsd - taxSummary.taxUsd;
   const netProfitIls = totals.profitIls - taxSummary.taxIls;
@@ -228,54 +223,7 @@ export default function RealizedPnLPage() {
                   </span>
                 </div>
               </div>
-              <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t.realized.actions}</p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={reload}
-                    disabled={loading || refreshing}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{t.common.refresh}</span>
-                  </Button>
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
-                    <Link href="/">
-                      <Home className="h-4 w-4" />
-                      <span>{t.app.title}</span>
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="gap-2 bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
-                  >
-                    <Link href="/portfolio">
-                      <LineChart className="h-4 w-4" />
-                      <span>{t.portfolio.quickAction}</span>
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="secondary" className="gap-2">
-                    <Link href="/positions">
-                      <Plus className="h-4 w-4" />
-                      <span>{t.positions.add}</span>
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2 text-slate-600 hover:text-slate-900"
-                  >
-                    <Link href="/settings">
-                      <Settings className="h-4 w-4" />
-                      <span className="hidden sm:inline">{t.settings.title}</span>
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+              <QuickActionsCard title={t.realized.actions} actions={quickActions} />
             </div>
           </header>
 
