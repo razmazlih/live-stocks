@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 import { DailyChangeBadge } from './daily-change-badge';
-import { DashboardQuickAction, DashboardQuickActions } from './quick-actions';
+import { DashboardQuickAction } from './quick-actions';
+import { QuickActionsSection } from './quick-actions-section';
 
 interface DashboardHeroProps {
   title: string;
@@ -65,10 +66,7 @@ export function DashboardHero({
             )}
           </div>
         </div>
-        <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-5 shadow-inner backdrop-blur-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{quickActionsTitle}</p>
-          <DashboardQuickActions actions={quickActions} />
-        </div>
+        <QuickActionsSection title={quickActionsTitle} actions={quickActions} />
       </div>
     </header>
   );

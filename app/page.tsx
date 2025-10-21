@@ -12,18 +12,8 @@ import {
 } from '@/components/dashboard/summary/summary-card-grid';
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
-import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
-import {
-  RefreshCw,
-  Settings,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  LineChart,
-  CircleDollarSign,
-  Plus,
-  Eye,
-} from 'lucide-react';
+import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
+import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
@@ -130,55 +120,20 @@ export default function HomePage() {
       }
     : null;
 
-  const quickActions: DashboardQuickAction[] = [
-    {
-      key: 'reload',
-      icon: RefreshCw,
-      label: t.common.refresh,
-      onClick: reload,
-      disabled: loading || refreshing,
-      variant: 'outline',
-      iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-      labelClassName: 'hidden sm:inline',
-    },
-    {
-      key: 'portfolio',
-      icon: LineChart,
-      label: t.portfolio.quickAction,
-      href: '/portfolio',
-      className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
-    },
-    {
-      key: 'realized',
-      icon: CircleDollarSign,
-      label: t.realized.quickAction,
-      href: '/realized',
-      className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
-    },
-    {
-      key: 'watchlist',
-      icon: Eye,
-      label: t.watchlist.quickAction,
-      href: '/watchlist',
-      className: 'bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]',
-    },
-    {
-      key: 'positions',
-      icon: Plus,
-      label: t.positions.add,
-      href: '/positions',
-      variant: 'secondary',
-    },
-    {
-      key: 'settings',
-      icon: Settings,
-      label: t.settings.title,
-      href: '/settings',
-      variant: 'ghost',
-      className: 'text-slate-600 hover:text-slate-900',
-      labelClassName: 'hidden sm:inline',
-    },
-  ];
+  const quickActions = useMemo(
+    () =>
+      createCommonQuickActions(t, {
+        exclude: ['dashboard'],
+        overrides: {
+          reload: {
+            onClick: reload,
+            disabled: loading || refreshing,
+            iconClassName: loading || refreshing ? 'animate-spin' : undefined,
+          },
+        },
+      }),
+    [t, reload, loading, refreshing]
+  );
 
   const summaryCards: SummaryCard[] = summary
     ? [
