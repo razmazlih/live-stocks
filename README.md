@@ -43,11 +43,18 @@ components/
 hooks/
   └─ use-portfolio-data.ts  # קריאת Supabase, הבאת נתונים חיצוניים וחישוב מדדים
 lib/
-  ├─ context.tsx            # AppProvider: שפה, הגדרות, טריגר רענון
+  ├─ http.ts                # עטיפת fetch עם מנגנון retry/backoff אחיד
+  ├─ services/              # שירותי נתונים חיצוניים (Finnhub, שערי מטבע)
+  │   ├─ exchange-rate.ts   # טעינת שערי USD→ILS עם fallback חכם
+  │   └─ finnhub.ts         # משיכת ציטוטים והפרשי יום מ-Finnhub
+  ├─ utils/
+  │   ├─ numbers.ts         # עזרי מספרים (isFiniteNumber, toFixedNumber)
+  │   └─ trading-hours.ts   # חישובי זמני מסחר
   ├─ calculations.ts        # פונקציות חישוב לרווח/הפסד, מדדים מצטברים, גרפים
+  ├─ context.tsx            # AppProvider: שפה, הגדרות, טריגר רענון
   ├─ positions.ts           # מיפוי תוצאות Supabase ל-Position + lots
-  ├─ translations.ts        # מילון דו-לשוני (עברית/אנגלית)
-  └─ supabase.ts            # יצירת לקוח Supabase בדפדפן
+  ├─ supabase.ts            # יצירת לקוח Supabase בדפדפן
+  └─ translations.ts        # מילון דו-לשוני (עברית/אנגלית)
 supabase/
   ├─ config.toml            # תצורת Supabase CLI, יציאות ושירותים
   ├─ migrations/            # סכמת בסיס נתונים ו-RLS
@@ -75,7 +82,7 @@ supabase/
 - `POST /api/portfolio` – יוצר תקציר משוקלל, מחירים נוכחיים/חזויים ומדדים לכל פוזיציה. 【F:app/api/portfolio/route.ts†L1-L240】
 - `GET /api/portfolio/combined-pnl` – חשבון מהיר לפער בין הרווח הנוכחי לחזוי בכל התיק. 【F:app/api/portfolio/combined-pnl/route.ts†L1-L160】
 
-כל המסלולים משתמשים במנגנון **backoff מעריכי** לטיפול במגבלות קצב, כותרות Cache מתאימות והמרות TypeScript קפדניות.
+כל המסלולים משתמשים במנגנון **backoff מעריכי** מתוך `lib/http.ts` יחד עם שירותי `lib/services` כדי להבטיח קוד נטול כפילויות, כותרות Cache מתאימות והמרות TypeScript קפדניות. 【F:lib/http.ts†L1-L52】【F:lib/services/finnhub.ts†L1-L42】【F:lib/services/exchange-rate.ts†L1-L66】
 
 ## בסיס הנתונים (Supabase)
 - **טבלאות**
@@ -150,7 +157,7 @@ supabase/
 - **RTL ו-LTR**: שינוי שפה מעדכן את כיוון המסמך, שומר במקומי ומחיל תרגומים דינמיים. 【F:lib/context.tsx†L29-L44】
 - **מנגנון רענון**: הכפתור בדפים המרכזיים מפעיל `triggerRefresh` שמטמיע נתונים חדשים. 【F:lib/context.tsx†L48-L60】【F:app/page.tsx†L24-L40】
 - **שמירת הגדרות**: נתוני משתמש נשמרים ב-localStorage ומסתנכרנים עם Supabase להגדרות גלובליות. 【F:lib/context.tsx†L15-L66】【F:app/settings/page.tsx†L1-L180】
-- **התמודדות עם מגבלות API**: כל קריאה חיצונית (Finnhub, שערי מטבע) עושה שימוש ב-retry/backoff. 【F:app/api/portfolio/route.ts†L33-L72】【F:app/api/exchange-rate/route.ts†L7-L24】
+- **התמודדות עם מגבלות API**: עטיפת `fetchWithRetry` ב-`lib/http.ts` מעניקה retry/backoff אחיד, והשירותים ב-`lib/services` מונעים כפילויות בעת גישה ל-Finnhub ולשערי מטבע. 【F:lib/http.ts†L1-L52】【F:lib/services/finnhub.ts†L1-L42】【F:lib/services/exchange-rate.ts†L1-L66】
 - **נגישות ו-UI קונסיסטנטי**: רכיבי `components/ui` מבוססי Radix + Tailwind עם מצבי Keyboard ו-Focus מובנים. 【F:components/ui/button.tsx†L1-L62】
 
 ## בדיקות וצעדי וידוא

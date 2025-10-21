@@ -1,30 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithRetry } from '@/lib/http';
+import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
 import { supabase } from '@/lib/supabase';
 import { StockQuote } from '@/types';
-
-const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-async function fetchWithRetry(url: string, retries = 3, delay = 1000): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (response.ok) return response;
-      if (response.status === 429 && i < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
-        continue;
-      }
-      throw new Error(`HTTP ${response.status}`);
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
-    }
-  }
-  throw new Error('Max retries reached');
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(url, { cache: 'no-store' });
     const data: StockQuote = await response.json();
 
     if (data.c === 0 || data.c === undefined) {
