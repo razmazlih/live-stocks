@@ -99,6 +99,10 @@ export interface PortfolioTimelinePoint {
   netPnLIls: number;
   expectedNetPnLUsd: number;
   expectedNetPnLIls: number;
+  portfolioValueUsd: number;
+  portfolioValueIls: number;
+  costBasisUsd: number;
+  costBasisIls: number;
 }
 
 export interface Settings {
