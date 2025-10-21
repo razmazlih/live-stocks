@@ -11,6 +11,9 @@ import {
   Minus,
   Receipt,
   TrendingUp,
+  LineChart,
+  Plus,
+  Settings,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -244,10 +247,31 @@ export default function RealizedPnLPage() {
                       <span>{t.app.title}</span>
                     </Link>
                   </Button>
-                  <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="gap-2 bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
+                  >
+                    <Link href="/portfolio">
+                      <LineChart className="h-4 w-4" />
+                      <span>{t.portfolio.quickAction}</span>
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="secondary" className="gap-2">
                     <Link href="/positions">
-                      <Receipt className="h-4 w-4" />
-                      <span>{t.realized.goToPositions}</span>
+                      <Plus className="h-4 w-4" />
+                      <span>{t.positions.add}</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-slate-600 hover:text-slate-900"
+                  >
+                    <Link href="/settings">
+                      <Settings className="h-4 w-4" />
+                      <span className="hidden sm:inline">{t.settings.title}</span>
                     </Link>
                   </Button>
                 </div>
