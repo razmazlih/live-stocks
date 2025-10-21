@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
-import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
@@ -23,16 +22,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { mapCandleDataToPoints } from '@/lib/calculations';
+import { mapCandleDataToPoints, formatDate } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import type {
   CandleData,
   HistoricalPoint,
   StockQuote,
-  TimeRange,
   WatchlistGroup as WatchlistGroupType,
   WatchlistTicker as WatchlistTickerType,
 } from '@/types';
@@ -56,7 +56,8 @@ interface TickerState {
   error: string | null;
   quote: StockQuote | null;
   historical: HistoricalPoint[];
-  range: TimeRange;
+  from: number;
+  resolution: string;
   lastUpdated: number | null;
 }
 
@@ -68,32 +69,42 @@ function createEmptyTickerForm(): TickerFormState {
   return { id: null, symbol: '', display: '', imageUrl: '', note: '' };
 }
 
-function getRangeParams(range: TimeRange): { from: number; resolution: string } {
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const day = 24 * 60 * 60;
+function normalizeDate(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
 
-  switch (range) {
-    case '1D':
-      return { from: nowSeconds - day * 2, resolution: '60' };
-    case '1W':
-      return { from: nowSeconds - day * 7, resolution: '60' };
-    case '1M':
-      return { from: nowSeconds - day * 30, resolution: 'D' };
-    case '3M':
-      return { from: nowSeconds - day * 90, resolution: 'D' };
-    case '6M':
-      return { from: nowSeconds - day * 180, resolution: 'D' };
-    case 'YTD': {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      return { from: Math.floor(startOfYear.getTime() / 1000), resolution: 'D' };
-    }
-    case '1Y':
-      return { from: nowSeconds - day * 365, resolution: 'D' };
-    case 'All':
-      return { from: nowSeconds - day * 365 * 5, resolution: 'W' };
-    default:
-      return { from: nowSeconds - day * 90, resolution: 'D' };
+function getDefaultStartDate(): Date {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 1);
+  return normalizeDate(date);
+}
+
+function getFetchParams(startDate: Date): { from: number; resolution: string } {
+  const normalizedStart = normalizeDate(startDate);
+  const now = new Date();
+  const nowMs = now.getTime();
+  const fromMs = Math.min(normalizedStart.getTime(), nowMs);
+  const diffDays = Math.max((nowMs - fromMs) / (1000 * 60 * 60 * 24), 0);
+
+  let resolution: string = 'D';
+  if (diffDays <= 7) {
+    resolution = '60';
+  } else if (diffDays <= 60) {
+    resolution = 'D';
+  } else if (diffDays <= 365) {
+    resolution = 'D';
+  } else if (diffDays <= 365 * 3) {
+    resolution = 'W';
+  } else {
+    resolution = 'M';
   }
+
+  return {
+    from: Math.floor(fromMs / 1000),
+    resolution,
+  };
 }
 
 function getTickerKey(ticker: WatchlistTickerType): string {
@@ -122,7 +133,8 @@ export default function WatchlistPage() {
     deleteTicker,
   } = useWatchlist();
 
-  const [range, setRange] = useState<TimeRange>('1M');
+  const [startDate, setStartDate] = useState<Date>(getDefaultStartDate);
+  const [startDateOpen, setStartDateOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<GroupFormState>(createEmptyGroupForm);
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
@@ -154,14 +166,21 @@ export default function WatchlistPage() {
   const fetchTickerData = useCallback(
     async (
       ticker: WatchlistTickerType,
-      options?: { range?: TimeRange; force?: boolean }
+      options?: { start?: Date; force?: boolean }
     ) => {
-      const targetRange = options?.range ?? range;
+      const targetStart = normalizeDate(options?.start ?? startDate);
+      const { from, resolution } = getFetchParams(targetStart);
       const key = getTickerKey(ticker);
 
       setTickerStates((prev) => {
         const existing = prev[key];
-        if (!options?.force && existing && existing.loading && existing.range === targetRange) {
+        if (
+          !options?.force &&
+          existing &&
+          existing.loading &&
+          existing.from === from &&
+          existing.resolution === resolution
+        ) {
           return prev;
         }
 
@@ -172,7 +191,8 @@ export default function WatchlistPage() {
             historical: existing?.historical ?? [],
             loading: true,
             error: null,
-            range: targetRange,
+            from,
+            resolution,
             lastUpdated: existing?.lastUpdated ?? null,
           },
         };
@@ -181,7 +201,6 @@ export default function WatchlistPage() {
       try {
         const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
-        const { from, resolution } = getRangeParams(targetRange);
 
         const quoteParams = new URLSearchParams({ symbol });
         if (finnhubToken) {
@@ -239,7 +258,8 @@ export default function WatchlistPage() {
             historical,
             loading: false,
             error: errorMessage,
-            range: targetRange,
+            from,
+            resolution,
             lastUpdated: Date.now(),
           },
         }));
@@ -252,13 +272,14 @@ export default function WatchlistPage() {
             historical: prev[key]?.historical ?? [],
             loading: false,
             error: chartErrorMessage,
-            range: targetRange,
+            from,
+            resolution,
             lastUpdated: Date.now(),
           },
         }));
       }
     },
-    [chartErrorMessage, finnhubToken, range]
+    [chartErrorMessage, finnhubToken, startDate]
   );
 
   useEffect(() => {
@@ -266,18 +287,19 @@ export default function WatchlistPage() {
       return;
     }
 
+    const normalizedStart = normalizeDate(startDate);
+    const { from: startFrom, resolution } = getFetchParams(normalizedStart);
+
     selectedGroup.tickers.forEach((ticker) => {
       const key = getTickerKey(ticker);
       const state = tickerStates[key];
-      if (!state || state.range !== range) {
-        fetchTickerData(ticker, { range }).catch((error) => {
+      if (!state || state.from !== startFrom || state.resolution !== resolution) {
+        fetchTickerData(ticker, { start: normalizedStart }).catch((error) => {
           console.error('Failed to load ticker data', error);
         });
       }
     });
-  }, [fetchTickerData, range, selectedGroup, tickerStates]);
-
-  const timeRangeLabels = useMemo(() => t.watchlist.timeRange, [t.watchlist.timeRange]);
+  }, [fetchTickerData, selectedGroup, startDate, tickerStates]);
 
   const renderTickerCount = useCallback(
     (group: WatchlistGroupType) => t.watchlist.groups.count(group.tickers.length),
@@ -384,7 +406,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerUpdated);
-          await fetchTickerData(updated, { force: true });
+          await fetchTickerData(updated, { force: true, start: startDate });
         } else {
           const created = await createTicker(selectedGroupId, {
             symbol: trimmedSymbol,
@@ -393,7 +415,7 @@ export default function WatchlistPage() {
             note: tickerForm.note,
           });
           toast.success(t.watchlist.notifications.tickerCreated);
-          await fetchTickerData(created, { force: true });
+          await fetchTickerData(created, { force: true, start: startDate });
         }
 
         setTickerDialogOpen(false);
@@ -403,7 +425,19 @@ export default function WatchlistPage() {
         toast.error(t.watchlist.notifications.error);
       }
     },
-    [createTicker, fetchTickerData, selectedGroupId, t.watchlist.notifications.error, t.watchlist.notifications.tickerCreated, t.watchlist.notifications.tickerUpdated, t.watchlist.tickers.errors.groupRequired, t.watchlist.tickers.errors.symbolRequired, tickerForm, updateTicker]
+    [
+      createTicker,
+      fetchTickerData,
+      selectedGroupId,
+      startDate,
+      t.watchlist.notifications.error,
+      t.watchlist.notifications.tickerCreated,
+      t.watchlist.notifications.tickerUpdated,
+      t.watchlist.tickers.errors.groupRequired,
+      t.watchlist.tickers.errors.symbolRequired,
+      tickerForm,
+      updateTicker,
+    ]
   );
 
   const handleDeleteGroup = useCallback(
@@ -456,7 +490,9 @@ export default function WatchlistPage() {
     setRefreshingTickers(true);
     try {
       if (selectedGroup) {
-        await Promise.all(selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true })));
+        await Promise.all(
+          selectedGroup.tickers.map((ticker) => fetchTickerData(ticker, { force: true, start: startDate }))
+        );
       }
       await refresh();
       toast.success(t.watchlist.notifications.refreshed);
@@ -466,7 +502,15 @@ export default function WatchlistPage() {
     } finally {
       setRefreshingTickers(false);
     }
-  }, [fetchTickerData, refresh, refreshingTickers, selectedGroup, t.watchlist.notifications.error, t.watchlist.notifications.refreshed]);
+  }, [
+    fetchTickerData,
+    refresh,
+    refreshingTickers,
+    selectedGroup,
+    startDate,
+    t.watchlist.notifications.error,
+    t.watchlist.notifications.refreshed,
+  ]);
 
   const handleSelectGroup = useCallback(
     (groupId: string) => {
@@ -474,6 +518,28 @@ export default function WatchlistPage() {
     },
     [selectGroup]
   );
+
+  const handleStartDateSelect = useCallback((date: Date | undefined) => {
+    if (!date) {
+      return;
+    }
+
+    const normalized = normalizeDate(date);
+    const today = normalizeDate(new Date());
+    const clamped = normalized > today ? today : normalized;
+    setStartDate(clamped);
+    setStartDateOpen(false);
+  }, []);
+
+  const handleResetStartDate = useCallback(() => {
+    setStartDate(getDefaultStartDate());
+    setStartDateOpen(false);
+  }, []);
+
+  const handleStartDateToday = useCallback(() => {
+    setStartDate(normalizeDate(new Date()));
+    setStartDateOpen(false);
+  }, []);
 
   const tickerList = selectedGroup?.tickers ?? [];
 
@@ -487,6 +553,19 @@ export default function WatchlistPage() {
   const selectedGroupSummary = selectedGroup
     ? `${formatViewing(selectedGroup.name)} · ${renderTickerCount(selectedGroup)}`
     : null;
+
+  const startDateLabel = formatDate(startDate, locale);
+  const daysFromStart = useMemo(
+    () => Math.max(0, Math.floor((Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24))),
+    [startDate]
+  );
+  const changeLabel = t.watchlist.labels.changeSince(startDateLabel);
+  const periodBadgeLabel = t.watchlist.labels.periodSince(startDateLabel);
+  const startDateButtonLabel = t.watchlist.controls.startDateLabel;
+  const startDateHelperText = t.watchlist.controls.startDateHelper(daysFromStart);
+  const resetStartDateLabel = t.watchlist.controls.resetStartDate;
+  const todayLabel = t.watchlist.controls.today;
+  const startDateAriaLabel = t.watchlist.controls.startDateAria(startDateLabel);
 
   const metaBadges = [
     {
@@ -659,17 +738,62 @@ export default function WatchlistPage() {
                           {renderTickerCount(selectedGroup)}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <TimeRangeTabs
-                          value={range}
-                          onChange={setRange}
-                          labels={timeRangeLabels}
-                          className="min-w-[220px] lg:min-w-[260px]"
-                        />
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end lg:gap-6">
+                        <div className="flex flex-col gap-2 text-sm">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            {startDateButtonLabel}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  aria-label={startDateAriaLabel}
+                                  className="group inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200"
+                                >
+                                  <CalendarIcon className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
+                                  <span>{startDateLabel}</span>
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
+                                <Calendar
+                                  mode="single"
+                                  selected={startDate}
+                                  onSelect={handleStartDateSelect}
+                                  initialFocus
+                                  disabled={(date) => date > new Date()}
+                                  className="rounded-xl"
+                                />
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                                  <span className="max-w-[220px] leading-relaxed">{startDateHelperText}</span>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={handleResetStartDate}
+                                      className="h-7 px-2 text-xs"
+                                    >
+                                      {resetStartDateLabel}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={handleStartDateToday}
+                                      className="h-7 px-2 text-xs"
+                                    >
+                                      {todayLabel}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                            <span className="text-xs text-slate-500">{startDateHelperText}</span>
+                          </div>
+                        </div>
                         <Button
                           size="sm"
                           onClick={openCreateTickerDialog}
-                          className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                          className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm transition hover:bg-[#1D4ED8]"
                         >
                           <Plus className="h-4 w-4" />
                           {t.watchlist.actions.newTicker}
@@ -688,15 +812,15 @@ export default function WatchlistPage() {
                             ticker={ticker}
                             quote={state?.quote}
                             historical={state?.historical}
-                            range={range}
                             locale={locale}
+                            periodLabel={periodBadgeLabel}
                             loading={state?.loading}
                             error={state?.error}
                             onEdit={openEditTickerDialog}
                             onDelete={handleDeleteTicker}
-                            onRefresh={(item) => fetchTickerData(item, { force: true })}
+                            onRefresh={(item) => fetchTickerData(item, { force: true, start: startDate })}
                             priceLabel={t.watchlist.labels.price}
-                            changeLabel={t.watchlist.labels.change}
+                            changeLabel={changeLabel}
                             noteLabel={t.watchlist.labels.note}
                             emptySeriesLabel={t.watchlist.charts.empty}
                             errorLabel={t.watchlist.charts.error}

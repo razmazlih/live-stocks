@@ -279,12 +279,28 @@ export const translations = {
       charts: {
         error: 'שגיאה בטעינת הנתונים.',
         loading: 'טוען נתונים...',
-        empty: 'אין נתונים זמינים לטווח הזמן שבחרת.',
+        empty: 'אין נתונים זמינים לתקופה שנבחרה.',
       },
       labels: {
         price: 'מחיר נוכחי',
-        change: 'שינוי יומי',
+        changeSince: (date: string) => `שינוי מאז ${date}`,
         note: 'הערות',
+        periodSince: (date: string) => `מאז ${date}`,
+      },
+      controls: {
+        startDateLabel: 'תאריך התחלה',
+        startDateHelper: (days: number) => {
+          if (days <= 0) {
+            return 'הגרפים מציגים את נתוני היום בלבד.';
+          }
+          if (days === 1) {
+            return 'הגרפים מציגים יום מסחר אחד.';
+          }
+          return `הגרפים מציגים ${days} ימי מסחר אחרונים.`;
+        },
+        resetStartDate: 'איפוס',
+        today: 'היום',
+        startDateAria: (date: string) => `בחירת תאריך התחלה (כעת ${date})`,
       },
       status: {
         errorTitle: 'תקלה ברשימת המעקב',
@@ -696,12 +712,23 @@ export const translations = {
       charts: {
         error: 'Unable to load chart data.',
         loading: 'Loading data...',
-        empty: 'No data available for the selected range.',
+        empty: 'No data available for the selected period.',
       },
       labels: {
         price: 'Price',
-        change: 'Change',
+        changeSince: (date: string) => `Change since ${date}`,
         note: 'Notes',
+        periodSince: (date: string) => `Since ${date}`,
+      },
+      controls: {
+        startDateLabel: 'Starting point',
+        startDateHelper: (days: number) =>
+          days <= 0
+            ? 'Tracking performance from today.'
+            : `Tracking the last ${days} ${days === 1 ? 'day' : 'days'}.`,
+        resetStartDate: 'Reset',
+        today: 'Today',
+        startDateAria: (date: string) => `Choose a start date (currently ${date})`,
       },
       status: {
         errorTitle: 'Watchlist error',

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from 'react';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
 
@@ -31,6 +32,13 @@ interface SparklineProps {
   yearsHeld?: number;
   events?: SparklineEvent[];
   className?: string;
+  showPriceAxis?: boolean;
+  priceFormatter?: (value: number) => string;
+  timeFormatter?: (timestamp: number) => string;
+  priceAxisTickCount?: number;
+  enableHover?: boolean;
+  hoverLineColor?: string;
+  hoverPointColor?: string;
 }
 
 type SparklineSegment = {
@@ -66,7 +74,14 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
-  className = ''
+  className = '',
+  showPriceAxis = false,
+  priceFormatter,
+  timeFormatter,
+  priceAxisTickCount = 4,
+  enableHover = false,
+  hoverLineColor = 'rgba(15, 23, 42, 0.14)',
+  hoverPointColor = color,
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
@@ -120,7 +135,9 @@ export function Sparkline({
     };
   }, []);
 
-  const effectiveWidth = Math.max(1, measuredWidth ?? width);
+  const totalWidth = Math.max(1, measuredWidth ?? width);
+  const axisWidth = showPriceAxis ? 72 : 0;
+  const chartWidth = Math.max(1, totalWidth - axisWidth);
 
   const normalized = useMemo(() => {
     if (!points || points.length < 2) {
@@ -171,7 +188,7 @@ export function Sparkline({
 
     const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
       const relativeTime = (point.timestamp - firstTimestamp) / timeRange;
-      const x = relativeTime * effectiveWidth;
+      const x = relativeTime * chartWidth;
       const y = height - ((point.close - min) / range) * height;
       return { x, y, close: point.close, timestamp: point.timestamp };
     });
@@ -204,7 +221,7 @@ export function Sparkline({
         if (event.timestamp <= firstTimestamp) {
           x = normalizedPoints[0]?.x ?? 0;
         } else if (event.timestamp >= lastTimestamp) {
-          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? effectiveWidth;
+          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? chartWidth;
         } else {
           const index = sortedPoints.findIndex((point) => point.timestamp >= event.timestamp);
 
@@ -232,12 +249,21 @@ export function Sparkline({
       .filter((event): event is NormalizedEvent => event !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    return { points: normalizedPoints, closes, baselineY, projectedY, projectionPoints, events: normalizedEvents };
+    return {
+      points: normalizedPoints,
+      closes,
+      baselineY,
+      projectedY,
+      projectionPoints,
+      events: normalizedEvents,
+      min,
+      max,
+    };
   }, [
     points,
     baseline,
     projectedPrice,
-    effectiveWidth,
+    chartWidth,
     height,
     annualGrowthRate,
     yearsHeld,
@@ -356,8 +382,8 @@ export function Sparkline({
     const stops: { offset: number; color: string }[] = [];
 
     segments.forEach((segment, index) => {
-      const startOffset = clampOffset(segment.start.x / effectiveWidth);
-      const endOffset = clampOffset(segment.end.x / effectiveWidth);
+      const startOffset = clampOffset(segment.start.x / chartWidth);
+      const endOffset = clampOffset(segment.end.x / chartWidth);
 
       if (index === 0) {
         stops.push({ offset: startOffset, color: segment.color });
@@ -375,30 +401,157 @@ export function Sparkline({
     });
 
     return stops;
-  }, [segments, normalized, color, effectiveWidth]);
+  }, [segments, normalized, color, chartWidth]);
+
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<NormalizedPoint | null>(null);
+
+  const formatPriceValue = useCallback(
+    (value: number) => {
+      if (typeof priceFormatter === 'function') {
+        return priceFormatter(value);
+      }
+      return value.toLocaleString();
+    },
+    [priceFormatter],
+  );
+
+  const formatTimeValue = useCallback(
+    (timestamp: number) => {
+      if (typeof timeFormatter === 'function') {
+        return timeFormatter(timestamp);
+      }
+      return new Date(timestamp).toLocaleString();
+    },
+    [timeFormatter],
+  );
 
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  const handleWrapperLeave = () => {
+  const updateHoveredPoint = useCallback(
+    (clientX: number) => {
+      if (!enableHover || !normalized) {
+        return;
+      }
+
+      const chartElement = chartRef.current;
+      if (!chartElement) {
+        return;
+      }
+
+      const rect = chartElement.getBoundingClientRect();
+      const relativeX = Math.min(Math.max(clientX - rect.left, 0), chartWidth);
+
+      if (!normalized.points.length) {
+        setHoveredPoint(null);
+        return;
+      }
+
+      let closestIndex = 0;
+      let smallestDistance = Number.POSITIVE_INFINITY;
+
+      for (let index = 0; index < normalized.points.length; index += 1) {
+        const point = normalized.points[index];
+        const distance = Math.abs(point.x - relativeX);
+        if (distance < smallestDistance) {
+          smallestDistance = distance;
+          closestIndex = index;
+        }
+      }
+
+      const closestPoint = normalized.points[closestIndex];
+      if (closestPoint) {
+        setHoveredPoint(closestPoint);
+      }
+
+      setHoveredEventId(null);
+    },
+    [chartWidth, enableHover, normalized],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      updateHoveredPoint(event.clientX);
+    },
+    [updateHoveredPoint],
+  );
+
+  const handleTouchMove = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      if (event.touches.length > 0) {
+        const touch = event.touches[0];
+        updateHoveredPoint(touch?.clientX ?? 0);
+      }
+    },
+    [updateHoveredPoint],
+  );
+
+  const handleWrapperLeave = useCallback(() => {
     setHoveredEventId(null);
-  };
+    if (enableHover) {
+      setHoveredPoint(null);
+    }
+  }, [enableHover]);
 
   if (!normalized) {
+    const containerClassName = `relative flex h-full w-full ${className ?? ''}`.trim();
     return (
       <div
         ref={containerRef}
-        className={`relative ${className}`}
+        className={containerClassName}
         style={{ width: '100%', height }}
         onPointerLeave={handleWrapperLeave}
         onTouchCancel={handleWrapperLeave}
         onTouchEnd={handleWrapperLeave}
-      />
+      >
+        <div
+          ref={chartRef}
+          className="flex-1 rounded-2xl border border-dashed border-slate-200/70 bg-white/60"
+        />
+        {showPriceAxis ? (
+          <div className="ml-3 flex h-full w-[72px] flex-col justify-between py-2 text-[10px] font-medium text-slate-300">
+            <span>—</span>
+            <span>—</span>
+            <span>—</span>
+          </div>
+        ) : null}
+      </div>
     );
   }
 
-  const { points: normalizedPoints, baselineY, projectedY, projectionPoints, events: normalizedEvents } = normalized;
-  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${effectiveWidth} ${height}`, 'Z'].join(' ');
+  const {
+    points: normalizedPoints,
+    baselineY,
+    projectedY,
+    projectionPoints,
+    events: normalizedEvents,
+    min,
+    max,
+  } = normalized;
+
+  const priceAxisValues = useMemo(() => {
+    if (!showPriceAxis) {
+      return [] as number[];
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return [] as number[];
+    }
+
+    if (min === max) {
+      return [max];
+    }
+
+    const ticks = Math.max(2, Math.floor(priceAxisTickCount));
+    const values: number[] = [];
+    for (let index = 0; index < ticks; index += 1) {
+      const ratio = (ticks - 1 - index) / (ticks - 1);
+      values.push(min + (max - min) * ratio);
+    }
+    return values;
+  }, [max, min, priceAxisTickCount, showPriceAxis]);
+  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
   const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const lastPoint = normalizedPoints[normalizedPoints.length - 1];
 
@@ -406,7 +559,7 @@ export function Sparkline({
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
-      ? `M 0 ${projectedY} L ${effectiveWidth} ${projectedY}`
+      ? `M 0 ${projectedY} L ${chartWidth} ${projectedY}`
       : null;
 
   const activeEventId = selectedEventId ?? hoveredEventId;
@@ -416,10 +569,16 @@ export function Sparkline({
     setSelectedEventId(null);
   };
 
+  const containerClassName = `relative flex h-full w-full ${className ?? ''}`.trim();
+  const hoverLabelLeft = hoveredPoint
+    ? Math.min(Math.max(hoveredPoint.x, 60), Math.max(chartWidth - 60, 60))
+    : 0;
+  const hoverLabelTop = hoveredPoint ? Math.max(hoveredPoint.y - 16, 12) : 0;
+
   return (
     <div
       ref={containerRef}
-      className={`relative ${className}`}
+      className={containerClassName}
       style={{ width: '100%', height }}
       onClick={handleWrapperClick}
       onPointerLeave={handleWrapperLeave}
@@ -427,20 +586,27 @@ export function Sparkline({
       onTouchEnd={handleWrapperLeave}
       role="presentation"
     >
-      <svg
-        width={effectiveWidth}
-        height={height}
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${effectiveWidth} ${height}`}
-        role="img"
-        aria-hidden="true"
-        preserveAspectRatio="none"
+      <div
+        ref={chartRef}
+        className="relative h-full flex-1 overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-inner backdrop-blur-sm"
+        onPointerMove={enableHover ? handlePointerMove : undefined}
+        onPointerDown={enableHover ? handlePointerMove : undefined}
+        onTouchMove={enableHover ? handleTouchMove : undefined}
       >
+        <svg
+          width={chartWidth}
+          height={height}
+          className="h-full w-full"
+          viewBox={`0 0 ${chartWidth} ${height}`}
+          role="img"
+          aria-hidden="true"
+          preserveAspectRatio="none"
+        >
         <defs>
           <linearGradient
             id={areaGradientId}
             x1={0}
-            x2={effectiveWidth}
+            x2={chartWidth}
             y1={0}
             y2={0}
             gradientUnits="userSpaceOnUse"
@@ -465,9 +631,9 @@ export function Sparkline({
             <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
           </linearGradient>
           <mask id={areaMaskId} maskUnits="userSpaceOnUse">
-            <rect width={effectiveWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
+            <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
           </mask>
-          <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+          <linearGradient id={strokeGradientId} x1="0" x2={chartWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
             {gradientStops.map((stop, index) => (
               <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
             ))}
@@ -482,15 +648,15 @@ export function Sparkline({
         </defs>
 
         <g opacity={0.08}>
-          <line x1="0" y1={height} x2={effectiveWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-          <line x1="0" y1={height / 2} x2={effectiveWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+          <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+          <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
         </g>
 
         {baselineY !== null && (
           <line
             x1={0}
             y1={baselineY}
-            x2={effectiveWidth}
+            x2={chartWidth}
             y2={baselineY}
             stroke={baselineColor}
             strokeWidth="1"
@@ -574,29 +740,77 @@ export function Sparkline({
             />
           );
         })}
-      </svg>
 
-      {activeEvent && (
+        {enableHover && hoveredPoint && (
+          <>
+            <line
+              x1={hoveredPoint.x}
+              y1={0}
+              x2={hoveredPoint.x}
+              y2={height}
+              stroke={hoverLineColor}
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            <circle
+              cx={hoveredPoint.x}
+              cy={hoveredPoint.y}
+              r={3.2}
+              fill="#ffffff"
+              stroke={hoverPointColor}
+              strokeWidth={1.2}
+            />
+          </>
+        )}
+      </svg>
+        {enableHover && hoveredPoint && (
+          <div
+            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+            style={{ left: hoverLabelLeft, top: hoverLabelTop }}
+          >
+            <div className="font-semibold text-slate-800">
+              {formatPriceValue(hoveredPoint.close)}
+            </div>
+            <div className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">
+              {formatTimeValue(hoveredPoint.timestamp)}
+            </div>
+          </div>
+        )}
+
+        {activeEvent && (
           <div
             className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
             style={{
-              left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
+              left: Math.min(Math.max(activeEvent.x, 60), Math.max(chartWidth - 60, 60)),
               top: Math.max(activeEvent.y - 12, 12),
             }}
-        >
-          <div className="font-semibold text-slate-800">
-            {activeEvent.typeLabel ?? activeEvent.type}
+          >
+            <div className="font-semibold text-slate-800">
+              {activeEvent.typeLabel ?? activeEvent.type}
+            </div>
+            <div className="text-slate-500">
+              {formatTimeValue(activeEvent.timestamp)}
+            </div>
+            <div className="mt-1 text-slate-600">
+              <span className="font-medium text-slate-800">
+                {activeEvent.priceLabel ?? formatPriceValue(activeEvent.price)}
+              </span>
+              <span className="ml-2">·</span>
+              <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
+            </div>
           </div>
-          <div className="text-slate-500">
-            {new Date(activeEvent.timestamp).toLocaleDateString()}
-          </div>
-          <div className="mt-1 text-slate-600">
-            <span className="font-medium text-slate-800">{activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}</span>
-            <span className="ml-2">·</span>
-            <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
-          </div>
+        )}
+      </div>
+
+      {showPriceAxis ? (
+        <div className="ml-3 flex h-full w-[72px] flex-col justify-between rounded-2xl border border-white/60 bg-white/80 px-3 py-2 text-[11px] font-medium text-slate-500 shadow-inner backdrop-blur-sm">
+          {priceAxisValues.map((value, index) => (
+            <span key={`${value}-${index}`} className="text-right">
+              {formatPriceValue(value)}
+            </span>
+          ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

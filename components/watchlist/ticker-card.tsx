@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Sparkline } from '@/components/charts/sparkline';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
-import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } from '@/types';
+import type { HistoricalPoint, Locale, StockQuote, WatchlistTicker } from '@/types';
 
 interface TickerCardProps {
   ticker: WatchlistTicker;
   quote?: StockQuote | null;
   historical?: HistoricalPoint[] | null;
-  range: TimeRange;
   locale: Locale;
+  periodLabel?: string;
   currency?: 'USD' | 'ILS';
   loading?: boolean;
   error?: string | null;
@@ -45,8 +45,8 @@ export function TickerCard({
   ticker,
   quote,
   historical,
-  range,
   locale,
+  periodLabel,
   currency = 'USD',
   loading = false,
   error,
@@ -57,58 +57,142 @@ export function TickerCard({
   priceLabel = 'Price',
   changeLabel = 'Change',
   noteLabel = 'Notes',
-  emptySeriesLabel = 'No data available for this range.',
+  emptySeriesLabel = 'No data available for this period.',
   errorLabel = 'Failed to load data.',
   loadingLabel = 'Loading…',
   refreshLabel = 'Refresh',
   editLabel = 'Edit',
   deleteLabel = 'Delete',
 }: TickerCardProps) {
+  const sortedHistorical = useMemo(() => {
+    if (!Array.isArray(historical)) {
+      return [] as HistoricalPoint[];
+    }
+
+    return [...historical].sort((a, b) => a.timestamp - b.timestamp);
+  }, [historical]);
+
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+    [locale],
+  );
+
+  const formatPriceValue = useCallback(
+    (value: number) => formatCurrency(value, currency, locale),
+    [currency, locale],
+  );
+
+  const formatTimestampValue = useCallback(
+    (timestamp: number) => dateTimeFormatter.format(new Date(timestamp)),
+    [dateTimeFormatter],
+  );
+
   const priceText = useMemo(() => {
     if (quote && typeof quote.c === 'number' && Number.isFinite(quote.c)) {
       return formatCurrency(quote.c, currency, locale);
     }
 
-    if (historical && historical.length > 0) {
-      const lastPoint = historical[historical.length - 1];
-      if (lastPoint?.close) {
+    if (sortedHistorical.length > 0) {
+      const lastPoint = sortedHistorical[sortedHistorical.length - 1];
+      if (lastPoint && typeof lastPoint.close === 'number' && Number.isFinite(lastPoint.close)) {
         return formatCurrency(lastPoint.close, currency, locale);
       }
     }
 
     return '--';
-  }, [currency, historical, locale, quote]);
+  }, [currency, locale, quote, sortedHistorical]);
 
-  const changeText = useMemo(() => {
-    if (!quote) {
-      return '--';
+  const changeInfo = useMemo(() => {
+    const summary = {
+      text: '--',
+      delta: 0,
+      hasValue: false,
+    };
+
+    if (sortedHistorical.length > 0) {
+      let startPrice: number | null = null;
+      let lastPrice: number | null = null;
+
+      for (const point of sortedHistorical) {
+        if (typeof point.close === 'number' && Number.isFinite(point.close)) {
+          if (startPrice === null) {
+            startPrice = point.close;
+          }
+          lastPrice = point.close;
+        }
+      }
+
+      const latestPrice = (() => {
+        if (quote && typeof quote.c === 'number' && Number.isFinite(quote.c)) {
+          return quote.c;
+        }
+        return lastPrice;
+      })();
+
+      if (typeof startPrice === 'number' && Number.isFinite(startPrice) && typeof latestPrice === 'number' && Number.isFinite(latestPrice)) {
+        const delta = latestPrice - startPrice;
+        const percentChange = startPrice !== 0 ? (delta / startPrice) * 100 : null;
+
+        const parts: string[] = [];
+        const absoluteFormatted = formatCurrency(delta, currency, locale);
+        parts.push(delta > 0 ? `+${absoluteFormatted}` : absoluteFormatted);
+
+        if (percentChange !== null && Number.isFinite(percentChange)) {
+          const formattedPercent = formatPercent(percentChange, locale);
+          parts.push(percentChange > 0 ? `+${formattedPercent}` : formattedPercent);
+        }
+
+        return {
+          text: parts.join(' · '),
+          delta,
+          hasValue: true,
+        };
+      }
     }
 
-    const { d: absoluteChange, dp: percentChange } = quote;
-    const parts: string[] = [];
+    if (quote) {
+      const { d: absoluteChange, dp: percentChange } = quote;
+      const parts: string[] = [];
 
-    if (typeof absoluteChange === 'number' && Number.isFinite(absoluteChange)) {
-      const formatted = formatCurrency(absoluteChange, currency, locale);
-      parts.push(absoluteChange > 0 ? `+${formatted}` : formatted);
+      if (typeof absoluteChange === 'number' && Number.isFinite(absoluteChange)) {
+        const formatted = formatCurrency(absoluteChange, currency, locale);
+        parts.push(absoluteChange > 0 ? `+${formatted}` : formatted);
+      }
+
+      if (typeof percentChange === 'number' && Number.isFinite(percentChange)) {
+        const formattedPercent = formatPercent(percentChange, locale);
+        parts.push(percentChange > 0 ? `+${formattedPercent}` : formattedPercent);
+      }
+
+      if (parts.length) {
+        return {
+          text: parts.join(' · '),
+          delta: typeof absoluteChange === 'number' && Number.isFinite(absoluteChange) ? absoluteChange : 0,
+          hasValue: true,
+        };
+      }
     }
 
-    if (typeof percentChange === 'number' && Number.isFinite(percentChange)) {
-      const formattedPercent = formatPercent(percentChange, locale);
-      parts.push(percentChange > 0 ? `+${formattedPercent}` : formattedPercent);
-    }
+    return summary;
+  }, [currency, locale, quote, sortedHistorical]);
 
-    return parts.length ? parts.join(' · ') : '--';
-  }, [currency, locale, quote]);
-
-  const changeTone = useMemo(() => resolveTone(quote?.d ?? quote?.dp), [quote?.d, quote?.dp]);
+  const changeText = changeInfo.text;
+  const changeTone = useMemo(
+    () => resolveTone(changeInfo.hasValue ? changeInfo.delta : 0),
+    [changeInfo.delta, changeInfo.hasValue],
+  );
 
   const trendColor = useMemo(() => {
-    if (!historical || historical.length < 2) {
+    if (sortedHistorical.length < 2) {
       return '#2563EB';
     }
 
-    const first = historical[0]?.close ?? 0;
-    const last = historical[historical.length - 1]?.close ?? 0;
+    const first = sortedHistorical[0]?.close ?? 0;
+    const last = sortedHistorical[sortedHistorical.length - 1]?.close ?? 0;
     if (last > first) {
       return '#047857';
     }
@@ -116,7 +200,7 @@ export function TickerCard({
       return '#b91c1c';
     }
     return '#2563EB';
-  }, [historical]);
+  }, [sortedHistorical]);
 
   return (
     <Card className={cn('flex h-full flex-col border-slate-200 dark:border-slate-800', className)}>
@@ -126,9 +210,11 @@ export function TickerCard({
             <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {ticker.symbol.toUpperCase()}
             </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              {range}
-            </span>
+            {periodLabel ? (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {periodLabel}
+              </span>
+            ) : null}
           </div>
           {ticker.display ? (
             <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{ticker.display}</p>
@@ -177,7 +263,7 @@ export function TickerCard({
             <p className={cn('mt-1 text-base font-semibold', changeTone)}>{changeText}</p>
           </div>
         </div>
-        <div className="h-32 w-full">
+        <div className="h-36 w-full">
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">
               {loadingLabel}
@@ -186,8 +272,16 @@ export function TickerCard({
             <div className="flex h-full items-center justify-center text-center text-sm text-rose-500 dark:text-rose-400">
               {error || errorLabel}
             </div>
-          ) : historical && historical.length > 1 ? (
-            <Sparkline points={historical} color={trendColor} className="h-full w-full" />
+          ) : sortedHistorical.length > 1 ? (
+            <Sparkline
+              points={sortedHistorical}
+              color={trendColor}
+              className="h-full w-full"
+              showPriceAxis
+              enableHover
+              priceFormatter={formatPriceValue}
+              timeFormatter={formatTimestampValue}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
               {emptySeriesLabel}

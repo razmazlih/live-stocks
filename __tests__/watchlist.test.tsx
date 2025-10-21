@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 import { mapWatchlistGroup } from '@/lib/watchlist';
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
-import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import type { WatchlistGroup, WatchlistTicker, StockQuote, HistoricalPoint } from '@/types';
 
@@ -122,19 +120,6 @@ describe('WatchlistGroupSelector', () => {
   });
 });
 
-describe('TimeRangeTabs', () => {
-  it('invokes onChange when selecting a new range', async () => {
-    const handleChange = vi.fn();
-
-    render(<TimeRangeTabs value="1M" onChange={handleChange} />);
-
-    const tab = screen.getByRole('tab', { name: '1W' });
-    const user = userEvent.setup();
-    await user.click(tab);
-    expect(handleChange).toHaveBeenCalledWith('1W');
-  });
-});
-
 describe('TickerCard', () => {
   const baseTicker = createTicker({ id: 't1', symbol: 'AAPL', note: 'Keep an eye on earnings.' });
   const quote: StockQuote = {
@@ -163,10 +148,10 @@ describe('TickerCard', () => {
         ticker={baseTicker}
         quote={quote}
         historical={historical}
-        range="1M"
         locale="en"
+        periodLabel="Since Oct 1"
         priceLabel="Price"
-        changeLabel="Change"
+        changeLabel="Change since Oct 1"
         noteLabel="Notes"
         emptySeriesLabel="No data"
         errorLabel="Error"
@@ -181,8 +166,9 @@ describe('TickerCard', () => {
     );
 
     expect(screen.getByText('Price')).toBeInTheDocument();
-    expect(screen.getByText('$120.00')).toBeInTheDocument();
-    expect(screen.getByText('+$2.00 · +1.50%')).toBeInTheDocument();
+    expect(screen.getAllByText('$120.00').length).toBeGreaterThan(0);
+    expect(screen.getByText('Since Oct 1')).toBeInTheDocument();
+    expect(screen.getByText('+$2.00 · +1.69%')).toBeInTheDocument();
     expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Keep an eye on earnings.')).toBeInTheDocument();
 
