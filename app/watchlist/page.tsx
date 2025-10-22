@@ -141,6 +141,103 @@ function getTickerKey(ticker: WatchlistTickerType): string {
   return ticker.id ?? ticker.symbol;
 }
 
+const WATCHLIST_CACHE_PREFIX = 'watchlist-cache:v1';
+const MARKET_OPEN_TTL_MS = 3 * 60 * 1000;
+const MARKET_CLOSED_TTL_MS = 60 * 60 * 1000;
+
+interface CachedTickerPayload {
+  quote: StockQuote | null;
+  historical: HistoricalPoint[];
+  error: string | null;
+  range: TimeRange;
+  from: number;
+  resolution: string;
+  lastUpdated: number;
+  expiresAt: number;
+}
+
+function buildTickerCacheKey(
+  symbol: string,
+  range: TimeRange,
+  from: number,
+  resolution: string
+): string {
+  return `${WATCHLIST_CACHE_PREFIX}:${symbol}:${range}:${from}:${resolution}`;
+}
+
+function isMarketOpen(now: Date = new Date()): boolean {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).formatToParts(now);
+
+    const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';
+    if (weekday === 'Sat' || weekday === 'Sun') {
+      return false;
+    }
+
+    const hourValue = parts.find((part) => part.type === 'hour')?.value ?? '0';
+    const minuteValue = parts.find((part) => part.type === 'minute')?.value ?? '0';
+    const hour = Number.parseInt(hourValue, 10);
+    const minute = Number.parseInt(minuteValue, 10);
+
+    if (Number.isNaN(hour) || Number.isNaN(minute)) {
+      return false;
+    }
+
+    const totalMinutes = hour * 60 + minute;
+    const openMinutes = 9 * 60 + 30;
+    const closeMinutes = 16 * 60;
+    return totalMinutes >= openMinutes && totalMinutes <= closeMinutes;
+  } catch {
+    return false;
+  }
+}
+
+function readTickerCache(key: string): CachedTickerPayload | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as CachedTickerPayload | null;
+    if (!parsed || typeof parsed.expiresAt !== 'number') {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    if (parsed.expiresAt <= Date.now()) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeTickerCache(key: string, payload: CachedTickerPayload): void {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Silently ignore storage write failures.
+  }
+}
+
 export default function WatchlistPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
@@ -267,6 +364,32 @@ export default function WatchlistPage() {
       const startDateForFetch = options?.startDate ?? effectiveStartDate;
       const { from, resolution } = getRangeParams(targetRange, startDateForFetch);
       const key = getTickerKey(ticker);
+      const symbol = ticker.symbol.toUpperCase();
+      const cacheKey = buildTickerCacheKey(symbol, targetRange, from, resolution);
+
+      if (!options?.force) {
+        const cached = readTickerCache(cacheKey);
+        if (cached) {
+          const lastUpdated =
+            typeof cached.lastUpdated === 'number' && Number.isFinite(cached.lastUpdated)
+              ? cached.lastUpdated
+              : Date.now();
+
+          setTickerStates((prev) => ({
+            ...prev,
+            [key]: {
+              quote: cached.quote,
+              historical: Array.isArray(cached.historical) ? cached.historical : [],
+              loading: false,
+              error: cached.error ?? null,
+              range: targetRange,
+              from,
+              lastUpdated,
+            },
+          }));
+          return;
+        }
+      }
 
       setTickerStates((prev) => {
         const existing = prev[key];
@@ -295,7 +418,6 @@ export default function WatchlistPage() {
       });
 
       try {
-        const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
 
         const quoteParams = new URLSearchParams({ symbol });
@@ -347,18 +469,33 @@ export default function WatchlistPage() {
           }
         }
 
+        const resolvedState: TickerState = {
+          quote,
+          historical,
+          loading: false,
+          error: errorMessage,
+          range: targetRange,
+          from,
+          lastUpdated: Date.now(),
+        };
+
         setTickerStates((prev) => ({
           ...prev,
-          [key]: {
-            quote,
-            historical,
-            loading: false,
-            error: errorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: Date.now(),
-          },
+          [key]: resolvedState,
         }));
+
+        const now = resolvedState.lastUpdated;
+        const ttl = isMarketOpen(new Date(now)) ? MARKET_OPEN_TTL_MS : MARKET_CLOSED_TTL_MS;
+        writeTickerCache(cacheKey, {
+          quote,
+          historical,
+          error: errorMessage,
+          range: targetRange,
+          from,
+          resolution,
+          lastUpdated: now,
+          expiresAt: now + ttl,
+        });
       } catch (error) {
         console.error('Failed to load ticker data', error);
         setTickerStates((prev) => ({
@@ -370,7 +507,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: Date.now(),
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
       }
