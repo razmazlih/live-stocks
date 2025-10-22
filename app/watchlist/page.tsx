@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { isNasdaqTradingHours } from '@/lib/utils/trading-hours';
 import type {
   CandleData,
   HistoricalPoint,
@@ -61,6 +62,89 @@ interface TickerState {
   range: TimeRange;
   from: number | null;
   lastUpdated: number | null;
+}
+
+const TICKER_CACHE_PREFIX = 'watchlist:ticker:';
+
+interface TickerCacheEntry {
+  quote: StockQuote | null;
+  historical: HistoricalPoint[];
+  error: string | null;
+  storedAt: number;
+  expiresAt: number;
+  range: TimeRange;
+  from: number;
+  resolution: string;
+}
+
+function getTickerCacheStorage() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch (error) {
+    console.warn('Ticker cache unavailable:', error);
+    return null;
+  }
+}
+
+function buildTickerCacheKey(
+  tickerKey: string,
+  range: TimeRange,
+  from: number,
+  resolution: string
+) {
+  return `${TICKER_CACHE_PREFIX}${tickerKey}::${range}::${from}::${resolution}`;
+}
+
+function readTickerCache(key: string): TickerCacheEntry | null {
+  const storage = getTickerCacheStorage();
+  if (!storage) {
+    return null;
+  }
+
+  const raw = storage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as TickerCacheEntry | null;
+    if (!parsed || typeof parsed !== 'object') {
+      storage.removeItem(key);
+      return null;
+    }
+
+    if (typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()) {
+      storage.removeItem(key);
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to read ticker cache entry', error);
+    storage.removeItem(key);
+    return null;
+  }
+}
+
+function writeTickerCache(key: string, entry: TickerCacheEntry) {
+  const storage = getTickerCacheStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(key, JSON.stringify(entry));
+  } catch (error) {
+    console.warn('Failed to write ticker cache entry', error);
+  }
+}
+
+function getTickerCacheTtlMs(date: Date = new Date()): number {
+  return isNasdaqTradingHours(date) ? 3 * 60 * 1000 : 60 * 60 * 1000;
 }
 
 function createEmptyGroupForm(): GroupFormState {
@@ -267,6 +351,29 @@ export default function WatchlistPage() {
       const startDateForFetch = options?.startDate ?? effectiveStartDate;
       const { from, resolution } = getRangeParams(targetRange, startDateForFetch);
       const key = getTickerKey(ticker);
+      const cacheKey = buildTickerCacheKey(key, targetRange, from, resolution);
+
+      if (!options?.force) {
+        const cached = readTickerCache(cacheKey);
+        if (cached) {
+          setTickerStates((prev) => ({
+            ...prev,
+            [key]: {
+              quote: cached.quote ?? null,
+              historical: Array.isArray(cached.historical)
+                ? (cached.historical as HistoricalPoint[])
+                : [],
+              loading: false,
+              error: cached.error ?? null,
+              range: targetRange,
+              from,
+              lastUpdated:
+                typeof cached.storedAt === 'number' ? cached.storedAt : Date.now(),
+            },
+          }));
+          return;
+        }
+      }
 
       setTickerStates((prev) => {
         const existing = prev[key];
@@ -347,6 +454,18 @@ export default function WatchlistPage() {
           }
         }
 
+        const fetchedAt = Date.now();
+        writeTickerCache(cacheKey, {
+          quote,
+          historical,
+          error: errorMessage,
+          storedAt: fetchedAt,
+          expiresAt: fetchedAt + getTickerCacheTtlMs(new Date(fetchedAt)),
+          range: targetRange,
+          from,
+          resolution,
+        });
+
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -356,11 +475,12 @@ export default function WatchlistPage() {
             error: errorMessage,
             range: targetRange,
             from,
-            lastUpdated: Date.now(),
+            lastUpdated: fetchedAt,
           },
         }));
       } catch (error) {
         console.error('Failed to load ticker data', error);
+        const failedAt = Date.now();
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -370,7 +490,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: Date.now(),
+            lastUpdated: failedAt,
           },
         }));
       }
