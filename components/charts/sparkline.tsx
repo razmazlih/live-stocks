@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from 'react';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
 
@@ -31,6 +32,16 @@ interface SparklineProps {
   yearsHeld?: number;
   events?: SparklineEvent[];
   className?: string;
+  showYAxis?: boolean;
+  yAxisWidth?: number;
+  axisLabelColor?: string;
+  axisBackground?: string;
+  axisBorderColor?: string;
+  axisGap?: number;
+  priceFormatter?: (value: number) => string;
+  timeFormatter?: (timestamp: number) => string;
+  interactive?: boolean;
+  onHoverPoint?: (point: { price: number; timestamp: number } | null) => void;
 }
 
 type SparklineSegment = {
@@ -38,6 +49,29 @@ type SparklineSegment = {
   start: { x: number; y: number };
   end: { x: number; y: number };
 };
+
+function toRgba(color: string, alpha: number) {
+  const hexPattern = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+  if (!hexPattern.test(color)) {
+    return `rgba(15, 23, 42, ${alpha})`;
+  }
+
+  const normalized = color.replace('#', '');
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : normalized;
+
+  const r = parseInt(expanded.slice(0, 2), 16);
+  const g = parseInt(expanded.slice(2, 4), 16);
+  const b = parseInt(expanded.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 type NormalizedPoint = {
   x: number;
@@ -49,6 +83,18 @@ type NormalizedPoint = {
 type NormalizedEvent = SparklineEvent & {
   x: number;
   y: number;
+};
+
+type NormalizedData = {
+  points: NormalizedPoint[];
+  closes: number[];
+  baselineY: number | null;
+  projectedY: number | null;
+  projectionPoints: { x: number; y: number }[] | null;
+  events: NormalizedEvent[];
+  min: number;
+  max: number;
+  range: number;
 };
 
 export function Sparkline({
@@ -66,7 +112,26 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
-  className = ''
+  className = '',
+  showYAxis = false,
+  yAxisWidth = 64,
+  axisLabelColor = 'rgba(71, 85, 105, 0.85)',
+  axisBackground = 'linear-gradient(180deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.4) 100%)',
+  axisBorderColor = 'rgba(148, 163, 184, 0.45)',
+  axisGap = 12,
+  priceFormatter = (value: number) =>
+    new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value),
+  timeFormatter = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+  interactive = false,
+  onHoverPoint,
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
@@ -76,7 +141,9 @@ export function Sparkline({
   const glowId = `${gradientId}-glow`;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartAreaRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -120,9 +187,53 @@ export function Sparkline({
     };
   }, []);
 
-  const effectiveWidth = Math.max(1, measuredWidth ?? width);
+  const containerWidth = measuredWidth ?? width;
 
-  const normalized = useMemo(() => {
+  const dynamicAxisWidth = useMemo(() => {
+    if (!showYAxis) {
+      return 0;
+    }
+
+    const numericValues = [
+      ...points
+        .map((point) => point?.close)
+        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)),
+      ...(typeof baseline === 'number' && Number.isFinite(baseline) ? [baseline] : []),
+      ...(typeof projectedPrice === 'number' && Number.isFinite(projectedPrice) ? [projectedPrice] : []),
+    ];
+
+    if (!numericValues.length) {
+      return Math.max(yAxisWidth ?? 0, 56);
+    }
+
+    const formattedLengths = numericValues
+      .map((value) => priceFormatter(value))
+      .filter((text) => typeof text === 'string' && text.length > 0)
+      .map((text) => text.length);
+
+    const longest = formattedLengths.length ? Math.max(...formattedLengths) : 0;
+    const approximate = longest ? longest * 7.2 + 20 : 0;
+    const fallback = Math.max(yAxisWidth ?? 0, 56);
+
+    if (!approximate) {
+      return fallback;
+    }
+
+    return Math.min(Math.max(approximate, fallback), 132);
+  }, [
+    showYAxis,
+    points,
+    baseline,
+    projectedPrice,
+    priceFormatter,
+    yAxisWidth,
+  ]);
+
+  const axisSpacing = showYAxis ? Math.max(0, axisGap) : 0;
+  const axisOffset = showYAxis ? Math.max(yAxisWidth ?? 0, Math.ceil(dynamicAxisWidth)) : 0;
+  const chartWidth = Math.max(1, containerWidth - axisOffset - axisSpacing);
+
+  const normalized = useMemo<NormalizedData | null>(() => {
     if (!points || points.length < 2) {
       return null;
     }
@@ -171,7 +282,7 @@ export function Sparkline({
 
     const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
       const relativeTime = (point.timestamp - firstTimestamp) / timeRange;
-      const x = relativeTime * effectiveWidth;
+      const x = relativeTime * chartWidth;
       const y = height - ((point.close - min) / range) * height;
       return { x, y, close: point.close, timestamp: point.timestamp };
     });
@@ -204,7 +315,7 @@ export function Sparkline({
         if (event.timestamp <= firstTimestamp) {
           x = normalizedPoints[0]?.x ?? 0;
         } else if (event.timestamp >= lastTimestamp) {
-          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? effectiveWidth;
+          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? chartWidth;
         } else {
           const index = sortedPoints.findIndex((point) => point.timestamp >= event.timestamp);
 
@@ -232,12 +343,22 @@ export function Sparkline({
       .filter((event): event is NormalizedEvent => event !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    return { points: normalizedPoints, closes, baselineY, projectedY, projectionPoints, events: normalizedEvents };
+    return {
+      points: normalizedPoints,
+      closes,
+      baselineY,
+      projectedY,
+      projectionPoints,
+      events: normalizedEvents,
+      min,
+      max,
+      range,
+    } satisfies NormalizedData;
   }, [
     points,
     baseline,
     projectedPrice,
-    effectiveWidth,
+    chartWidth,
     height,
     annualGrowthRate,
     yearsHeld,
@@ -356,8 +477,8 @@ export function Sparkline({
     const stops: { offset: number; color: string }[] = [];
 
     segments.forEach((segment, index) => {
-      const startOffset = clampOffset(segment.start.x / effectiveWidth);
-      const endOffset = clampOffset(segment.end.x / effectiveWidth);
+      const startOffset = clampOffset(segment.start.x / chartWidth);
+      const endOffset = clampOffset(segment.end.x / chartWidth);
 
       if (index === 0) {
         stops.push({ offset: startOffset, color: segment.color });
@@ -375,13 +496,47 @@ export function Sparkline({
     });
 
     return stops;
-  }, [segments, normalized, color, effectiveWidth]);
+  }, [segments, normalized, color, chartWidth]);
+
+  const axisTicks = useMemo(() => {
+    if (!showYAxis || !normalized) {
+      return [] as { value: number; y: number }[];
+    }
+
+    const { min, max, range } = normalized;
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return [];
+    }
+
+    const tickCount = 4;
+
+    if (range === 0) {
+      const mid = height / 2;
+      return [{ value: min, y: mid }];
+    }
+
+    const ticks = Array.from({ length: tickCount }, (_, index) => {
+      const ratio = index / (tickCount - 1);
+      const value = max - range * ratio;
+      const y = height - ((value - min) / range) * height;
+      return { value, y };
+    });
+
+    return ticks.filter((tick, index) => {
+      const firstIndex = ticks.findIndex((item) => Math.abs(item.value - tick.value) < 1e-6);
+      return firstIndex === index;
+    });
+  }, [showYAxis, normalized, height]);
 
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const crosshairColor = useMemo(() => toRgba(color, 0.32), [color]);
+  const hoverOutlineColor = useMemo(() => toRgba(color, 0.65), [color]);
 
   const handleWrapperLeave = () => {
     setHoveredEventId(null);
+    setHoveredIndex(null);
   };
 
   if (!normalized) {
@@ -393,20 +548,52 @@ export function Sparkline({
         onPointerLeave={handleWrapperLeave}
         onTouchCancel={handleWrapperLeave}
         onTouchEnd={handleWrapperLeave}
-      />
+      >
+        <div className="flex h-full w-full">
+          <div
+            ref={chartAreaRef}
+            className="flex-1 rounded-2xl bg-slate-100/60"
+            style={{ marginRight: axisSpacing }}
+          />
+          {showYAxis ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none flex h-full flex-col justify-between rounded-r-2xl border-l"
+              style={{
+                width: axisOffset,
+                background: axisBackground,
+                borderColor: axisBorderColor,
+              }}
+            />
+          ) : null}
+        </div>
+      </div>
     );
   }
 
-  const { points: normalizedPoints, baselineY, projectedY, projectionPoints, events: normalizedEvents } = normalized;
-  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${effectiveWidth} ${height}`, 'Z'].join(' ');
+  const {
+    points: normalizedPoints,
+    baselineY,
+    projectedY,
+    projectionPoints,
+    events: normalizedEvents,
+  } = normalized;
+  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
   const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const lastPoint = normalizedPoints[normalizedPoints.length - 1];
+
+  const effectiveHoveredPoint =
+    interactive && hoveredIndex !== null && normalizedPoints[hoveredIndex]
+      ? normalizedPoints[Math.min(Math.max(hoveredIndex, 0), normalizedPoints.length - 1)]
+      : null;
+  const hoveredPriceText = effectiveHoveredPoint ? priceFormatter(effectiveHoveredPoint.close) : null;
+  const hoveredTimeText = effectiveHoveredPoint ? timeFormatter(effectiveHoveredPoint.timestamp) : null;
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
-      ? `M 0 ${projectedY} L ${effectiveWidth} ${projectedY}`
+      ? `M 0 ${projectedY} L ${chartWidth} ${projectedY}`
       : null;
 
   const activeEventId = selectedEventId ?? hoveredEventId;
@@ -416,31 +603,108 @@ export function Sparkline({
     setSelectedEventId(null);
   };
 
+  const updateHoveredIndex = (clientX: number) => {
+    if (!interactive || !normalized) {
+      return;
+    }
+
+    const element = chartAreaRef.current;
+    if (!element) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    const clampedX = Math.min(Math.max(relativeX, 0), chartWidth);
+
+    let nearestIndex = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    normalized.points.forEach((point, index) => {
+      const distance = Math.abs(point.x - clampedX);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    if (hoveredIndex !== nearestIndex) {
+      setHoveredIndex(nearestIndex);
+    }
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    updateHoveredIndex(event.clientX);
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    updateHoveredIndex(event.clientX);
+  };
+
+  const handleTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    updateHoveredIndex(touch.clientX);
+  };
+
+  useEffect(() => {
+    if (!interactive || !onHoverPoint) {
+      return;
+    }
+
+    if (!effectiveHoveredPoint) {
+      onHoverPoint(null);
+      return;
+    }
+
+    onHoverPoint({ price: effectiveHoveredPoint.close, timestamp: effectiveHoveredPoint.timestamp });
+  }, [interactive, effectiveHoveredPoint, onHoverPoint]);
+
+  useEffect(() => {
+    if (!interactive && onHoverPoint) {
+      onHoverPoint(null);
+    }
+  }, [interactive, onHoverPoint]);
+
   return (
     <div
       ref={containerRef}
       className={`relative ${className}`}
       style={{ width: '100%', height }}
-      onClick={handleWrapperClick}
-      onPointerLeave={handleWrapperLeave}
-      onTouchCancel={handleWrapperLeave}
-      onTouchEnd={handleWrapperLeave}
       role="presentation"
     >
-      <svg
-        width={effectiveWidth}
-        height={height}
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${effectiveWidth} ${height}`}
-        role="img"
-        aria-hidden="true"
-        preserveAspectRatio="none"
-      >
+      <div className="flex h-full w-full">
+        <div
+          ref={chartAreaRef}
+          className="relative h-full min-w-0 flex-1 overflow-visible rounded-l-2xl rounded-r-none border border-slate-100/70 border-r-0 bg-white/60 shadow-[inset_0_1px_0_rgba(148,163,184,0.15)]"
+          style={{ width: chartWidth, marginRight: axisSpacing }}
+          onClick={handleWrapperClick}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          onPointerLeave={handleWrapperLeave}
+          onTouchStart={handleTouchMove}
+          onTouchMove={handleTouchMove}
+          onTouchCancel={handleWrapperLeave}
+          onTouchEnd={handleWrapperLeave}
+        >
+          <svg
+            width={chartWidth}
+            height={height}
+            className="h-full w-full"
+            viewBox={`0 0 ${chartWidth} ${height}`}
+            role="img"
+            aria-hidden="true"
+            preserveAspectRatio="none"
+          >
         <defs>
           <linearGradient
             id={areaGradientId}
             x1={0}
-            x2={effectiveWidth}
+            x2={chartWidth}
             y1={0}
             y2={0}
             gradientUnits="userSpaceOnUse"
@@ -465,9 +729,9 @@ export function Sparkline({
             <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
           </linearGradient>
           <mask id={areaMaskId} maskUnits="userSpaceOnUse">
-            <rect width={effectiveWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
+            <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
           </mask>
-          <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+          <linearGradient id={strokeGradientId} x1="0" x2={chartWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
             {gradientStops.map((stop, index) => (
               <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
             ))}
@@ -481,16 +745,33 @@ export function Sparkline({
           </filter>
         </defs>
 
-        <g opacity={0.08}>
-          <line x1="0" y1={height} x2={effectiveWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-          <line x1="0" y1={height / 2} x2={effectiveWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-        </g>
+        {!showYAxis ? (
+          <g opacity={0.08}>
+            <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+            <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+          </g>
+        ) : null}
+
+        {showYAxis
+          ? axisTicks.map((tick, index) => (
+              <line
+                key={`axis-${index}`}
+                x1={0}
+                x2={chartWidth}
+                y1={tick.y}
+                y2={tick.y}
+                stroke="rgba(148, 163, 184, 0.35)"
+                strokeWidth="1"
+                strokeDasharray="4 4"
+              />
+            ))
+          : null}
 
         {baselineY !== null && (
           <line
             x1={0}
             y1={baselineY}
-            x2={effectiveWidth}
+            x2={chartWidth}
             y2={baselineY}
             stroke={baselineColor}
             strokeWidth="1"
@@ -524,6 +805,28 @@ export function Sparkline({
           strokeLinejoin="round"
           filter={`url(#${glowId})`}
         />
+
+        {interactive && effectiveHoveredPoint ? (
+          <>
+            <line
+              x1={effectiveHoveredPoint.x}
+              y1={0}
+              x2={effectiveHoveredPoint.x}
+              y2={height}
+              stroke={crosshairColor}
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            <circle
+              cx={effectiveHoveredPoint.x}
+              cy={effectiveHoveredPoint.y}
+              r={4.2}
+              fill="#ffffff"
+              stroke={hoverOutlineColor}
+              strokeWidth={1.4}
+            />
+          </>
+        ) : null}
 
         <circle
           cx={lastPoint.x}
@@ -576,13 +879,37 @@ export function Sparkline({
         })}
       </svg>
 
-      {activeEvent && (
+      {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (
+        <div
+          className="pointer-events-none absolute z-10 flex flex-col items-center gap-1"
+          style={{
+            left: Math.min(Math.max(effectiveHoveredPoint.x, 12), chartWidth - 12),
+            top: Math.max(effectiveHoveredPoint.y - 56, 8),
+          }}
+        >
           <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+            className="rounded-lg px-2.5 py-1 text-xs font-semibold shadow-md"
             style={{
-              left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
-              top: Math.max(activeEvent.y - 12, 12),
+              background: toRgba(color, 0.18),
+              border: `1px solid ${toRgba(color, 0.35)}`,
+              color: '#0f172a',
             }}
+          >
+            {hoveredPriceText}
+          </div>
+          <div className="rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
+            {hoveredTimeText}
+          </div>
+        </div>
+      ) : null}
+
+      {activeEvent && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+          style={{
+            left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
+            top: Math.max(activeEvent.y - 12, 12),
+          }}
         >
           <div className="font-semibold text-slate-800">
             {activeEvent.typeLabel ?? activeEvent.type}
@@ -598,5 +925,35 @@ export function Sparkline({
         </div>
       )}
     </div>
+
+    {showYAxis && axisTicks.length ? (
+      <div
+        aria-hidden="true"
+        className="pointer-events-none relative h-full min-w-[3.75rem] rounded-r-2xl border border-slate-100/70 bg-white/70 backdrop-blur-sm"
+        style={{
+          width: axisOffset,
+          color: axisLabelColor,
+          background: axisBackground,
+          borderColor: axisBorderColor,
+        }}
+      >
+        {axisTicks.map((tick, index) => {
+          const clampPadding = Math.min(Math.max(height * 0.05, 6), 18);
+          const clampedY = Math.min(Math.max(tick.y, clampPadding), Math.max(height - clampPadding, clampPadding));
+
+          return (
+            <span
+              key={`axis-label-${index}`}
+              className="absolute right-2 text-right text-[11px] font-semibold leading-none tabular-nums"
+              style={{ top: clampedY, transform: 'translateY(-50%)' }}
+            >
+              {priceFormatter(tick.value)}
+            </span>
+          );
+        })}
+      </div>
+    ) : null}
+  </div>
+</div>
   );
 }
