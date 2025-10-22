@@ -246,6 +246,7 @@ export function TickerCard({
   }, [trendColor]);
 
   const hoverMeta = hoveredPoint ? `${hoverLabel} ${formatTooltipTimestamp(hoveredPoint.timestamp)}` : null;
+  const priceLabelText = hoverMeta ?? priceLabel;
 
   const showSparkline = Array.isArray(historical) && historical.length > 1;
 
@@ -268,20 +269,24 @@ export function TickerCard({
   return (
     <Card
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border border-slate-200/70 bg-white/95 shadow-sm ring-1 ring-slate-200/60 transition-shadow hover:shadow-xl',
+        'relative flex h-full flex-col overflow-hidden border border-slate-200/70 bg-white/95 shadow-sm ring-1 ring-slate-200/60 transition-shadow hover:-translate-y-0.5 hover:shadow-lg',
         className
       )}
     >
       <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
-      <div className="relative flex flex-1 flex-col gap-5 p-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold text-slate-900">{ticker.symbol.toUpperCase()}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{range}</span>
+      <div className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base font-semibold tracking-tight text-slate-900">
+                {ticker.symbol.toUpperCase()}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
+                {range}
+              </span>
             </div>
             {ticker.display ? (
-              <p className="text-sm text-slate-500">{ticker.display}</p>
+              <p className="text-xs text-slate-500">{ticker.display}</p>
             ) : null}
           </div>
           <div className="flex items-center gap-1">
@@ -317,53 +322,55 @@ export function TickerCard({
           </div>
         </header>
 
-        <div className="flex flex-col gap-3">
-          <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{priceLabel}</p>
-            <p className="mt-2 break-words text-[clamp(1.65rem,2vw+1.1rem,2.6rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+            <p
+              className={cn(
+                'text-[0.65rem] font-semibold tracking-wide text-slate-500',
+                hoverMeta ? 'normal-case' : 'uppercase'
+              )}
+            >
+              {priceLabelText}
+            </p>
+            <p className="mt-1 break-words text-[clamp(1.2rem,1.1vw+0.95rem,1.75rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
               {priceText}
             </p>
-            {hoverMeta ? (
-              <p className="mt-1 text-xs text-slate-500">
-                {hoverMeta}
-              </p>
-            ) : null}
           </div>
-          <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
-            <p className={cn('mt-2 break-words text-[clamp(1.2rem,1.6vw+1rem,1.75rem)] font-semibold leading-tight tabular-nums', changeTone)}>
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
+            <p className={cn('mt-1 break-words text-[clamp(0.95rem,1vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>
-          <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{basePriceLabel}</p>
-            <p className="mt-2 break-words text-[clamp(1.05rem,1.4vw+0.9rem,1.4rem)] font-semibold leading-snug text-slate-800 tabular-nums">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{basePriceLabel}</p>
+            <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
               {basePriceText}
             </p>
             {baseDateText ? (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-[0.68rem] text-slate-400">
                 {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4">
+        <div className="rounded-2xl border border-slate-100/80 bg-slate-50/70 p-3">
           {loading ? (
-            <div className="flex h-48 items-center justify-center text-sm text-slate-500">{loadingLabel}</div>
+            <div className="flex h-36 items-center justify-center text-xs text-slate-500">{loadingLabel}</div>
           ) : error ? (
-            <div className="flex h-48 items-center justify-center text-center text-sm text-rose-500">
+            <div className="flex h-36 items-center justify-center text-center text-xs text-rose-500">
               {error || errorLabel}
             </div>
           ) : showSparkline ? (
-            <div className="h-48">
+            <div className="h-36">
               <Sparkline
                 points={historical ?? []}
                 color={trendColor}
                 className="h-full w-full"
                 showYAxis
-                height={192}
-                yAxisWidth={56}
+                height={144}
+                yAxisWidth={48}
                 interactive
                 onHoverPoint={setHoveredPoint}
                 priceFormatter={priceFormatter}
@@ -371,16 +378,16 @@ export function TickerCard({
               />
             </div>
           ) : (
-            <div className="flex h-48 items-center justify-center text-center text-sm text-slate-500">
+            <div className="flex h-36 items-center justify-center text-center text-xs text-slate-500">
               {emptySeriesLabel}
             </div>
           )}
         </div>
 
         {ticker.note ? (
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-sm text-slate-600">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
-            <p className="mt-2 whitespace-pre-line">{ticker.note}</p>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-[0.8rem] text-slate-600">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
+            <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>
         ) : null}
       </div>
