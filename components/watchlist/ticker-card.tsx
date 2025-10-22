@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkline } from '@/components/charts/sparkline';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { formatCurrency, formatPercent, formatDate } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } from '@/types';
 
@@ -32,6 +32,12 @@ interface TickerCardProps {
   refreshLabel?: string;
   editLabel?: string;
   deleteLabel?: string;
+  basePrice?: number | null;
+  baseDate?: Date | null;
+  currentPrice?: number | null;
+  basePriceLabel?: string;
+  hoverLabel?: string;
+  startDateLabel?: string;
 }
 
 function resolveTone(value?: number | null) {
@@ -63,44 +69,160 @@ export function TickerCard({
   refreshLabel = 'Refresh',
   editLabel = 'Edit',
   deleteLabel = 'Delete',
+  basePrice,
+  baseDate,
+  currentPrice,
+  basePriceLabel = 'Starting price',
+  hoverLabel = 'Price on',
+  startDateLabel = 'Start date',
 }: TickerCardProps) {
-  const priceText = useMemo(() => {
-    if (quote && typeof quote.c === 'number' && Number.isFinite(quote.c)) {
-      return formatCurrency(quote.c, currency, locale);
+  const [hoveredPoint, setHoveredPoint] = useState<{ price: number; timestamp: number } | null>(null);
+
+  const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
+
+  const tooltipFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeCode, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    [localeCode]
+  );
+
+  const formatTooltipTimestamp = useCallback(
+    (timestamp: number) => {
+      const date = new Date(timestamp);
+      if (Number.isNaN(date.getTime())) {
+        return '';
+      }
+      return tooltipFormatter.format(date);
+    },
+    [tooltipFormatter]
+  );
+
+  const derivedBasePrice = useMemo(() => {
+    if (typeof basePrice === 'number' && Number.isFinite(basePrice)) {
+      return basePrice;
     }
 
-    if (historical && historical.length > 0) {
-      const lastPoint = historical[historical.length - 1];
-      if (lastPoint?.close) {
-        return formatCurrency(lastPoint.close, currency, locale);
+    const firstPoint = Array.isArray(historical)
+      ? historical.find((point) => typeof point?.close === 'number' && Number.isFinite(point.close))
+      : null;
+
+    return typeof firstPoint?.close === 'number' ? firstPoint.close : null;
+  }, [basePrice, historical]);
+
+  const derivedBaseDate = useMemo(() => {
+    if (baseDate instanceof Date && !Number.isNaN(baseDate.getTime())) {
+      return baseDate;
+    }
+
+    const firstPoint = Array.isArray(historical)
+      ? historical.find((point) => Number.isFinite(point?.timestamp))
+      : null;
+
+    if (firstPoint?.timestamp) {
+      const date = new Date(firstPoint.timestamp);
+      if (!Number.isNaN(date.getTime())) {
+        return date;
       }
     }
 
+    return null;
+  }, [baseDate, historical]);
+
+  const derivedCurrentPrice = useMemo(() => {
+    if (typeof currentPrice === 'number' && Number.isFinite(currentPrice)) {
+      return currentPrice;
+    }
+
+    if (quote && typeof quote.c === 'number' && Number.isFinite(quote.c)) {
+      return quote.c;
+    }
+
+    const lastPoint =
+      Array.isArray(historical) && historical.length > 0 ? historical[historical.length - 1] : null;
+
+    return typeof lastPoint?.close === 'number' && Number.isFinite(lastPoint.close)
+      ? lastPoint.close
+      : null;
+  }, [currentPrice, quote, historical]);
+
+  const activePrice = hoveredPoint?.price ?? derivedCurrentPrice ?? null;
+
+  const priceText = useMemo(() => {
+    if (typeof activePrice === 'number' && Number.isFinite(activePrice)) {
+      return formatCurrency(activePrice, currency, locale);
+    }
+
     return '--';
-  }, [currency, historical, locale, quote]);
+  }, [activePrice, currency, locale]);
+
+  const basePriceText = useMemo(() => {
+    if (typeof derivedBasePrice === 'number' && Number.isFinite(derivedBasePrice)) {
+      return formatCurrency(derivedBasePrice, currency, locale);
+    }
+
+    return '--';
+  }, [derivedBasePrice, currency, locale]);
+
+  const baseDateText = useMemo(() => {
+    if (!derivedBaseDate) {
+      return null;
+    }
+
+    return formatDate(derivedBaseDate, locale);
+  }, [derivedBaseDate, locale]);
+
+  const changeAbsolute = useMemo(() => {
+    if (
+      typeof derivedBasePrice === 'number' &&
+      Number.isFinite(derivedBasePrice) &&
+      typeof derivedCurrentPrice === 'number' &&
+      Number.isFinite(derivedCurrentPrice)
+    ) {
+      return derivedCurrentPrice - derivedBasePrice;
+    }
+
+    return null;
+  }, [derivedBasePrice, derivedCurrentPrice]);
+
+  const changePercent = useMemo(() => {
+    if (
+      changeAbsolute === null ||
+      typeof derivedBasePrice !== 'number' ||
+      !Number.isFinite(derivedBasePrice) ||
+      derivedBasePrice === 0
+    ) {
+      return null;
+    }
+
+    return (changeAbsolute / derivedBasePrice) * 100;
+  }, [changeAbsolute, derivedBasePrice]);
 
   const changeText = useMemo(() => {
-    if (!quote) {
-      return '--';
-    }
-
-    const { d: absoluteChange, dp: percentChange } = quote;
     const parts: string[] = [];
 
-    if (typeof absoluteChange === 'number' && Number.isFinite(absoluteChange)) {
-      const formatted = formatCurrency(absoluteChange, currency, locale);
-      parts.push(absoluteChange > 0 ? `+${formatted}` : formatted);
+    if (changeAbsolute !== null && Number.isFinite(changeAbsolute)) {
+      const formatted = formatCurrency(changeAbsolute, currency, locale);
+      parts.push(changeAbsolute > 0 ? `+${formatted}` : formatted);
     }
 
-    if (typeof percentChange === 'number' && Number.isFinite(percentChange)) {
-      const formattedPercent = formatPercent(percentChange, locale);
-      parts.push(percentChange > 0 ? `+${formattedPercent}` : formattedPercent);
+    if (changePercent !== null && Number.isFinite(changePercent)) {
+      const formattedPercent = formatPercent(changePercent, locale);
+      parts.push(changePercent > 0 ? `+${formattedPercent}` : formattedPercent);
     }
 
     return parts.length ? parts.join(' · ') : '--';
-  }, [currency, locale, quote]);
+  }, [changeAbsolute, changePercent, currency, locale]);
 
-  const changeTone = useMemo(() => resolveTone(quote?.d ?? quote?.dp), [quote?.d, quote?.dp]);
+  const changeTone = useMemo(
+    () => resolveTone(changeAbsolute ?? changePercent),
+    [changeAbsolute, changePercent]
+  );
 
   const trendColor = useMemo(() => {
     if (!historical || historical.length < 2) {
@@ -118,86 +240,147 @@ export function TickerCard({
     return '#2563EB';
   }, [historical]);
 
+  const accentGradient = useMemo(() => {
+    const base = trendColor ?? '#2563EB';
+    return `linear-gradient(90deg, ${base} 0%, ${base}CC 45%, ${base}66 100%)`;
+  }, [trendColor]);
+
+  const hoverMeta = hoveredPoint ? `${hoverLabel} ${formatTooltipTimestamp(hoveredPoint.timestamp)}` : null;
+
+  const showSparkline = Array.isArray(historical) && historical.length > 1;
+
+  const priceFormatter = useCallback(
+    (value: number) => formatCurrency(value, currency, locale),
+    [currency, locale]
+  );
+
+  const timeFormatter = useCallback(
+    (timestamp: number) => formatTooltipTimestamp(timestamp),
+    [formatTooltipTimestamp]
+  );
+
+  useEffect(() => {
+    if (!showSparkline) {
+      setHoveredPoint(null);
+    }
+  }, [showSparkline]);
+
   return (
-    <Card className={cn('flex h-full flex-col border-slate-200 dark:border-slate-800', className)}>
-      <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {ticker.symbol.toUpperCase()}
-            </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              {range}
-            </span>
-          </div>
-          {ticker.display ? (
-            <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{ticker.display}</p>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-1">
-          {onRefresh ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onRefresh(ticker)}
-              disabled={loading}
-            >
-              <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
-              <span className="sr-only">{refreshLabel}</span>
-            </Button>
-          ) : null}
-          {onEdit ? (
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
-              <Pencil className="h-4 w-4" />
-              <span className="sr-only">{editLabel}</span>
-            </Button>
-          ) : null}
-          {onDelete ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-rose-500 hover:text-rose-600"
-              onClick={() => onDelete(ticker)}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">{deleteLabel}</span>
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 px-6 py-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{priceLabel}</p>
-            <p className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">{priceText}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{changeLabel}</p>
-            <p className={cn('mt-1 text-base font-semibold', changeTone)}>{changeText}</p>
-          </div>
-        </div>
-        <div className="h-32 w-full">
-          {loading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">
-              {loadingLabel}
+    <Card
+      className={cn(
+        'relative flex h-full flex-col overflow-hidden border border-slate-200/70 bg-white/95 shadow-sm ring-1 ring-slate-200/60 transition-shadow hover:shadow-xl',
+        className
+      )}
+    >
+      <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
+      <div className="relative flex flex-1 flex-col gap-5 p-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold text-slate-900">{ticker.symbol.toUpperCase()}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{range}</span>
             </div>
+            {ticker.display ? (
+              <p className="text-sm text-slate-500">{ticker.display}</p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1">
+            {onRefresh ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => onRefresh(ticker)}
+                disabled={loading}
+              >
+                <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
+                <span className="sr-only">{refreshLabel}</span>
+              </Button>
+            ) : null}
+            {onEdit ? (
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">{editLabel}</span>
+              </Button>
+            ) : null}
+            {onDelete ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-rose-500 hover:text-rose-600"
+                onClick={() => onDelete(ticker)}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">{deleteLabel}</span>
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="flex flex-col gap-4">
+          <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{priceLabel}</p>
+            <p className="mt-2 break-words text-[clamp(1.65rem,2vw+1.1rem,2.6rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
+              {priceText}
+            </p>
+            {hoverMeta ? (
+              <p className="mt-1 text-xs text-slate-500">
+                {hoverMeta}
+              </p>
+            ) : null}
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
+            <p className={cn('mt-2 break-words text-[clamp(1.2rem,1.6vw+1rem,1.75rem)] font-semibold leading-tight tabular-nums', changeTone)}>
+              {changeText}
+            </p>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{basePriceLabel}</p>
+            <p className="mt-2 break-words text-[clamp(1.05rem,1.4vw+0.9rem,1.4rem)] font-semibold leading-snug text-slate-800 tabular-nums">
+              {basePriceText}
+            </p>
+            {baseDateText ? (
+              <p className="mt-1 text-xs text-slate-400">
+                {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4">
+          {loading ? (
+            <div className="flex h-48 items-center justify-center text-sm text-slate-500">{loadingLabel}</div>
           ) : error ? (
-            <div className="flex h-full items-center justify-center text-center text-sm text-rose-500 dark:text-rose-400">
+            <div className="flex h-48 items-center justify-center text-center text-sm text-rose-500">
               {error || errorLabel}
             </div>
-          ) : historical && historical.length > 1 ? (
-            <Sparkline points={historical} color={trendColor} className="h-full w-full" />
+          ) : showSparkline ? (
+            <div className="h-48">
+              <Sparkline
+                points={historical ?? []}
+                color={trendColor}
+                className="h-full w-full"
+                showYAxis
+                height={192}
+                yAxisWidth={56}
+                interactive
+                onHoverPoint={setHoveredPoint}
+                priceFormatter={priceFormatter}
+                timeFormatter={timeFormatter}
+              />
+            </div>
           ) : (
-            <div className="flex h-full items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex h-48 items-center justify-center text-center text-sm text-slate-500">
               {emptySeriesLabel}
             </div>
           )}
         </div>
+
         {ticker.note ? (
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
-            <span className="block font-semibold text-slate-500 dark:text-slate-300">{noteLabel}</span>
-            <span className="mt-1 block whitespace-pre-line">{ticker.note}</span>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-sm text-slate-600">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
+            <p className="mt-2 whitespace-pre-line">{ticker.note}</p>
           </div>
         ) : null}
       </div>
