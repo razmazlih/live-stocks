@@ -37,26 +37,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     finnhubToken: '',
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [settingsReady, setSettingsReady] = useState(false);
   const planProcessingRef = useRef(false);
   const tokenWarningShownRef = useRef(false);
   const { t } = useTranslation(locale);
 
   useEffect(() => {
-    const savedLocale = localStorage.getItem('locale') as Locale;
-    if (savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
-      setLocale(savedLocale);
-    }
+    let cancelled = false;
 
-    const savedSettings = localStorage.getItem('settings');
-    if (savedSettings) {
-      try {
-        setSettings(JSON.parse(savedSettings));
-      } catch (e) {
-        console.error('Failed to parse saved settings:', e);
+    const initializeSettings = async () => {
+      const savedLocale = localStorage.getItem('locale') as Locale;
+      if (savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
+        setLocale(savedLocale);
       }
-    }
 
-    const fetchRemoteSettings = async () => {
+      const savedSettings = localStorage.getItem('settings');
+      if (savedSettings) {
+        try {
+          setSettings(JSON.parse(savedSettings));
+        } catch (e) {
+          console.error('Failed to parse saved settings:', e);
+        }
+      }
+
       try {
         const { data, error } = await supabase
           .from('settings')
@@ -65,7 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (error) throw error;
 
-        if (data) {
+        if (data && !cancelled) {
           setSettings({
             annualGrowthRate: parseFloat(data.annual_growth_rate.toString()),
             currency: data.currency,
@@ -74,11 +77,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
       } catch (error) {
-        console.error('Failed to load settings from Supabase:', error);
+        if (!cancelled) {
+          console.error('Failed to load settings from Supabase:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setSettingsReady(true);
+        }
       }
     };
 
-    fetchRemoteSettings();
+    void initializeSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -96,6 +109,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const processPlans = useCallback(async () => {
+    if (!settingsReady) {
+      return;
+    }
+
     if (planProcessingRef.current) {
       return;
     }
@@ -137,6 +154,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       planProcessingRef.current = false;
     }
   }, [
+    settingsReady,
     settings.finnhubToken,
     t.positions.planProcessingMissingToken,
     t.positions.planProcessingTriggered,
@@ -147,6 +165,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    if (!settingsReady) {
+      return;
+    }
+
     let cancelled = false;
 
     const tick = async () => {
@@ -165,7 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [processPlans]);
+  }, [processPlans, settingsReady]);
 
   useEffect(() => {
     const updateRefreshInterval = () => {
