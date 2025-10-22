@@ -580,7 +580,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       <CardContent className="pt-6">
         <div className="flex flex-col gap-6 lg:flex-row">
           <div className="flex-1">
-            <div className="relative h-[22rem] overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
+            <div className="relative h-[22rem] rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
               <div className="relative h-full w-full p-4">
                 <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
                   <div className="flex items-center gap-2">
