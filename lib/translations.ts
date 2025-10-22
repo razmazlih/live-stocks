@@ -400,6 +400,7 @@ export const translations = {
     },
     positions: {
       title: 'ניהול פוזיציות',
+      subtitle: 'לוח ניהול מרכזי לכל הפוזיציות, התנועות והתכנונים.',
       add: 'הוסף פוזיציה',
       edit: 'ערוך',
       delete: 'מחק',
@@ -415,6 +416,25 @@ export const translations = {
       currentHolding: 'החזקה פעילה',
       since: 'מאז',
       transactionsTitle: 'היסטוריית פעולות',
+      summaryActivePositions: 'פוזיציות פעילות',
+      summaryActivePositionsHint: 'מספר הפוזיציות שמנוהלות כרגע.',
+      summaryActivePlans: 'תכנונים פעילים',
+      summaryActivePlansHint: (pending: number, triggered: number) =>
+        pending === 0 && triggered === 0
+          ? 'אין תכנונים שממתינים או הופעלו.'
+          : `ממתינים ${pending} · הופעלו ${triggered}`,
+      summaryDetachedPlans: 'תכנונים ללא פוזיציה',
+      summaryDetachedPlansHint: (count: number) =>
+        count === 0
+          ? 'כל התכנונים מקושרים לפוזיציות קיימות.'
+          : `${count} תכנונים מוכנים לפתיחת פוזיציה.`,
+      sectionActivePositions: 'פוזיציות מנוהלות',
+      sectionActivePositionsDescription: 'מבט מרוכז על הפוזיציות הפעילות, הפעולות והאוטומציה.',
+      positionOverview: 'פרטי פוזיציה',
+      recentActivity: 'פעולות אחרונות',
+      quickActions: 'פעולות מהירות',
+      positionPlans: 'תכנונים לפוזיציה',
+      positionPlansEmpty: 'אין תכנונים פעילים לפוזיציה זו.',
       addTransaction: 'הוסף עסקה',
       transactionType: 'סוג פעולה',
       transactionPrice: 'מחיר',
@@ -908,6 +928,7 @@ export const translations = {
     },
     positions: {
       title: 'Manage Positions',
+      subtitle: 'Central workspace for every position, trade, and automation plan.',
       add: 'Add Position',
       edit: 'Edit',
       delete: 'Delete',
@@ -923,6 +944,25 @@ export const translations = {
       currentHolding: 'Active holding',
       since: 'Since',
       transactionsTitle: 'Transaction history',
+      summaryActivePositions: 'Active positions',
+      summaryActivePositionsHint: 'Positions currently under management.',
+      summaryActivePlans: 'Active plans',
+      summaryActivePlansHint: (pending: number, triggered: number) =>
+        pending === 0 && triggered === 0
+          ? 'No plans are waiting or recently triggered.'
+          : `Pending ${pending} · Triggered ${triggered}`,
+      summaryDetachedPlans: 'Unassigned plans',
+      summaryDetachedPlansHint: (count: number) =>
+        count === 0
+          ? 'Every plan is attached to a position.'
+          : `${count} ready to launch new positions.`,
+      sectionActivePositions: 'Managed positions',
+      sectionActivePositionsDescription: 'A focused view of each position with its latest activity.',
+      positionOverview: 'Position details',
+      recentActivity: 'Recent activity',
+      quickActions: 'Quick actions',
+      positionPlans: 'Plans for this position',
+      positionPlansEmpty: 'No active plans connected to this position.',
       addTransaction: 'Add transaction',
       transactionType: 'Transaction type',
       transactionPrice: 'Price',

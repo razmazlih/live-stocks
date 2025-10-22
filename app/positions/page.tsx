@@ -13,7 +13,22 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft, History, CalendarPlus, Ban } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  BarChart3,
+  ArrowRightLeft,
+  History,
+  CalendarPlus,
+  Ban,
+  Layers,
+  CalendarClock,
+  ClipboardList,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -629,27 +644,31 @@ export default function PositionsPage() {
     }
   }
 
+  const totalPositions = positions.length;
+  const pendingPlansCount = activePlans.filter(({ plan }) => plan.status === 'pending').length;
+  const triggeredPlansCount = activePlans.filter(({ plan }) => plan.status === 'triggered').length;
+  const detachedPlansCount = activeDetachedPlans.length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
-      <div className="max-w-5xl mx-auto p-6">
-        <header className="mb-8">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {locale === 'he' ? 'חזרה' : 'Back'}
-            </Button>
-          </Link>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-bold text-[#0F172A]">{t.positions.title}</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={openAddDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t.positions.add}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_60%)]" />
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8">
+        <header className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-800">
+                <ArrowLeft className="h-4 w-4" />
+                {locale === 'he' ? 'חזרה' : 'Back'}
+              </Button>
+            </Link>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openAddDialog} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  {t.positions.add}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
                     <DialogTitle>
                       {editingPosition ? t.positions.edit : t.positions.add}
@@ -827,17 +846,63 @@ export default function PositionsPage() {
                 </DialogContent>
               </Dialog>
             </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-slate-900">{t.positions.title}</h1>
+            <p className="max-w-2xl text-sm text-slate-600">{t.positions.subtitle}</p>
           </div>
-          <Dialog
-            open={transactionDialogOpen}
-            onOpenChange={(open) => {
-              setTransactionDialogOpen(open);
-              if (!open) {
-                setTransactionTarget(null);
-                setTransactionForm(createDefaultTransactionForm());
-              }
-            }}
-          >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card className="border-transparent bg-white/80 shadow-lg shadow-sky-100/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  {t.positions.summaryActivePositions}
+                </CardTitle>
+                <Layers className="h-4 w-4 text-slate-400" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-slate-900">{totalPositions}</p>
+                <p className="text-xs text-slate-500">{t.positions.summaryActivePositionsHint}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-transparent bg-white/80 shadow-lg shadow-sky-100/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  {t.positions.summaryActivePlans}
+                </CardTitle>
+                <CalendarClock className="h-4 w-4 text-slate-400" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-slate-900">{activePlans.length}</p>
+                <p className="text-xs text-slate-500">
+                  {t.positions.summaryActivePlansHint(pendingPlansCount, triggeredPlansCount)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-transparent bg-white/80 shadow-lg shadow-sky-100/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  {t.positions.summaryDetachedPlans}
+                </CardTitle>
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-slate-900">{detachedPlansCount}</p>
+                <p className="text-xs text-slate-500">
+                  {t.positions.summaryDetachedPlansHint(detachedPlansCount)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </header>
+        <Dialog
+          open={transactionDialogOpen}
+          onOpenChange={(open) => {
+            setTransactionDialogOpen(open);
+            if (!open) {
+              setTransactionTarget(null);
+              setTransactionForm(createDefaultTransactionForm());
+            }
+          }}
+        >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -1147,21 +1212,35 @@ export default function PositionsPage() {
               )}
             </DialogContent>
           </Dialog>
-        </header>
 
-        <div className="backdrop-blur-sm bg-white/85 rounded-2xl border border-white/50 shadow-xl p-6">
+
+
+
+        <section className="rounded-2xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-200/60 backdrop-blur">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-800">{t.positions.sectionActivePositions}</h2>
+              <p className="text-sm text-slate-500">{t.positions.sectionActivePositionsDescription}</p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2" onClick={openAddDialog}>
+              <Plus className="h-4 w-4" />
+              {t.positions.add}
+            </Button>
+          </div>
           {loading ? (
-            <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
-          ) : positions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{t.dashboard.noPositions}</p>
-              <Button onClick={openAddDialog}>
-                <Plus className="w-4 h-4 mr-2" />
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-slate-500">
+              {t.common.loading}
+            </div>
+          ) : totalPositions === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+              <p className="text-sm text-slate-500">{t.dashboard.noPositions}</p>
+              <Button onClick={openAddDialog} className="gap-2">
+                <Plus className="h-4 w-4" />
                 {t.positions.add}
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-6 space-y-6">
               {positions.map((position) => {
                 const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
                   const aTime = new Date(a.executedAt).getTime();
@@ -1169,342 +1248,489 @@ export default function PositionsPage() {
                   return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
                 });
                 const recentLots = sortedLots.slice(0, 6);
+                const activePositionPlans = (position.plans ?? []).filter(
+                  (plan) => plan.status !== 'expired' && plan.status !== 'cancelled',
+                );
+                const pendingPositionPlans = activePositionPlans.filter((plan) => plan.status === 'pending');
 
                 return (
-                  <div
+                  <Card
                     key={position.id}
-                    className="rounded-lg border border-gray-200 bg-white/70 p-5"
+                    className="border-white/60 bg-white/80 shadow-lg shadow-slate-200/60 backdrop-blur"
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex-1 space-y-3">
-                        <div>
+                    <div className="flex flex-col gap-6 p-6">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-gray-900">{position.display}</span>
+                            <span className="text-lg font-semibold text-slate-900">{position.display}</span>
                             <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                               {position.symbol}
                             </Badge>
                           </div>
-                          <p className="mt-1 text-sm text-gray-600">
+                          <p className="text-sm text-slate-600">
                             {formatNumber(position.quantity, locale)} · {formatCurrency(position.entryPrice, 'USD', locale)} • {formatDate(position.entryDate, locale)}
                           </p>
                         </div>
-
-                        <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              {t.positions.transactionsTitle}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-400">
-                                {sortedLots.length === recentLots.length
-                                  ? sortedLots.length
-                                  : `${recentLots.length}/${sortedLots.length}`}
-                              </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => openTransactionDialog(position)}
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                            {t.positions.addTransaction}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => openPlanDialogForPosition(position)}
+                          >
+                            <CalendarPlus className="h-4 w-4" />
+                            {t.positions.addPlan}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2 text-slate-600 hover:text-slate-800"
+                            onClick={() => openHistoryDialog(position)}
+                          >
+                            <History className="h-4 w-4" />
+                            {t.positions.manageHistory}
+                          </Button>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                              {t.positions.positionOverview}
+                            </h3>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <div className="rounded-md border border-slate-200 bg-white/70 p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t.positions.entryPrice}</p>
+                                <p className="mt-1 text-sm font-medium text-slate-900">
+                                  {formatCurrency(position.entryPrice, 'USD', locale)}
+                                </p>
+                              </div>
+                              <div className="rounded-md border border-slate-200 bg-white/70 p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t.positions.quantity}</p>
+                                <p className="mt-1 text-sm font-medium text-slate-900">
+                                  {formatNumber(position.quantity, locale)}
+                                </p>
+                              </div>
+                              <div className="rounded-md border border-slate-200 bg-white/70 p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t.positions.entryDate}</p>
+                                <p className="mt-1 text-sm font-medium text-slate-900">
+                                  {formatDate(position.entryDate, locale)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                                {t.positions.recentActivity}
+                              </h3>
                               <Button
                                 variant="link"
                                 size="sm"
-                                className="h-auto px-0 text-[11px] text-slate-500 hover:text-slate-700"
+                                className="h-auto px-0 text-xs text-slate-500 hover:text-slate-700"
                                 onClick={() => openHistoryDialog(position)}
                               >
-                                <History className="mr-1 h-3 w-3" />
                                 {t.positions.manageHistory}
                               </Button>
                             </div>
-                          </div>
-                          {recentLots.length > 0 ? (
-                            <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                              {recentLots.map((lot) => {
-                                const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                                const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-                                return (
-                                  <li
-                                    key={`${lot.id}-${lot.executedAt}`}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
-                                      {typeLabel}
-                                    </span>
-                                    <span>
-                                      {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
-                                    </span>
-                                    <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-slate-400">{t.positions.noTransactions}</p>
-                          )}
-                        </div>
-                      </div>
+                            {recentLots.length > 0 ? (
+                              <ul className="space-y-2">
+                                {recentLots.map((lot) => {
+                                  const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                                  const badgeTone =
+                                    lot.type === 'BUY'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : 'bg-rose-100 text-rose-700';
 
-                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openTransactionDialog(position)}
-                        >
-                          <ArrowRightLeft className="mr-2 h-4 w-4" />
-                          {t.positions.addTransaction}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openPlanDialogForPosition(position)}
-                        >
-                          <CalendarPlus className="mr-2 h-4 w-4" />
-                          {t.positions.addPlan}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openHistoryDialog(position)}
-                        >
-                          <History className="mr-2 h-4 w-4" />
-                          {t.positions.manageHistory}
-                        </Button>
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/stock/${position.symbol}`}>
-                            <Button variant="ghost" size="sm">
-                              <BarChart3 className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(position)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(position.id!)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
+                                  return (
+                                    <li
+                                      key={`${lot.id}-${lot.executedAt}`}
+                                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-white/70 p-2"
+                                    >
+                                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                                        {typeLabel}
+                                      </span>
+                                      <span className="text-sm text-slate-600">
+                                        {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
+                                      </span>
+                                      <span className="ml-auto text-xs text-slate-500">
+                                        {formatDate(lot.executedAt, locale)}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-slate-400">{t.positions.noTransactions}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                              {t.positions.quickActions}
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              <Link href={`/stock/${position.symbol}`}>
+                                <Button variant="outline" size="sm" className="gap-2">
+                                  <BarChart3 className="h-4 w-4" />
+                                  {t.stock.details}
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => openEditDialog(position)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                {t.positions.edit}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-rose-600 hover:text-rose-700"
+                                onClick={() => handleDelete(position.id!)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {t.positions.delete}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                                {t.positions.positionPlans}
+                              </h3>
+                              {pendingPositionPlans.length > 0 && (
+                                <span className="text-xs text-slate-400">
+                                  {pendingPositionPlans.length}{' '}
+                                  {locale === 'he' ? 'ממתינים' : 'pending'}
+                                </span>
+                              )}
+                            </div>
+                            {activePositionPlans.length > 0 ? (
+                              <div className="space-y-2">
+                                {activePositionPlans.map((plan) => {
+                                  const statusClass = planStatusClasses[plan.status];
+                                  const statusLabel = planStatusLabels[plan.status];
+                                  const sideClass =
+                                    plan.side === 'sell'
+                                      ? 'bg-rose-100 text-rose-700'
+                                      : 'bg-emerald-100 text-emerald-700';
+                                  const sideLabel =
+                                    plan.side === 'sell'
+                                      ? t.positions.planSideSellShort
+                                      : t.positions.planSideBuyShort;
+
+                                  return (
+                                    <div
+                                      key={plan.id ?? `${plan.symbol}-${plan.targetDate}`}
+                                      className="rounded-md border border-slate-200 bg-slate-50/80 p-3"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                                        <Badge className={sideClass}>{sideLabel}</Badge>
+                                        <Badge className={statusClass}>{statusLabel}</Badge>
+                                      </div>
+                                      <p className="mt-2 text-sm text-slate-600">
+                                        {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
+                                      </p>
+                                      {plan.status === 'triggered' && plan.triggeredAt && (
+                                        <p className="text-xs text-emerald-600">
+                                          {t.positions.planTriggeredDetail(
+                                            formatDate(plan.triggeredAt, locale),
+                                            formatCurrency(plan.executedPrice ?? plan.targetPrice, 'USD', locale),
+                                          )}
+                                        </p>
+                                      )}
+                                      {plan.status === 'pending' && (
+                                        <div className="mt-2 flex items-center gap-2 text-xs">
+                                          <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="h-auto px-0"
+                                            onClick={() => openEditPlanDialog(plan, position)}
+                                          >
+                                            {t.positions.edit}
+                                          </Button>
+                                          <span className="text-slate-300">•</span>
+                                          <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="h-auto px-0 text-rose-500"
+                                            onClick={() => handlePlanCancel(plan)}
+                                          >
+                                            {t.positions.planCancel}
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400">{t.positions.positionPlansEmpty}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
-          {!loading && (
-            <div className="mt-10 space-y-10">
-              <section>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-800">{t.positions.activePlansTitle}</h2>
-                    <p className="text-sm text-slate-500">{t.positions.activePlansDescription}</p>
-                  </div>
+        </section>
+
+        {!loading && (
+          <div className="space-y-12">
+            <section className="space-y-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-800">{t.positions.activePlansTitle}</h2>
+                  <p className="text-sm text-slate-500">{t.positions.activePlansDescription}</p>
                 </div>
-                {activePlans.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">{t.positions.noActivePlans}</p>
-                ) : (
-                  <div className="mt-4 space-y-6">
-                    {activeLinkedPlans.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansLinked}</h3>
-                        <div className="mt-2 space-y-3">
-                          {activeLinkedPlans.map(({ plan, position }) => {
-                            if (!position) {
-                              return null;
-                            }
-                            const displayName = position.display;
-                            const statusClass = planStatusClasses[plan.status];
-                            const statusLabel = planStatusLabels[plan.status];
-                            const sideClass =
-                              plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                            const sideLabel =
-                              plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                            return (
-                              <div
-                                key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="space-y-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-semibold text-slate-800">{displayName}</span>
-                                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                                        {position.symbol}
-                                      </Badge>
-                                      <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
-                                      <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
-                                    </div>
-                                    <p className="text-sm text-slate-600">
-                                      {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
-                                    </p>
-                                    <p className="text-xs text-slate-500">{t.positions.planLinkedTo(position.display)}</p>
-                                    {plan.status === 'triggered' && plan.triggeredAt && (
-                                      <p className="text-xs text-emerald-600">
-                                        {t.positions.planTriggeredDetail(
-                                          formatDate(plan.triggeredAt, locale),
-                                          formatCurrency(plan.executedPrice ?? plan.targetPrice, 'USD', locale),
-                                        )}
-                                      </p>
+              </div>
+              {activePlans.length === 0 ? (
+                <Card className="border-white/60 bg-white/70 p-6 text-sm text-slate-500 shadow-sm">
+                  {t.positions.noActivePlans}
+                </Card>
+              ) : (
+                <div className="space-y-8">
+                  {activeLinkedPlans.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansLinked}</h3>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {activeLinkedPlans.map(({ plan, position }) => {
+                          if (!position) {
+                            return null;
+                          }
+                          const displayName = position.display;
+                          const statusClass = planStatusClasses[plan.status];
+                          const statusLabel = planStatusLabels[plan.status];
+                          const sideClass =
+                            plan.side === 'sell'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-emerald-100 text-emerald-700';
+                          const sideLabel =
+                            plan.side === 'sell'
+                              ? t.positions.planSideSellShort
+                              : t.positions.planSideBuyShort;
+
+                          return (
+                            <Card
+                              key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
+                              className="border-white/60 bg-white/80 shadow-sm shadow-slate-200/50 backdrop-blur"
+                            >
+                              <CardHeader className="space-y-2 pb-0">
+                                <CardTitle className="text-base font-semibold text-slate-900">{displayName}</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                  <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                    {position.symbol}
+                                  </Badge>
+                                  <Badge className={sideClass}>{sideLabel}</Badge>
+                                  <Badge className={statusClass}>{statusLabel}</Badge>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-3 text-sm text-slate-600">
+                                <p>
+                                  {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
+                                </p>
+                                <p className="text-xs text-slate-500">{t.positions.planLinkedTo(position.display)}</p>
+                                {plan.status === 'triggered' && plan.triggeredAt && (
+                                  <p className="text-xs text-emerald-600">
+                                    {t.positions.planTriggeredDetail(
+                                      formatDate(plan.triggeredAt, locale),
+                                      formatCurrency(plan.executedPrice ?? plan.targetPrice, 'USD', locale),
                                     )}
-                                  </div>
-                                  {plan.status === 'pending' && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditPlanDialog(plan, position)}
-                                      >
-                                        <Pencil className="mr-1 h-4 w-4" />
-                                        {t.positions.edit}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handlePlanCancel(plan)}
-                                      >
-                                        <Ban className="mr-1 h-4 w-4" />
-                                        {t.positions.planCancel}
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                                  </p>
+                                )}
+                              </CardContent>
+                              {plan.status === 'pending' && (
+                                <CardFooter className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => openEditPlanDialog(plan, position)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    {t.positions.edit}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => handlePlanCancel(plan)}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                    {t.positions.planCancel}
+                                  </Button>
+                                </CardFooter>
+                              )}
+                            </Card>
+                          );
+                        })}
                       </div>
-                    )}
-                    {activeDetachedPlans.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansDetached}</h3>
-                        <div className="mt-2 space-y-3">
-                          {activeDetachedPlans.map(({ plan }) => {
-                            const displayName = plan.display || plan.symbol;
-                            const statusClass = planStatusClasses[plan.status];
-                            const statusLabel = planStatusLabels[plan.status];
-                            const sideClass =
-                              plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                            const sideLabel =
-                              plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                            return (
-                              <div
-                                key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="space-y-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-semibold text-slate-800">{displayName}</span>
-                                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                                        {plan.symbol}
-                                      </Badge>
-                                      <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
-                                      <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
-                                    </div>
-                                    <p className="text-sm text-slate-600">
-                                      {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
-                                    </p>
-                                    <p className="text-xs text-slate-500">{t.positions.planForNewPosition}</p>
-                                  </div>
-                                  {plan.status === 'pending' && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditPlanDialog(plan)}
-                                      >
-                                        <Pencil className="mr-1 h-4 w-4" />
-                                        {t.positions.edit}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handlePlanCancel(plan)}
-                                      >
-                                        <Ban className="mr-1 h-4 w-4" />
-                                        {t.positions.planCancel}
-                                      </Button>
-                                    </div>
-                                  )}
+                    </div>
+                  )}
+                  {activeDetachedPlans.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansDetached}</h3>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {activeDetachedPlans.map(({ plan }) => {
+                          const displayName = plan.display || plan.symbol;
+                          const statusClass = planStatusClasses[plan.status];
+                          const statusLabel = planStatusLabels[plan.status];
+                          const sideClass =
+                            plan.side === 'sell'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-emerald-100 text-emerald-700';
+                          const sideLabel =
+                            plan.side === 'sell'
+                              ? t.positions.planSideSellShort
+                              : t.positions.planSideBuyShort;
+
+                          return (
+                            <Card
+                              key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
+                              className="border-white/60 bg-white/80 shadow-sm shadow-slate-200/50 backdrop-blur"
+                            >
+                              <CardHeader className="space-y-2 pb-0">
+                                <CardTitle className="text-base font-semibold text-slate-900">{displayName}</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                  <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                    {plan.symbol}
+                                  </Badge>
+                                  <Badge className={sideClass}>{sideLabel}</Badge>
+                                  <Badge className={statusClass}>{statusLabel}</Badge>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                              </CardHeader>
+                              <CardContent className="space-y-3 text-sm text-slate-600">
+                                <p>
+                                  {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
+                                </p>
+                                <p className="text-xs text-slate-500">{t.positions.planForNewPosition}</p>
+                              </CardContent>
+                              {plan.status === 'pending' && (
+                                <CardFooter className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => openEditPlanDialog(plan)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    {t.positions.edit}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => handlePlanCancel(plan)}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                    {t.positions.planCancel}
+                                  </Button>
+                                </CardFooter>
+                              )}
+                            </Card>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
-                )}
-              </section>
-              <section>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-800">{t.positions.closedPlansTitle}</h2>
-                    <p className="text-sm text-slate-500">{t.positions.closedPlansDescription}</p>
-                  </div>
+                    </div>
+                  )}
                 </div>
-                {closedPlans.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">{t.positions.noClosedPlans}</p>
-                ) : (
-                  <div className="mt-4 space-y-3">
-                    {closedPlans.map(({ plan, position }) => {
-                      const displayName = position?.display ?? plan.display ?? plan.symbol;
-                      const symbol = position?.symbol ?? plan.symbol;
-                      const statusClass = planStatusClasses[plan.status];
-                      const statusLabel = planStatusLabels[plan.status];
-                      const sideClass =
-                        plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                      const sideLabel =
-                        plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                      return (
-                        <div
-                          key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
-                          className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-semibold text-slate-800">{displayName}</span>
-                                <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                                  {symbol}
-                                </Badge>
-                                <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
-                                <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
-                              </div>
-                              <p className="text-sm text-slate-600">
-                                {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
-                              </p>
-                              {plan.status === 'expired' && plan.expiredAt && (
-                                <p className="text-xs text-slate-500">
-                                  {t.positions.planExpiredDetail(formatDate(plan.expiredAt, locale))}
-                                </p>
-                              )}
-                              {plan.status === 'cancelled' && plan.expiredAt && (
-                                <p className="text-xs text-slate-500">
-                                  {t.positions.planCancelledDetail(formatDate(plan.expiredAt, locale))}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handlePlanDelete(plan)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4 text-red-500" />
-                                {t.positions.planDelete}
-                              </Button>
-                            </div>
+              )}
+            </section>
+            <section className="space-y-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-800">{t.positions.closedPlansTitle}</h2>
+                  <p className="text-sm text-slate-500">{t.positions.closedPlansDescription}</p>
+                </div>
+              </div>
+              {closedPlans.length === 0 ? (
+                <Card className="border-white/60 bg-white/70 p-6 text-sm text-slate-500 shadow-sm">
+                  {t.positions.noClosedPlans}
+                </Card>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {closedPlans.map(({ plan, position }) => {
+                    const displayName = position?.display ?? plan.display ?? plan.symbol;
+                    const symbol = position?.symbol ?? plan.symbol;
+                    const statusClass = planStatusClasses[plan.status];
+                    const statusLabel = planStatusLabels[plan.status];
+                    const sideClass =
+                      plan.side === 'sell'
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-emerald-100 text-emerald-700';
+                    const sideLabel =
+                      plan.side === 'sell'
+                        ? t.positions.planSideSellShort
+                        : t.positions.planSideBuyShort;
+
+                    return (
+                      <Card
+                        key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
+                        className="border-white/60 bg-white/80 shadow-sm shadow-slate-200/50 backdrop-blur"
+                      >
+                        <CardHeader className="space-y-2 pb-0">
+                          <CardTitle className="text-base font-semibold text-slate-900">{displayName}</CardTitle>
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                              {symbol}
+                            </Badge>
+                            <Badge className={sideClass}>{sideLabel}</Badge>
+                            <Badge className={statusClass}>{statusLabel}</Badge>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-        </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          <p>
+                            {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
+                          </p>
+                          {plan.status === 'expired' && plan.expiredAt && (
+                            <p className="text-xs text-slate-500">
+                              {t.positions.planExpiredDetail(formatDate(plan.expiredAt, locale))}
+                            </p>
+                          )}
+                          {plan.status === 'cancelled' && plan.expiredAt && (
+                            <p className="text-xs text-slate-500">
+                              {t.positions.planCancelledDetail(formatDate(plan.expiredAt, locale))}
+                            </p>
+                          )}
+                        </CardContent>
+                        <CardFooter className="flex items-center justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-rose-600 hover:text-rose-700"
+                            onClick={() => handlePlanDelete(plan)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {t.positions.planDelete}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+
       </div>
     </div>
   );
