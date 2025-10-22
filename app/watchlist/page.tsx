@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { isNasdaqTradingHours } from '@/lib/utils/trading-hours';
 import type {
   CandleData,
   HistoricalPoint,
@@ -61,6 +62,86 @@ interface TickerState {
   range: TimeRange;
   from: number | null;
   lastUpdated: number | null;
+}
+
+const TICKER_CACHE_PREFIX = 'watchlist:ticker';
+const TICKER_CACHE_VERSION = 1;
+
+interface TickerCacheEntry {
+  quote: StockQuote | null;
+  historical: HistoricalPoint[];
+  error: string | null;
+  range: TimeRange;
+  from: number;
+  lastUpdated: number;
+  expiresAt: number;
+}
+
+interface PersistedTickerCacheEntry extends TickerCacheEntry {
+  version: number;
+}
+
+function getTickerCacheKey(symbol: string, range: TimeRange, from: number): string {
+  return `${TICKER_CACHE_PREFIX}:${symbol}:${range}:${from}`;
+}
+
+function readTickerCache(key: string): TickerCacheEntry | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as PersistedTickerCacheEntry | null;
+    if (!parsed || parsed.version !== TICKER_CACHE_VERSION) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    const now = Date.now();
+    if (typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= now) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    if (
+      typeof parsed.lastUpdated !== 'number' ||
+      typeof parsed.from !== 'number' ||
+      !Array.isArray(parsed.historical)
+    ) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to parse ticker cache entry', error);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(key);
+    }
+    return null;
+  }
+}
+
+function writeTickerCache(key: string, entry: TickerCacheEntry) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload: PersistedTickerCacheEntry = {
+    ...entry,
+    version: TICKER_CACHE_VERSION,
+  };
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('Failed to persist ticker cache entry', error);
+  }
 }
 
 function createEmptyGroupForm(): GroupFormState {
@@ -267,6 +348,27 @@ export default function WatchlistPage() {
       const startDateForFetch = options?.startDate ?? effectiveStartDate;
       const { from, resolution } = getRangeParams(targetRange, startDateForFetch);
       const key = getTickerKey(ticker);
+      const symbol = ticker.symbol.toUpperCase();
+      const cacheKey = getTickerCacheKey(symbol, targetRange, from);
+
+      if (!options?.force) {
+        const cached = readTickerCache(cacheKey);
+        if (cached) {
+          setTickerStates((prev) => ({
+            ...prev,
+            [key]: {
+              quote: cached.quote,
+              historical: cached.historical,
+              loading: false,
+              error: cached.error,
+              range: targetRange,
+              from,
+              lastUpdated: cached.lastUpdated,
+            },
+          }));
+          return;
+        }
+      }
 
       setTickerStates((prev) => {
         const existing = prev[key];
@@ -295,7 +397,6 @@ export default function WatchlistPage() {
       });
 
       try {
-        const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
 
         const quoteParams = new URLSearchParams({ symbol });
@@ -347,6 +448,20 @@ export default function WatchlistPage() {
           }
         }
 
+        const now = Date.now();
+        const cacheTtl = isNasdaqTradingHours() ? 3 * 60 * 1000 : 60 * 60 * 1000;
+        const cacheEntry: TickerCacheEntry = {
+          quote,
+          historical,
+          error: errorMessage,
+          range: targetRange,
+          from,
+          lastUpdated: now,
+          expiresAt: now + cacheTtl,
+        };
+
+        writeTickerCache(cacheKey, cacheEntry);
+
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -356,7 +471,7 @@ export default function WatchlistPage() {
             error: errorMessage,
             range: targetRange,
             from,
-            lastUpdated: Date.now(),
+            lastUpdated: now,
           },
         }));
       } catch (error) {
@@ -370,7 +485,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: Date.now(),
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
       }
@@ -383,13 +498,18 @@ export default function WatchlistPage() {
       return;
     }
 
+    const now = Date.now();
+    const freshnessWindow = isNasdaqTradingHours() ? 3 * 60 * 1000 : 60 * 60 * 1000;
+
     selectedGroup.tickers.forEach((ticker) => {
       const key = getTickerKey(ticker);
       const state = tickerStates[key];
       const shouldLoad =
         !state ||
         state.range !== range ||
-        state.from !== effectiveFromSeconds;
+        state.from !== effectiveFromSeconds ||
+        !state.lastUpdated ||
+        now - state.lastUpdated > freshnessWindow;
 
       if (shouldLoad) {
         fetchTickerData(ticker, { range, startDate: effectiveStartDate }).catch((error) => {
