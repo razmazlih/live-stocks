@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Line,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useMemo } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,43 +16,102 @@ interface PortfolioOverviewChartProps {
 
 type TooltipValueType = number | string;
 
+type ChartPoint = PortfolioTimelinePoint & {
+  netValue: number;
+  netValueIls: number;
+  openValueUsd: number;
+  openValueIls: number;
+  expectedValueUsd: number;
+  expectedValueIls: number;
+  forecastValueUsd: number;
+  forecastValueIls: number;
+  deltaUsd: number;
+  deltaIls: number;
+  trendState: 'loss' | 'under' | 'above';
+  lossValue: number | null;
+  underValue: number | null;
+  aboveValue: number | null;
+};
+
+const trendStateColors: Record<ChartPoint['trendState'], string> = {
+  loss: '#ef4444',
+  under: '#0ea5e9',
+  above: '#22c55e',
+};
+
+const resolveTrendState = (
+  netValue: number,
+  forecastValue: number
+): ChartPoint['trendState'] => {
+  if (!Number.isFinite(netValue)) {
+    return 'above';
+  }
+
+  if (!Number.isFinite(forecastValue)) {
+    return netValue <= 0 ? 'loss' : 'above';
+  }
+
+  if (netValue <= 0) {
+    return 'loss';
+  }
+
+  if (netValue < forecastValue) {
+    return 'under';
+  }
+
+  return 'above';
+};
+
+const ActiveNetLineDot = ({
+  cx,
+  cy,
+  payload,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: ChartPoint;
+}) => {
+  if (typeof cx !== 'number' || typeof cy !== 'number') {
+    return null;
+  }
+
+  const point = payload as ChartPoint | undefined;
+  const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
+
+  return (
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="#ffffff" />
+  );
+};
+
 interface ChartTooltipProps {
   active?: boolean;
-  payload?: { value: TooltipValueType; payload: PortfolioTimelinePoint }[];
+  payload?: { value: TooltipValueType; payload: ChartPoint }[];
   label?: TooltipValueType;
   formatUsd: (value: number) => string;
   formatIls: (value: number) => string;
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
+    at: string;
     net: string;
+    forecast: string;
     open: string;
     realized: string;
     taxes: string;
+    change: string;
+    projection: string;
     usd: string;
     ils: string;
   };
 }
 
-const tonePalette = {
-  negative: { color: '#F43F5E', strokeOpacity: 0.95, fillOpacity: 0.28 },
-  underperforming: { color: '#2563EB', strokeOpacity: 0.92, fillOpacity: 0.24 },
-  positive: { color: '#10B981', strokeOpacity: 0.95, fillOpacity: 0.22 },
-} as const;
-
-type ToneKey = keyof typeof tonePalette;
-
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
-  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
-  if (netValue < 0) {
-    return 'negative';
+const formatSignedCurrency = (value: number, formatter: (value: number) => string) => {
+  if (value === 0) {
+    return formatter(0);
   }
 
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
-    return 'underperforming';
-  }
-
-  return 'positive';
+  const formatted = formatter(Math.abs(value));
+  return value > 0 ? `+${formatted}` : `-${formatted}`;
 };
 
 const ChartTooltip = ({
@@ -79,68 +128,134 @@ const ChartTooltip = ({
     return null;
   }
 
-  const point = payload[0]?.payload;
+  const netEntry = payload?.find((entry) => entry && entry.dataKey === 'netValue');
+  const point = netEntry?.payload as ChartPoint | undefined;
+
   if (!point) {
     return null;
   }
 
-  const openUsd = point.totalPnLUsd ?? 0;
-  const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
-  const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
-  const netIls = point.netPnLIls ?? openIls + summary.totalRealizedProfitIls - summary.totalTaxesPaidIls;
+  const changeUsd = point.deltaUsd;
+  const changeIls = point.deltaIls;
+  const projectionGapUsd = point.netValue - point.expectedValueUsd;
+  const projectionGapIls = point.netValueIls - point.expectedValueIls;
+  const forecastUsd = point.forecastValueUsd ?? point.expectedValueUsd;
+  const forecastIls = point.forecastValueIls ?? point.expectedValueIls;
+
+  const projectionClass = projectionGapUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+
+  const netUsd = point.netValue;
+  const netIls = point.netValueIls;
+  const openUsd = point.openValueUsd;
+  const openIls = point.openValueIls;
   const realizedUsd = summary.totalRealizedProfitUsd;
   const realizedIls = summary.totalRealizedProfitIls;
   const taxesUsd = summary.totalTaxesPaidUsd;
   const taxesIls = summary.totalTaxesPaidIls;
 
-  const rows = [
+  const changeRows = [
     {
-      key: 'net',
-      label: labels.net,
-      usd: netUsd,
-      ils: netIls,
-      accent: 'from-blue-500 to-blue-400',
+      key: 'change',
+      label: labels.change,
+      usd: changeUsd,
+      ils: changeIls,
     },
+  ];
+
+  const breakdownRows = [
     {
       key: 'open',
       label: labels.open,
       usd: openUsd,
       ils: openIls,
-      accent: 'from-slate-500 to-slate-400',
+      accent: 'from-slate-500/15 via-slate-400/10 to-slate-300/5',
     },
     {
       key: 'realized',
       label: labels.realized,
       usd: realizedUsd,
       ils: realizedIls,
-      accent: 'from-emerald-500 to-emerald-400',
+      accent: 'from-emerald-500/15 via-emerald-400/10 to-emerald-300/5',
     },
     {
       key: 'taxes',
       label: labels.taxes,
       usd: taxesUsd * -1,
       ils: taxesIls * -1,
-      accent: 'from-rose-500 to-rose-400',
+      accent: 'from-rose-500/15 via-rose-400/10 to-rose-300/5',
     },
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
-      <div className="mt-3 space-y-3">
-        {rows.map((row) => (
-          <div key={row.key} className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
-                <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${row.accent}`} />
+    <div className="w-72 rounded-2xl border border-slate-200 bg-white/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <span>{labels.at}</span>
+        <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{labels.net}</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
+          <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
+        </div>
+        <div className="rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
+          <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
+          <div className="mt-2 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-500/80">{labels.projection}</p>
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span className="font-medium">{labels.usd}</span>
+              <span className={`font-semibold ${projectionClass}`}>
+                {formatSignedCurrency(projectionGapUsd, formatUsd)}
               </span>
-              {row.label}
             </div>
-            <div className="flex items-center justify-between text-sm text-slate-600">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span className="font-medium">{labels.ils}</span>
+              <span className={`font-semibold ${projectionClass}`}>
+                {formatSignedCurrency(projectionGapIls, formatIls)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {changeRows.map((row) => {
+          const changeClass = row.usd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+
+          return (
+            <div
+              key={row.key}
+              className="rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm"
+            >
+              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <span>{row.label}</span>
+                <span className={`text-xs font-semibold ${changeClass}`}>
+                  {formatSignedCurrency(row.usd, formatUsd)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+                <span className="font-medium">{labels.ils}</span>
+                <span className={`font-semibold ${changeClass}`}>
+                  {formatSignedCurrency(row.ils, formatIls)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 text-[13px] text-slate-600">
+        {breakdownRows.map((row) => (
+          <div key={row.key} className={`rounded-xl bg-gradient-to-br ${row.accent} p-3`}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{row.label}</p>
+            <div className="mt-1 flex items-center justify-between">
               <span className="font-medium text-slate-500">{labels.usd}</span>
-              <span className="font-semibold text-slate-900">{formatUsd(row.usd)}</span>
+              <span className="text-sm font-semibold text-slate-900">{formatUsd(row.usd)}</span>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
               <span className="font-medium">{labels.ils}</span>
               <span className="font-semibold text-slate-700">{formatIls(row.ils)}</span>
             </div>
@@ -154,7 +269,6 @@ const ChartTooltip = ({
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
   const usdFormatter = (value: number) => formatCurrency(value, 'USD', locale);
   const ilsFormatter = (value: number) => formatCurrency(value, 'ILS', locale);
@@ -167,6 +281,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       }),
     [localeCode]
   );
+  const tooltipDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeCode, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    [localeCode]
+  );
   const compactFormatter = useMemo(
     () =>
       new Intl.NumberFormat(localeCode, {
@@ -176,7 +301,303 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
-  const trendPoint = data[data.length - 1];
+  const chartPoints = useMemo<ChartPoint[]>(() => {
+    if (!data.length) {
+      return [];
+    }
+
+    const sortedPoints = [...data].sort((a, b) => a.timestamp - b.timestamp);
+
+    const basePoints = sortedPoints.map((point) => {
+      const netValue =
+        typeof point.netPnLUsd === 'number' ? point.netPnLUsd : point.totalPnLUsd ?? 0;
+      const netValueIls =
+        typeof point.netPnLIls === 'number'
+          ? point.netPnLIls
+          : netValue * summary.usdToIlsRate;
+      const openValueUsd = typeof point.totalPnLUsd === 'number' ? point.totalPnLUsd : netValue;
+      const openValueIls =
+        typeof point.totalPnLIls === 'number'
+          ? point.totalPnLIls
+          : openValueUsd * summary.usdToIlsRate;
+      const expectedValueUsd =
+        typeof point.expectedNetPnLUsd === 'number'
+          ? point.expectedNetPnLUsd
+          : netValue;
+      const expectedValueIls =
+        typeof point.expectedNetPnLIls === 'number'
+          ? point.expectedNetPnLIls
+          : expectedValueUsd * summary.usdToIlsRate;
+      const forecastValueUsd = expectedValueUsd;
+      const forecastValueIls = expectedValueIls;
+      const forecastBaselineUsd = Number.isFinite(forecastValueUsd)
+        ? forecastValueUsd
+        : expectedValueUsd;
+      const trendState = resolveTrendState(netValue, forecastBaselineUsd);
+
+      return {
+        ...point,
+        netValue,
+        netValueIls,
+        openValueUsd,
+        openValueIls,
+        expectedValueUsd,
+        expectedValueIls,
+        forecastValueUsd,
+        forecastValueIls,
+        deltaUsd: 0,
+        deltaIls: 0,
+        trendState,
+        lossValue: null,
+        underValue: null,
+        aboveValue: null,
+      };
+    });
+
+    if (basePoints.length === 0) {
+      return [];
+    }
+
+    const interpolateValue = (start: number, end: number, alpha: number) => {
+      if (!Number.isFinite(start) && !Number.isFinite(end)) {
+        return 0;
+      }
+
+      if (!Number.isFinite(start)) {
+        return end;
+      }
+
+      if (!Number.isFinite(end)) {
+        return start;
+      }
+
+      return start + (end - start) * alpha;
+    };
+
+    const classifyBetween = (prev: ChartPoint, current: ChartPoint, alpha: number) => {
+      const boundedAlpha = Math.max(0, Math.min(1, alpha));
+      const netValue = interpolateValue(prev.netValue, current.netValue, boundedAlpha);
+      const forecastValue = interpolateValue(
+        Number.isFinite(prev.forecastValueUsd) ? prev.forecastValueUsd : prev.expectedValueUsd,
+        Number.isFinite(current.forecastValueUsd) ? current.forecastValueUsd : current.expectedValueUsd,
+        boundedAlpha
+      );
+      return resolveTrendState(netValue, forecastValue);
+    };
+
+    const interpolatePoint = (prev: ChartPoint, current: ChartPoint, alpha: number): ChartPoint => {
+      const boundedAlpha = Math.max(0, Math.min(1, alpha));
+      const timestamp = Math.round(interpolateValue(prev.timestamp, current.timestamp, boundedAlpha));
+      const netValue = interpolateValue(prev.netValue, current.netValue, boundedAlpha);
+      const netValueIls = interpolateValue(prev.netValueIls, current.netValueIls, boundedAlpha);
+      const openValueUsd = interpolateValue(prev.openValueUsd, current.openValueUsd, boundedAlpha);
+      const openValueIls = interpolateValue(prev.openValueIls, current.openValueIls, boundedAlpha);
+      const expectedValueUsd = interpolateValue(prev.expectedValueUsd, current.expectedValueUsd, boundedAlpha);
+      const expectedValueIls = interpolateValue(prev.expectedValueIls, current.expectedValueIls, boundedAlpha);
+      const forecastValueUsd = interpolateValue(prev.forecastValueUsd, current.forecastValueUsd, boundedAlpha);
+      const forecastValueIls = interpolateValue(prev.forecastValueIls, current.forecastValueIls, boundedAlpha);
+      const totalPnLUsd = interpolateValue(prev.totalPnLUsd, current.totalPnLUsd, boundedAlpha);
+      const totalPnLIls = interpolateValue(prev.totalPnLIls, current.totalPnLIls, boundedAlpha);
+      const netPnLUsd = interpolateValue(prev.netPnLUsd, current.netPnLUsd, boundedAlpha);
+      const netPnLIls = interpolateValue(prev.netPnLIls, current.netPnLIls, boundedAlpha);
+      const expectedNetPnLUsd = interpolateValue(
+        prev.expectedNetPnLUsd,
+        current.expectedNetPnLUsd,
+        boundedAlpha
+      );
+      const expectedNetPnLIls = interpolateValue(
+        prev.expectedNetPnLIls,
+        current.expectedNetPnLIls,
+        boundedAlpha
+      );
+
+      const forecastBaseline = Number.isFinite(forecastValueUsd) ? forecastValueUsd : expectedValueUsd;
+      const trendState = resolveTrendState(netValue, forecastBaseline);
+
+      return {
+        timestamp,
+        totalPnLUsd,
+        totalPnLIls,
+        netPnLUsd,
+        netPnLIls,
+        expectedNetPnLUsd,
+        expectedNetPnLIls,
+        netValue,
+        netValueIls,
+        openValueUsd,
+        openValueIls,
+        expectedValueUsd,
+        expectedValueIls,
+        forecastValueUsd,
+        forecastValueIls,
+        deltaUsd: 0,
+        deltaIls: 0,
+        trendState,
+        lossValue: null,
+        underValue: null,
+        aboveValue: null,
+      };
+    };
+
+    const findTransitions = (prev: ChartPoint, current: ChartPoint) => {
+      const candidateSet = new Set<number>();
+      const netDelta = current.netValue - prev.netValue;
+      if (netDelta !== 0) {
+        const zeroAlpha = (0 - prev.netValue) / netDelta;
+        if (zeroAlpha > 0 && zeroAlpha < 1) {
+          candidateSet.add(zeroAlpha);
+        }
+      }
+
+      const prevForecastBase = Number.isFinite(prev.forecastValueUsd)
+        ? prev.forecastValueUsd
+        : prev.expectedValueUsd;
+      const currentForecastBase = Number.isFinite(current.forecastValueUsd)
+        ? current.forecastValueUsd
+        : current.expectedValueUsd;
+      const prevGap = prev.netValue - prevForecastBase;
+      const currentGap = current.netValue - currentForecastBase;
+      const forecastDelta = currentGap - prevGap;
+      if (forecastDelta !== 0) {
+        const forecastAlpha = -prevGap / forecastDelta;
+        if (forecastAlpha > 0 && forecastAlpha < 1) {
+          candidateSet.add(forecastAlpha);
+        }
+      }
+
+      const candidates = Array.from(candidateSet).sort((a, b) => a - b);
+      const transitions: number[] = [];
+
+      candidates.forEach((alpha) => {
+        const beforeState = classifyBetween(prev, current, Math.max(alpha - 1e-4, 0));
+        const afterState = classifyBetween(prev, current, Math.min(alpha + 1e-4, 1));
+
+        if (beforeState !== afterState) {
+          transitions.push(alpha);
+        }
+      });
+
+      return transitions.sort((a, b) => a - b);
+    };
+
+    const points: ChartPoint[] = [];
+
+    const pushPoint = (source: ChartPoint) => {
+      const previous = points[points.length - 1];
+      const clone: ChartPoint = {
+        ...source,
+        deltaUsd: previous ? source.netValue - previous.netValue : 0,
+        deltaIls: previous ? source.netValueIls - previous.netValueIls : 0,
+        lossValue: null,
+        underValue: null,
+        aboveValue: null,
+      };
+      points.push(clone);
+    };
+
+    pushPoint(basePoints[0]);
+
+    for (let index = 1; index < basePoints.length; index += 1) {
+      const prev = basePoints[index - 1];
+      const current = basePoints[index];
+
+      const transitions = findTransitions(prev, current);
+
+      transitions.forEach((alpha) => {
+        const interpolated = interpolatePoint(prev, current, alpha);
+        pushPoint(interpolated);
+      });
+
+      pushPoint(current);
+    }
+
+    if (points.length === 1) {
+      const single = points[0];
+      const key =
+        single.trendState === 'loss'
+          ? 'lossValue'
+          : single.trendState === 'under'
+          ? 'underValue'
+          : 'aboveValue';
+      single[key] = single.netValue;
+      return points;
+    }
+
+    const assignValue = (
+      target: ChartPoint,
+      key: 'lossValue' | 'underValue' | 'aboveValue',
+      value: number
+    ) => {
+      if (target[key] === null) {
+        target[key] = value;
+      }
+    };
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+
+      const midNet = (start.netValue + end.netValue) / 2;
+      const midForecast = (start.forecastValueUsd + end.forecastValueUsd) / 2;
+      const midExpected = (start.expectedValueUsd + end.expectedValueUsd) / 2;
+      const baseline = Number.isFinite(midForecast) ? midForecast : midExpected;
+      const segmentState = resolveTrendState(midNet, baseline);
+      const key =
+        segmentState === 'loss'
+          ? 'lossValue'
+          : segmentState === 'under'
+          ? 'underValue'
+          : 'aboveValue';
+
+      assignValue(start, key, start.netValue);
+      assignValue(end, key, end.netValue);
+    }
+
+    return points;
+  }, [data, summary.usdToIlsRate]);
+
+  const yDomain = useMemo<[number, number] | undefined>(() => {
+    if (!chartPoints.length) {
+      return undefined;
+    }
+
+    let minValue = Number.POSITIVE_INFINITY;
+    let maxValue = Number.NEGATIVE_INFINITY;
+
+    chartPoints.forEach((point) => {
+      minValue = Math.min(
+        minValue,
+        point.netValue,
+        point.expectedValueUsd,
+        point.forecastValueUsd,
+        point.openValueUsd
+      );
+      maxValue = Math.max(
+        maxValue,
+        point.netValue,
+        point.expectedValueUsd,
+        point.forecastValueUsd,
+        point.openValueUsd
+      );
+    });
+
+    minValue = Math.min(minValue, 0);
+    maxValue = Math.max(maxValue, 0);
+
+    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+      return undefined;
+    }
+
+    if (minValue === maxValue) {
+      const pad = Math.max(Math.abs(minValue) * 0.25, 1);
+      return [minValue - pad, maxValue + pad];
+    }
+
+    const pad = (maxValue - minValue) * 0.12;
+    return [minValue - pad, maxValue + pad];
+  }, [chartPoints]);
+
+  const trendPoint = chartPoints[chartPoints.length - 1];
   const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
   const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
@@ -188,127 +609,47 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
 
-  const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
-    if (!data.length) {
-      return [
-        { offset: 0, tone: 'positive' as ToneKey },
-        { offset: 100, tone: 'positive' as ToneKey },
-      ];
-    }
-
-    if (data.length === 1) {
-      const singleTone = getPointTone(data[0]);
-      return [
-        { offset: 0, tone: singleTone },
-        { offset: 100, tone: singleTone },
-      ];
-    }
-
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
-      tone: getPointTone(point),
-    }));
-  }, [data]);
-
-  const strokeGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.strokeOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.strokeOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
-
-  const fillGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.fillOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.fillOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
-
   const { bestPoint, worstPoint } = useMemo(() => {
-    if (!data.length) {
+    if (!chartPoints.length) {
       return { bestPoint: null, worstPoint: null };
     }
 
-    return data.reduce(
+    return chartPoints.reduce(
       (acc, point) => {
-        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
-        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
-        if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
+        if (!acc.bestPoint || point.netValue > acc.bestPoint.netValue) {
           acc.bestPoint = point;
         }
 
-        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
-        if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
+        if (!acc.worstPoint || point.netValue < acc.worstPoint.netValue) {
           acc.worstPoint = point;
         }
 
         return acc;
       },
-      { bestPoint: null as PortfolioTimelinePoint | null, worstPoint: null as PortfolioTimelinePoint | null }
+      { bestPoint: null as ChartPoint | null, worstPoint: null as ChartPoint | null }
     );
-  }, [data]);
+  }, [chartPoints]);
 
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const trendTone = trendPoint?.netValue ?? netPnLUsd;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
-  const badgeClass = trendTone > 0
-    ? 'bg-emerald-50 text-emerald-600'
-    : trendTone < 0
+  const badgeClass =
+    trendTone > 0
+      ? 'bg-emerald-50 text-emerald-600'
+      : trendTone < 0
       ? 'bg-rose-50 text-rose-600'
       : 'bg-slate-100 text-slate-600';
 
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
-  const formattedBestValueIls = bestPoint
-    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
-  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
-  const formattedWorstValueIls = worstPoint
-    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
+  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netValue) : '—';
+  const formattedBestValueIls = bestPoint ? ilsFormatter(bestPoint.netValueIls) : '—';
+  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netValue) : '—';
+  const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
-      <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/60">
+    <Card className="overflow-hidden border-white/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl backdrop-blur-sm">
+      <CardHeader className="space-y-2 border-b border-white/60 bg-white/70">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -317,98 +658,144 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       <CardContent className="pt-6">
         <div className="flex flex-col gap-6 lg:flex-row">
           <div className="flex-1">
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
-                      {strokeGradientStops.map((stop, index) => (
-                        <stop
-                          key={`stroke-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
+            <div className="relative h-[22rem] overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
+              <div className="relative h-full w-full p-4">
+                <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                    <span>{t.dashboard.timelineLegendActualLoss}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                    <span>{t.dashboard.timelineLegendActualUnder}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                    <span>{t.dashboard.timelineLegendActualAbove}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
+                    <span>{t.dashboard.timelineLegendForecast}</span>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartPoints} margin={{ top: 28, right: 32, left: 0, bottom: 16 }}>
+                    <CartesianGrid strokeDasharray="4 6" stroke="rgba(148, 163, 184, 0.22)" vertical={false} />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={16}
+                      minTickGap={28}
+                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    />
+                    <YAxis
+                      orientation="right"
+                      tickFormatter={(value) => compactFormatter.format(value)}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                      {...(yDomain ? { domain: yDomain } : {})}
+                    />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 40 }}
+                      cursor={{ strokeDasharray: '4 6', stroke: 'rgba(99, 102, 241, 0.35)', strokeWidth: 1.25 }}
+                      content={
+                        <ChartTooltip
+                          formatUsd={usdFormatter}
+                          formatIls={ilsFormatter}
+                          labelFormatter={(value) => tooltipDateFormatter.format(new Date(Number(value)))}
+                          summary={summary}
+                          labels={{
+                            at: t.dashboard.timelineTooltipMoment,
+                            net: t.dashboard.netPnL,
+                            forecast: t.dashboard.timelineTooltipForecast,
+                            open: t.dashboard.currentPnL,
+                            realized: t.dashboard.realizedPnL,
+                            taxes: t.dashboard.taxesPaid,
+                            change: t.dashboard.timelineTooltipChange,
+                            projection: t.dashboard.timelineTooltipProjection,
+                            usd: t.dashboard.usdLabel,
+                            ils: t.dashboard.ilsLabel,
+                          }}
                         />
-                      ))}
-                    </linearGradient>
-                    <linearGradient id="portfolioPnlFill" x1="0" y1="0" x2="1" y2="0">
-                      {fillGradientStops.map((stop, index) => (
-                        <stop
-                          key={`fill-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
-                        />
-                      ))}
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12 }}
-                  />
-                  <YAxis
-                    orientation="right"
-                    tickFormatter={(value) => compactFormatter.format(value)}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
-                    content={
-                      <ChartTooltip
-                        formatUsd={usdFormatter}
-                        formatIls={ilsFormatter}
-                        labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
-                        summary={summary}
-                        labels={{
-                          net: t.dashboard.netPnL,
-                          open: t.dashboard.currentPnL,
-                          realized: t.dashboard.realizedPnL,
-                          taxes: t.dashboard.taxesPaid,
-                          usd: t.dashboard.usdLabel,
-                          ils: t.dashboard.ilsLabel,
-                        }}
-                      />
-                    }
-                  />
-                  <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
-                  <Line
-                    type="monotone"
-                    dataKey="expectedNetPnLUsd"
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="6 6"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="netPnLUsd"
-                    stroke="url(#portfolioPnlStroke)"
-                    strokeWidth={2.5}
-                    fill="url(#portfolioPnlFill)"
-                    fillOpacity={1}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+                      }
+                    />
+                    <ReferenceLine y={0} stroke="rgba(99, 102, 241, 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="netValue"
+                      stroke="transparent"
+                      strokeWidth={3.5}
+                      dot={false}
+                      activeDot={<ActiveNetLineDot />}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="lossValue"
+                      stroke={trendStateColors.loss}
+                      strokeWidth={3.5}
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="underValue"
+                      stroke={trendStateColors.under}
+                      strokeWidth={3.5}
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="aboveValue"
+                      stroke={trendStateColors.above}
+                      strokeWidth={3.5}
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="forecastValueUsd"
+                      stroke="#f59e0b"
+                      strokeWidth={2.5}
+                      strokeDasharray="6 6"
+                      dot={false}
+                      activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-inner lg:max-w-xs">
+          <div className="flex flex-1 flex-col gap-5 rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-lg lg:max-w-sm">
             <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
               <span className="h-2.5 w-2.5 rounded-full bg-current" />
               {toneClass === 'text-emerald-600'
                 ? t.dashboard.positiveTrend
                 : toneClass === 'text-rose-600'
-                  ? t.dashboard.negativeTrend
-                  : t.dashboard.neutralTrend}
+                ? t.dashboard.negativeTrend
+                : t.dashboard.neutralTrend}
             </div>
 
             <div className="space-y-2">
@@ -417,52 +804,48 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.currentPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
+              <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
               </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.realizedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3">
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
+              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
-                <p className="mt-1 font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
+                <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
                 <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
               </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
+              <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-                  {t.dashboard.bestPnL}
-                </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedBestValueUsd}</p>
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
+              <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
                 <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
                 <p className="text-xs text-slate-400">{formattedBestDate}</p>
               </div>
-              <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-                  {t.dashboard.worstPnL}
-                </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedWorstValueUsd}</p>
+              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
                 <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
                 <p className="text-xs text-slate-400">{formattedWorstDate}</p>
               </div>
             </div>
 
-            <div className="rounded-xl bg-gradient-to-r from-blue-50/90 via-white/90 to-blue-100/40 p-4 text-sm text-slate-600">
+            <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t.dashboard.portfolioOverviewFootnote}
               </p>
