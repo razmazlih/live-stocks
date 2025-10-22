@@ -13,18 +13,23 @@ import {
   XAxis,
   YAxis,
   Bar,
+  AreaChart,
+  Area,
 } from 'recharts';
 import type { DefaultLegendContentProps, TooltipProps as RechartsTooltipProps } from 'recharts';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { buildPortfolioAllocation, buildPortfolioPnL, formatCurrency } from '@/lib/calculations';
-import { PositionMetrics, PortfolioSummary } from '@/types';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+
+import { buildPortfolioAllocation, buildPortfolioPnL, formatCurrency, formatPercent } from '@/lib/calculations';
+import { PositionMetrics, PortfolioSummary, PortfolioTimelinePoint } from '@/types';
 
 interface PortfolioVisualizationsProps {
   metrics: PositionMetrics[];
   summary: PortfolioSummary | null;
+  timeline: PortfolioTimelinePoint[];
 }
 
 const COLORS = ['#2563EB', '#0EA5E9', '#22C55E', '#8B5CF6', '#F97316', '#F59E0B', '#EC4899'];
@@ -89,7 +94,7 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
   );
 };
 
-export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualizationsProps) {
+export function PortfolioVisualizations({ metrics, summary, timeline }: PortfolioVisualizationsProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
 
@@ -129,17 +134,289 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
     notation: 'compact',
     maximumFractionDigits: 1,
   });
+  const shortDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeCode, {
+        month: 'short',
+        day: 'numeric',
+      }),
+    [localeCode]
+  );
+  const fullDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeCode, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    [localeCode]
+  );
+
+  const performanceData = useMemo(() => {
+    if (!timeline.length) {
+      return [];
+    }
+
+    return timeline.map((point) => ({
+      timestamp: point.timestamp,
+      actual: currency === 'ILS' ? point.netPnLIls : point.netPnLUsd,
+      expected: currency === 'ILS' ? point.expectedNetPnLIls : point.expectedNetPnLUsd,
+    }));
+  }, [currency, timeline]);
+
+  const topMovers = useMemo(() => {
+    if (!summary) {
+      return { gainers: [], losers: [] };
+    }
+
+    const conversionRate = settings.currency === 'ILS' ? summary.usdToIlsRate : 1;
+
+    const entries = metrics
+      .filter((metric) => typeof metric.dailyChange === 'number' && metric.position.quantity > 0)
+      .map((metric) => {
+        const changeUsd = (metric.dailyChange ?? 0) * metric.position.quantity;
+        return {
+          symbol: metric.position.symbol,
+          display: metric.position.display,
+          changeValue: changeUsd * conversionRate,
+          changePercent: metric.dailyChangePercent,
+        };
+      });
+
+    const gainers = entries
+      .filter((item) => item.changeValue > 0)
+      .sort((a, b) => b.changeValue - a.changeValue)
+      .slice(0, 3);
+
+    const losers = entries
+      .filter((item) => item.changeValue < 0)
+      .sort((a, b) => a.changeValue - b.changeValue)
+      .slice(0, 3);
+
+    return { gainers, losers };
+  }, [metrics, settings.currency, summary]);
+
+  const holdingPeriodData = useMemo(() => {
+    if (!summary) {
+      return [];
+    }
+
+    const conversionRate = settings.currency === 'ILS' ? summary.usdToIlsRate : 1;
+
+    const buckets = [
+      { key: 'short', label: t.dashboard.holdingPeriodShort, min: 0, max: 1 },
+      { key: 'medium', label: t.dashboard.holdingPeriodMedium, min: 1, max: 3 },
+      { key: 'long', label: t.dashboard.holdingPeriodLong, min: 3, max: Number.POSITIVE_INFINITY },
+    ] as const;
+
+    const totals = buckets.map((bucket) => {
+      const bucketValueUsd = metrics
+        .filter(
+          (metric) =>
+            metric.position.quantity > 0 &&
+            metric.yearsHeld >= bucket.min &&
+            metric.yearsHeld < bucket.max
+        )
+        .reduce((sum, metric) => sum + metric.currentValue, 0);
+
+      const bucketValue = bucketValueUsd * conversionRate;
+
+      return {
+        key: bucket.key,
+        label: bucket.label,
+        value: bucketValue,
+      };
+    });
+
+    const totalValue = totals.reduce((acc, item) => acc + item.value, 0);
+
+    return totals.map((item) => ({
+      ...item,
+      percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0,
+    }));
+  }, [metrics, settings.currency, summary, t]);
 
   const pieTooltipFormatter = (value: number) => formatValue(value ?? 0);
   const barTooltipFormatter = (value: number) => formatValue(value ?? 0);
+  const areaTooltipFormatter = (value: number) => formatValue(value ?? 0);
 
   if (!metrics.length || !summary) {
     return null;
   }
 
+  const hasPerformanceData = performanceData.length > 0;
+  const hasMovers = topMovers.gainers.length > 0 || topMovers.losers.length > 0;
+  const hasHoldingData = holdingPeriodData.some((item) => item.value > 0);
+
   return (
-    <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl">
+    <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
+        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            {t.dashboard.performanceTrendTitle}
+          </CardTitle>
+          <p className="text-sm text-slate-500">{t.dashboard.performanceTrendDescription}</p>
+        </CardHeader>
+        <CardContent className="h-80">
+          {!hasPerformanceData ? (
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+              {t.dashboard.emptyChart}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={performanceData} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="performanceActualGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.15} />
+                  </linearGradient>
+                  <linearGradient id="performanceExpectedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.85} />
+                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.12} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  domain={['auto', 'auto']}
+                  tickFormatter={(value) => shortDateFormatter.format(new Date(Number(value)))}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: '#475569', fontSize: 12 }}
+                />
+                <YAxis
+                  tickFormatter={(value) => compactNumber.format(value)}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: '#475569', fontSize: 12 }}
+                />
+                <Tooltip
+                  cursor={{ stroke: 'rgba(15, 23, 42, 0.15)', strokeWidth: 1 }}
+                  content={
+                    <ChartTooltip
+                      valueFormatter={areaTooltipFormatter}
+                      labelFormatter={(value) => fullDateFormatter.format(new Date(Number(value)))}
+                    />
+                  }
+                />
+                <Legend verticalAlign="bottom" align="center" content={renderLegend} />
+                <Area
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="#2563EB"
+                  fill="url(#performanceActualGradient)"
+                  strokeWidth={2}
+                  name={t.dashboard.performanceTrendActual}
+                  activeDot={{ r: 5, strokeWidth: 0 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expected"
+                  stroke="#8B5CF6"
+                  fill="url(#performanceExpectedGradient)"
+                  strokeWidth={2}
+                  name={t.dashboard.performanceTrendExpected}
+                  activeDot={{ r: 5, strokeWidth: 0 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
+        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            {t.dashboard.topMoversTitle}
+          </CardTitle>
+          <p className="text-sm text-slate-500">{t.dashboard.topMoversDescription}</p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!hasMovers ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/60 py-12 text-center text-sm text-slate-500">
+              <ArrowUpRight className="h-5 w-5 text-slate-400" />
+              <p>{t.dashboard.topMoversEmpty}</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversGainers}</h4>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
+                    {t.dashboard.topMoversPositiveLabel}
+                  </span>
+                </div>
+                {topMovers.gainers.map((item) => (
+                  <div
+                    key={`gainer-${item.symbol}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <ArrowUpRight className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
+                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-sm font-semibold text-emerald-600">{formatValue(item.changeValue)}</p>
+                      {typeof item.changePercent === 'number' && Number.isFinite(item.changePercent) && (
+                        <p className="text-xs font-medium text-emerald-500">
+                          {formatPercent(item.changePercent, locale)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {topMovers.gainers.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                    {t.dashboard.topMoversNoData}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversLosers}</h4>
+                  <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-600">
+                    {t.dashboard.topMoversNegativeLabel}
+                  </span>
+                </div>
+                {topMovers.losers.map((item) => (
+                  <div
+                    key={`loser-${item.symbol}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                      <ArrowDownRight className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
+                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-sm font-semibold text-rose-600">{formatValue(item.changeValue)}</p>
+                      {typeof item.changePercent === 'number' && Number.isFinite(item.changePercent) && (
+                        <p className="text-xs font-medium text-rose-500">
+                          {formatPercent(item.changePercent, locale)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {topMovers.losers.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                    {t.dashboard.topMoversNoData}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
           <CardTitle className="text-lg font-semibold text-slate-900">
             {t.dashboard.allocationChart}
@@ -148,7 +425,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardHeader>
         <CardContent className="h-80">
           {allocationData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -200,7 +477,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl">
+      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
           <CardTitle className="text-lg font-semibold text-slate-900">
             {t.dashboard.pnlChart}
@@ -209,7 +486,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardHeader>
         <CardContent className="h-80">
           {pnlData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -257,6 +534,78 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 />
               </BarChart>
             </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
+        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            {t.dashboard.holdingPeriodTitle}
+          </CardTitle>
+          <p className="text-sm text-slate-500">{t.dashboard.holdingPeriodDescription}</p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!hasHoldingData ? (
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
+              {t.dashboard.emptyChart}
+            </div>
+          ) : (
+            <>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="20%">
+                    <defs>
+                      <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.55} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(value) => compactNumber.format(value)}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#475569', fontSize: 12 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      width={120}
+                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.08)' }}
+                      content={
+                        <ChartTooltip
+                          valueFormatter={barTooltipFormatter}
+                          labelFormatter={(value) => value?.toString?.() ?? ''}
+                        />
+                      }
+                    />
+                    <Bar dataKey="value" fill="url(#holdingPeriodGradient)" radius={[0, 10, 10, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {holdingPeriodData.map((bucket) => (
+                  <div
+                    key={bucket.key}
+                    className="rounded-2xl border border-slate-100/70 bg-white/70 p-4 shadow-inner"
+                  >
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{bucket.label}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {formatValue(bucket.value)}
+                    </p>
+                    <p className="text-xs text-slate-500">{formatPercent(bucket.percentage, locale)}</p>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
