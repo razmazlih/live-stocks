@@ -85,7 +85,7 @@ supabase/
 - `GET /api/candles` – נרות מסחר (Finnhub), משמש לגרפי sparkline וניתוח היסטורי. 【F:app/api/candles/route.ts†L1-L120】
 - `GET /api/exchange-rate` – שער USD→ILS עם retry וגיבוי לתרחיש כשל. 【F:app/api/exchange-rate/route.ts†L1-L40】
 - `POST /api/portfolio` – יוצר תקציר משוקלל, מחירים נוכחיים/חזויים ומדדים לכל פוזיציה. 【F:app/api/portfolio/route.ts†L1-L240】
-- `GET /api/portfolio/combined-pnl` – חשבון מהיר לפער בין הרווח הנוכחי לחזוי בכל התיק. 【F:app/api/portfolio/combined-pnl/route.ts†L1-L160】
+- `GET /api/portfolio/combined-pnl` – מחזיר את הרווח/הפסד נטו של התיק כפי שמוצג בדף הסקירה. 【F:app/api/portfolio/combined-pnl/route.ts†L1-L125】
 
 כל המסלולים משתמשים במנגנון **backoff מעריכי** מתוך `lib/http.ts` יחד עם שירותי `lib/services` כדי להבטיח קוד נטול כפילויות, כותרות Cache מתאימות והמרות TypeScript קפדניות. 【F:lib/http.ts†L1-L52】【F:lib/services/finnhub.ts†L1-L42】【F:lib/services/exchange-rate.ts†L1-L66】
 
