@@ -1,4 +1,4 @@
-import { Position, PositionLot, PositionLotType, RealizedSale } from '@/types';
+import { Position, PositionLot, PositionLotType, PositionPlan, RealizedSale } from '@/types';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -11,6 +11,24 @@ interface SupabasePositionLot {
   executed_at: string;
 }
 
+interface SupabasePositionPlan {
+  id: string;
+  position_id: string | null;
+  symbol: string;
+  display: string | null;
+  image_url: string | null;
+  side: 'buy' | 'sell' | null;
+  target_price: number | string;
+  target_quantity: number | string;
+  target_date: string;
+  status: PositionPlan['status'];
+  triggered_at: string | null;
+  expired_at: string | null;
+  executed_price: number | string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface SupabasePositionRow {
   id: string;
   symbol: string;
@@ -20,6 +38,7 @@ interface SupabasePositionRow {
   quantity?: number | string | null;
   entry_date?: string | null;
   position_lots?: SupabasePositionLot[] | null;
+  position_plans?: SupabasePositionPlan[] | null;
 }
 
 export interface OpenLot {
@@ -57,6 +76,28 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
     price: parseNumeric(lot.price),
     quantity: parseNumeric(lot.quantity),
     executedAt: lot.executed_at,
+  };
+}
+
+export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
+  const executedPrice = plan.executed_price;
+
+  return {
+    id: plan.id,
+    positionId: plan.position_id,
+    symbol: plan.symbol,
+    display: plan.display,
+    imageUrl: plan.image_url,
+    side: plan.side === 'sell' ? 'sell' : 'buy',
+    targetPrice: parseNumeric(plan.target_price),
+    targetQuantity: parseNumeric(plan.target_quantity),
+    targetDate: plan.target_date,
+    status: plan.status,
+    triggeredAt: plan.triggered_at,
+    expiredAt: plan.expired_at,
+    executedPrice: executedPrice == null ? null : parseNumeric(executedPrice),
+    createdAt: plan.created_at ?? undefined,
+    updatedAt: plan.updated_at ?? undefined,
   };
 }
 
@@ -158,6 +199,10 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
     ? row.position_lots.map(normalizeLot).filter((lot) => lot.quantity > 0)
     : [];
 
+  const plans = Array.isArray(row.position_plans)
+    ? row.position_plans.map(mapPositionPlanRow)
+    : [];
+
   const summary = summarizeLots(lots);
 
   const fallbackQuantity = parseNumeric(row.quantity);
@@ -181,6 +226,7 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
     quantity,
     entryDate,
     lots,
+    plans,
   };
 }
 

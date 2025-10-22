@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
+import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
@@ -18,6 +18,7 @@ import {
   PositionMetrics,
   PortfolioSummary,
   PortfolioTimelinePoint,
+  PositionPlan,
 } from '@/types';
 
 interface SparklineResult {
@@ -187,6 +188,7 @@ export function usePortfolioData() {
   const [loading, setLoading] = useState(true);
   const [refreshingCount, setRefreshingCount] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [openSummary, setOpenSummary] = useState<PortfolioSummary | null>(null);
@@ -302,14 +304,24 @@ export function usePortfolioData() {
           setLoading(true);
         }
 
-        const { data: positionsData, error: positionsError } = await supabase
-          .from('positions')
-          .select('*, position_lots(*)')
-          .order('symbol');
+        const [positionsResult, unattachedPlansResult] = await Promise.all([
+          supabase
+            .from('positions')
+            .select('*, position_lots(*), position_plans(*)')
+            .order('symbol'),
+          supabase
+            .from('position_plans')
+            .select('*')
+            .is('position_id', null),
+        ]);
 
-        if (positionsError) throw positionsError;
+        if (positionsResult.error) throw positionsResult.error;
+        if (unattachedPlansResult.error) throw unattachedPlansResult.error;
 
-        const mappedPositions: Position[] = (positionsData || []).map(mapPositionRow);
+        const mappedPositions: Position[] = (positionsResult.data || []).map(mapPositionRow);
+        const mappedUnassignedPlans: PositionPlan[] = (unattachedPlansResult.data || []).map(
+          mapPositionPlanRow,
+        );
         const rateResponse = await fetch('/api/exchange-rate');
         const rateData = await rateResponse.json();
         const rate = rateData.usdToIls || 3.7;
@@ -508,6 +520,7 @@ export function usePortfolioData() {
         );
 
         setPositions(mappedPositions);
+        setUnassignedPlans(mappedUnassignedPlans);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
         setSummary(enrichedSummary);
@@ -551,6 +564,7 @@ export function usePortfolioData() {
     loading,
     refreshing: refreshingCount > 0,
     positions,
+    unassignedPlans,
     metrics,
     summary,
     openSummary,

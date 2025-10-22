@@ -235,7 +235,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       try {
         const { data, error: positionError } = await supabase
           .from('positions')
-          .select('*, position_lots(*)')
+          .select('*, position_lots(*), position_plans(*)')
           .eq('symbol', normalizedSymbol)
           .maybeSingle();
 

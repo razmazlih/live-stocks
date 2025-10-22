@@ -18,7 +18,7 @@ export async function GET() {
     const [positionsResult, settingsResult] = await Promise.all([
       supabase
         .from('positions')
-        .select('*, position_lots(*)')
+        .select('*, position_lots(*), position_plans(*)')
         .order('symbol'),
       supabase
         .from('settings')

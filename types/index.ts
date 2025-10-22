@@ -9,6 +9,27 @@ export interface PositionLot {
   executedAt: string;
 }
 
+export type PositionPlanStatus = 'pending' | 'triggered' | 'expired' | 'cancelled';
+export type PositionPlanSide = 'buy' | 'sell';
+
+export interface PositionPlan {
+  id?: string;
+  positionId?: string | null;
+  symbol: string;
+  display?: string | null;
+  imageUrl?: string | null;
+  side: PositionPlanSide;
+  targetPrice: number;
+  targetQuantity: number;
+  targetDate: string;
+  status: PositionPlanStatus;
+  triggeredAt?: string | null;
+  expiredAt?: string | null;
+  executedPrice?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Position {
   id?: string;
   symbol: string;
@@ -18,6 +39,7 @@ export interface Position {
   quantity: number;
   entryDate: string;
   lots?: PositionLot[];
+  plans?: PositionPlan[];
 }
 
 export interface RealizedSale {

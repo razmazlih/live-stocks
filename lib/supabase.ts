@@ -43,6 +43,91 @@ export type Database = {
           updated_at?: string;
         };
       };
+      position_lots: {
+        Row: {
+          id: string;
+          position_id: string;
+          side: 'BUY' | 'SELL';
+          price: number;
+          quantity: number;
+          executed_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          position_id: string;
+          side: 'BUY' | 'SELL';
+          price: number;
+          quantity: number;
+          executed_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          position_id?: string;
+          side?: 'BUY' | 'SELL';
+          price?: number;
+          quantity?: number;
+          executed_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      position_plans: {
+        Row: {
+          id: string;
+          position_id: string | null;
+          symbol: string;
+          display: string | null;
+          image_url: string | null;
+          side: 'buy' | 'sell';
+          target_price: number;
+          target_quantity: number;
+          target_date: string;
+          status: 'pending' | 'triggered' | 'expired' | 'cancelled';
+          triggered_at: string | null;
+          expired_at: string | null;
+          executed_price: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          position_id?: string | null;
+          symbol: string;
+          display?: string | null;
+          image_url?: string | null;
+          side?: 'buy' | 'sell';
+          target_price: number;
+          target_quantity: number;
+          target_date: string;
+          status?: 'pending' | 'triggered' | 'expired' | 'cancelled';
+          triggered_at?: string | null;
+          expired_at?: string | null;
+          executed_price?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          position_id?: string | null;
+          symbol?: string;
+          display?: string | null;
+          image_url?: string | null;
+          side?: 'buy' | 'sell';
+          target_price?: number;
+          target_quantity?: number;
+          target_date?: string;
+          status?: 'pending' | 'triggered' | 'expired' | 'cancelled';
+          triggered_at?: string | null;
+          expired_at?: string | null;
+          executed_price?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       settings: {
         Row: {
           id: string;
