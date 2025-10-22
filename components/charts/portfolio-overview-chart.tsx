@@ -5,13 +5,14 @@ import {
   AreaChart,
   CartesianGrid,
   Line,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
@@ -26,44 +27,41 @@ interface PortfolioOverviewChartProps {
 
 type TooltipValueType = number | string;
 
+type EnrichedTimelinePoint = PortfolioTimelinePoint & {
+  netValueUsd: number;
+  netValueIls: number;
+  openValueUsd: number;
+  openValueIls: number;
+  expectedNetUsd: number;
+  expectedNetIls: number;
+  deltaUsd: number;
+  deltaPercent: number;
+  distanceToExpectedUsd: number;
+  distanceToExpectedIls: number;
+  distanceToExpectedPercent: number;
+};
+
 interface ChartTooltipProps {
   active?: boolean;
-  payload?: { value: TooltipValueType; payload: PortfolioTimelinePoint }[];
+  payload?: { value: TooltipValueType; payload: EnrichedTimelinePoint }[];
   label?: TooltipValueType;
   formatUsd: (value: number) => string;
   formatIls: (value: number) => string;
+  formatSignedPercent: (value: number) => string;
   labelFormatter: (label: TooltipValueType) => string;
   summary: PortfolioSummary;
   labels: {
     net: string;
+    expected: string;
+    delta: string;
     open: string;
     realized: string;
     taxes: string;
     usd: string;
     ils: string;
+    deltaBadge: string;
   };
 }
-
-const tonePalette = {
-  negative: { color: '#F43F5E', strokeOpacity: 0.95, fillOpacity: 0.28 },
-  underperforming: { color: '#2563EB', strokeOpacity: 0.92, fillOpacity: 0.24 },
-  positive: { color: '#10B981', strokeOpacity: 0.95, fillOpacity: 0.22 },
-} as const;
-
-type ToneKey = keyof typeof tonePalette;
-
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
-  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
-  if (netValue < 0) {
-    return 'negative';
-  }
-
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
-    return 'underperforming';
-  }
-
-  return 'positive';
-};
 
 const ChartTooltip = ({
   active,
@@ -71,6 +69,7 @@ const ChartTooltip = ({
   label,
   formatUsd,
   formatIls,
+  formatSignedPercent,
   labelFormatter,
   summary,
   labels,
@@ -84,68 +83,156 @@ const ChartTooltip = ({
     return null;
   }
 
-  const openUsd = point.totalPnLUsd ?? 0;
-  const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
-  const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
-  const netIls = point.netPnLIls ?? openIls + summary.totalRealizedProfitIls - summary.totalTaxesPaidIls;
-  const realizedUsd = summary.totalRealizedProfitUsd;
-  const realizedIls = summary.totalRealizedProfitIls;
-  const taxesUsd = summary.totalTaxesPaidUsd;
-  const taxesIls = summary.totalTaxesPaidIls;
+  const formatSignedUsd = (value: number) => {
+    const formatted = formatUsd(value);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
 
-  const rows = [
+  const formatSignedIls = (value: number) => {
+    const formatted = formatIls(value);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
+  const deltaTone =
+    point.deltaUsd > 0
+      ? { badge: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-600' }
+      : point.deltaUsd < 0
+        ? { badge: 'bg-rose-50 text-rose-600', text: 'text-rose-600' }
+        : { badge: 'bg-slate-100 text-slate-600', text: 'text-slate-500' };
+
+  const primaryRows = [
     {
       key: 'net',
       label: labels.net,
-      usd: netUsd,
-      ils: netIls,
-      accent: 'from-blue-500 to-blue-400',
+      usd: point.netValueUsd,
+      ils: point.netValueIls,
+      accent: 'from-sky-500 to-indigo-500',
+      showSigned: false,
     },
+    {
+      key: 'expected',
+      label: labels.expected,
+      usd: point.expectedNetUsd,
+      ils: point.expectedNetIls,
+      accent: 'from-slate-500 to-slate-400',
+      showSigned: false,
+    },
+    {
+      key: 'delta',
+      label: labels.delta,
+      usd: point.distanceToExpectedUsd,
+      ils: point.distanceToExpectedIls,
+      accent:
+        point.distanceToExpectedUsd >= 0
+          ? 'from-emerald-500 to-emerald-400'
+          : 'from-rose-500 to-rose-400',
+      showSigned: true,
+      percent: point.distanceToExpectedPercent,
+    },
+  ] as const;
+
+  const secondaryRows = [
     {
       key: 'open',
       label: labels.open,
-      usd: openUsd,
-      ils: openIls,
+      usd: point.openValueUsd,
+      ils: point.openValueIls,
       accent: 'from-slate-500 to-slate-400',
+      showSigned: true,
     },
     {
       key: 'realized',
       label: labels.realized,
-      usd: realizedUsd,
-      ils: realizedIls,
+      usd: summary.totalRealizedProfitUsd,
+      ils: summary.totalRealizedProfitIls,
       accent: 'from-emerald-500 to-emerald-400',
+      showSigned: true,
     },
     {
       key: 'taxes',
       label: labels.taxes,
-      usd: taxesUsd * -1,
-      ils: taxesIls * -1,
+      usd: summary.totalTaxesPaidUsd * -1,
+      ils: summary.totalTaxesPaidIls * -1,
       accent: 'from-rose-500 to-rose-400',
+      showSigned: true,
     },
-  ];
+  ] as const;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
-      <div className="mt-3 space-y-3">
-        {rows.map((row) => (
-          <div key={row.key} className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
-                <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${row.accent}`} />
-              </span>
-              {row.label}
+    <div className="min-w-[240px] rounded-2xl border border-slate-200/80 bg-white/95 p-4 text-sm shadow-xl backdrop-blur">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {labelFormatter(label ?? '')}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{labels.net}</p>
+        </div>
+        <div className="text-right">
+          <span className={`inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold ${deltaTone.badge}`}>
+            {formatSignedUsd(point.deltaUsd)}
+          </span>
+          <p className={`mt-1 text-[11px] font-semibold uppercase tracking-wide ${deltaTone.text}`}>
+            {labels.deltaBadge}{' '}
+            <span className="font-bold">{formatSignedPercent(point.deltaPercent)}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {primaryRows.map((row) => {
+          const percentTone =
+            typeof row.percent === 'number'
+              ? row.usd > 0
+                ? 'text-emerald-600'
+                : row.usd < 0
+                  ? 'text-rose-600'
+                  : 'text-slate-500'
+              : undefined;
+          const valueUsd = row.showSigned ? formatSignedUsd(row.usd) : formatUsd(row.usd);
+          const valueIls = row.showSigned ? formatSignedIls(row.ils) : formatIls(row.ils);
+
+          return (
+            <div key={row.key} className="rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
+                    <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${row.accent}`} />
+                  </span>
+                  {row.label}
+                </div>
+                {typeof row.percent === 'number' ? (
+                  <span className={`text-xs font-semibold ${percentTone}`}>
+                    {formatSignedPercent(row.percent)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-2 text-right">
+                <p className="text-sm font-semibold text-slate-900">{valueUsd}</p>
+                <p className="text-xs text-slate-500">{valueIls}</p>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-sm text-slate-600">
-              <span className="font-medium text-slate-500">{labels.usd}</span>
-              <span className="font-semibold text-slate-900">{formatUsd(row.usd)}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="font-medium">{labels.ils}</span>
-              <span className="font-semibold text-slate-700">{formatIls(row.ils)}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
+
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          {secondaryRows.map((row) => {
+            const valueUsd = row.showSigned ? formatSignedUsd(row.usd) : formatUsd(row.usd);
+            const valueIls = row.showSigned ? formatSignedIls(row.ils) : formatIls(row.ils);
+
+            return (
+              <div key={row.key} className="rounded-lg border border-slate-200/70 bg-white/75 p-2 shadow-sm">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <span className="inline-flex h-2 w-2 items-center justify-center">
+                    <span className={`h-2 w-2 rounded-full bg-gradient-to-br ${row.accent}`} />
+                  </span>
+                  {row.label}
+                </div>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{valueUsd}</p>
+                <p className="text-[11px] text-slate-500">{valueIls}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -158,6 +245,15 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
   const usdFormatter = (value: number) => formatCurrency(value, 'USD', locale);
   const ilsFormatter = (value: number) => formatCurrency(value, 'ILS', locale);
+  const formatSignedUsdValue = (value: number) => {
+    const formatted = usdFormatter(value);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+  const formatSignedIlsValue = (value: number) => {
+    const formatted = ilsFormatter(value);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(localeCode, {
@@ -167,6 +263,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       }),
     [localeCode]
   );
+
   const compactFormatter = useMemo(
     () =>
       new Intl.NumberFormat(localeCode, {
@@ -176,7 +273,77 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
-  const trendPoint = data[data.length - 1];
+  const percentFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(localeCode, {
+        style: 'percent',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+    [localeCode]
+  );
+
+  const formatSignedPercent = (value: number) => {
+    const formatted = percentFormatter.format(Math.abs(value) / 100);
+    if (value > 0) {
+      return `+${formatted}`;
+    }
+
+    if (value < 0) {
+      return `-${formatted}`;
+    }
+
+    return percentFormatter.format(0);
+  };
+
+  const chartData = useMemo<EnrichedTimelinePoint[]>(() => {
+    if (!data?.length) {
+      return [];
+    }
+
+    return data.map((point, index) => {
+      const netValueUsd = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
+      const netValueIls = point.netPnLIls ?? point.totalPnLIls ?? netValueUsd * summary.usdToIlsRate;
+      const openValueUsd = point.totalPnLUsd ?? netValueUsd;
+      const openValueIls = point.totalPnLIls ?? netValueIls;
+      const expectedNetUsd = point.expectedNetPnLUsd ?? netValueUsd;
+      const expectedNetIls = point.expectedNetPnLIls ?? expectedNetUsd * summary.usdToIlsRate;
+      const previousPoint = index > 0 ? data[index - 1] : undefined;
+      const previousNetUsd = previousPoint
+        ? previousPoint.netPnLUsd ?? previousPoint.totalPnLUsd ?? netValueUsd
+        : netValueUsd;
+      const deltaUsd = index === 0 ? 0 : netValueUsd - previousNetUsd;
+      const deltaPercent = index === 0 || previousNetUsd === 0 ? 0 : (deltaUsd / Math.abs(previousNetUsd)) * 100;
+      const distanceToExpectedUsd = netValueUsd - expectedNetUsd;
+      const distanceToExpectedIls = netValueIls - expectedNetIls;
+      const distanceToExpectedPercent =
+        expectedNetUsd === 0 ? 0 : (distanceToExpectedUsd / Math.abs(expectedNetUsd)) * 100;
+
+      return {
+        ...point,
+        netValueUsd,
+        netValueIls,
+        openValueUsd,
+        openValueIls,
+        expectedNetUsd,
+        expectedNetIls,
+        deltaUsd,
+        deltaPercent,
+        distanceToExpectedUsd,
+        distanceToExpectedIls,
+        distanceToExpectedPercent,
+      };
+    });
+  }, [data, summary.usdToIlsRate]);
+
+  const reactId = useId();
+  const gradientBaseId = useMemo(() => reactId.replace(/:/g, ''), [reactId]);
+  const areaGradientId = `${gradientBaseId}-area`;
+  const strokeGradientId = `${gradientBaseId}-stroke`;
+  const dotGradientId = `${gradientBaseId}-dot`;
+
+  const trendPoint = chartData[chartData.length - 1];
+
   const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
   const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
@@ -188,167 +355,100 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
 
-  const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
-    if (!data.length) {
-      return [
-        { offset: 0, tone: 'positive' as ToneKey },
-        { offset: 100, tone: 'positive' as ToneKey },
-      ];
-    }
-
-    if (data.length === 1) {
-      const singleTone = getPointTone(data[0]);
-      return [
-        { offset: 0, tone: singleTone },
-        { offset: 100, tone: singleTone },
-      ];
-    }
-
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
-      tone: getPointTone(point),
-    }));
-  }, [data]);
-
-  const strokeGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.strokeOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.strokeOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
-
-  const fillGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.fillOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.fillOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
+  const distanceToExpectedUsd =
+    trendPoint?.distanceToExpectedUsd ?? summary.totalNetPnLUsd - summary.totalProjectedPnLUsd;
+  const distanceToExpectedIls =
+    trendPoint?.distanceToExpectedIls ?? summary.totalNetPnLIls - summary.totalProjectedPnLIls;
+  const distanceToExpectedPercent = trendPoint?.distanceToExpectedPercent ??
+    (summary.totalProjectedPnLUsd === 0
+      ? 0
+      : ((summary.totalNetPnLUsd - summary.totalProjectedPnLUsd) / Math.abs(summary.totalProjectedPnLUsd)) * 100);
 
   const { bestPoint, worstPoint } = useMemo(() => {
-    if (!data.length) {
+    if (!chartData.length) {
       return { bestPoint: null, worstPoint: null };
     }
 
-    return data.reduce(
+    return chartData.reduce(
       (acc, point) => {
-        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
-        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
-        if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
+        if (!acc.bestPoint || point.netValueUsd > acc.bestPoint.netValueUsd) {
           acc.bestPoint = point;
         }
 
-        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
-        if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
+        if (!acc.worstPoint || point.netValueUsd < acc.worstPoint.netValueUsd) {
           acc.worstPoint = point;
         }
 
         return acc;
       },
-      { bestPoint: null as PortfolioTimelinePoint | null, worstPoint: null as PortfolioTimelinePoint | null }
+      { bestPoint: null as EnrichedTimelinePoint | null, worstPoint: null as EnrichedTimelinePoint | null }
     );
-  }, [data]);
+  }, [chartData]);
 
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
+  const trendTone = trendPoint?.netValueUsd ?? netPnLUsd;
   const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
-  const badgeClass = trendTone > 0
-    ? 'bg-emerald-50 text-emerald-600'
-    : trendTone < 0
-      ? 'bg-rose-50 text-rose-600'
-      : 'bg-slate-100 text-slate-600';
+  const badgeClass =
+    trendTone > 0
+      ? 'bg-emerald-100 text-emerald-700'
+      : trendTone < 0
+        ? 'bg-rose-100 text-rose-700'
+        : 'bg-slate-200 text-slate-600';
+
+  const expectationTone =
+    distanceToExpectedUsd > 0
+      ? { border: 'border-emerald-200', bg: 'bg-emerald-50/70', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' }
+      : distanceToExpectedUsd < 0
+        ? { border: 'border-rose-200', bg: 'bg-rose-50/70', text: 'text-rose-600', badge: 'bg-rose-100 text-rose-700' }
+        : { border: 'border-slate-200', bg: 'bg-slate-50/70', text: 'text-slate-600', badge: 'bg-slate-200 text-slate-600' };
 
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
 
-  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
-  const formattedBestValueIls = bestPoint
-    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
-  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
-  const formattedWorstValueIls = worstPoint
-    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
+  const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netValueUsd) : '—';
+  const formattedBestValueIls = bestPoint ? ilsFormatter(bestPoint.netValueIls) : '—';
+  const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netValueUsd) : '—';
+  const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
-      <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/60">
+    <Card className="overflow-hidden border border-slate-200/80 bg-gradient-to-br from-white via-sky-50/70 to-indigo-50/60 shadow-xl">
+      <CardHeader className="space-y-2 border-b border-slate-200/60 bg-white/70 backdrop-blur">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
         <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
       </CardHeader>
       <CardContent className="pt-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">
-            <div className="h-72 w-full">
+            <div className="relative h-80 overflow-hidden rounded-3xl border border-slate-200/70 bg-white/70 shadow-inner">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.18),transparent_55%)]" />
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 24, right: 28, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
-                      {strokeGradientStops.map((stop, index) => (
-                        <stop
-                          key={`stroke-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
-                        />
-                      ))}
+                    <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#0ea5e9" />
+                      <stop offset="50%" stopColor="#2563eb" />
+                      <stop offset="100%" stopColor="#7c3aed" />
                     </linearGradient>
-                    <linearGradient id="portfolioPnlFill" x1="0" y1="0" x2="1" y2="0">
-                      {fillGradientStops.map((stop, index) => (
-                        <stop
-                          key={`fill-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
-                        />
-                      ))}
+                    <linearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(14, 165, 233, 0.24)" />
+                      <stop offset="60%" stopColor="rgba(37, 99, 235, 0.12)" />
+                      <stop offset="100%" stopColor="rgba(79, 70, 229, 0.04)" />
                     </linearGradient>
+                    <radialGradient id={dotGradientId} cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                      <stop offset="60%" stopColor="#38bdf8" stopOpacity="0.65" />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0.85" />
+                    </radialGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
                     tickLine={false}
                     axisLine={false}
                     tick={{ fill: '#475569', fontSize: 12 }}
+                    minTickGap={24}
                   />
                   <YAxis
                     orientation="right"
@@ -356,31 +456,36 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     tickLine={false}
                     axisLine={false}
                     tick={{ fill: '#475569', fontSize: 12 }}
+                    width={80}
                   />
                   <Tooltip
-                    cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
+                    cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.35)', strokeWidth: 2 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
                         formatIls={ilsFormatter}
+                        formatSignedPercent={formatSignedPercent}
                         labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
                         summary={summary}
                         labels={{
                           net: t.dashboard.netPnL,
+                          expected: t.dashboard.performanceTrendExpected,
+                          delta: t.portfolio.performanceVsExpectedShort,
                           open: t.dashboard.currentPnL,
                           realized: t.dashboard.realizedPnL,
                           taxes: t.dashboard.taxesPaid,
                           usd: t.dashboard.usdLabel,
                           ils: t.dashboard.ilsLabel,
+                          deltaBadge: t.dashboard.dailyChange,
                         }}
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
+                  <ReferenceLine y={0} stroke="rgba(15, 23, 42, 0.35)" strokeDasharray="6 6" />
                   <Line
                     type="monotone"
-                    dataKey="expectedNetPnLUsd"
-                    stroke="#3B82F6"
+                    dataKey="expectedNetUsd"
+                    stroke="rgba(15, 23, 42, 0.55)"
                     strokeWidth={2}
                     strokeDasharray="6 6"
                     dot={false}
@@ -388,20 +493,41 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Area
                     type="monotone"
-                    dataKey="netPnLUsd"
-                    stroke="url(#portfolioPnlStroke)"
-                    strokeWidth={2.5}
-                    fill="url(#portfolioPnlFill)"
+                    dataKey="netValueUsd"
+                    stroke={`url(#${strokeGradientId})`}
+                    strokeWidth={3}
+                    fill={`url(#${areaGradientId})`}
                     fillOpacity={1}
-                    dot={false}
                     isAnimationActive={false}
+                    activeDot={{ r: 6, fill: `url(#${dotGradientId})`, stroke: '#ffffff', strokeWidth: 2 }}
                   />
+                  {bestPoint ? (
+                    <ReferenceDot
+                      x={bestPoint.timestamp}
+                      y={bestPoint.netValueUsd}
+                      r={6}
+                      fill={`url(#${dotGradientId})`}
+                      stroke="#0f172a"
+                      strokeWidth={1.5}
+                    />
+                  ) : null}
+                  {worstPoint ? (
+                    <ReferenceDot
+                      x={worstPoint.timestamp}
+                      y={worstPoint.netValueUsd}
+                      r={6}
+                      fill="#f43f5e"
+                      fillOpacity={0.75}
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                    />
+                  ) : null}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-inner lg:max-w-xs">
+          <div className="flex flex-1 flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-inner backdrop-blur">
             <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
               <span className="h-2.5 w-2.5 rounded-full bg-current" />
               {toneClass === 'text-emerald-600'
@@ -411,19 +537,34 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   : t.dashboard.neutralTrend}
             </div>
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-              <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
+            <div className="rounded-2xl bg-gradient-to-br from-sky-50/80 via-white to-indigo-50/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.netPnL}</p>
+              <p className={`mt-2 text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
               <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
             </div>
 
+            <div className={`rounded-2xl border ${expectationTone.border} ${expectationTone.bg} p-4`}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {t.portfolio.performanceVsExpectedShort}
+                </p>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${expectationTone.badge}`}>
+                  {formatSignedPercent(distanceToExpectedPercent)}
+                </span>
+              </div>
+              <p className={`mt-2 text-lg font-semibold ${expectationTone.text}`}>
+                {formatSignedUsdValue(distanceToExpectedUsd)}
+              </p>
+              <p className="text-xs text-slate-500">{formatSignedIlsValue(distanceToExpectedIls)}</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl bg-slate-50/70 p-3">
+              <div className="rounded-xl border border-slate-200 bg-white/70 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.currentPnL}</p>
                 <p className="mt-1 font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
               </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
+              <div className="rounded-xl border border-slate-200 bg-white/70 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.realizedPnL}</p>
                 <p className="mt-1 font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
@@ -431,12 +572,12 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3">
+              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
                 <p className="mt-1 font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
                 <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
               </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
+              <div className="rounded-xl border border-slate-200 bg-white/70 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
                 <p className="mt-1 font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
                 <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
@@ -444,7 +585,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 p-3">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
                   {t.dashboard.bestPnL}
                 </p>
@@ -452,7 +593,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
                 <p className="text-xs text-slate-400">{formattedBestDate}</p>
               </div>
-              <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3">
+              <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
                   {t.dashboard.worstPnL}
                 </p>
@@ -462,7 +603,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </div>
             </div>
 
-            <div className="rounded-xl bg-gradient-to-r from-blue-50/90 via-white/90 to-blue-100/40 p-4 text-sm text-slate-600">
+            <div className="rounded-xl bg-gradient-to-r from-blue-50/90 via-white/90 to-blue-100/40 p-4 text-sm text-slate-600 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t.dashboard.portfolioOverviewFootnote}
               </p>
@@ -480,3 +621,4 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     </Card>
   );
 }
+
