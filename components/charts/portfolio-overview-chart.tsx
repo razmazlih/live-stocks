@@ -1,20 +1,22 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   Area,
   AreaChart,
   CartesianGrid,
   Line,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { useMemo } from 'react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PortfolioSummary, PortfolioTimelinePoint } from '@/types';
@@ -32,37 +34,41 @@ interface ChartTooltipProps {
   label?: TooltipValueType;
   formatUsd: (value: number) => string;
   formatIls: (value: number) => string;
-  labelFormatter: (label: TooltipValueType) => string;
+  formatDate: (value: number) => string;
+  formatPercentValue: (value: number) => string;
   summary: PortfolioSummary;
   labels: {
     net: string;
-    open: string;
-    realized: string;
-    taxes: string;
+    expected: string;
+    delta: string;
+    current: string;
     usd: string;
     ils: string;
   };
 }
 
-const tonePalette = {
-  negative: { color: '#F43F5E', strokeOpacity: 0.95, fillOpacity: 0.28 },
-  underperforming: { color: '#2563EB', strokeOpacity: 0.92, fillOpacity: 0.24 },
-  positive: { color: '#10B981', strokeOpacity: 0.95, fillOpacity: 0.22 },
-} as const;
-
-type ToneKey = keyof typeof tonePalette;
-
-const getPointTone = (point: PortfolioTimelinePoint): ToneKey => {
-  const netValue = point.netPnLUsd ?? point.totalPnLUsd ?? 0;
-  if (netValue < 0) {
-    return 'negative';
+const getTrendAppearance = (value: number) => {
+  if (value > 0) {
+    return {
+      text: 'text-emerald-600',
+      badge: 'bg-emerald-50/90 text-emerald-600 ring-1 ring-emerald-200/70',
+      icon: <ArrowUpRight className="h-3.5 w-3.5" />,
+    };
   }
 
-  if (typeof point.expectedNetPnLUsd === 'number' && netValue < point.expectedNetPnLUsd) {
-    return 'underperforming';
+  if (value < 0) {
+    return {
+      text: 'text-rose-600',
+      badge: 'bg-rose-50/90 text-rose-600 ring-1 ring-rose-200/70',
+      icon: <ArrowDownRight className="h-3.5 w-3.5" />,
+    };
   }
 
-  return 'positive';
+  return {
+    text: 'text-slate-600',
+    badge: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/80',
+    icon: <Minus className="h-3.5 w-3.5" />,
+  };
 };
 
 const ChartTooltip = ({
@@ -71,7 +77,8 @@ const ChartTooltip = ({
   label,
   formatUsd,
   formatIls,
-  labelFormatter,
+  formatDate,
+  formatPercentValue,
   summary,
   labels,
 }: ChartTooltipProps) => {
@@ -84,14 +91,18 @@ const ChartTooltip = ({
     return null;
   }
 
-  const openUsd = point.totalPnLUsd ?? 0;
-  const openIls = point.totalPnLIls ?? openUsd * summary.usdToIlsRate;
-  const netUsd = point.netPnLUsd ?? openUsd + summary.totalRealizedProfitUsd - summary.totalTaxesPaidUsd;
-  const netIls = point.netPnLIls ?? openIls + summary.totalRealizedProfitIls - summary.totalTaxesPaidIls;
-  const realizedUsd = summary.totalRealizedProfitUsd;
-  const realizedIls = summary.totalRealizedProfitIls;
-  const taxesUsd = summary.totalTaxesPaidUsd;
-  const taxesIls = summary.totalTaxesPaidIls;
+  const numericLabel = typeof label === 'number' ? label : Number(label ?? point.timestamp);
+  const timestamp = Number.isFinite(numericLabel) ? numericLabel : point.timestamp;
+
+  const netUsd = point.netPnLUsd ?? 0;
+  const netIls = point.netPnLIls ?? netUsd * summary.usdToIlsRate;
+  const expectedUsd = point.expectedNetPnLUsd ?? 0;
+  const expectedIls = point.expectedNetPnLIls ?? expectedUsd * summary.usdToIlsRate;
+  const deltaUsd = netUsd - expectedUsd;
+  const deltaIls = netIls - expectedIls;
+  const deltaPercent = expectedUsd !== 0 ? (deltaUsd / Math.abs(expectedUsd)) * 100 : 0;
+  const currentUsd = point.totalPnLUsd ?? netUsd;
+  const currentIls = point.totalPnLIls ?? currentUsd * summary.usdToIlsRate;
 
   const rows = [
     {
@@ -99,49 +110,60 @@ const ChartTooltip = ({
       label: labels.net,
       usd: netUsd,
       ils: netIls,
-      accent: 'from-blue-500 to-blue-400',
+      accent: 'from-blue-500/80 to-indigo-500/80',
+      tone: getTrendAppearance(netUsd),
     },
     {
-      key: 'open',
-      label: labels.open,
-      usd: openUsd,
-      ils: openIls,
-      accent: 'from-slate-500 to-slate-400',
+      key: 'expected',
+      label: labels.expected,
+      usd: expectedUsd,
+      ils: expectedIls,
+      accent: 'from-indigo-500/80 to-purple-500/80',
+      tone: getTrendAppearance(expectedUsd),
     },
     {
-      key: 'realized',
-      label: labels.realized,
-      usd: realizedUsd,
-      ils: realizedIls,
-      accent: 'from-emerald-500 to-emerald-400',
+      key: 'delta',
+      label: labels.delta,
+      usd: deltaUsd,
+      ils: deltaIls,
+      accent: 'from-emerald-500/80 to-blue-500/80',
+      tone: getTrendAppearance(deltaUsd),
+      footnote: expectedUsd !== 0 ? formatPercentValue(deltaPercent) : undefined,
     },
     {
-      key: 'taxes',
-      label: labels.taxes,
-      usd: taxesUsd * -1,
-      ils: taxesIls * -1,
-      accent: 'from-rose-500 to-rose-400',
+      key: 'current',
+      label: labels.current,
+      usd: currentUsd,
+      ils: currentIls,
+      accent: 'from-slate-500/70 to-slate-400/70',
+      tone: getTrendAppearance(currentUsd),
     },
-  ];
+  ] as const;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labelFormatter(label ?? '')}</p>
+    <div className="min-w-[240px] rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-lg">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {formatDate(timestamp)}
+      </p>
       <div className="mt-3 space-y-3">
         {rows.map((row) => (
-          <div key={row.key} className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span className="inline-flex h-2.5 w-2.5 items-center justify-center">
+          <div
+            key={row.key}
+            className="space-y-2 rounded-2xl bg-white/80 p-3 shadow-sm shadow-slate-200/60 ring-1 ring-slate-100/80"
+          >
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <span className="inline-flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${row.accent}`} />
+                {row.label}
               </span>
-              {row.label}
+              {row.footnote ? <span className="text-[11px] font-medium text-slate-400">{row.footnote}</span> : null}
             </div>
-            <div className="flex items-center justify-between text-sm text-slate-600">
-              <span className="font-medium text-slate-500">{labels.usd}</span>
-              <span className="font-semibold text-slate-900">{formatUsd(row.usd)}</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-xs font-medium text-slate-500">{labels.usd}</span>
+              <span className={`font-semibold ${row.tone.text}`}>{formatUsd(row.usd)}</span>
             </div>
             <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="font-medium">{labels.ils}</span>
+              <span className="text-xs font-medium text-slate-500">{labels.ils}</span>
               <span className="font-semibold text-slate-700">{formatIls(row.ils)}</span>
             </div>
           </div>
@@ -158,6 +180,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
   const usdFormatter = (value: number) => formatCurrency(value, 'USD', locale);
   const ilsFormatter = (value: number) => formatCurrency(value, 'ILS', locale);
+  const formatPercentValue = (value: number) => formatPercent(value, locale);
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(localeCode, {
@@ -176,307 +199,349 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     [localeCode]
   );
 
-  const trendPoint = data[data.length - 1];
+  const chartData = useMemo(
+    () =>
+      data.map((point) => ({
+        ...point,
+        netPositive: Math.max(point.netPnLUsd, 0),
+        netNegative: Math.min(point.netPnLUsd, 0),
+      })),
+    [data]
+  );
+
+  const { minNet, maxNet } = useMemo(() => {
+    if (!data.length) {
+      return { minNet: -1, maxNet: 1 };
+    }
+
+    const values = data.map((point) => point.netPnLUsd);
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, 0);
+    const range = max - min;
+    const paddingBase = Math.max(Math.abs(max), Math.abs(min), 1);
+    const padding = range === 0 ? paddingBase * 0.1 : range * 0.1;
+
+    return {
+      minNet: min - padding,
+      maxNet: max + padding,
+    };
+  }, [data]);
+
+  const bestPoint = useMemo(() => {
+    if (!data.length) {
+      return null;
+    }
+
+    return data.reduce((best, point) => {
+      if (!best) {
+        return point;
+      }
+
+      const bestValue = best.netPnLUsd ?? best.totalPnLUsd;
+      const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
+      return pointValue > bestValue ? point : best;
+    }, data[0]);
+  }, [data]);
+
+  const worstPoint = useMemo(() => {
+    if (!data.length) {
+      return null;
+    }
+
+    return data.reduce((worst, point) => {
+      if (!worst) {
+        return point;
+      }
+
+      const worstValue = worst.netPnLUsd ?? worst.totalPnLUsd;
+      const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
+      return pointValue < worstValue ? point : worst;
+    }, data[0]);
+  }, [data]);
+
+  const trendTone = getTrendAppearance(summary.totalNetPnLUsd);
+  const performanceDeltaUsd = summary.totalNetPnLUsd - summary.totalProjectedPnLUsd;
+  const performanceDeltaPercent = summary.totalProjectedPnLUsd !== 0
+    ? (performanceDeltaUsd / Math.abs(summary.totalProjectedPnLUsd)) * 100
+    : 0;
+  const performanceTone = getTrendAppearance(performanceDeltaUsd);
+
   const openPnLUsd = summary.totalCurrentPnLUsd - summary.totalRealizedProfitUsd;
   const openPnLIls = summary.totalCurrentPnLIls - summary.totalRealizedProfitIls;
   const realizedPnLUsd = summary.totalRealizedProfitUsd;
   const realizedPnLIls = summary.totalRealizedProfitIls;
   const taxesUsd = summary.totalTaxesPaidUsd;
   const taxesIls = summary.totalTaxesPaidIls;
-  const netPnLUsd = summary.totalNetPnLUsd;
-  const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
 
-  const colorStops = useMemo<{ offset: number; tone: ToneKey }[]>(() => {
-    if (!data.length) {
-      return [
-        { offset: 0, tone: 'positive' as ToneKey },
-        { offset: 100, tone: 'positive' as ToneKey },
-      ];
-    }
-
-    if (data.length === 1) {
-      const singleTone = getPointTone(data[0]);
-      return [
-        { offset: 0, tone: singleTone },
-        { offset: 100, tone: singleTone },
-      ];
-    }
-
-    return data.map((point, index) => ({
-      offset: (index / (data.length - 1)) * 100,
-      tone: getPointTone(point),
-    }));
-  }, [data]);
-
-  const strokeGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.strokeOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.strokeOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
-
-  const fillGradientStops = useMemo(() => {
-    const stops: { offset: string; color: string; opacity: number }[] = [];
-
-    colorStops.forEach((stop, index) => {
-      const palette = tonePalette[stop.tone];
-      const offset = `${stop.offset}%`;
-
-      if (index > 0 && colorStops[index - 1].tone !== stop.tone) {
-        const previousPalette = tonePalette[colorStops[index - 1].tone];
-        stops.push({
-          offset,
-          color: previousPalette.color,
-          opacity: previousPalette.fillOpacity,
-        });
-      }
-
-      stops.push({
-        offset,
-        color: palette.color,
-        opacity: palette.fillOpacity,
-      });
-    });
-
-    return stops;
-  }, [colorStops]);
-
-  const { bestPoint, worstPoint } = useMemo(() => {
-    if (!data.length) {
-      return { bestPoint: null, worstPoint: null };
-    }
-
-    return data.reduce(
-      (acc, point) => {
-        const pointValue = point.netPnLUsd ?? point.totalPnLUsd;
-        const bestValue = acc.bestPoint ? acc.bestPoint.netPnLUsd ?? acc.bestPoint.totalPnLUsd : undefined;
-        if (!acc.bestPoint || pointValue > (bestValue ?? Number.NEGATIVE_INFINITY)) {
-          acc.bestPoint = point;
-        }
-
-        const worstValue = acc.worstPoint ? acc.worstPoint.netPnLUsd ?? acc.worstPoint.totalPnLUsd : undefined;
-        if (!acc.worstPoint || pointValue < (worstValue ?? Number.POSITIVE_INFINITY)) {
-          acc.worstPoint = point;
-        }
-
-        return acc;
-      },
-      { bestPoint: null as PortfolioTimelinePoint | null, worstPoint: null as PortfolioTimelinePoint | null }
-    );
-  }, [data]);
-
-  const trendTone = trendPoint?.netPnLUsd ?? netPnLUsd;
-  const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
-  const badgeClass = trendTone > 0
-    ? 'bg-emerald-50 text-emerald-600'
-    : trendTone < 0
-      ? 'bg-rose-50 text-rose-600'
-      : 'bg-slate-100 text-slate-600';
-
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
-
   const formattedBestValueUsd = bestPoint ? usdFormatter(bestPoint.netPnLUsd ?? bestPoint.totalPnLUsd) : '—';
-  const formattedBestValueIls = bestPoint
-    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? (bestPoint.totalPnLUsd * summary.usdToIlsRate))
-    : '—';
   const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netPnLUsd ?? worstPoint.totalPnLUsd) : '—';
-  const formattedWorstValueIls = worstPoint
-    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? (worstPoint.totalPnLUsd * summary.usdToIlsRate))
+  const formattedBestValueIls = bestPoint
+    ? ilsFormatter(bestPoint.netPnLIls ?? bestPoint.totalPnLIls ?? bestPoint.totalPnLUsd * summary.usdToIlsRate)
     : '—';
+  const formattedWorstValueIls = worstPoint
+    ? ilsFormatter(worstPoint.netPnLIls ?? worstPoint.totalPnLIls ?? worstPoint.totalPnLUsd * summary.usdToIlsRate)
+    : '—';
+
+  const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
+    const formatted = formatCurrency(value, currency, locale);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
+  const formatSignedPercent = (value: number) => {
+    const formatted = formatPercent(value, locale);
+    return value > 0 ? `+${formatted}` : formatted;
+  };
+
+  const tooltipLabels = {
+    net: t.dashboard.netPnL,
+    expected: t.dashboard.projectedPnL,
+    delta: t.portfolio.performanceVsExpectedShort,
+    current: t.dashboard.currentPnL,
+    usd: t.dashboard.usdLabel,
+    ils: t.dashboard.ilsLabel,
+  };
 
   return (
-    <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/85 to-white/60 shadow-2xl">
-      <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/60">
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          {t.dashboard.portfolioOverviewTitle}
-        </CardTitle>
-        <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="flex-1">
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="portfolioPnlStroke" x1="0" y1="0" x2="1" y2="0">
-                      {strokeGradientStops.map((stop, index) => (
-                        <stop
-                          key={`stroke-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
+    <Card className="relative overflow-hidden rounded-3xl border-none bg-transparent p-0 shadow-none">
+      <div className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/60 bg-gradient-to-br from-white via-blue-50/80 to-indigo-100/60" />
+      <div className="pointer-events-none absolute -right-32 -top-24 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl" />
+      <div className="relative z-10">
+        <CardHeader className="space-y-3 border-b border-white/60 bg-white/60 pb-6">
+          <CardTitle className="text-2xl font-semibold text-slate-900">
+            {t.dashboard.portfolioOverviewTitle}
+          </CardTitle>
+          <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
+            <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/70 p-6 shadow-inner">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.14),_transparent_65%)]" />
+              <div className="relative flex h-80 flex-col justify-end">
+                <div className="absolute left-6 top-6 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 shadow-sm shadow-blue-100">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    {t.dashboard.netPnL}: {usdFormatter(summary.totalNetPnLUsd)}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 shadow-sm shadow-indigo-100">
+                    <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                    {t.dashboard.projectedPnL}: {usdFormatter(summary.totalProjectedPnLUsd)}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${performanceTone.badge}`}
+                  >
+                    {performanceTone.icon}
+                    {formatSignedCurrency(performanceDeltaUsd, 'USD')}
+                    <span className="text-[11px] font-medium opacity-80">
+                      {formatSignedPercent(performanceDeltaPercent)}
+                    </span>
+                  </span>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 48, right: 16, left: 8, bottom: 16 }}
+                  >
+                    <defs>
+                      <linearGradient id="portfolioPositive" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563EB" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#60A5FA" stopOpacity={0.05} />
+                      </linearGradient>
+                      <linearGradient id="portfolioNegative" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#FDA4AF" stopOpacity={0.08} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#475569', fontSize: 12 }}
+                      tickMargin={12}
+                    />
+                    <YAxis
+                      orientation="right"
+                      domain={[minNet, maxNet]}
+                      tickFormatter={(value) => compactFormatter.format(value)}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#475569', fontSize: 12 }}
+                      width={80}
+                    />
+                    <Tooltip
+                      cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.28)' }}
+                      content={
+                        <ChartTooltip
+                          formatUsd={usdFormatter}
+                          formatIls={ilsFormatter}
+                          formatDate={(value) => dateFormatter.format(new Date(value))}
+                          formatPercentValue={formatPercentValue}
+                          summary={summary}
+                          labels={tooltipLabels}
                         />
-                      ))}
-                    </linearGradient>
-                    <linearGradient id="portfolioPnlFill" x1="0" y1="0" x2="1" y2="0">
-                      {fillGradientStops.map((stop, index) => (
-                        <stop
-                          key={`fill-stop-${index}`}
-                          offset={stop.offset}
-                          stopColor={stop.color}
-                          stopOpacity={stop.opacity}
-                        />
-                      ))}
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12 }}
-                  />
-                  <YAxis
-                    orientation="right"
-                    tickFormatter={(value) => compactFormatter.format(value)}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    cursor={{ strokeDasharray: '4 4', stroke: 'rgba(37, 99, 235, 0.3)' }}
-                    content={
-                      <ChartTooltip
-                        formatUsd={usdFormatter}
-                        formatIls={ilsFormatter}
-                        labelFormatter={(value) => dateFormatter.format(new Date(Number(value)))}
-                        summary={summary}
-                        labels={{
-                          net: t.dashboard.netPnL,
-                          open: t.dashboard.currentPnL,
-                          realized: t.dashboard.realizedPnL,
-                          taxes: t.dashboard.taxesPaid,
-                          usd: t.dashboard.usdLabel,
-                          ils: t.dashboard.ilsLabel,
-                        }}
+                      }
+                    />
+                    <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.6)" strokeDasharray="6 6" strokeWidth={1.2} />
+                    <Area
+                      type="monotone"
+                      dataKey="netPositive"
+                      stroke="none"
+                      fill="url(#portfolioPositive)"
+                      fillOpacity={1}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="netNegative"
+                      stroke="none"
+                      fill="url(#portfolioNegative)"
+                      fillOpacity={1}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="expectedNetPnLUsd"
+                      stroke="#7C3AED"
+                      strokeWidth={2}
+                      strokeDasharray="6 6"
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="netPnLUsd"
+                      stroke="#1D4ED8"
+                      strokeWidth={2.8}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                    {bestPoint ? (
+                      <ReferenceDot
+                        x={bestPoint.timestamp}
+                        y={bestPoint.netPnLUsd}
+                        r={4.5}
+                        fill="#10B981"
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                        isFront
                       />
-                    }
-                  />
-                  <ReferenceLine y={0} stroke="rgba(100, 116, 139, 0.7)" strokeDasharray="6 6" />
-                  <Line
-                    type="monotone"
-                    dataKey="expectedNetPnLUsd"
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="6 6"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="netPnLUsd"
-                    stroke="url(#portfolioPnlStroke)"
-                    strokeWidth={2.5}
-                    fill="url(#portfolioPnlFill)"
-                    fillOpacity={1}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+                    ) : null}
+                    {worstPoint ? (
+                      <ReferenceDot
+                        x={worstPoint.timestamp}
+                        y={worstPoint.netPnLUsd}
+                        r={4.5}
+                        fill="#F43F5E"
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                        isFront
+                      />
+                    ) : null}
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-inner">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t.dashboard.netPnL}
+                    </p>
+                    <p className={`mt-2 text-3xl font-semibold ${trendTone.text}`}>
+                      {usdFormatter(summary.totalNetPnLUsd)}
+                    </p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(summary.totalNetPnLIls)}</p>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${performanceTone.badge}`}
+                  >
+                    {performanceTone.icon}
+                    {formatSignedCurrency(performanceDeltaUsd, 'USD')}
+                    <span className="text-[11px] font-medium opacity-80">
+                      {formatSignedPercent(performanceDeltaPercent)}
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-2xl border border-blue-100/70 bg-blue-50/60 p-3 text-blue-700">
+                    <p className="font-semibold uppercase tracking-wide text-[11px]">
+                      {t.dashboard.currentPnL}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100/70 bg-emerald-50/70 p-3 text-emerald-700">
+                    <p className="font-semibold uppercase tracking-wide text-[11px]">
+                      {t.dashboard.realizedPnL}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+                <div className="rounded-3xl border border-rose-100/70 bg-rose-50/70 p-4 shadow-inner">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
+                    {t.dashboard.taxesPaid}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
+                  <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
+                </div>
+                <div className="rounded-3xl border border-indigo-100/70 bg-indigo-50/70 p-4 shadow-inner">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                    {t.dashboard.projectedPnL}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
+                  <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+                <div className="rounded-3xl border border-emerald-100/70 bg-emerald-50/70 p-4 shadow-inner">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                    {t.dashboard.bestPnL}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
+                  <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
+                  <p className="text-xs text-slate-400">{formattedBestDate}</p>
+                </div>
+                <div className="rounded-3xl border border-rose-100/70 bg-rose-50/70 p-4 shadow-inner">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
+                    {t.dashboard.worstPnL}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
+                  <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
+                  <p className="text-xs text-slate-400">{formattedWorstDate}</p>
+                </div>
+              </div>
+              <div className="rounded-3xl border border-blue-100/70 bg-gradient-to-r from-blue-50/90 via-white/90 to-indigo-100/60 p-4 text-sm text-slate-600 shadow-inner">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t.dashboard.portfolioOverviewFootnote}
+                </p>
+                <p className="mt-2 leading-relaxed">
+                  {t.dashboard.portfolioOverviewSummary(
+                    usdFormatter(openPnLUsd),
+                    usdFormatter(realizedPnLUsd),
+                    usdFormatter(Math.abs(taxesUsd))
+                  )}
+                </p>
+              </div>
             </div>
           </div>
-
-          <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-inner lg:max-w-xs">
-            <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
-              <span className="h-2.5 w-2.5 rounded-full bg-current" />
-              {toneClass === 'text-emerald-600'
-                ? t.dashboard.positiveTrend
-                : toneClass === 'text-rose-600'
-                  ? t.dashboard.negativeTrend
-                  : t.dashboard.neutralTrend}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-              <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-              <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.currentPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.realizedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
-                <p className="mt-1 font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
-                <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.projectedPnL}</p>
-                <p className="mt-1 font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-                  {t.dashboard.bestPnL}
-                </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedBestValueUsd}</p>
-                <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
-                <p className="text-xs text-slate-400">{formattedBestDate}</p>
-              </div>
-              <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-                  {t.dashboard.worstPnL}
-                </p>
-                <p className="mt-1 font-semibold text-slate-900">{formattedWorstValueUsd}</p>
-                <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
-                <p className="text-xs text-slate-400">{formattedWorstDate}</p>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-gradient-to-r from-blue-50/90 via-white/90 to-blue-100/40 p-4 text-sm text-slate-600">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t.dashboard.portfolioOverviewFootnote}
-              </p>
-              <p className="mt-2 leading-relaxed">
-                {t.dashboard.portfolioOverviewSummary(
-                  usdFormatter(openPnLUsd),
-                  usdFormatter(realizedPnLUsd),
-                  usdFormatter(Math.abs(taxesUsd))
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      </div>
     </Card>
   );
 }
