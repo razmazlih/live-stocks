@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { mapWatchlistGroup } from '@/lib/watchlist';
@@ -181,8 +181,18 @@ describe('TickerCard', () => {
     );
 
     expect(screen.getByText('Price')).toBeInTheDocument();
-    expect(screen.getByText('$120.00')).toBeInTheDocument();
-    expect(screen.getByText('+$2.00 · +1.50%')).toBeInTheDocument();
+    const pricePanel = screen.getByText('Price').closest('div');
+    expect(pricePanel).not.toBeNull();
+    if (pricePanel) {
+      expect(within(pricePanel).getByText('$120.00')).toBeInTheDocument();
+    }
+    expect(screen.getByText('+$2.00 · +1.69%')).toBeInTheDocument();
+    expect(screen.getByText('Starting price')).toBeInTheDocument();
+    const basePanel = screen.getByText('Starting price').closest('div');
+    expect(basePanel).not.toBeNull();
+    if (basePanel) {
+      expect(within(basePanel).getByText('$118.00')).toBeInTheDocument();
+    }
     expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Keep an eye on earnings.')).toBeInTheDocument();
 

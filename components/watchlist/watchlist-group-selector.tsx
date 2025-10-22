@@ -48,7 +48,7 @@ export function WatchlistGroupSelector({
   return (
     <div
       className={cn(
-        'flex h-full w-full min-w-[260px] max-w-xs flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/70',
+        'flex h-full w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/70',
         className
       )}
     >
