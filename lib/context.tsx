@@ -108,6 +108,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
+  const {
+    planProcessingMissingToken,
+    planProcessingTriggered,
+    planProcessingExpired,
+    planProcessingPartial,
+    planProcessingError,
+  } = t.positions;
+
   const processPlans = useCallback(async () => {
     if (!settingsReady) {
       return;
@@ -119,7 +127,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (!settings.finnhubToken) {
       if (!tokenWarningShownRef.current) {
-        toast.warning(t.positions.planProcessingMissingToken);
+        toast.warning(planProcessingMissingToken);
         tokenWarningShownRef.current = true;
       }
     } else {
@@ -133,15 +141,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const hadChanges = result.triggered.length > 0 || result.expired.length > 0;
 
       if (result.triggered.length > 0) {
-        toast.success(t.positions.planProcessingTriggered(result.triggered.length));
+        toast.success(planProcessingTriggered(result.triggered.length));
       }
 
       if (result.expired.length > 0) {
-        toast.info(t.positions.planProcessingExpired(result.expired.length));
+        toast.info(planProcessingExpired(result.expired.length));
       }
 
       if (result.errors.length > 0) {
-        toast.error(t.positions.planProcessingPartial(result.errors.length));
+        toast.error(planProcessingPartial(result.errors.length));
       }
 
       if (hadChanges) {
@@ -149,18 +157,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to process plans automatically:', error);
-      toast.error(t.positions.planProcessingError);
+      toast.error(planProcessingError);
     } finally {
       planProcessingRef.current = false;
     }
   }, [
     settingsReady,
     settings.finnhubToken,
-    t.positions.planProcessingMissingToken,
-    t.positions.planProcessingTriggered,
-    t.positions.planProcessingExpired,
-    t.positions.planProcessingPartial,
-    t.positions.planProcessingError,
+    planProcessingMissingToken,
+    planProcessingTriggered,
+    planProcessingExpired,
+    planProcessingPartial,
+    planProcessingError,
     triggerRefresh,
   ]);
 

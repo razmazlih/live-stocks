@@ -517,39 +517,14 @@ export function Sparkline({
     />
   );
 
-  if (!normalized) {
-    return (
-      <div className={`relative ${className}`} style={{ width: '100%', height }}>
-        <div className="flex h-full w-full">
-          {renderSkeleton}
-          {showYAxis ? (
-            <div
-              className="hidden h-full flex-shrink-0 sm:block"
-              style={{
-                width: Math.max(0, yAxisWidth),
-                background: axisBackground,
-                borderLeft: `1px solid ${axisBorderColor}`,
-              }}
-            />
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  const {
-    points: normalizedPoints,
-    baselineY,
-    projectedY,
-    projectionPoints,
-    events: normalizedEvents,
-  } = normalized;
-  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
-  const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
-  const lastPoint = normalizedPoints[normalizedPoints.length - 1];
+  const normalizedPoints = normalized?.points ?? [];
+  const baselineY = normalized?.baselineY ?? null;
+  const projectedY = normalized?.projectedY ?? null;
+  const projectionPoints = normalized?.projectionPoints ?? null;
+  const normalizedEvents = normalized?.events ?? [];
 
   const effectiveHoveredPoint =
-    interactive && hoveredIndex !== null && normalizedPoints[hoveredIndex]
+    interactive && hoveredIndex !== null && normalizedPoints.length
       ? normalizedPoints[Math.min(Math.max(hoveredIndex, 0), normalizedPoints.length - 1)]
       : null;
   const hoveredPriceText = effectiveHoveredPoint ? priceFormatter(effectiveHoveredPoint.close) : null;
@@ -651,6 +626,31 @@ export function Sparkline({
       onHoverPoint(null);
     }
   }, [interactive, onHoverPoint]);
+
+  if (!normalized) {
+    return (
+      <div className={`relative ${className}`} style={{ width: '100%', height }}>
+        <div className="flex h-full w-full">
+          {renderSkeleton}
+          {showYAxis ? (
+            <div
+              className="hidden h-full flex-shrink-0 sm:block"
+              style={{
+                width: Math.max(0, yAxisWidth),
+                background: axisBackground,
+                borderLeft: `1px solid ${axisBorderColor}`,
+              }}
+            />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
+  const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const lastPoint = normalizedPoints[normalizedPoints.length - 1] ?? null;
+
   return (
     <div className={`relative ${className}`} style={{ width: '100%', height }}>
       <div className="flex h-full w-full">
@@ -803,14 +803,16 @@ export function Sparkline({
               </>
             ) : null}
 
-            <circle
-              cx={lastPoint.x}
-              cy={lastPoint.y}
-              r={2.8}
-              fill="#ffffff"
-              stroke={lastSegmentColor}
-              strokeWidth={1.2}
-            />
+            {lastPoint ? (
+              <circle
+                cx={lastPoint.x}
+                cy={lastPoint.y}
+                r={2.8}
+                fill="#ffffff"
+                stroke={lastSegmentColor}
+                strokeWidth={1.2}
+              />
+            ) : null}
 
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
