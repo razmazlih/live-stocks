@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
 
@@ -31,6 +32,12 @@ interface SparklineProps {
   yearsHeld?: number;
   events?: SparklineEvent[];
   className?: string;
+  showYAxis?: boolean;
+  yAxisWidth?: number;
+  priceFormatter?: (value: number) => string;
+  timeFormatter?: (timestamp: number) => string;
+  interactive?: boolean;
+  onHoverPoint?: (point: { price: number; timestamp: number } | null) => void;
 }
 
 type SparklineSegment = {
@@ -51,6 +58,18 @@ type NormalizedEvent = SparklineEvent & {
   y: number;
 };
 
+type NormalizedData = {
+  points: NormalizedPoint[];
+  closes: number[];
+  baselineY: number | null;
+  projectedY: number | null;
+  projectionPoints: { x: number; y: number }[] | null;
+  events: NormalizedEvent[];
+  min: number;
+  max: number;
+  range: number;
+};
+
 export function Sparkline({
   points,
   width = 320,
@@ -66,7 +85,22 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
-  className = ''
+  className = '',
+  showYAxis = false,
+  yAxisWidth = 64,
+  priceFormatter = (value: number) =>
+    new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value),
+  timeFormatter = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+  interactive = false,
+  onHoverPoint,
 }: SparklineProps) {
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
@@ -75,15 +109,16 @@ export function Sparkline({
   const strokeGradientId = `${gradientId}-stroke`;
   const glowId = `${gradientId}-glow`;
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const element = containerRef.current;
+    const element = chartRef.current;
 
     if (!element) {
       return;
@@ -120,9 +155,10 @@ export function Sparkline({
     };
   }, []);
 
-  const effectiveWidth = Math.max(1, measuredWidth ?? width);
+  const fallbackWidth = Math.max(1, width - (showYAxis ? Math.max(0, yAxisWidth) : 0));
+  const chartWidth = Math.max(1, measuredWidth ?? fallbackWidth);
 
-  const normalized = useMemo(() => {
+  const normalized = useMemo<NormalizedData | null>(() => {
     if (!points || points.length < 2) {
       return null;
     }
@@ -171,7 +207,7 @@ export function Sparkline({
 
     const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
       const relativeTime = (point.timestamp - firstTimestamp) / timeRange;
-      const x = relativeTime * effectiveWidth;
+      const x = relativeTime * chartWidth;
       const y = height - ((point.close - min) / range) * height;
       return { x, y, close: point.close, timestamp: point.timestamp };
     });
@@ -204,7 +240,7 @@ export function Sparkline({
         if (event.timestamp <= firstTimestamp) {
           x = normalizedPoints[0]?.x ?? 0;
         } else if (event.timestamp >= lastTimestamp) {
-          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? effectiveWidth;
+          x = normalizedPoints[normalizedPoints.length - 1]?.x ?? chartWidth;
         } else {
           const index = sortedPoints.findIndex((point) => point.timestamp >= event.timestamp);
 
@@ -232,12 +268,22 @@ export function Sparkline({
       .filter((event): event is NormalizedEvent => event !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    return { points: normalizedPoints, closes, baselineY, projectedY, projectionPoints, events: normalizedEvents };
+    return {
+      points: normalizedPoints,
+      closes,
+      baselineY,
+      projectedY,
+      projectionPoints,
+      events: normalizedEvents,
+      min,
+      max,
+      range,
+    } satisfies NormalizedData;
   }, [
     points,
     baseline,
     projectedPrice,
-    effectiveWidth,
+    chartWidth,
     height,
     annualGrowthRate,
     yearsHeld,
@@ -356,8 +402,8 @@ export function Sparkline({
     const stops: { offset: number; color: string }[] = [];
 
     segments.forEach((segment, index) => {
-      const startOffset = clampOffset(segment.start.x / effectiveWidth);
-      const endOffset = clampOffset(segment.end.x / effectiveWidth);
+      const startOffset = clampOffset(segment.start.x / chartWidth);
+      const endOffset = clampOffset(segment.end.x / chartWidth);
 
       if (index === 0) {
         stops.push({ offset: startOffset, color: segment.color });
@@ -375,38 +421,96 @@ export function Sparkline({
     });
 
     return stops;
-  }, [segments, normalized, color, effectiveWidth]);
+  }, [segments, normalized, color, chartWidth]);
+
+  const axisTicks = useMemo(() => {
+    if (!showYAxis || !normalized) {
+      return [] as { value: number; y: number }[];
+    }
+
+    const { min, max, range } = normalized;
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return [];
+    }
+
+    const tickCount = 4;
+
+    if (range === 0) {
+      const mid = height / 2;
+      return [{ value: min, y: mid }];
+    }
+
+    const ticks = Array.from({ length: tickCount }, (_, index) => {
+      const ratio = index / (tickCount - 1);
+      const value = max - range * ratio;
+      const y = height - ((value - min) / range) * height;
+      return { value, y };
+    });
+
+    return ticks.filter((tick, index) => {
+      const firstIndex = ticks.findIndex((item) => Math.abs(item.value - tick.value) < 1e-6);
+      return firstIndex === index;
+    });
+  }, [showYAxis, normalized, height]);
 
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const handleWrapperLeave = () => {
     setHoveredEventId(null);
+    setHoveredIndex(null);
   };
+
+  const renderSkeleton = (
+    <div
+      ref={chartRef}
+      className="relative h-full w-full"
+      onPointerLeave={handleWrapperLeave}
+      onTouchCancel={handleWrapperLeave}
+      onTouchEnd={handleWrapperLeave}
+    />
+  );
 
   if (!normalized) {
     return (
-      <div
-        ref={containerRef}
-        className={`relative ${className}`}
-        style={{ width: '100%', height }}
-        onPointerLeave={handleWrapperLeave}
-        onTouchCancel={handleWrapperLeave}
-        onTouchEnd={handleWrapperLeave}
-      />
+      <div className={`relative ${className}`} style={{ width: '100%', height }}>
+        <div className="flex h-full w-full">
+          {renderSkeleton}
+          {showYAxis ? (
+            <div
+              className="hidden h-full flex-shrink-0 border-l border-slate-200/60 bg-slate-50/60 sm:block"
+              style={{ width: Math.max(0, yAxisWidth) }}
+            />
+          ) : null}
+        </div>
+      </div>
     );
   }
 
-  const { points: normalizedPoints, baselineY, projectedY, projectionPoints, events: normalizedEvents } = normalized;
-  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${effectiveWidth} ${height}`, 'Z'].join(' ');
+  const {
+    points: normalizedPoints,
+    baselineY,
+    projectedY,
+    projectionPoints,
+    events: normalizedEvents,
+  } = normalized;
+  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
   const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const lastPoint = normalizedPoints[normalizedPoints.length - 1];
+
+  const effectiveHoveredPoint =
+    interactive && hoveredIndex !== null && normalizedPoints[hoveredIndex]
+      ? normalizedPoints[Math.min(Math.max(hoveredIndex, 0), normalizedPoints.length - 1)]
+      : null;
+  const hoveredPriceText = effectiveHoveredPoint ? priceFormatter(effectiveHoveredPoint.close) : null;
+  const hoveredTimeText = effectiveHoveredPoint ? timeFormatter(effectiveHoveredPoint.timestamp) : null;
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
-      ? `M 0 ${projectedY} L ${effectiveWidth} ${projectedY}`
+      ? `M 0 ${projectedY} L ${chartWidth} ${projectedY}`
       : null;
 
   const activeEventId = selectedEventId ?? hoveredEventId;
@@ -416,187 +520,323 @@ export function Sparkline({
     setSelectedEventId(null);
   };
 
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive || !normalized) {
+      return;
+    }
+
+    const element = chartRef.current;
+    if (!element) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const relativeX = event.clientX - rect.left;
+    const clampedX = Math.min(Math.max(relativeX, 0), chartWidth);
+
+    let nearestIndex = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    normalized.points.forEach((point, index) => {
+      const distance = Math.abs(point.x - clampedX);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    if (hoveredIndex !== nearestIndex) {
+      setHoveredIndex(nearestIndex);
+    }
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive) {
+      return;
+    }
+
+    handlePointerMove(event);
+  };
+
+  useEffect(() => {
+    if (!interactive || !onHoverPoint) {
+      return;
+    }
+
+    if (!effectiveHoveredPoint) {
+      onHoverPoint(null);
+      return;
+    }
+
+    onHoverPoint({ price: effectiveHoveredPoint.close, timestamp: effectiveHoveredPoint.timestamp });
+  }, [interactive, effectiveHoveredPoint, onHoverPoint]);
+
+  useEffect(() => {
+    if (!interactive && onHoverPoint) {
+      onHoverPoint(null);
+    }
+  }, [interactive, onHoverPoint]);
   return (
-    <div
-      ref={containerRef}
-      className={`relative ${className}`}
-      style={{ width: '100%', height }}
-      onClick={handleWrapperClick}
-      onPointerLeave={handleWrapperLeave}
-      onTouchCancel={handleWrapperLeave}
-      onTouchEnd={handleWrapperLeave}
-      role="presentation"
-    >
-      <svg
-        width={effectiveWidth}
-        height={height}
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${effectiveWidth} ${height}`}
-        role="img"
-        aria-hidden="true"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient
-            id={areaGradientId}
-            x1={0}
-            x2={effectiveWidth}
-            y1={0}
-            y2={0}
-            gradientUnits="userSpaceOnUse"
-          >
-            {gradientStops.map((stop, index) => (
-              <stop
-                key={`${stop.offset}-${stop.color}-${index}`}
-                offset={`${stop.offset * 100}%`}
-                stopColor={stop.color}
-              />
-            ))}
-          </linearGradient>
-          <linearGradient
-            id={areaOpacityGradientId}
-            x1={0}
-            x2={0}
-            y1={0}
-            y2={height}
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
-          </linearGradient>
-          <mask id={areaMaskId} maskUnits="userSpaceOnUse">
-            <rect width={effectiveWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
-          </mask>
-          <linearGradient id={strokeGradientId} x1="0" x2={effectiveWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
-            {gradientStops.map((stop, index) => (
-              <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
-            ))}
-          </linearGradient>
-          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        <g opacity={0.08}>
-          <line x1="0" y1={height} x2={effectiveWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-          <line x1="0" y1={height / 2} x2={effectiveWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-        </g>
-
-        {baselineY !== null && (
-          <line
-            x1={0}
-            y1={baselineY}
-            x2={effectiveWidth}
-            y2={baselineY}
-            stroke={baselineColor}
-            strokeWidth="1"
-            strokeDasharray="4 3"
-          />
-        )}
-
-        {projectedLinePath && (
-          <path
-            d={projectedLinePath}
-            fill="none"
-            stroke={projectedLineColor}
-            strokeWidth={1.5}
-            strokeDasharray="6 4"
-          />
-        )}
-
-        <path
-          d={areaPath}
-          fill={`url(#${areaGradientId})`}
-          mask={`url(#${areaMaskId})`}
-          opacity={0.6}
-        />
-
-        <path
-          d={linePath}
-          fill="none"
-          stroke={`url(#${strokeGradientId})`}
-          strokeWidth={2.4}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter={`url(#${glowId})`}
-        />
-
-        <circle
-          cx={lastPoint.x}
-          cy={lastPoint.y}
-          r={2.8}
-          fill="#ffffff"
-          stroke={lastSegmentColor}
-          strokeWidth={1.2}
-        />
-
-        {normalizedEvents.map((event) => {
-          const isActive = activeEventId === event.id;
-          const tone = event.type === 'BUY'
-            ? { fill: '#dcfce7', stroke: '#047857' }
-            : { fill: '#fee2e2', stroke: '#b91c1c' };
-          const labelPrice = event.priceLabel ?? event.price.toLocaleString();
-
-          return (
-            <circle
-              key={event.id}
-              cx={event.x}
-              cy={event.y}
-              r={isActive ? 4.6 : 3.6}
-              fill={tone.fill}
-              stroke={tone.stroke}
-              strokeWidth={isActive ? 1.8 : 1.4}
-              tabIndex={0}
-              role="button"
-              aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                setHoveredEventId(event.id);
-              }}
-              onMouseLeave={(e) => {
-                e.stopPropagation();
-                setHoveredEventId((current) => (current === event.id ? null : current));
-              }}
-              onFocus={() => setHoveredEventId(event.id)}
-              onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedEventId((current) => (current === event.id ? null : event.id));
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                setSelectedEventId((current) => (current === event.id ? null : event.id));
-              }}
-            />
-          );
-        })}
-      </svg>
-
-      {activeEvent && (
-          <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
-            style={{
-              left: Math.min(Math.max(activeEvent.x, 60), effectiveWidth - 60),
-              top: Math.max(activeEvent.y - 12, 12),
-            }}
+    <div className={`relative ${className}`} style={{ width: '100%', height }}>
+      <div className="flex h-full w-full">
+        <div
+          ref={chartRef}
+          className="relative h-full min-w-0 flex-1"
+          onPointerLeave={handleWrapperLeave}
+          onTouchCancel={handleWrapperLeave}
+          onTouchEnd={handleWrapperLeave}
+          onClick={handleWrapperClick}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          onTouchStart={handlePointerDown}
+          role="presentation"
         >
-          <div className="font-semibold text-slate-800">
-            {activeEvent.typeLabel ?? activeEvent.type}
-          </div>
-          <div className="text-slate-500">
-            {new Date(activeEvent.timestamp).toLocaleDateString()}
-          </div>
-          <div className="mt-1 text-slate-600">
-            <span className="font-medium text-slate-800">{activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}</span>
-            <span className="ml-2">·</span>
-            <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
-          </div>
+          <svg
+            width={chartWidth}
+            height={height}
+            className="h-full w-full"
+            viewBox={`0 0 ${chartWidth} ${height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient
+                id={areaGradientId}
+                x1={0}
+                x2={chartWidth}
+                y1={0}
+                y2={0}
+                gradientUnits="userSpaceOnUse"
+              >
+                {gradientStops.map((stop, index) => (
+                  <stop
+                    key={`${stop.offset}-${stop.color}-${index}`}
+                    offset={`${stop.offset * 100}%`}
+                    stopColor={stop.color}
+                  />
+                ))}
+              </linearGradient>
+              <linearGradient
+                id={areaOpacityGradientId}
+                x1={0}
+                x2={0}
+                y1={0}
+                y2={height}
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+              </linearGradient>
+              <mask id={areaMaskId} maskUnits="userSpaceOnUse">
+                <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
+              </mask>
+              <linearGradient id={strokeGradientId} x1="0" x2={chartWidth} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+                {gradientStops.map((stop, index) => (
+                  <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
+                ))}
+              </linearGradient>
+              <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {!showYAxis ? (
+              <g opacity={0.08}>
+                <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+                <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+              </g>
+            ) : null}
+
+            {showYAxis
+              ? axisTicks.map((tick, index) => (
+                  <line
+                    key={`axis-${index}`}
+                    x1={0}
+                    x2={chartWidth}
+                    y1={tick.y}
+                    y2={tick.y}
+                    stroke="rgba(148, 163, 184, 0.35)"
+                    strokeWidth="1"
+                    strokeDasharray="4 4"
+                  />
+                ))
+              : null}
+
+            {baselineY !== null && (
+              <line
+                x1={0}
+                y1={baselineY}
+                x2={chartWidth}
+                y2={baselineY}
+                stroke={baselineColor}
+                strokeWidth="1"
+                strokeDasharray="4 3"
+              />
+            )}
+
+            {projectedLinePath && (
+              <path
+                d={projectedLinePath}
+                fill="none"
+                stroke={projectedLineColor}
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+              />
+            )}
+
+            <path
+              d={areaPath}
+              fill={`url(#${areaGradientId})`}
+              mask={`url(#${areaMaskId})`}
+              opacity={0.6}
+            />
+
+            <path
+              d={linePath}
+              fill="none"
+              stroke={`url(#${strokeGradientId})`}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter={`url(#${glowId})`}
+            />
+
+            {interactive && effectiveHoveredPoint ? (
+              <>
+                <line
+                  x1={effectiveHoveredPoint.x}
+                  y1={0}
+                  x2={effectiveHoveredPoint.x}
+                  y2={height}
+                  stroke="rgba(15, 23, 42, 0.25)"
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                />
+                <circle
+                  cx={effectiveHoveredPoint.x}
+                  cy={effectiveHoveredPoint.y}
+                  r={4.2}
+                  fill="#ffffff"
+                  stroke={color}
+                  strokeWidth={1.4}
+                />
+              </>
+            ) : null}
+
+            <circle
+              cx={lastPoint.x}
+              cy={lastPoint.y}
+              r={2.8}
+              fill="#ffffff"
+              stroke={lastSegmentColor}
+              strokeWidth={1.2}
+            />
+
+            {normalizedEvents.map((event) => {
+              const isActive = activeEventId === event.id;
+              const tone = event.type === 'BUY'
+                ? { fill: '#dcfce7', stroke: '#047857' }
+                : { fill: '#fee2e2', stroke: '#b91c1c' };
+              const labelPrice = event.priceLabel ?? event.price.toLocaleString();
+
+              return (
+                <circle
+                  key={event.id}
+                  cx={event.x}
+                  cy={event.y}
+                  r={isActive ? 4.6 : 3.6}
+                  fill={tone.fill}
+                  stroke={tone.stroke}
+                  strokeWidth={isActive ? 1.8 : 1.4}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                    setHoveredEventId(event.id);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.stopPropagation();
+                    setHoveredEventId((current) => (current === event.id ? null : current));
+                  }}
+                  onFocus={() => setHoveredEventId(event.id)}
+                  onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedEventId((current) => (current === event.id ? null : event.id));
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    setSelectedEventId((current) => (current === event.id ? null : event.id));
+                  }}
+                />
+              );
+            })}
+          </svg>
+
+          {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (
+            <div
+              className="pointer-events-none absolute z-10 flex flex-col items-center gap-1"
+              style={{
+                left: Math.min(Math.max(effectiveHoveredPoint.x, 12), chartWidth - 12),
+                top: Math.max(effectiveHoveredPoint.y - 56, 8),
+              }}
+            >
+              <div className="rounded-lg bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-black/5">
+                {hoveredPriceText}
+              </div>
+              <div className="rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
+                {hoveredTimeText}
+              </div>
+            </div>
+          ) : null}
+
+          {activeEvent && (
+            <div
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+              style={{
+                left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
+                top: Math.max(activeEvent.y - 12, 12),
+              }}
+            >
+              <div className="font-semibold text-slate-800">
+                {activeEvent.typeLabel ?? activeEvent.type}
+              </div>
+              <div className="text-slate-500">
+                {new Date(activeEvent.timestamp).toLocaleDateString()}
+              </div>
+              <div className="mt-1 text-slate-600">
+                <span className="font-medium text-slate-800">
+                  {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
+                </span>
+                <span className="ml-2">·</span>
+                <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {showYAxis && axisTicks.length ? (
+          <div
+            className="hidden h-full flex-shrink-0 flex-col justify-between border-l border-slate-200/70 bg-slate-50/70 px-2 py-2 text-[11px] font-medium text-slate-600 sm:flex"
+            style={{ width: Math.max(0, yAxisWidth) }}
+          >
+            {axisTicks.map((tick, index) => (
+              <span
+                key={`axis-label-${index}`}
+                className="text-right tabular-nums"
+                style={{ color }}
+              >
+                {priceFormatter(tick.value)}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

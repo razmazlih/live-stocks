@@ -283,8 +283,19 @@ export const translations = {
       },
       labels: {
         price: 'מחיר נוכחי',
-        change: 'שינוי יומי',
+        change: 'שינוי',
+        changeSince: (date: string) => `שינוי מאז ${date}`,
+        basePrice: 'מחיר בתחילת התקופה',
+        hover: 'מחיר ב-',
+        startDate: 'מתאריך',
         note: 'הערות',
+      },
+      filters: {
+        startDateLabel: 'תאריך התחלה',
+        startDateDescription: 'בחר תאריך שממנו יחושבו הגרפים והשינויים.',
+        resetStartDate: 'איפוס לתאריך ברירת מחדל',
+        summary: (date: string) => `הנתונים מוצגים החל מתאריך ${date}.`,
+        customBadge: 'מותאם',
       },
       status: {
         errorTitle: 'תקלה ברשימת המעקב',
@@ -699,9 +710,20 @@ export const translations = {
         empty: 'No data available for the selected range.',
       },
       labels: {
-        price: 'Price',
+        price: 'Current price',
         change: 'Change',
+        changeSince: (date: string) => `Change since ${date}`,
+        basePrice: 'Starting price',
+        hover: 'Price on',
+        startDate: 'From',
         note: 'Notes',
+      },
+      filters: {
+        startDateLabel: 'Start date',
+        startDateDescription: 'Choose the starting point for charts and performance changes.',
+        resetStartDate: 'Reset to default range',
+        summary: (date: string) => `Charts reflect data since ${date}.`,
+        customBadge: 'Custom',
       },
       status: {
         errorTitle: 'Watchlist error',
