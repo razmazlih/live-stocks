@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
-import { calculatePortfolioSummary, calculatePositionMetrics } from '@/lib/calculations';
-import { mapPositionRow } from '@/lib/positions';
+import {
+  calculatePortfolioSummary,
+  calculatePositionMetrics,
+  calculateRealizedTaxLiability,
+} from '@/lib/calculations';
+import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { supabase } from '@/lib/supabase';
@@ -40,8 +44,8 @@ export async function GET() {
     }
 
     const rawPositions = Array.isArray(positionsResult.data) ? positionsResult.data : [];
-    const positions: Position[] = rawPositions
-      .map(mapPositionRow)
+    const mappedPositions: Position[] = rawPositions.map(mapPositionRow);
+    const openPositions = mappedPositions
       .filter(position => isFiniteNumber(position.quantity) && position.quantity > 0);
 
     const usdToIlsRate = await getUsdToIlsRate();
@@ -53,7 +57,7 @@ export async function GET() {
     const finnhubToken = settingsResult.data?.finnhub_token || process.env.FINNHUB_TOKEN;
 
     const metrics = await Promise.all(
-      positions.map(async (position) => {
+      openPositions.map(async (position) => {
         const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
         const currentPrice = quote?.price && quote.price > 0 ? quote.price : position.entryPrice;
 
@@ -68,21 +72,53 @@ export async function GET() {
 
     const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
 
+    const realizedSales = mappedPositions.flatMap(computeRealizedSales);
+    const realizedTotals = realizedSales.reduce(
+      (acc, sale) => {
+        const profitUsd = isFiniteNumber(sale.profitUsd) ? sale.profitUsd : 0;
+        const profitIls = profitUsd * usdToIlsRate;
+
+        return {
+          profitUsd: acc.profitUsd + profitUsd,
+          profitIls: acc.profitIls + profitIls,
+        };
+      },
+      { profitUsd: 0, profitIls: 0 },
+    );
+
+    const chronologicalSales = realizedSales
+      .slice()
+      .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
+
+    const taxSummary = calculateRealizedTaxLiability(
+      chronologicalSales.map((sale) => ({
+        profitUsd: isFiniteNumber(sale.profitUsd) ? sale.profitUsd : 0,
+        profitIls: isFiniteNumber(sale.profitUsd) ? sale.profitUsd * usdToIlsRate : 0,
+        timestamp: new Date(sale.sellDate).getTime(),
+      })),
+    );
+
+    const totalCurrentPnLUsd = summary.totalCurrentPnLUsd + realizedTotals.profitUsd;
+    const totalCurrentPnLIls = summary.totalCurrentPnLIls + realizedTotals.profitIls;
+
+    const totalNetPnLUsd = totalCurrentPnLUsd - taxSummary.taxUsd;
+    const totalNetPnLIls = totalCurrentPnLIls - taxSummary.taxIls;
+
     return NextResponse.json(
       {
         timestamp: new Date().toISOString(),
         usdToIlsRate,
-        combinedPnL: {
-          usd: toFixedNumber(summary.totalCombinedUsd),
-          ils: toFixedNumber(summary.totalCombinedIls),
+        netPnL: {
+          usd: toFixedNumber(totalNetPnLUsd),
+          ils: toFixedNumber(totalNetPnLIls),
         },
       },
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {
-    console.error('Combined PnL API error:', error);
+    console.error('Net PnL API error:', error);
     return NextResponse.json(
-      { error: 'Failed to calculate combined PnL' },
+      { error: 'Failed to calculate net PnL' },
       { status: 500, headers: NO_STORE_HEADERS },
     );
   }
