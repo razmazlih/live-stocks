@@ -7,6 +7,7 @@ export const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 export interface FinnhubQuoteResult {
   price: number;
   dailyChange?: number;
+  timestamp?: number;
 }
 
 interface FinnhubQuoteOptions {
@@ -37,6 +38,10 @@ export async function fetchFinnhubQuote(
 
     if (isFiniteNumber(data.d)) {
       quote.dailyChange = data.d;
+    }
+
+    if (isFiniteNumber(data.t) && data.t > 0) {
+      quote.timestamp = data.t;
     }
 
     return quote;

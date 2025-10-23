@@ -1,5 +1,5 @@
 import { mapPositionPlanRow } from '@/lib/positions';
-import { fetchFinnhubQuote } from '@/lib/services/finnhub';
+import { fetchFinnhubQuote, FinnhubQuoteResult } from '@/lib/services/finnhub';
 import { supabase } from '@/lib/supabase';
 import { PositionPlan } from '@/types';
 
@@ -68,7 +68,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
   }
 
   const uniqueSymbols = Array.from(new Set(triggerCandidates.map((plan) => plan.symbol)));
-  const quotes = new Map<string, number>();
+  const quotes = new Map<string, FinnhubQuoteResult>();
 
   if (options.token) {
     const quoteResults = await Promise.all(
@@ -80,15 +80,37 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
 
     for (const { symbol, quote } of quoteResults) {
       if (quote && Number.isFinite(quote.price)) {
-        quotes.set(symbol, quote.price);
+        quotes.set(symbol, quote);
       }
     }
   }
 
   for (const plan of triggerCandidates) {
     try {
-      const quotePrice = quotes.get(plan.symbol);
-      if (quotePrice === undefined) {
+      const quote = quotes.get(plan.symbol);
+      if (!quote) {
+        continue;
+      }
+
+      const quotePrice = quote.price;
+      const quoteTimestamp = quote.timestamp;
+
+      if (!Number.isFinite(quotePrice)) {
+        continue;
+      }
+
+      if (!quoteTimestamp || !Number.isFinite(quoteTimestamp)) {
+        continue;
+      }
+
+      const quoteDate = new Date(quoteTimestamp * 1000);
+      if (Number.isNaN(quoteDate.getTime())) {
+        continue;
+      }
+
+      const quoteIsoDate = quoteDate.toISOString().split('T')[0];
+
+      if (quoteIsoDate !== todayIso) {
         continue;
       }
 
