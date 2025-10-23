@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import type { DefaultLegendContentProps, TooltipProps as RechartsTooltipProps } from 'recharts';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody, CardHeader, Chip } from '@heroui/react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
@@ -49,9 +49,9 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
   const resolvedLabel = labelFormatter ? labelFormatter(label ?? '') : label;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
+    <div className="rounded-2xl border border-default-200 bg-content1/70 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
       {resolvedLabel && (
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{resolvedLabel}</p>
       )}
       <div className="mt-2 space-y-1">
         {payload.map((item) => {
@@ -62,13 +62,13 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
           const numericValue = typeof item.value === 'number' ? item.value : Number(item.value);
 
           return (
-            <div key={item.dataKey?.toString()} className="flex items-center gap-2 text-slate-600">
+            <div key={item.dataKey?.toString()} className="flex items-center gap-2 text-foreground/70">
               <span
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ background: item.color ?? 'var(--fallback-color, #2563EB)' }}
               />
               <span className="text-xs font-medium sm:text-sm">{item.name}</span>
-              <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
+              <span className="ml-auto font-semibold text-foreground">{valueFormatter(numericValue)}</span>
             </div>
           );
         })}
@@ -83,9 +83,9 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
   }
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 sm:text-sm">
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium text-foreground/70 sm:text-sm">
       {payload.map((entry) => (
-        <span key={entry.value} className="inline-flex items-center gap-2 rounded-full bg-slate-100/70 px-3 py-1">
+        <span key={entry.value} className="inline-flex items-center gap-2 rounded-full bg-content1/60 px-3 py-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
           <span>{entry.value}</span>
         </span>
@@ -250,16 +250,14 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            {t.dashboard.performanceTrendTitle}
-          </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.performanceTrendDescription}</p>
+      <Card radius="lg" shadow="lg" className="overflow-hidden border border-default-200 bg-content1/60 xl:col-span-7">
+        <CardHeader className="flex-col items-start gap-2 border-b border-default-200 bg-content1/40">
+          <h3 className="text-lg font-semibold text-foreground">{t.dashboard.performanceTrendTitle}</h3>
+          <p className="text-sm text-foreground/70">{t.dashboard.performanceTrendDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80 p-6">
           {!hasPerformanceData ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-default-200 text-sm text-foreground/60">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -322,42 +320,40 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </AreaChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            {t.dashboard.topMoversTitle}
-          </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.topMoversDescription}</p>
+      <Card radius="lg" shadow="lg" className="overflow-hidden border border-default-200 bg-content1/60 xl:col-span-5">
+        <CardHeader className="flex-col items-start gap-2 border-b border-default-200 bg-content1/40">
+          <h3 className="text-lg font-semibold text-foreground">{t.dashboard.topMoversTitle}</h3>
+          <p className="text-sm text-foreground/70">{t.dashboard.topMoversDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardBody className="space-y-6 p-6">
           {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/60 py-12 text-center text-sm text-slate-500">
-              <ArrowUpRight className="h-5 w-5 text-slate-400" />
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-default-200 bg-content1/40 py-12 text-center text-sm text-foreground/60">
+              <ArrowUpRight className="h-5 w-5 text-foreground/50" />
               <p>{t.dashboard.topMoversEmpty}</p>
             </div>
           ) : (
             <div className="grid gap-6">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversGainers}</h4>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
+                  <h4 className="text-sm font-semibold text-foreground/80">{t.dashboard.topMoversGainers}</h4>
+                  <Chip size="sm" variant="flat" color="success">
                     {t.dashboard.topMoversPositiveLabel}
-                  </span>
+                  </Chip>
                 </div>
                 {topMovers.gainers.map((item) => (
                   <div
                     key={`gainer-${item.symbol}`}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-default-200 bg-content1/40 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                       <ArrowUpRight className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
-                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                      <p className="text-sm font-semibold text-foreground">{item.display}</p>
+                      <p className="text-xs text-foreground/60">{item.symbol}</p>
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-sm font-semibold text-emerald-600">{formatValue(item.changeValue)}</p>
@@ -370,7 +366,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                  <p className="rounded-2xl border border-dashed border-default-200 bg-content1/40 px-4 py-3 text-sm text-foreground/60">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -378,22 +374,22 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversLosers}</h4>
-                  <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-600">
+                  <h4 className="text-sm font-semibold text-foreground/80">{t.dashboard.topMoversLosers}</h4>
+                  <Chip size="sm" variant="flat" color="danger">
                     {t.dashboard.topMoversNegativeLabel}
-                  </span>
+                  </Chip>
                 </div>
                 {topMovers.losers.map((item) => (
                   <div
                     key={`loser-${item.symbol}`}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-default-200 bg-content1/40 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                       <ArrowDownRight className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
-                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                      <p className="text-sm font-semibold text-foreground">{item.display}</p>
+                      <p className="text-xs text-foreground/60">{item.symbol}</p>
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-sm font-semibold text-rose-600">{formatValue(item.changeValue)}</p>
@@ -406,26 +402,24 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                  <p className="rounded-2xl border border-dashed border-default-200 bg-content1/40 px-4 py-3 text-sm text-foreground/60">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
               </div>
             </div>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            {t.dashboard.allocationChart}
-          </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.allocationDescription}</p>
+      <Card radius="lg" shadow="lg" className="overflow-hidden border border-default-200 bg-content1/60 xl:col-span-6">
+        <CardHeader className="flex-col items-start gap-2 border-b border-default-200 bg-content1/40">
+          <h3 className="text-lg font-semibold text-foreground">{t.dashboard.allocationChart}</h3>
+          <p className="text-sm text-foreground/70">{t.dashboard.allocationDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80 p-6">
           {allocationData.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-default-200 text-sm text-foreground/60">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -474,19 +468,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </PieChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            {t.dashboard.pnlChart}
-          </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.pnlDescription}</p>
+      <Card radius="lg" shadow="lg" className="overflow-hidden border border-default-200 bg-content1/60 xl:col-span-6">
+        <CardHeader className="flex-col items-start gap-2 border-b border-default-200 bg-content1/40">
+          <h3 className="text-lg font-semibold text-foreground">{t.dashboard.pnlChart}</h3>
+          <p className="text-sm text-foreground/70">{t.dashboard.pnlDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80 p-6">
           {pnlData.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-default-200 text-sm text-foreground/60">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -535,19 +527,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            {t.dashboard.holdingPeriodTitle}
-          </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.holdingPeriodDescription}</p>
+      <Card radius="lg" shadow="lg" className="overflow-hidden border border-default-200 bg-content1/60 xl:col-span-12">
+        <CardHeader className="flex-col items-start gap-2 border-b border-default-200 bg-content1/40">
+          <h3 className="text-lg font-semibold text-foreground">{t.dashboard.holdingPeriodTitle}</h3>
+          <p className="text-sm text-foreground/70">{t.dashboard.holdingPeriodDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardBody className="space-y-6 p-6">
           {!hasHoldingData ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-default-200 bg-content1/40 text-sm text-foreground/60">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -593,21 +583,18 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {holdingPeriodData.map((bucket) => (
-                  <div
-                    key={bucket.key}
-                    className="rounded-2xl border border-slate-100/70 bg-white/70 p-4 shadow-inner"
-                  >
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{bucket.label}</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {formatValue(bucket.value)}
-                    </p>
-                    <p className="text-xs text-slate-500">{formatPercent(bucket.percentage, locale)}</p>
-                  </div>
+                  <Card key={bucket.key} radius="md" shadow="sm" className="bg-content1/40">
+                    <CardBody className="space-y-2 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">{bucket.label}</p>
+                      <p className="text-sm font-semibold text-foreground">{formatValue(bucket.value)}</p>
+                      <p className="text-xs text-foreground/60">{formatPercent(bucket.percentage, locale)}</p>
+                    </CardBody>
+                  </Card>
                 ))}
               </div>
             </>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
     </div>
   );

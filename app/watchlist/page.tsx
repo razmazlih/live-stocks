@@ -797,14 +797,16 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newGroup,
         onClick: openCreateGroupDialog,
-        className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+        color: 'primary',
+        className: 'shadow-sm',
       },
       {
         key: 'newTicker',
         icon: Plus,
         label: t.watchlist.actions.newTicker,
         onClick: openCreateTickerDialog,
-        variant: 'secondary',
+        variant: 'light',
+        color: 'primary',
         disabled: !selectedGroup,
       },
     ];

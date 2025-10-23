@@ -1,8 +1,9 @@
-import { ComponentProps, ReactNode } from 'react';
+import { ComponentProps, ComponentType, ReactNode } from 'react';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@heroui/react';
+
 import { cn } from '@/lib/utils';
 
 export interface DashboardQuickAction {
@@ -13,6 +14,7 @@ export interface DashboardQuickAction {
   onClick?: () => void;
   disabled?: boolean;
   variant?: ComponentProps<typeof Button>['variant'];
+  color?: ComponentProps<typeof Button>['color'];
   className?: string;
   iconClassName?: string;
   labelClassName?: string;
@@ -29,33 +31,27 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
   }
 
   return (
-    <div className="mt-4 flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-3">
       {actions.map((action) => {
         const Icon = action.icon;
-        const buttonContent: ReactNode = action.href ? (
-          <Link href={action.href}>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </Link>
-        ) : (
-          <>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </>
-        );
+        const linkProps = action.href
+          ? { as: Link as unknown as ComponentType, href: action.href }
+          : {};
 
         return (
           <Button
             key={action.key}
             size="sm"
             variant={action.variant}
-            asChild={Boolean(action.href)}
-            onClick={action.onClick}
-            disabled={action.disabled}
+            color={action.color}
+            {...linkProps}
+            onPress={action.onClick}
+            isDisabled={action.disabled}
             aria-label={action.ariaLabel ?? action.label}
             className={cn('gap-2', action.className)}
           >
-            {buttonContent}
+            <Icon className={cn('h-4 w-4', action.iconClassName)} />
+            <span className={cn(action.labelClassName)}>{action.label}</span>
           </Button>
         );
       })}
