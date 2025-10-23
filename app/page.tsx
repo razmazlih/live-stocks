@@ -13,7 +13,8 @@ import {
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { Card, CardBody, Divider, Spinner } from '@heroui/react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
@@ -210,12 +211,13 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
-              <div className="relative z-10">
+            <Card className="relative overflow-hidden border-none bg-white/85 shadow-2xl backdrop-blur">
+              <div className="pointer-events-none absolute -left-20 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
+              <div className="pointer-events-none absolute bottom-0 right-0 h-48 w-48 rounded-full bg-sky-100/40 blur-3xl" />
+              <CardBody className="relative z-10 px-4 py-10 sm:px-8">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-500">
+                    <Spinner color="primary" size="lg" />
                     <p>{t.common.loading}</p>
                   </div>
                 ) : !hasAnyPositions ? (
@@ -244,6 +246,8 @@ export default function HomePage() {
                       </div>
                     )}
 
+                    <Divider className="bg-slate-100/80" />
+
                     <PositionsOverview
                       openTitle={t.dashboard.positionsTitle}
                       closedTitle={t.dashboard.closedPositionsTitle}
@@ -253,21 +257,20 @@ export default function HomePage() {
                     />
 
                     {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
+                      <div className="space-y-4">
+                        <Divider className="bg-slate-100/80" />
                         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
-                          />
-                        </div>
+                        <PortfolioVisualizations
+                          metrics={openMetrics}
+                          summary={summary}
+                          timeline={portfolioTimeline}
+                        />
                       </div>
                     )}
                   </div>
                 )}
-              </div>
-            </section>
+              </CardBody>
+            </Card>
           </main>
         </div>
       </div>

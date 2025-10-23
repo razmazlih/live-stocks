@@ -1,8 +1,8 @@
-import { ComponentProps, ReactNode } from 'react';
+import { ComponentProps } from 'react';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
+import { Button } from '@heroui/react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export interface DashboardQuickAction {
@@ -11,8 +11,10 @@ export interface DashboardQuickAction {
   label: string;
   href?: string;
   onClick?: () => void;
+  onPress?: () => void;
   disabled?: boolean;
   variant?: ComponentProps<typeof Button>['variant'];
+  color?: ComponentProps<typeof Button>['color'];
   className?: string;
   iconClassName?: string;
   labelClassName?: string;
@@ -32,30 +34,21 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
     <div className="mt-4 flex flex-wrap gap-3">
       {actions.map((action) => {
         const Icon = action.icon;
-        const buttonContent: ReactNode = action.href ? (
-          <Link href={action.href}>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </Link>
-        ) : (
-          <>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </>
-        );
-
         return (
           <Button
             key={action.key}
             size="sm"
             variant={action.variant}
-            asChild={Boolean(action.href)}
-            onClick={action.onClick}
-            disabled={action.disabled}
+            color={action.color}
+            as={action.href ? Link : undefined}
+            href={action.href}
+            onPress={action.onPress ?? action.onClick}
+            isDisabled={action.disabled}
             aria-label={action.ariaLabel ?? action.label}
-            className={cn('gap-2', action.className)}
+            startContent={<Icon className={cn('h-4 w-4', action.iconClassName)} />}
+            className={cn('gap-2 font-semibold', action.className)}
           >
-            {buttonContent}
+            <span className={cn(action.labelClassName)}>{action.label}</span>
           </Button>
         );
       })}

@@ -9,6 +9,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
+import { HeroUIProvider } from '@heroui/react';
 import { Locale, Settings } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
@@ -221,20 +222,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [setSettings]);
 
+  const heroLocale = locale === 'he' ? 'he-IL' : 'en-US';
+
   return (
-    <AppContext.Provider
-      value={{
-        locale,
-        setLocale,
-        settings,
-        setSettings,
-        refreshTrigger,
-        triggerRefresh,
-        processPlans,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <HeroUIProvider locale={heroLocale} disableRipple>
+      <AppContext.Provider
+        value={{
+          locale,
+          setLocale,
+          settings,
+          setSettings,
+          refreshTrigger,
+          triggerRefresh,
+          processPlans,
+        }}
+      >
+        {children}
+      </AppContext.Provider>
+    </HeroUIProvider>
   );
 }
 

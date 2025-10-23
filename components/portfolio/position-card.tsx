@@ -7,13 +7,12 @@ import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/c
 import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
+import { Avatar, Button, Card, CardBody, Chip } from '@heroui/react';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -319,12 +318,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   }, []);
 
   return (
-    <div
+    <Card
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border border-transparent bg-white/90 transition-all duration-300 ease-out will-change-transform',
         isHovered
           ? '-translate-y-1 border-blue-200/80 shadow-2xl'
-          : 'translate-y-0 border-slate-200/70 shadow-lg'
+          : 'translate-y-0 border-slate-200/60 shadow-lg'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -342,29 +341,40 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         )}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
+      <CardBody className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
           <>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
                 <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    src={position.imageUrl ?? undefined}
+                    name={position.display}
+                    classNames={{
+                      base: 'h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100',
+                      img: 'object-cover',
+                      fallback: 'bg-blue-100 text-blue-600 font-semibold',
+                    }}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      className="h-auto rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                    >
                       {position.symbol}
-                    </Badge>
-                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    </Chip>
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      className="h-auto rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+                    >
                       {t.dashboard.closedBadge}
-                    </Badge>
+                    </Chip>
                   </div>
                   {closedSummary?.lastSaleDate && (
                     <p className="text-sm text-slate-500">
@@ -414,21 +424,29 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
             <div className="flex flex-wrap justify-end gap-3">
               {forecastEnabled ? (
-                <Link
+                <Button
+                  as={Link}
                   href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+                  size="sm"
+                  variant="light"
+                  color="secondary"
+                  endContent={<ArrowUpRight className="h-4 w-4" />}
+                  className="font-semibold"
                 >
                   {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
+                </Button>
               ) : null}
-              <Link
+              <Button
+                as={Link}
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                size="sm"
+                variant="light"
+                color="primary"
+                endContent={<ArrowUpRight className="h-4 w-4" />}
+                className="font-semibold"
               >
                 {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
+              </Button>
             </div>
           </>
         ) : (
@@ -436,29 +454,40 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex gap-4 items-start justify-between">
               <div className="flex items-start gap-4">
                 <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    src={position.imageUrl ?? undefined}
+                    name={position.display}
+                    classNames={{
+                      base: 'h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100',
+                      img: 'object-cover',
+                      fallback: 'bg-blue-100 text-blue-600 font-semibold',
+                    }}
+                  />
 
                   {changeFromEntryPercent !== null && (
-                    <Badge
-                      variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      className={cn(
+                        'absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm',
+                        changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'
+                      )}
                     >
                       {percentText(changeFromEntryPercent)}
-                    </Badge>
+                    </Chip>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      className="h-auto rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                    >
                       {position.symbol}
-                    </Badge>
+                    </Chip>
                   </div>
                   <p className="text-sm text-slate-500">
                     {t.dashboard.since} {formatDate(position.entryDate, locale)}
@@ -467,17 +496,21 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               </div>
 
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
-                <Badge
-                  variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  className={cn(
+                    'flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur',
+                    dailyChangeStyles.badge
+                  )}
+                  startContent={dailyChangeIcon}
                 >
-                  {dailyChangeIcon}
-                  <span>{t.dashboard.dailyChange}</span>
-                  <div className="flex flex-col items-start gap-1 font-semibold">
-                    <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
-                    <span>{percentText(dailyChangePercent)}</span>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span>{t.dashboard.dailyChange}</span>
+                    <span className="text-[0.7rem] font-semibold">{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+                    <span className="text-[0.7rem] font-semibold">{percentText(dailyChangePercent)}</span>
                   </div>
-                </Badge>
+                </Chip>
               )}
             </div>
 
@@ -553,25 +586,33 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
             <div className="flex flex-wrap justify-end gap-3">
               {forecastEnabled ? (
-                <Link
+                <Button
+                  as={Link}
                   href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+                  size="sm"
+                  variant="light"
+                  color="secondary"
+                  endContent={<ArrowUpRight className="h-4 w-4" />}
+                  className="font-semibold"
                 >
                   {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
+                </Button>
               ) : null}
-              <Link
+              <Button
+                as={Link}
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                size="sm"
+                variant="light"
+                color="primary"
+                endContent={<ArrowUpRight className="h-4 w-4" />}
+                className="font-semibold"
               >
                 {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }

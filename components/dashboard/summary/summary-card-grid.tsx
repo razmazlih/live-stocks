@@ -1,4 +1,7 @@
 import { ReactNode } from 'react';
+import { Card, CardBody, Chip } from '@heroui/react';
+
+import { cn } from '@/lib/utils';
 
 export interface SummaryCardBadge {
   value: string;
@@ -42,19 +45,26 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
         const valueClass = card.valueClass ?? 'text-3xl font-semibold text-slate-900';
 
         return (
-          <div
+          <Card
             key={card.key}
-            className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+            className="relative overflow-hidden border-none bg-white/90 shadow-xl backdrop-blur"
           >
-            <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
-            <div className="relative z-10 space-y-3">
+            <div className="pointer-events-none absolute -right-10 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+            <CardBody className="relative z-10 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-500">{card.label}</p>
                 {card.badge && (
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.className}`}>
-                    {card.badge.icon}
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    startContent={<span className="text-base">{card.badge.icon}</span>}
+                    className={cn(
+                      'h-auto rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm',
+                      card.badge.className
+                    )}
+                  >
                     {card.badge.value}
-                  </span>
+                  </Chip>
                 )}
               </div>
               <p className={valueClass}>{card.value}</p>
@@ -71,8 +81,8 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
                 </p>
               ))}
               {card.footnote && <p className="text-xs font-medium text-slate-500">{card.footnote}</p>}
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         );
       })}
     </div>

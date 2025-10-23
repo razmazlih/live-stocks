@@ -804,7 +804,8 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newTicker,
         onClick: openCreateTickerDialog,
-        variant: 'secondary',
+        variant: 'flat',
+        color: 'primary',
         disabled: !selectedGroup,
       },
     ];
