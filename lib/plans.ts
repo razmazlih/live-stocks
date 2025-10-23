@@ -95,8 +95,8 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
       let positionId = plan.positionId ?? null;
 
       const shouldTrigger =
-        (plan.side === 'buy' && quotePrice >= plan.targetPrice) ||
-        (plan.side === 'sell' && quotePrice <= plan.targetPrice);
+        (plan.side === 'buy' && quotePrice <= plan.targetPrice) ||
+        (plan.side === 'sell' && quotePrice >= plan.targetPrice);
 
       if (!shouldTrigger) {
         continue;

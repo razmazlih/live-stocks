@@ -132,7 +132,7 @@ describe('processPendingPlans', () => {
       insert: positionInsertMock,
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 145 });
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135 });
 
     const result = await processPendingPlans({ token: 'token-1' });
 
@@ -142,7 +142,7 @@ describe('processPendingPlans', () => {
       {
         position_id: 'pos-1',
         side: 'BUY',
-        price: 145,
+        price: 135,
         quantity: 5,
         executed_at: '2024-03-10',
       },
@@ -151,7 +151,7 @@ describe('processPendingPlans', () => {
       status: 'triggered',
       position_id: 'pos-1',
       triggered_at: '2024-03-10',
-      executed_price: 145,
+      executed_price: 135,
     });
     expect((result.triggered[0] as PositionPlan).status).toBe('triggered');
     expect(result.expired).toHaveLength(0);
@@ -213,20 +213,20 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 610 });
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590 });
 
     const result = await processPendingPlans({ token: 'token-2' });
 
     expect(positionInserts[0]).toMatchObject({
       symbol: 'NVDA',
       display: 'NVIDIA',
-      entry_price: 610,
+      entry_price: 590,
       quantity: 2,
       entry_date: '2024-05-05',
     });
     expect(lotInserts[0]).toMatchObject({
       position_id: 'pos-new',
-      price: 610,
+      price: 590,
       quantity: 2,
       side: 'BUY',
       executed_at: '2024-05-05',
@@ -234,7 +234,7 @@ describe('processPendingPlans', () => {
     expect(updates[0]).toMatchObject({
       status: 'triggered',
       position_id: 'pos-new',
-      executed_price: 610,
+      executed_price: 590,
     });
     expect(result.triggered[0]?.positionId).toBe('pos-new');
   });
@@ -285,7 +285,7 @@ describe('processPendingPlans', () => {
     expect(result.triggered).toHaveLength(0);
   });
 
-  it('executes sell plans when price falls to the target', async () => {
+  it('executes sell plans when price rises to the target', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-08-15T12:00:00Z'));
 
@@ -329,7 +329,7 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 145 });
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155 });
 
     const result = await processPendingPlans({ token: 'token-4' });
 
@@ -337,7 +337,7 @@ describe('processPendingPlans', () => {
     expect(lotInserts[0]).toMatchObject({
       position_id: 'pos-2',
       side: 'SELL',
-      price: 145,
+      price: 155,
       quantity: 3,
       executed_at: '2024-08-15',
     });
@@ -345,7 +345,7 @@ describe('processPendingPlans', () => {
       status: 'triggered',
       position_id: 'pos-2',
       triggered_at: '2024-08-15',
-      executed_price: 145,
+      executed_price: 155,
     });
     expect(result.triggered[0]?.side).toBe('sell');
   });
