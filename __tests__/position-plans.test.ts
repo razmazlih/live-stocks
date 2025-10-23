@@ -132,7 +132,8 @@ describe('processPendingPlans', () => {
       insert: positionInsertMock,
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135 });
+    const quoteTimestamp = Math.floor(new Date('2024-03-10T09:55:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135, timestamp: quoteTimestamp });
 
     const result = await processPendingPlans({ token: 'token-1' });
 
@@ -213,7 +214,8 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590 });
+    const quoteTimestamp = Math.floor(new Date('2024-05-05T08:30:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590, timestamp: quoteTimestamp });
 
     const result = await processPendingPlans({ token: 'token-2' });
 
@@ -329,7 +331,8 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155 });
+    const quoteTimestamp = Math.floor(new Date('2024-08-15T11:50:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155, timestamp: quoteTimestamp });
 
     const result = await processPendingPlans({ token: 'token-4' });
 
@@ -348,5 +351,95 @@ describe('processPendingPlans', () => {
       executed_price: 155,
     });
     expect(result.triggered[0]?.side).toBe('sell');
+  });
+
+  it('does not trigger buy plans when the market price is above the target', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-09-02T12:00:00Z'));
+
+    const pendingRow = {
+      id: 'plan-no-trigger',
+      position_id: null,
+      symbol: 'MSFT',
+      display: 'Microsoft',
+      image_url: null,
+      side: 'buy',
+      target_price: '320',
+      target_quantity: '4',
+      target_date: '2024-09-05',
+      status: 'pending' as const,
+      triggered_at: null,
+      expired_at: null,
+      executed_price: null,
+      created_at: null,
+      updated_at: null,
+    };
+
+    setTableHandler('position_plans', () => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
+      }),
+    }));
+
+    setTableHandler('position_lots', () => ({
+      insert: vi.fn(async () => ({ data: null, error: null })),
+    }));
+
+    setTableHandler('positions', () => ({
+      insert: vi.fn(),
+    }));
+
+    const quoteTimestamp = Math.floor(new Date('2024-09-02T11:30:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 335, timestamp: quoteTimestamp });
+
+    const result = await processPendingPlans({ token: 'token-5' });
+
+    expect(result.triggered).toHaveLength(0);
+    expect(result.expired).toHaveLength(0);
+  });
+
+  it('skips plans when only stale price data is available', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-09-02T12:00:00Z'));
+
+    const pendingRow = {
+      id: 'plan-stale-quote',
+      position_id: null,
+      symbol: 'MSFT',
+      display: 'Microsoft',
+      image_url: null,
+      side: 'buy',
+      target_price: '320',
+      target_quantity: '4',
+      target_date: '2024-09-05',
+      status: 'pending' as const,
+      triggered_at: null,
+      expired_at: null,
+      executed_price: null,
+      created_at: null,
+      updated_at: null,
+    };
+
+    setTableHandler('position_plans', () => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
+      }),
+    }));
+
+    setTableHandler('position_lots', () => ({
+      insert: vi.fn(async () => ({ data: null, error: null })),
+    }));
+
+    setTableHandler('positions', () => ({
+      insert: vi.fn(),
+    }));
+
+    const staleTimestamp = Math.floor(new Date('2024-09-01T23:00:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 315, timestamp: staleTimestamp });
+
+    const result = await processPendingPlans({ token: 'token-5' });
+
+    expect(result.triggered).toHaveLength(0);
+    expect(result.expired).toHaveLength(0);
   });
 });
