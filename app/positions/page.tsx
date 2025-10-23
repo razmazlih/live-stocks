@@ -8,12 +8,29 @@ import { Position, PositionLot, PositionLotType, PositionPlan } from '@/types';
 import { mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft, History, CalendarPlus, Ban } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  BarChart3,
+  ArrowRightLeft,
+  History,
+  CalendarPlus,
+  Ban,
+  Layers,
+  Wallet,
+  Clock3,
+  Target,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -121,6 +138,60 @@ export default function PositionsPage() {
     cancelled: 'bg-rose-100 text-rose-700',
   };
   const canSelectSell = Boolean(planContextPosition?.id ?? planForm.positionId);
+
+  const summaryMetrics = useMemo(
+    () => {
+      const totalPositions = positions.length;
+      const totalExposure = positions.reduce((sum, position) => {
+        const price = Number.isFinite(position.entryPrice) ? position.entryPrice : 0;
+        const quantity = Number.isFinite(position.quantity) ? position.quantity : 0;
+        return sum + price * quantity;
+      }, 0);
+      const pendingPlansCount = activePlans.filter(({ plan }) => plan.status === 'pending').length;
+      const detachedPlansCount = activeDetachedPlans.filter(({ plan }) => plan.status === 'pending').length;
+
+      return { totalPositions, totalExposure, pendingPlansCount, detachedPlansCount };
+    },
+    [positions, activePlans, activeDetachedPlans],
+  );
+
+  const summaryCards = useMemo(() => {
+    const formatCount = (value: number) =>
+      new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
+        maximumFractionDigits: 0,
+      }).format(value);
+
+    return [
+      {
+        label: t.positions.summaryPositions,
+        description: t.positions.summaryPositionsDescription,
+        value: formatCount(summaryMetrics.totalPositions),
+        icon: Layers,
+        accent: 'bg-sky-100 text-sky-600',
+      },
+      {
+        label: t.positions.summaryExposure,
+        description: t.positions.summaryExposureDescription,
+        value: formatCurrency(summaryMetrics.totalExposure, 'USD', locale),
+        icon: Wallet,
+        accent: 'bg-emerald-100 text-emerald-600',
+      },
+      {
+        label: t.positions.summaryPendingPlans,
+        description: t.positions.summaryPendingPlansDescription,
+        value: formatCount(summaryMetrics.pendingPlansCount),
+        icon: Clock3,
+        accent: 'bg-amber-100 text-amber-600',
+      },
+      {
+        label: t.positions.summaryDetachedPlans,
+        description: t.positions.summaryDetachedPlansDescription,
+        value: formatCount(summaryMetrics.detachedPlansCount),
+        icon: Target,
+        accent: 'bg-purple-100 text-purple-600',
+      },
+    ];
+  }, [locale, summaryMetrics, t.positions]);
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -631,8 +702,8 @@ export default function PositionsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
-      <div className="max-w-5xl mx-auto p-6">
-        <header className="mb-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-10">
           <Link href="/">
             <Button variant="ghost" size="sm" className="mb-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1149,151 +1220,336 @@ export default function PositionsPage() {
           </Dialog>
         </header>
 
-        <div className="backdrop-blur-sm bg-white/85 rounded-2xl border border-white/50 shadow-xl p-6">
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
-          ) : positions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{t.dashboard.noPositions}</p>
-              <Button onClick={openAddDialog}>
-                <Plus className="w-4 h-4 mr-2" />
+        <div className="space-y-8">
+          <section className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800">{t.positions.overviewTitle}</h2>
+                <p className="text-sm text-slate-500">{t.positions.overviewDescription}</p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {summaryCards.map((card) => (
+                <div
+                  key={card.label}
+                  className="rounded-xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {card.label}
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-900">{card.value}</p>
+                      <p className="mt-1 text-xs text-slate-500">{card.description}</p>
+                    </div>
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-full ${card.accent}`}>
+                      <card.icon className="h-5 w-5" />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800">{t.positions.positionsSectionTitle}</h2>
+                <p className="text-sm text-slate-500">{t.positions.positionsSectionDescription}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={openAddDialog}>
+                <Plus className="mr-2 h-4 w-4" />
                 {t.positions.add}
               </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {positions.map((position) => {
-                const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
-                  const aTime = new Date(a.executedAt).getTime();
-                  const bTime = new Date(b.executedAt).getTime();
-                  return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
-                });
-                const recentLots = sortedLots.slice(0, 6);
+            <Separator className="my-6" />
+            {loading ? (
+              <div className="py-12 text-center text-sm text-slate-500">{t.common.loading}</div>
+            ) : positions.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="mb-4 text-sm text-slate-500">{t.dashboard.noPositions}</p>
+                <Button onClick={openAddDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t.positions.add}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {positions.map((position) => {
+                  const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
+                    const aTime = new Date(a.executedAt).getTime();
+                    const bTime = new Date(b.executedAt).getTime();
+                    return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
+                  });
+                  const recentLots = sortedLots.slice(0, 6);
+                  const entryPrice = Number.isFinite(position.entryPrice) ? position.entryPrice : 0;
+                  const entryQuantity = Number.isFinite(position.quantity) ? position.quantity : 0;
+                  const costBasis = entryPrice * entryQuantity;
+                  const linkedOpenPlans = (position.plans ?? []).filter(
+                    (plan) => plan.status === 'pending' || plan.status === 'triggered',
+                  );
 
-                return (
-                  <div
-                    key={position.id}
-                    className="rounded-lg border border-gray-200 bg-white/70 p-5"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-gray-900">{position.display}</span>
-                            <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                              {position.symbol}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-sm text-gray-600">
-                            {formatNumber(position.quantity, locale)} · {formatCurrency(position.entryPrice, 'USD', locale)} • {formatDate(position.entryDate, locale)}
-                          </p>
+                  return (
+                    <Card
+                      key={position.id ?? position.symbol}
+                      className="border border-slate-200 bg-white/90 shadow-sm"
+                    >
+                      <CardHeader className="space-y-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CardTitle className="text-xl font-semibold text-slate-900">
+                            {position.display}
+                          </CardTitle>
+                          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                            {position.symbol}
+                          </Badge>
                         </div>
-
-                        <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
+                        <CardDescription className="text-sm text-slate-500">
+                          {formatNumber(entryQuantity, locale)} · {formatCurrency(entryPrice, 'USD', locale)} •{' '}
+                          {formatDate(position.entryDate, locale)}
+                        </CardDescription>
+                        <div className="grid gap-3 sm:grid-cols-4">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.quantity}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-900">
+                              {formatNumber(entryQuantity, locale)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.entryPrice}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-900">
+                              {formatCurrency(entryPrice, 'USD', locale)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.costBasis}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-900">
+                              {formatCurrency(costBasis, 'USD', locale)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.entryDate}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-900">
+                              {formatDate(position.entryDate, locale)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                        <div>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              {t.positions.transactionsTitle}
+                              {t.positions.recentActivity}
                             </p>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-400">
-                                {sortedLots.length === recentLots.length
-                                  ? sortedLots.length
-                                  : `${recentLots.length}/${sortedLots.length}`}
-                              </span>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="h-auto px-0 text-[11px] text-slate-500 hover:text-slate-700"
-                                onClick={() => openHistoryDialog(position)}
-                              >
-                                <History className="mr-1 h-3 w-3" />
-                                {t.positions.manageHistory}
-                              </Button>
-                            </div>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto px-0 text-xs text-slate-500 hover:text-slate-700"
+                              onClick={() => openHistoryDialog(position)}
+                            >
+                              <History className="mr-1 h-3 w-3" />
+                              {t.positions.viewHistory}
+                            </Button>
                           </div>
                           {recentLots.length > 0 ? (
-                            <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                              {recentLots.map((lot) => {
-                                const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                                const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-                                return (
-                                  <li
-                                    key={`${lot.id}-${lot.executedAt}`}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
-                                      {typeLabel}
-                                    </span>
-                                    <span>
-                                      {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
-                                    </span>
-                                    <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                            <Table className="mt-3">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[100px]">{t.positions.transactionType}</TableHead>
+                                  <TableHead>{t.positions.transactionQuantity}</TableHead>
+                                  <TableHead>{t.positions.transactionPrice}</TableHead>
+                                  <TableHead>{t.positions.transactionDate}</TableHead>
+                                  <TableHead className="text-right">{t.positions.actions}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {recentLots.map((lot) => {
+                                  const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                                  const badgeTone =
+                                    lot.type === 'BUY'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : 'bg-rose-100 text-rose-700';
+                                  return (
+                                    <TableRow key={`${lot.id}-${lot.executedAt}`}>
+                                      <TableCell>
+                                        <Badge className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                                          {typeLabel}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>{formatNumber(lot.quantity, locale)}</TableCell>
+                                      <TableCell>{formatCurrency(lot.price, 'USD', locale)}</TableCell>
+                                      <TableCell>{formatDate(lot.executedAt, locale)}</TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex justify-end gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openEditTransactionDialog(position, lot)}
+                                            aria-label={t.positions.editTransaction}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDeleteTransaction(lot)}
+                                            aria-label={t.positions.deleteTransaction}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
                           ) : (
-                            <p className="mt-2 text-xs text-slate-400">{t.positions.noTransactions}</p>
+                            <p className="mt-3 text-sm text-slate-500">{t.positions.noTransactions}</p>
                           )}
                         </div>
-                      </div>
-
-                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openTransactionDialog(position)}
-                        >
-                          <ArrowRightLeft className="mr-2 h-4 w-4" />
-                          {t.positions.addTransaction}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openPlanDialogForPosition(position)}
-                        >
-                          <CalendarPlus className="mr-2 h-4 w-4" />
-                          {t.positions.addPlan}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openHistoryDialog(position)}
-                        >
-                          <History className="mr-2 h-4 w-4" />
-                          {t.positions.manageHistory}
-                        </Button>
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/stock/${position.symbol}`}>
-                            <Button variant="ghost" size="sm">
-                              <BarChart3 className="w-4 h-4" />
+                        <div className="space-y-4">
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-4">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t.positions.linkedPlans}
+                              </p>
+                              {linkedOpenPlans.length > 0 && (
+                                <span className="text-xs font-semibold text-slate-500">
+                                  {linkedOpenPlans.length}
+                                </span>
+                              )}
+                            </div>
+                            {linkedOpenPlans.length > 0 ? (
+                              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                                {linkedOpenPlans.map((plan) => {
+                                  const statusClass = planStatusClasses[plan.status];
+                                  const statusLabel = planStatusLabels[plan.status];
+                                  const sideClass =
+                                    plan.side === 'sell'
+                                      ? 'bg-rose-100 text-rose-700'
+                                      : 'bg-emerald-100 text-emerald-700';
+                                  const sideLabel =
+                                    plan.side === 'sell'
+                                      ? t.positions.planSideSellShort
+                                      : t.positions.planSideBuyShort;
+                                  return (
+                                    <li
+                                      key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
+                                      className="flex w-full flex-wrap items-center gap-2"
+                                    >
+                                      <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
+                                      <span>
+                                        {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)}
+                                      </span>
+                                      <span className="text-xs text-slate-500">
+                                        {formatDate(plan.targetDate, locale)}
+                                      </span>
+                                      <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
+                                      {plan.status === 'pending' && (
+                                        <div className="ml-auto flex items-center gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openEditPlanDialog(plan, position)}
+                                            aria-label={t.positions.planEdit}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handlePlanCancel(plan)}
+                                            aria-label={t.positions.planCancel}
+                                          >
+                                            <Ban className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <p className="mt-3 text-xs text-slate-400">{t.positions.noLinkedPlans}</p>
+                            )}
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="mt-3 h-auto px-0 text-xs text-slate-500 hover:text-slate-700"
+                              onClick={() => openPlanDialogForPosition(position)}
+                            >
+                              <CalendarPlus className="mr-1 h-3 w-3" />
+                              {t.positions.addPlan}
                             </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(position)}
-                          >
-                            <Pencil className="w-4 h-4" />
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-white/60 p-4 text-sm text-slate-600">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              {t.positions.currentHolding}
+                            </p>
+                            <p className="mt-2 text-sm">
+                              {t.positions.since} {formatDate(position.entryDate, locale)}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {formatNumber(entryQuantity, locale)} · {formatCurrency(entryPrice, 'USD', locale)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openTransactionDialog(position)}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            {t.positions.addTransaction}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(position.id!)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                          <Button variant="outline" size="sm" onClick={() => openPlanDialogForPosition(position)}>
+                            <CalendarPlus className="mr-2 h-4 w-4" />
+                            {t.positions.addPlan}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openHistoryDialog(position)}>
+                            <History className="mr-2 h-4 w-4" />
+                            {t.positions.manageHistory}
                           </Button>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                        <div className="flex flex-wrap gap-2">
+                          <Link href={`/stock/${position.symbol}`}>
+                            <Button variant="ghost" size="sm">
+                              <BarChart3 className="mr-2 h-4 w-4" />
+                              {t.positions.viewChart}
+                            </Button>
+                          </Link>
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(position)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t.positions.edit}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-rose-600 hover:bg-rose-50"
+                            onClick={() => handleDelete(position.id!)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t.positions.delete}
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {!loading && (
-            <div className="mt-10 space-y-10">
-              <section>
+            <>
+              <section className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-xl backdrop-blur-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-800">{t.positions.activePlansTitle}</h2>
@@ -1322,7 +1578,7 @@ export default function PositionsPage() {
                             return (
                               <div
                                 key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
+                                className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm"
                               >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                   <div className="space-y-2">
@@ -1389,7 +1645,7 @@ export default function PositionsPage() {
                             return (
                               <div
                                 key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
+                                className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm"
                               >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                   <div className="space-y-2">
@@ -1436,7 +1692,7 @@ export default function PositionsPage() {
                   </div>
                 )}
               </section>
-              <section>
+              <section className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-xl backdrop-blur-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-800">{t.positions.closedPlansTitle}</h2>
@@ -1459,7 +1715,7 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
-                          className="rounded-lg border border-slate-200 bg-white/70 p-4"
+                          className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm"
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="space-y-2">
@@ -1502,7 +1758,7 @@ export default function PositionsPage() {
                   </div>
                 )}
               </section>
-            </div>
+            </>
           )}
         </div>
       </div>
