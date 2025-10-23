@@ -1,39 +1,140 @@
 # Live Stocks — סטטוס מניות בזמן אמת
 
-תיעוד זה מרכז את כל המידע הנדרש כדי להבין, להפעיל ולתחזק את הפרויקט. האפליקציה מספקת לוח מחוונים מתקדם לניהול ומעקב אחר תיק מניות עם ניתוחים, הדמיות ותמיכה מלאה בעברית ובאנגלית.
+Live Stocks היא אפליקציית לוח מחוונים מתקדמת לניהול תיק מניות בזמן אמת, עם תמיכה מלאה בעברית/אנגלית, מצב RTL, חיבור ל-Supabase ול-APIs חיצוניים (Finnhub, Open Exchange Rates) והדמיות אינטראקטיביות. מסמך זה מרכז את כל המידע הדרוש כדי להבין את הפרויקט מקצה לקצה, להקים סביבת פיתוח, להפעיל את השירותים, לתחזק אותם ולתכנן המשך פיתוח בצורה מסודרת.
 
 ## תוכן העניינים
-- [טכנולוגיות מרכזיות](#טכנולוגיות-מרכזיות)
-- [מבנה הפרויקט](#מבנה-הפרויקט)
-- [זרימת נתונים ולוגיקה עסקית](#זרימת-נתונים-ולוגיקה-עסקית)
-- [עמודים וחוויית משתמש](#עמודים-וחוויית-משתמש)
-- [שכבת ה-API](#שכבת-ה-api)
-- [בסיס הנתונים (Supabase)](#בסיס-הנתונים-supabase)
-- [קבצי תצורה עיקריים](#קבצי-תצורה-עיקריים)
-- [התקנה והרצה מקומית](#התקנה-והרצה-מקומית)
+- [מבוא](#מבוא)
+- [מפת דרכים מלאה](#מפת-דרכים-מלאה)
+- [דרישות מוקדמות](#דרישות-מוקדמות)
+- [התקנה והפעלה מקצה-לקצה](#התקנה-והפעלה-מקצה-לקצה)
+  - [1. שכפול המאגר](#1-שכפול-המאגר)
+  - [2. התקנת תלויות Node.js](#2-התקנת-תלויות-nodejs)
+  - [3. הגדרת משתני סביבה](#3-הגדרת-משתני-סביבה)
+  - [4. הפעלת Supabase מקומי](#4-הפעלת-supabase-מקומי)
+  - [5. הרצת מיגרציות ונתוני דוגמה](#5-הרצת-מיגרציות-ונתוני-דוגמה)
+  - [6. הפעלת שרת הפיתוח](#6-הפעלת-שרת-הפיתוח)
+  - [7. בדיקות, איכות וניטור](#7-בדיקות-איכות-וניטור)
+  - [8. בנייה, פריסה וכיבוי שירותים](#8-בנייה-פריסה-וכיבוי-שירותים)
+- [מבנה וארכיטקטורה](#מבנה-וארכיטקטורה)
+  - [מפת תיקיות](#מפת-תיקיות)
+  - [שכבת האפליקציה](#שכבת-האפליקציה)
+  - [לוגיקת נתונים וחישובים](#לוגיקת-נתונים-וחישובים)
+  - [רכיבי UI ועיצוב](#רכיבי-ui-ועיצוב)
+- [API ושירותים חיצוניים](#api-ושירותים-חיצוניים)
+- [בסיס הנתונים Supabase](#בסיס-הנתונים-supabase)
 - [משתני סביבה](#משתני-סביבה)
 - [סקריפטים שימושיים](#סקריפטים-שימושיים)
 - [עקרונות עיצוב ופיתוח](#עקרונות-עיצוב-ופיתוח)
-- [בדיקות וצעדי וידוא](#בדיקות-וצעדי-וידוא)
+- [תחזוקה ושגרת עבודה](#תחזוקה-ושגרת-עבודה)
 - [נושאים להמשך פיתוח](#נושאים-להמשך-פיתוח)
 
-## טכנולוגיות מרכזיות
-- **Next.js 13 (App Router)** – אפליקציית צד-לקוח עם ניהול מטמון ו-API מובנים. 【F:app/layout.tsx†L1-L26】【F:app/page.tsx†L1-L134】
-- **TypeScript** – הגדרות טייפים מלאות לנתוני פוזיציות, מדדים ותרחישים. 【F:types/index.ts†L1-L170】
-- **Tailwind CSS + Radix UI** – עיצוב רכיבים נגישים וניתנים להתאמה אישית. 【F:tailwind.config.ts†L1-L79】【F:components/ui/button.tsx†L1-L62】
-- **Supabase (Postgres + Auth + Realtime)** – אחסון הפוזיציות, מדיניות RLS וסינכרון. 【F:supabase/config.toml†L1-L160】【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L1-L80】
-- **Finnhub API** – משיכת מחירי מניות חיים ושינויים יומיים. 【F:app/api/portfolio/route.ts†L56-L116】
-- **Open Exchange Rates API (ברירת מחדל)** – המרת מטבע USD→ILS עם מנגנון גיבוי. 【F:app/api/exchange-rate/route.ts†L1-L40】
+## מבוא
+האפליקציה בנויה על Next.js 13 (App Router) ו-TypeScript, ומציעה חוויית משתמש עשירה הכוללת סיכום ביצועים, גרפים אינטראקטיביים, ניהול רשימות צפייה והגדרות מתקדמות. Supabase מספק בסיס נתונים Postgres עם Realtime ו-Auth, בעוד שירותי חוץ מספקים נתונים חיים (Finnhub) ושערי מטבע (Open Exchange Rates).
 
-## מבנה הפרויקט
+## מפת דרכים מלאה
+1. **הבנת המערכת** – קריאת פרקי המבוא, הארכיטקטורה וה-API כדי להכיר את מרכיבי האפליקציה.
+2. **הכנת סביבת העבודה** – התקנת הדרישות המוקדמות, שכפול המאגר והתקנת התלויות.
+3. **הגדרת תצורה** – יצירת קובץ `.env.local`, הפעלת Supabase והחלת מיגרציות.
+4. **הרצה ופיתוח** – הפעלת `npm run dev`, עבודה מול המודולים וכתיבת בדיקות.
+5. **בדיקות ואיכות** – הרצת `lint`, `typecheck` ו-`test` לפני כל התחייבות (commit).
+6. **בנייה ופריסה** – יצירת build ל-Next.js, העלאתו לסביבה יעודית וניהול מחזור חיים של השירותים.
+7. **תחזוקה שוטפת** – ניטור נתונים חיים, ניהול מפתחות API, עדכון מיגרציות ושימור איכות קוד.
+
+## דרישות מוקדמות
+- Node.js 18 ומעלה (מומלץ להשתמש ב-Node 20 כפי שמוגדר בתלותי הפרויקט).
+- npm 9 ומעלה (מגיע יחד עם Node המודרני).
+- Git לשכפול המאגר וניהול גרסאות.
+- Supabase CLI (אפשר להריץ דרך `npx`, אך מומלץ להתקין גלובלית עבור עבודה שוטפת).
+- חשבון Finnhub לצורך קבלת טוקן API (אופציונלי לפיתוח, חובה לנתונים חיים ללא מגבלות).
+- חיבור אינטרנט פעיל למשיכת ספריות npm ונתוני APIs.
+
+## התקנה והפעלה מקצה-לקצה
+### 1. שכפול המאגר
+```bash
+git clone https://github.com/<your-org>/live-stocks.git
+cd live-stocks
+```
+
+### 2. התקנת תלויות Node.js
+```bash
+npm install
+```
+פעולה זו תתקין את כל התלויות המוגדרות ב-`package.json`, כולל Next.js, Tailwind, Supabase ו-Vitest.
+
+### 3. הגדרת משתני סביבה
+1. העתיקו את קובץ הדוגמה:
+   ```bash
+   cp .env.exemple .env.local
+   ```
+2. ערכו את `.env.local` והשלימו את הערכים:
+   - `NEXT_PUBLIC_SUPABASE_URL` – כתובת הפרויקט המקומי/הענני של Supabase.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – מפתח אנונימי ציבורי של Supabase.
+   - `FINNHUB_TOKEN` – טוקן API לקבלת מחירי מניות (השאירו ריק אם אין טוקן; חלק מהפיצ'רים יעבדו עם מגבלות קצב).
+   - `DEFAULT_GROWTH_RATE`, `DEFAULT_USD_TO_ILS_RATE`, `EXCHANGE_RATE_URL`, `NEXT_PUBLIC_FORECAST_URL`, `OPENAI_API_KEY` – ערכים אופציונליים המגדירים התנהגות ברירת מחדל, שערי מטבע ויכולות AI.
+
+> **טיפ:** שמרו את הטוקן של Finnhub גם במסך ההגדרות באפליקציה – הוא נשמר בבסיס הנתונים ומאפשר שיתוף בין מכשירים.
+
+### 4. הפעלת Supabase מקומי
+1. ודאו ש-Supabase CLI פעיל: `npx supabase --version`.
+2. הפעילו את השירותים המקומיים (API, DB, Studio, Realtime):
+   ```bash
+   npx supabase start
+   ```
+3. לבדיקת מצב השירותים השתמשו ב-`npx supabase status`.
+4. ניתן לעצור את השירותים בכל רגע באמצעות `npx supabase stop` (ראו גם [בנייה, פריסה וכיבוי שירותים](#8-בנייה-פריסה-וכיבוי-שירותים)).
+
+### 5. הרצת מיגרציות ונתוני דוגמה
+לאחר שהשירותים עלו, הריצו את המיגרציות והזרעים:
+```bash
+npx supabase db reset
+```
+הפקודה תדרוס את בסיס הנתונים המקומי, תריץ את כל המיגרציות תחת `supabase/migrations/` ותפעיל את `supabase/seed.sql` (כרגע קובץ placeholder שניתן להרחיב בעתיד).
+
+### 6. הפעלת שרת הפיתוח
+```bash
+npm run dev
+```
+- שרת הפיתוח של Next.js ירוץ על `http://localhost:3000`.
+- Supabase Studio זמין ב-`http://127.0.0.1:54323` לניהול טבלאות, צפייה בלוגים והגדרת RLS.
+- שינויים בקוד TypeScript, בסטיילינג או במיגרציות ישפיעו מיד הודות ל-Hot Reloading.
+
+### 7. בדיקות, איכות וניטור
+לפני פתיחת Pull Request או פריסה:
+```bash
+npm run lint       # בדיקות ESLint
+npm run typecheck  # וידוא Strict TypeScript ללא פליטה
+npm test           # הרצת Vitest במצב חד-פעמי
+```
+במקביל מומלץ לבדוק ידנית:
+- ניווט בין כל המסכים בשתי השפות (RTL/LTR).
+- רענון נתונים ולחיצות על כפתורי הפעולה המהירה.
+- התנהגות במצב ללא נתונים (empty states) וללא טוקן Finnhub.
+
+### 8. בנייה, פריסה וכיבוי שירותים
+1. יצירת build לפרודקשן:
+   ```bash
+   npm run build
+   ```
+2. הרצת הבילד שנוצר (בדיקות smoke):
+   ```bash
+   npm run start
+   ```
+3. בעת פריסה לסביבה חיצונית ודאו שכל משתני הסביבה הועתקו, שירות Supabase נגיש והטוקנים תקינים.
+4. כיבוי שירותים מקומיים בסיום העבודה:
+   ```bash
+   npx supabase stop
+   ```
+
+## מבנה וארכיטקטורה
+### מפת תיקיות
 ```
 app/
   ├─ layout.tsx             # מעטפת כללית, ספק הקשר ו-Toaster
   ├─ globals.css            # סגנונות בסיס ו-RTL
-  ├─ page.tsx               # דף הבית – תקציר תיק, כרטיסי פוזיציות ופעולות מהירות
+  ├─ page.tsx               # דף הבית – גרף ביצועים, פעולות מהירות וניווט
   ├─ portfolio/             # סקירת התיק הכולל והיסטוריית PnL
   ├─ positions/, realized/  # דפי פירוט לפוזיציות פתוחות וסגורות
-  ├─ settings/              # הגדרות משתמש: שפה, מטבע, טוקן Finnhub ועוד
+  ├─ settings/              # הגדרות שפה, מטבע, טוקן Finnhub ועוד
   ├─ watchlist/             # רשימת צפייה עם קבוצות, כרטיסי מניות וגרפים
   └─ api/                   # מסלולי API לנתונים חיים (quote, candles, exchange-rate, portfolio)
 components/
@@ -41,116 +142,70 @@ components/
   ├─ portfolio/             # כרטיסי פוזיציה והדמיות תיק
   ├─ charts/                # גרפים משותפים (Sparkline, Portfolio Overview)
   ├─ watchlist/             # רכיבי Watchlist (בחירת קבוצות, כרטיס מניה, טווחי זמן)
-  └─ ui/                    # רכיבי בסיס (Button, Card, Table, Sonner וכו')
+  └─ ui/                    # רכיבי בסיס (Button, Card, Table, Toast ועוד)
 hooks/
-  ├─ use-portfolio-data.ts  # קריאת Supabase, הבאת נתונים חיצוניים וחישוב מדדים
+  ├─ use-portfolio-data.ts  # משיכת נתוני Supabase, APIs חיצוניים וחישובי מדדים
   └─ use-watchlist.ts       # ניהול קבוצות רשימת צפייה ומניות דרך Supabase
 lib/
   ├─ http.ts                # עטיפת fetch עם מנגנון retry/backoff אחיד
   ├─ services/              # שירותי נתונים חיצוניים (Finnhub, שערי מטבע)
-  │   ├─ exchange-rate.ts   # טעינת שערי USD→ILS עם fallback חכם
-  │   └─ finnhub.ts         # משיכת ציטוטים והפרשי יום מ-Finnhub
-  ├─ utils/
-  │   ├─ numbers.ts         # עזרי מספרים (isFiniteNumber, toFixedNumber)
-  │   └─ trading-hours.ts   # חישובי זמני מסחר
-  ├─ calculations.ts        # פונקציות חישוב לרווח/הפסד, מדדים מצטברים, גרפים
-  ├─ context.tsx            # AppProvider: שפה, הגדרות, טריגר רענון
+  ├─ calculations.ts        # פונקציות חישוב לרווח/הפסד, מדדים וגרפים
+  ├─ context.tsx            # AppProvider: שפה, הגדרות, טריגר רענון ושמירת Local Storage
   ├─ positions.ts           # מיפוי תוצאות Supabase ל-Position + lots
-  ├─ watchlist.ts           # מיפוי רשימות מעקב ופריטי מניה מ-Supabase ל-Typescript
-  ├─ supabase.ts            # יצירת לקוח Supabase בדפדפן
+  ├─ watchlist.ts           # מיפוי רשימות מעקב ופריטי מניה לטייפים
   └─ translations.ts        # מילון דו-לשוני (עברית/אנגלית)
 supabase/
-  ├─ config.toml            # תצורת Supabase CLI, יציאות ושירותים
+  ├─ config.toml            # תצורת Supabase CLI, יציאות ושירותים מקומיים
   ├─ migrations/            # סכמת בסיס נתונים ו-RLS
   └─ seed.sql               # קובץ זרעים (placeholder)
 ```
 
-## זרימת נתונים ולוגיקה עסקית
-1. **הקשר גלובלי (`AppProvider`)** שומר שפה, הגדרות (מטבע, קצב רענון, יעד צמיחה שנתי, טוקן Finnhub) וזיכרון מקומי. 【F:lib/context.tsx†L1-L66】
-2. **`usePortfolioData`** מושך פוזיציות וטבלאות בתתי-שאילתות מ-Supabase, מביא שער דולר וגרף נרות לכל מניה, מחשב מדדים ויוצר ציר זמן של PnL. 【F:hooks/use-portfolio-data.ts†L1-L119】【F:hooks/use-portfolio-data.ts†L119-L210】
-3. **חישובי ביצועים** מתבצעים ב-`lib/calculations.ts`, כולל המרת מטבע, תשואות ונתוני עזר להדמיות. 【F:lib/calculations.ts†L1-L200】
-4. **תרגומים** נלקחים מ-`lib/translations.ts` לכל רכיב ועמוד, עם פונקציות דינמיות לטקסטים מורכבים. 【F:lib/translations.ts†L1-L170】
-5. **רכיבים חזותיים** משתמשים במידע המחושב להצגת כרטיסי פוזיציה, גרפים (Recharts, Embla), סיכומים ופעולות. 【F:components/portfolio/portfolio-visualizations.tsx†L1-L160】
+### שכבת האפליקציה
+- `app/layout.tsx` מגדיר את מעטפת האפליקציה, כולל Providers, תמיכה ב-RTL ו-Toaster להודעות.
+- `app/page.tsx` מציג תצוגת מצב מהירה עם גרף תשואה מצטבר, פעולות מהירות וכרטיסי פוזיציות.
+- הקבצים תחת `app/portfolio`, `app/positions`, `app/realized`, `app/watchlist` ו-`app/settings` אחראים למסכי העומק וההגדרות.
+- מסלול הדינמי `app/stock/[symbol]/page.tsx` מאפשר צפייה מעמיקה במניה בודדת.
 
-## עמודים וחוויית משתמש
-- **דף הבית (`/`)**: תצוגת מצב מהירה, כרטיסי תקציר, פעולות מהירות וקישורים למסכים ייעודיים. 【F:app/page.tsx†L1-L200】
-- **Portfolio (`/portfolio`)**: גרף PnL מצטבר, סטטיסטיקות כלליות, מובילים/נגררים וניתוח שינוי יומי. 【F:app/portfolio/page.tsx†L1-L200】
-- **Positions / Realized**: פירוט מלא של פוזיציות פעילות ולוגים היסטוריים עם פילוחים לפי lots. 【F:app/positions/page.tsx†L1-L160】【F:app/realized/page.tsx†L1-L160】
-- **Settings (`/settings`)**: שליטה בשפה, מטבע יעד, קצב רענון, טוקן Finnhub ואיפוס נתונים מקומיים. 【F:app/settings/page.tsx†L1-L180】
-- **Stock (`/stock/[symbol]`)**: דף מניה בודדת עם היסטוריית מחירים, תחזיות וניתוח משלים. 【F:app/stock/[symbol]/page.tsx†L1-L200】
-- **Watchlist (`/watchlist`)**: ניהול קבוצות רשימת צפייה, הוספה/עריכה של מניות וגרפים רספונסיביים לפי טווחי זמן. 【F:app/watchlist/page.tsx†L1-L360】
+### לוגיקת נתונים וחישובים
+- `lib/context.tsx` שומר את השפה, המטבע, הטוקן והגדרות רענון, ומאפשר טריגר גלובלי לעדכון נתונים.
+- `hooks/use-portfolio-data.ts` ו-`hooks/use-watchlist.ts` מנהלים את משיכת הנתונים מסביבת Supabase, חישוב מדדים (PnL, תשואות, חיזוי) והעברת המידע לרכיבי התצוגה.
+- `lib/calculations.ts` אחראי על המרות מטבע, חישובי רווח/הפסד מצטברים ושירותי גרפים.
+- `lib/services/` מרכזים גישה ל-Finnhub ולשערי המטבע באמצעות `fetch` עם retry/backoff המוגדר ב-`lib/http.ts`.
 
-## שכבת ה-API
-- `GET /api/quote` – מחזיר מחיר חי ושינוי יומי מממשק Finnhub עם מנגנון retry. 【F:app/api/quote/route.ts†L1-L80】
-- `GET /api/candles` – נרות מסחר (Finnhub), משמש לגרפי sparkline וניתוח היסטורי. 【F:app/api/candles/route.ts†L1-L120】
-- `GET /api/exchange-rate` – שער USD→ILS עם retry וגיבוי לתרחיש כשל. 【F:app/api/exchange-rate/route.ts†L1-L40】
-- `POST /api/portfolio` – יוצר תקציר משוקלל, מחירים נוכחיים/חזויים ומדדים לכל פוזיציה. 【F:app/api/portfolio/route.ts†L1-L240】
-- `GET /api/portfolio/combined-pnl` – מחזיר את הרווח/הפסד נטו של התיק כפי שמוצג בדף הסקירה. 【F:app/api/portfolio/combined-pnl/route.ts†L1-L125】
+### רכיבי UI ועיצוב
+- רכיבי `components/ui` מבוססי Radix + Tailwind מספקים כפתורים, טפסים, טבלאות וחיווי מצב עם נגישות מובנית.
+- `components/dashboard`, `components/portfolio` ו-`components/watchlist` מחלקים את ממשק המשתמש לתתי-מודולים הניתנים לשימוש חוזר.
+- `app/globals.css` ו-`tailwind.config.ts` מגדירים טיפוגרפיה, צבעים, אנימציות ותמיכה ב-RTL.
 
-כל המסלולים משתמשים במנגנון **backoff מעריכי** מתוך `lib/http.ts` יחד עם שירותי `lib/services` כדי להבטיח קוד נטול כפילויות, כותרות Cache מתאימות והמרות TypeScript קפדניות. 【F:lib/http.ts†L1-L52】【F:lib/services/finnhub.ts†L1-L42】【F:lib/services/exchange-rate.ts†L1-L66】
+## API ושירותים חיצוניים
+- `GET /api/quote` – מחזיר מחיר חי ושינוי יומי מממשק Finnhub עם מנגנון retry.
+- `GET /api/candles` – נרות מסחר המשמשים לספארקליינים ולהיסטוריה קצרה.
+- `GET /api/exchange-rate` – שער USD→ILS עם fallback לשירות חלופי במקרה כשל.
+- `POST /api/portfolio` – יצירת תקציר משוקלל, מחירים נוכחיים וחזויים ומדדים לכל פוזיציה.
+- `GET /api/portfolio/combined-pnl` – מחזיר את הרווח/הפסד נטו של התיק.
 
-## בסיס הנתונים (Supabase)
-- **טבלאות**
-  - `positions`: נתוני בסיס לכל מניה בתיק (סמל, מחיר כניסה, כמות, תאריך וכו'). 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L5-L44】
-  - `position_lots`: תיעוד קניות/מכירות חלקיות, עם טריגר לסנכרון `updated_at`. 【F:supabase/migrations/20241015100000_add_position_lots.sql†L1-L33】
-  - `settings`: תצורה גלובלית (קצב צמיחה, מטבע, טוקן Finnhub). 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L46-L74】
-  - `watchlist_groups`: קבוצות רשימת צפייה עם שם, תיאור ומועדי יצירה/עדכון. 【F:supabase/migrations/20241020110000_create_watchlist_tables.sql†L1-L36】
-  - `watchlist_tickers`: פריטי רשימת צפייה לכל קבוצה (סימול, שם תצוגה, הערות, סדר הצגה). 【F:supabase/migrations/20241020110000_create_watchlist_tables.sql†L38-L74】
-- **מדיניות RLS**: כל הטבלאות פתוחות לקריאה/כתיבה לצרכי סביבה מקומית, עם טריגרים לעדכון `updated_at`. 【F:supabase/migrations/20241003120000_create_positions_and_settings.sql†L18-L80】【F:supabase/migrations/20241015100000_add_position_lots.sql†L17-L36】
-- **תצורה מקומית**: הפורטים והשרותים (API, DB, Studio, Realtime) מוגדרים ב-`supabase/config.toml`, כולל הפעלת זרעים ואימות מקומי. 【F:supabase/config.toml†L1-L160】
+כל המסלולים חולקים לוגיקת תקשורת אחידה מ-`lib/http.ts` ומשתמשים בשירותים ב-`lib/services/` כדי למנוע כפילויות ולשמור על טיפול עקבי בשגיאות ובמגבלות קצב.
 
-## קבצי תצורה עיקריים
-- `next.config.js` – התאמות ל-Next.js במידת הצורך (ברירת מחדל). 【F:next.config.js†L1-L9】
-- `tailwind.config.ts` – הגדרות נושא, אנימציות ונתיבי תוכן. 【F:tailwind.config.ts†L1-L79】
-- `postcss.config.js` – הפעלת Tailwind ו-Autoprefixer. 【F:postcss.config.js†L1-L9】
-- `tsconfig.json` – הגדרות נתיבים (aliases עם `@/`), Strict Mode והרכבת TypeScript. 【F:tsconfig.json†L1-L33】
-
-## התקנה והרצה מקומית
-1. התקנת תלויות:
-   ```bash
-   npm install
-   ```
-2. הגדרת קובץ `.env.local` (ראו [משתני סביבה](#משתני-סביבה)).
-3. הפעלת Supabase מקומית (אופציונלי אך מומלץ):
-   ```bash
-   npx supabase start
-   ```
-4. הרצת שרת פיתוח Next.js:
-   ```bash
-   npm run dev
-   ```
-5. ביקור ב-[http://localhost:3000](http://localhost:3000) והתחברות לסביבת Supabase Studio ב-[http://127.0.0.1:54323](http://127.0.0.1:54323) לניהול נתונים.
-
-### סנכרון סכמת בסיס הנתונים
-- להריץ מיגרציות:
-  ```bash
-  npx supabase db reset
-  ```
-  פעולה זו תיצור מחדש את הטבלאות ותפעיל את `seed.sql` (כרגע קובץ placeholder).
+## בסיס הנתונים Supabase
+- **טבלאות מרכזיות**
+  - `positions` – נתוני בסיס לכל מניה: סמל, מחיר כניסה, כמות, מועדי קנייה ומדדים נוספים.
+  - `position_lots` – לוג עסקאות חלקיות עם טריגר לעדכון `updated_at`.
+  - `settings` – תצורה גלובלית: קצב צמיחה, מטבע יעד, טוקן Finnhub ועוד.
+  - `watchlist_groups` ו-`watchlist_tickers` – הגדרת קבוצות רשימת צפייה ופריטי מניה עם סדר תצוגה והערות.
+- **מדיניות אבטחה (RLS)** – בסביבה המקומית המדיניות פתוחה לקריאה/כתיבה לצרכי פיתוח, עם אפשרות להקשיח בפרודקשן.
+- **תצורה מקומית** – הקובץ `supabase/config.toml` מגדיר פורטים, שירותי ברירת מחדל, הפעלת זרעים ואימות מקומי.
 
 ## משתני סביבה
-
-### משתני חובה
-המשתנים הבאים חייבים להיות מוגדרים כדי שהאפליקציה תתחבר ל-Supabase:
-
-| שם משתנה | שימוש |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | חיבור Supabase מהדפדפן |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | מפתח אנון Supabase |
-
-### משתנים אופציונליים וברירות מחדל
-ניתן להשאיר את המשתנים הבאים ריקים. הם עוקפים ברירות מחדל או מאפשרים יכולות נוספות במידת הצורך:
-
-| שם משתנה | שימוש | ברירת מחדל / הערות |
-| --- | --- | --- |
-| `FINNHUB_TOKEN` | טוקן API להצגת נתוני שוק חיים | מומלץ לספק טוקן כדי להסיר מגבלות קצב |
-| `DEFAULT_GROWTH_RATE` | קצב צמיחה שנתי לחיזוי | `0.05` |
-| `DEFAULT_USD_TO_ILS_RATE` | שער דולר-שקל fallback | `3.7` |
-| `EXCHANGE_RATE_URL` | מקור חלופי לשערי מטבע | `https://open.er-api.com/v6/latest/USD` |
-| `NEXT_PUBLIC_FORECAST_URL` | בסיס API לשרות החיזוי | `http://localhost:8080` (השאר ריק כדי לכבות) |
-| `OPENAI_API_KEY` | לשימוש ב-Supabase Studio | אופציונלי בלבד |
-
-> **הערה**: ניתן להזין טוקן Finnhub גם מתוך מסך ההגדרות – הערך נשמר בטבלת `settings`.
+| שם משתנה | שימוש | חובה | ברירת מחדל/הערות |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | חיבור Supabase מהדפדפן | כן | `http://127.0.0.1:54321` בדוגמה |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | מפתח אנונימי של Supabase | כן | `public-anon-key` בדוגמה |
+| `FINNHUB_TOKEN` | טוקן API לקבלת נתונים חיים | לא | מומלץ לספק כדי להסיר מגבלות קצב |
+| `DEFAULT_GROWTH_RATE` | קצב צמיחה שנתי לחיזוי | לא | `0.06` בדוגמה |
+| `DEFAULT_USD_TO_ILS_RATE` | שער דולר-שקל fallback | לא | `3.3` בדוגמה |
+| `EXCHANGE_RATE_URL` | מקור חלופי לשערי מטבע | לא | `https://open.er-api.com/v6/latest/USD` |
+| `NEXT_PUBLIC_FORECAST_URL` | בסיס API לשירות חיזוי | לא | `1` בדוגמה (השאירו ריק כדי לכבות) |
+| `OPENAI_API_KEY` | אינטגרציות AI עתידיות | לא | ריק בדוגמה |
 
 ## סקריפטים שימושיים
 כל הסקריפטים מנוהלים ב-`package.json`:
@@ -158,25 +213,29 @@ supabase/
 - `npm run build` – בניית האפליקציה לפרודקשן.
 - `npm run start` – הרצת הבילד שנוצר.
 - `npm run lint` – בדיקת תקינות ESLint.
-- `npm run typecheck` – בדיקות TypeScript ללא פליטה. 【F:package.json†L1-L48】
-- `npm test` – הרצת בדיקות יחידה וקומפוננטה עם Vitest. 【F:package.json†L1-L52】
+- `npm run typecheck` – בדיקות TypeScript ללא פליטה.
+- `npm test` – הרצת בדיקות יחידה וקומפוננטה עם Vitest.
 
 ## עקרונות עיצוב ופיתוח
-- **RTL ו-LTR**: שינוי שפה מעדכן את כיוון המסמך, שומר במקומי ומחיל תרגומים דינמיים. 【F:lib/context.tsx†L29-L44】
-- **מנגנון רענון**: הכפתור בדפים המרכזיים מפעיל `triggerRefresh` שמטמיע נתונים חדשים. 【F:lib/context.tsx†L48-L60】【F:app/page.tsx†L24-L40】
-- **שמירת הגדרות**: נתוני משתמש נשמרים ב-localStorage ומסתנכרנים עם Supabase להגדרות גלובליות. 【F:lib/context.tsx†L15-L66】【F:app/settings/page.tsx†L1-L180】
-- **התמודדות עם מגבלות API**: עטיפת `fetchWithRetry` ב-`lib/http.ts` מעניקה retry/backoff אחיד, והשירותים ב-`lib/services` מונעים כפילויות בעת גישה ל-Finnhub ולשערי מטבע. 【F:lib/http.ts†L1-L52】【F:lib/services/finnhub.ts†L1-L42】【F:lib/services/exchange-rate.ts†L1-L66】
-- **נגישות ו-UI קונסיסטנטי**: רכיבי `components/ui` מבוססי Radix + Tailwind עם מצבי Keyboard ו-Focus מובנים. 【F:components/ui/button.tsx†L1-L62】
+- **RTL ו-LTR דינמיים** – שינוי השפה מתעדכן בהקשר הגלובלי ומחיל כיוון מסמך מתאים בכל המסכים.
+- **מנגנון רענון גלובלי** – `triggerRefresh` ב-AppProvider מאפשר לכל דף למשוך נתונים עדכניים בלחיצת כפתור.
+- **שמירת הגדרות** – שילוב בין Local Storage ל-Supabase מבטיח עקביות הגדרות בין סשנים ומכשירים.
+- **התמודדות עם מגבלות API** – `fetchWithRetry` והעטיפות ב-`lib/services` מספקים backoff אחיד והודעות שגיאה ברורות.
+- **נגישות ו-UI עקבי** – רכיבי `components/ui` מבוססי Radix מעניקים מצבי מקלדת ו-Focus מובנים עם סטיילינג Tailwind אחיד.
 
-## בדיקות וצעדי וידוא
-- הרצת `npm run lint` ו-`npm run typecheck` לפני PR.
-- הרצת `npm test` כדי לוודא שרכיבי ה-Watchlist וה-utilים החדשים עוברים בדיקות יחידה.
-- בדיקת ניווט בין מסכים בשתי שפות, כולל מצבי RTL.
-- אימות שה-API החיצוניים מגיבים כמצופה (כולל תרחישי כשל והודעות שגיאה למשתמש).
-- ווידוא שהמיגרציות והזרעים של Supabase נטענים בהצלחה אחרי `supabase db reset`.
+## תחזוקה ושגרת עבודה
+1. **לפני פיתוח פיצ'ר** – עדכנו את הענף (`git pull`), הריצו `npm install` במקרה של תלויות חדשות והפעילו את Supabase המקומי.
+2. **במהלך העבודה** – שמרו על הפרדה בין לוגיקה ל-UI, הוסיפו טייפים חדשים תחת `types/` וכתבו בדיקות ל-hooks או שירותים חדשים.
+3. **לפני Commit** – הריצו את כל סקריפטי האיכות, בדקו שאין שינויים לא מתוכננים בבסיס הנתונים ונקו קבצי לוג.
+4. **פתיחת Pull Request** – צרפו סיכום ברור, תארו את בדיקות היד/אוטומציה שבוצעו וודאו שאין אזהרות ב-`npm run build`.
+5. **לאחר מיזוג** – פרסמו גרסה (אם נדרש), עדכנו את ה-CHANGELOG החיצוני ובצעו `npx supabase db push` לסביבות נוספות.
+6. **פתרון תקלות נפוצות**:
+   - שגיאות התחברות ל-Supabase → בדקו שהשירות רץ (`npx supabase status`) וה-URL בקובץ `.env.local` תקין.
+   - נתונים חיים לא נטענים → ודאו שטוקן Finnhub מוגדר גם במשתנה הסביבה וגם בטבלת `settings`.
+   - שגיאות TypeScript → הריצו `npm run typecheck` וקראו את ההודעות המפורטות (חלקן מגיעות מהטייפים ב-`types/`).
 
 ## נושאים להמשך פיתוח
 - השלמת seed נתונים לדוגמה עבור onboarding מהיר.
-- הרחבת כיסוי בדיקות (unit + e2e) לרכיבי חישוב וזרימת נתונים.
-- תמיכה במטבעות נוספים והרחבת סימולציות (`What-if`) לדינמיקת ריביות ומסים.
-- אינטגרציה עם שירותי ניתוח נוספים (למשל Alpha Vantage) וריבוי טוקנים למשתמשים שונים.
+- הרחבת כיסוי בדיקות (unit + e2e) לרכיבי חישוב וזרימות נתונים.
+- תמיכה במטבעות נוספים והרחבת סימולציות "What-if" לדינמיקת ריביות ומסים.
+- אינטגרציה עם שירותי ניתוח נוספים (למשל Alpha Vantage) ותמיכה במספר טוקנים למשתמשים שונים.
