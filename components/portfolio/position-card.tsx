@@ -7,8 +7,7 @@ import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/c
 import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, Button, Card, CardBody, CardFooter, CardHeader, Chip } from '@heroui/react';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
@@ -212,7 +211,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineColor = useMemo(() => {
     if (typeof sparklineReferencePrice === 'number' && Number.isFinite(sparklineReferencePrice)) {
       if (sparklineReferencePrice < position.entryPrice) {
-        return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+        return { className: 'text-rose-400', hex: '#F43F5E' } as const;
       }
 
       if (
@@ -221,32 +220,32 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         projectedPrice > position.entryPrice &&
         sparklineReferencePrice >= projectedPrice
       ) {
-        return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+        return { className: 'text-emerald-400', hex: '#34D399' } as const;
       }
     }
 
-    return { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+    return { className: 'text-sky-400', hex: '#38BDF8' } as const;
   }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
   const getTrendStyles = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
-      };
+        text: 'text-emerald-300',
+        badge: 'border border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
+      } as const;
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
-      };
+        text: 'text-rose-300',
+        badge: 'border border-rose-400/30 bg-rose-500/10 text-rose-200',
+      } as const;
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
-    };
+      text: 'text-white/70',
+      badge: 'border border-white/20 bg-white/10 text-white/70',
+    } as const;
   };
 
   const dailyChangeValue = typeof metrics.dailyChange === 'number' ? metrics.dailyChange : null;
@@ -319,12 +318,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   }, []);
 
   return (
-    <div
+    <Card
+      radius="2xl"
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
-        isHovered
-          ? '-translate-y-1 border-blue-200/80 shadow-2xl'
-          : 'translate-y-0 border-slate-200/70 shadow-lg'
+        'group relative h-full overflow-hidden border-0 bg-gradient-to-br from-slate-900/85 via-slate-900/60 to-slate-950/80 text-white shadow-2xl transition-transform duration-300 ease-out',
+        isHovered ? '-translate-y-1 shadow-primary-900/30' : 'translate-y-0 shadow-slate-900/20'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -336,40 +334,54 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     >
       <div
         aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
-          isHovered ? 'opacity-90' : 'opacity-0'
-        )}
-      />
-
-      <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-        {isClosed ? (
-          <>
+        className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-500"
+      >
+        <div
+          className={cn(
+            'absolute -right-20 top-[-6rem] h-48 w-48 rounded-full bg-primary-500/40 blur-3xl',
+            isHovered ? 'opacity-100' : 'opacity-60'
+          )}
+        />
+        <div
+          className={cn(
+            'absolute -bottom-24 left-[-3rem] h-56 w-56 rounded-full bg-sky-500/30 blur-3xl',
+            isHovered ? 'opacity-100' : 'opacity-60'
+          )}
+        />
+      </div>
+      {isClosed ? (
+        <>
+          <CardHeader className="relative z-10 flex flex-col gap-4 p-6 pb-0">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
-                <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-
+                <Avatar
+                  isBordered
+                  radius="lg"
+                  color="primary"
+                  className="h-14 w-14 text-lg font-semibold"
+                  src={position.imageUrl ?? undefined}
+                  name={position.display}
+                />
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <h3 className="text-lg font-semibold text-white sm:text-xl">{position.display}</h3>
+                    <Chip size="sm" variant="flat" radius="sm" className="bg-white/10 text-white/80 backdrop-blur">
                       {position.symbol}
-                    </Badge>
-                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    </Chip>
+                    <Chip
+                      size="sm"
+                      radius="sm"
+                      variant="flat"
+                      color="success"
+                      className="bg-emerald-500/20 text-emerald-100"
+                    >
                       {t.dashboard.closedBadge}
-                    </Badge>
+                    </Chip>
                   </div>
                   {closedSummary?.lastSaleDate && (
-                    <p className="text-sm text-slate-500">
-                      {t.dashboard.closedLastSale}:{' '}
-                      <span className="font-medium text-slate-700">
+                    <p className="text-sm text-white/70">
+                      {t.dashboard.closedLastSale}{' '}
+                      <span className="font-semibold text-white">
                         {formatDate(closedSummary.lastSaleDate.toISOString(), locale)}
                         {closedSummary.lastSalePrice !== null ? (
                           <>
@@ -383,26 +395,35 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </div>
               </div>
             </div>
-
+          </CardHeader>
+          <CardBody className="relative z-10 flex flex-1 flex-col gap-6 p-6 pt-4">
             {closedStats.length > 0 && (
-              <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 md:grid-cols-3">
+              <div className="grid gap-3 text-sm text-white/70 sm:grid-cols-2 xl:grid-cols-3">
                 {closedStats.map((stat) => (
-                  <div key={stat.key} className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{stat.label}</p>
-                    <p className={`mt-1 text-base font-semibold ${stat.tone?.text ?? 'text-slate-900'}`}>{stat.value}</p>
+                  <div
+                    key={stat.key}
+                    className={cn(
+                      'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm',
+                      stat.tone?.badge
+                    )}
+                  >
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/50">
+                      {stat.label}
+                    </p>
+                    <p className={cn('mt-3 text-lg font-semibold text-white', stat.tone?.text)}>{stat.value}</p>
                   </div>
                 ))}
               </div>
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={140}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(148, 163, 184, 0.35)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -411,123 +432,139 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 />
               </div>
             )}
-
-            <div className="flex flex-wrap justify-end gap-3">
-              {forecastEnabled ? (
-                <Link
-                  href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-                >
-                  {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              ) : null}
-              <Link
-                href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
-              >
-                {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex gap-4 items-start justify-between">
+          </CardBody>
+        </>
+      ) : (
+        <>
+          <CardHeader className="relative z-10 flex flex-col gap-4 p-6 pb-0">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="flex items-start gap-4">
-                <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {changeFromEntryPercent !== null && (
-                    <Badge
-                      variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
-                    >
-                      {percentText(changeFromEntryPercent)}
-                    </Badge>
-                  )}
-                </div>
-
+                <Avatar
+                  isBordered
+                  radius="lg"
+                  color="primary"
+                  className="h-14 w-14 text-lg font-semibold"
+                  src={position.imageUrl ?? undefined}
+                  name={position.display}
+                />
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <h3 className="text-lg font-semibold text-white sm:text-xl">{position.display}</h3>
+                    <Chip size="sm" variant="flat" radius="sm" className="bg-white/10 text-white/80 backdrop-blur">
                       {position.symbol}
-                    </Badge>
+                    </Chip>
+                    {changeFromEntryPercent !== null && (
+                      <Chip
+                        size="sm"
+                        radius="sm"
+                        variant="flat"
+                        className={cn('px-2 py-1 text-xs font-semibold', changeFromEntryStyles?.badge)}
+                      >
+                        {percentText(changeFromEntryPercent)}
+                      </Chip>
+                    )}
                   </div>
-                  <p className="text-sm text-slate-500">
-                    {t.dashboard.since} {formatDate(position.entryDate, locale)}
+                  <p className="text-sm text-white/70">
+                    {t.dashboard.since}{' '}
+                    <span className="font-semibold text-white">{formatDate(position.entryDate, locale)}</span>
                   </p>
                 </div>
               </div>
-
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
-                <Badge
-                  variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                <Chip
+                  size="md"
+                  radius="lg"
+                  variant="flat"
+                  className={cn('items-start gap-3 px-4 py-3 text-left', dailyChangeStyles.badge)}
+                  startContent={<span className="mt-1 text-base">{dailyChangeIcon}</span>}
                 >
-                  {dailyChangeIcon}
-                  <span>{t.dashboard.dailyChange}</span>
-                  <div className="flex flex-col items-start gap-1 font-semibold">
-                    <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
-                    <span>{percentText(dailyChangePercent)}</span>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/60">
+                      {t.dashboard.dailyChange}
+                    </span>
+                    <span className="text-sm font-semibold text-white">
+                      {formatCurrency(dailyChangeAmount, 'USD', locale)}
+                    </span>
+                    <span className="text-xs font-semibold text-white/80">
+                      {percentText(dailyChangePercent)}
+                    </span>
                   </div>
-                </Badge>
+                </Chip>
               )}
             </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
-              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.quantity}</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">{formatNumber(position.quantity, locale)}</p>
+          </CardHeader>
+          <CardBody className="relative z-10 flex flex-1 flex-col gap-6 p-6 pt-4">
+            <div className="grid grid-cols-2 gap-3 text-sm text-white/70">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/50">
+                  {t.dashboard.quantity}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {formatNumber(position.quantity, locale)}
+                </p>
               </div>
-              <div className="rounded-2xl bg-slate-50/80 p-3 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.dashboard.entryPrice}</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/50">
+                  {t.dashboard.entryPrice}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {formatCurrency(position.entryPrice, 'USD', locale)}
+                </p>
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-4 shadow-inner">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.current}</p>
-                <dl className="mt-3 space-y-3 text-sm text-slate-600">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/50">
+                  {t.dashboard.current}
+                </p>
+                <dl className="mt-4 space-y-3 text-sm text-white/70">
                   <div className="flex items-center justify-between">
                     <dt>{t.dashboard.price}</dt>
-                    <dd className="text-base font-semibold text-slate-900">{formatCurrency(currentPrice, 'USD', locale)}</dd>
+                    <dd className="text-base font-semibold text-white">
+                      {formatCurrency(currentPrice, 'USD', locale)}
+                    </dd>
                   </div>
-                  <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
+                  <div className={cn('flex items-center justify-between', currentPnLStyles.text)}>
                     <dt>{t.dashboard.pnl} USD</dt>
-                    <dd className="text-base font-semibold">{formatCurrency(positionPnLUsd, 'USD', locale)}</dd>
+                    <dd className="text-base font-semibold">
+                      {formatCurrency(positionPnLUsd, 'USD', locale)}
+                    </dd>
                   </div>
                   {settings.currency === 'ILS' && (
-                    <div className={`flex items-center justify-between ${currentPnLStyles.text}`}>
+                    <div className={cn('flex items-center justify-between', currentPnLStyles.text)}>
                       <dt>{t.dashboard.pnl} ILS</dt>
-                      <dd className="text-base font-semibold">{formatCurrency(positionPnLIls, 'ILS', locale)}</dd>
+                      <dd className="text-base font-semibold">
+                        {formatCurrency(positionPnLIls, 'ILS', locale)}
+                      </dd>
                     </div>
                   )}
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-slate-100/80 bg-white/70 p-4 shadow-inner">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.dashboard.projected}</p>
-                <dl className="mt-3 space-y-3 text-sm text-slate-600">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/50">
+                  {t.dashboard.projected}
+                </p>
+                <dl className="mt-4 space-y-3 text-sm text-white/70">
                   <div className="flex items-center justify-between">
                     <dt>{t.dashboard.weightedProjectedPrice}</dt>
-                    <dd className="text-base font-semibold text-slate-900">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
+                    <dd className="text-base font-semibold text-white">
+                      {formatCurrency(projectedPrice, 'USD', locale)}
+                    </dd>
                   </div>
-                  <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                  <div className={cn('flex items-center justify-between', combinedStyles.text)}>
                     <dt>{t.dashboard.combined} USD</dt>
-                    <dd className="text-base font-semibold">{formatCurrency(combined, 'USD', locale)}</dd>
+                    <dd className="text-base font-semibold">
+                      {formatCurrency(combined, 'USD', locale)}
+                    </dd>
                   </div>
                   {settings.currency === 'ILS' && (
-                    <div className={`flex items-center justify-between ${combinedStyles.text}`}>
+                    <div className={cn('flex items-center justify-between', combinedStyles.text)}>
                       <dt>{t.dashboard.combined} ILS</dt>
-                      <dd className="text-base font-semibold">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
+                      <dd className="text-base font-semibold">
+                        {formatCurrency(combinedIls, 'ILS', locale)}
+                      </dd>
                     </div>
                   )}
                 </dl>
@@ -535,13 +572,13 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-4">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={140}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(148, 163, 184, 0.35)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -550,28 +587,35 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 />
               </div>
             )}
-
-            <div className="flex flex-wrap justify-end gap-3">
-              {forecastEnabled ? (
-                <Link
-                  href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-                >
-                  {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              ) : null}
-              <Link
-                href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
-              >
-                {t.dashboard.viewDetails}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          </CardBody>
+        </>
+      )}
+      <CardFooter className="relative z-10 flex flex-wrap justify-end gap-3 border-t border-white/10 px-6 py-4 backdrop-blur-sm">
+        {forecastEnabled ? (
+          <Button
+            as={Link}
+            href={`/stock/${position.symbol}/forecast`}
+            size="sm"
+            variant="light"
+            color="secondary"
+            className="gap-2 text-white/80 hover:text-white"
+            endContent={<ArrowUpRight className="h-4 w-4" />}
+          >
+            {t.dashboard.viewForecast}
+          </Button>
+        ) : null}
+        <Button
+          as={Link}
+          href={`/stock/${position.symbol}`}
+          size="sm"
+          color="primary"
+          variant="flat"
+          className="gap-2 text-white"
+          endContent={<ArrowUpRight className="h-4 w-4" />}
+        >
+          {t.dashboard.viewDetails}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

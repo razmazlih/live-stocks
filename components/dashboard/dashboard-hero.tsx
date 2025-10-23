@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { TrendingUp } from 'lucide-react';
+import { Card, CardBody, Chip, Divider } from '@heroui/react';
 
 import { DailyChangeBadge } from './daily-change-badge';
 import { DashboardQuickAction } from './quick-actions';
@@ -34,40 +35,63 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
-      <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-blue-200/60 blur-3xl" />
-      <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+    <Card
+      radius="2xl"
+      className="relative overflow-hidden border-0 bg-gradient-to-br from-primary-900/70 via-slate-900/80 to-slate-950/90 text-white shadow-2xl"
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-40">
+        <div className="absolute -right-24 top-[-6rem] h-56 w-56 rounded-full bg-primary-500/60 blur-3xl" />
+        <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-sky-500/30 blur-3xl" />
+      </div>
+      <CardBody className="relative z-10 grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:items-start">
         <div className="space-y-6">
-          <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
-              <TrendingUp className="h-6 w-6" />
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-400/20 text-primary-100 shadow-lg shadow-primary-900/30 ring-1 ring-white/20">
+                  <TrendingUp className="h-7 w-7" />
+                </span>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
+                  <p className="mt-2 max-w-xl text-base text-white/70 sm:text-lg">{subtitle}</p>
+                </div>
+              </div>
+              {dailyChange && (
+                <DailyChangeBadge
+                  toneClass={dailyChange.toneClass}
+                  className="shadow-sm"
+                  icon={dailyChange.icon}
+                  value={dailyChange.value}
+                  label={dailyChange.label}
+                />
+              )}
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{title}</h1>
-              <p className="mt-2 max-w-xl text-base text-slate-600">{subtitle}</p>
+            <Divider className="border-white/10" />
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-white/70 sm:text-sm">
+              <Chip
+                size="sm"
+                radius="full"
+                variant="flat"
+                className="gap-2 bg-white/10 text-white"
+                startContent={<span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />}
+              >
+                {updatedLabel} {lastUpdatedDisplay ?? '—'}
+              </Chip>
+              <Chip
+                size="sm"
+                radius="full"
+                variant="shadow"
+                color="primary"
+                className="gap-2 bg-primary-500/20 text-primary-100"
+                startContent={<TrendingUp className="h-4 w-4" />}
+              >
+                {exchangeRateLabel} {exchangeRateValue}
+              </Chip>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-              {updatedLabel} {lastUpdatedDisplay ?? '—'}
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
-              <TrendingUp className="h-4 w-4 text-blue-500" />
-              {exchangeRateLabel} {exchangeRateValue}
-            </span>
-            {dailyChange && (
-              <DailyChangeBadge
-                toneClass={dailyChange.toneClass}
-                icon={dailyChange.icon}
-                value={dailyChange.value}
-                label={dailyChange.label}
-              />
-            )}
           </div>
         </div>
         <QuickActionsSection title={quickActionsTitle} actions={quickActions} />
-      </div>
-    </header>
+      </CardBody>
+    </Card>
   );
 }

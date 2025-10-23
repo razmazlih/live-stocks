@@ -1,8 +1,8 @@
-import { ComponentProps, ReactNode } from 'react';
+import { ComponentProps } from 'react';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
+import { Button } from '@heroui/react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export interface DashboardQuickAction {
@@ -13,6 +13,7 @@ export interface DashboardQuickAction {
   onClick?: () => void;
   disabled?: boolean;
   variant?: ComponentProps<typeof Button>['variant'];
+  color?: ComponentProps<typeof Button>['color'];
   className?: string;
   iconClassName?: string;
   labelClassName?: string;
@@ -29,33 +30,43 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
   }
 
   return (
-    <div className="mt-4 flex flex-wrap gap-3">
+    <div className="mt-5 flex flex-wrap gap-3">
       {actions.map((action) => {
         const Icon = action.icon;
-        const buttonContent: ReactNode = action.href ? (
-          <Link href={action.href}>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </Link>
-        ) : (
-          <>
-            <Icon className={cn('h-4 w-4', action.iconClassName)} />
-            <span className={cn(action.labelClassName)}>{action.label}</span>
-          </>
-        );
+        const baseProps = {
+          size: 'sm' as const,
+          radius: 'full' as const,
+          variant: action.variant ?? 'solid',
+          color: action.color,
+          className: cn(
+            'justify-start gap-2 bg-opacity-90 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5',
+            action.className
+          ),
+          startContent: <Icon className={cn('h-4 w-4', action.iconClassName)} />,
+          'aria-label': action.ariaLabel ?? action.label,
+          isDisabled: action.disabled,
+        } satisfies Partial<ComponentProps<typeof Button>>;
+
+        if (action.href) {
+          return (
+            <Button
+              key={action.key}
+              {...baseProps}
+              as={Link}
+              href={action.href}
+            >
+              <span className={cn('whitespace-nowrap', action.labelClassName)}>{action.label}</span>
+            </Button>
+          );
+        }
 
         return (
           <Button
             key={action.key}
-            size="sm"
-            variant={action.variant}
-            asChild={Boolean(action.href)}
-            onClick={action.onClick}
-            disabled={action.disabled}
-            aria-label={action.ariaLabel ?? action.label}
-            className={cn('gap-2', action.className)}
+            {...baseProps}
+            onPress={action.onClick}
           >
-            {buttonContent}
+            <span className={cn('whitespace-nowrap', action.labelClassName)}>{action.label}</span>
           </Button>
         );
       })}

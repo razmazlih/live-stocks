@@ -58,21 +58,21 @@ export default function HomePage() {
   const getTrendTone = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-emerald-300',
+        badge: 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-rose-300',
+        badge: 'border border-rose-500/30 bg-rose-500/15 text-rose-200',
       };
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      text: 'text-white/70',
+      badge: 'border border-white/20 bg-white/10 text-white/70',
     };
   };
 
@@ -138,15 +138,15 @@ export default function HomePage() {
 
   const summaryCards: SummaryCard[] = summary
     ? [
-        {
-          key: 'value',
-          label: t.dashboard.totalValue,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-3xl font-semibold text-slate-900',
-          secondary: {
-            label: 'ILS',
-            value: formatCurrency(totalValueIls, 'ILS', locale),
-          },
+          {
+            key: 'value',
+            label: t.dashboard.totalValue,
+            value: formatCurrency(summary.totalValue, 'USD', locale),
+            valueClass: 'text-3xl font-semibold text-white',
+            secondary: {
+              label: 'ILS',
+              value: formatCurrency(totalValueIls, 'ILS', locale),
+            },
           helper: [
             { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
             { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
@@ -192,11 +192,11 @@ export default function HomePage() {
     : [];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-slate-950">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_65%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(14,165,233,0.1),_transparent_60%)]" />
       <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <DashboardHero
             title={t.app.title}
             subtitle={t.app.subtitle}
@@ -210,12 +210,12 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-4 py-8 shadow-2xl backdrop-blur-xl sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-white/60">
+                    <RefreshCw className="h-5 w-5 animate-spin text-primary-300" />
                     <p>{t.common.loading}</p>
                   </div>
                 ) : !hasAnyPositions ? (

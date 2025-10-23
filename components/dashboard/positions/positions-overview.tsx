@@ -18,8 +18,8 @@ export function PositionsOverview({
   sparklineData,
 }: PositionsOverviewProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-white/90 md:text-2xl">{openTitle}</h2>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {openMetrics.map((metrics) => (
           <PositionCard
@@ -31,7 +31,7 @@ export function PositionsOverview({
       </div>
       {closedMetrics.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
+          <h2 className="text-xl font-semibold text-white/90 md:text-2xl">{closedTitle}</h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {closedMetrics.map((metrics) => (
               <PositionCard

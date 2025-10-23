@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Chip } from '@heroui/react';
 
 import { cn } from '@/lib/utils';
 
@@ -12,16 +13,19 @@ interface DailyChangeBadgeProps {
 
 export function DailyChangeBadge({ toneClass, icon, value, label, className }: DailyChangeBadgeProps) {
   return (
-    <span
+    <Chip
+      size="sm"
+      radius="full"
+      variant="flat"
       className={cn(
-        'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm',
+        'flex items-center gap-2 bg-opacity-90 px-3 py-1 text-xs font-semibold sm:text-sm',
         toneClass,
         className
       )}
+      startContent={<span className="flex items-center text-current">{icon}</span>}
     >
-      {icon}
-      {value}
-      <span className="text-xs font-medium text-slate-600/80">{label}</span>
-    </span>
+      <span className="font-semibold">{value}</span>
+      <span className="text-[0.7rem] font-medium text-foreground/70 sm:text-xs">{label}</span>
+    </Chip>
   );
 }
