@@ -13,7 +13,26 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart3, ArrowRightLeft, History, CalendarPlus, Ban } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  BarChart3,
+  ArrowRightLeft,
+  History,
+  CalendarPlus,
+  Ban,
+  Layers,
+  Package,
+  CalendarClock,
+  GitBranch,
+  RefreshCw,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -162,6 +181,52 @@ export default function PositionsPage() {
     [planRecords],
   );
 
+  const totalQuantity = useMemo(
+    () =>
+      positions.reduce(
+        (sum, position) => sum + (Number.isFinite(position.quantity) ? position.quantity : 0),
+        0,
+      ),
+    [positions],
+  );
+
+  const pendingPlansCount = useMemo(
+    () => activePlans.filter(({ plan }) => plan.status === 'pending').length,
+    [activePlans],
+  );
+
+  const triggeredPlansCount = useMemo(
+    () => activePlans.filter(({ plan }) => plan.status === 'triggered').length,
+    [activePlans],
+  );
+
+  const overviewStats = [
+    {
+      key: 'positions',
+      label: t.positions.overviewActivePositions,
+      value: formatNumber(positions.length, locale),
+      icon: Layers,
+    },
+    {
+      key: 'quantity',
+      label: t.positions.overviewTotalQuantity,
+      value: formatNumber(totalQuantity, locale),
+      icon: Package,
+    },
+    {
+      key: 'pending-plans',
+      label: t.positions.overviewPendingPlans,
+      value: formatNumber(pendingPlansCount, locale),
+      icon: CalendarClock,
+    },
+    {
+      key: 'detached-plans',
+      label: t.positions.overviewDetachedPlans,
+      value: formatNumber(activeDetachedPlans.length, locale),
+      icon: GitBranch,
+    },
+  ];
+
   const loadPositions = useCallback(async () => {
     try {
       setLoading(true);
@@ -274,6 +339,12 @@ export default function PositionsPage() {
         side: 'buy',
       }),
     );
+    setPlanDialogOpen(true);
+  }
+
+  function openDetachedPlanDialog() {
+    setPlanContextPosition(null);
+    setPlanForm(createDefaultPlanForm());
     setPlanDialogOpen(true);
   }
 
@@ -630,33 +701,31 @@ export default function PositionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
-      <div className="max-w-5xl mx-auto p-6">
-        <header className="mb-8">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {locale === 'he' ? 'חזרה' : 'Back'}
-            </Button>
-          </Link>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-bold text-[#0F172A]">{t.positions.title}</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={openAddDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t.positions.add}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingPosition ? t.positions.edit : t.positions.add}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
+        <div className="mx-auto max-w-6xl px-6 py-8 lg:py-12">
+        <header className="mb-10 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {locale === 'he' ? 'חזרה' : 'Back'}
+              </Button>
+            </Link>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openAddDialog} className="gap-2 shadow-sm">
+                  <Plus className="h-4 w-4" />
+                  {t.positions.add}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>{editingPosition ? t.positions.edit : t.positions.add}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-1">
                       <Label htmlFor="symbol">{t.positions.symbol}</Label>
                       <Input
                         id="symbol"
@@ -666,7 +735,7 @@ export default function PositionsPage() {
                         required
                       />
                     </div>
-                    <div>
+                    <div className="sm:col-span-1">
                       <Label htmlFor="display">{t.positions.display}</Label>
                       <Input
                         id="display"
@@ -676,658 +745,892 @@ export default function PositionsPage() {
                         required
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
-                      <Input
-                        id="imageUrl"
-                        value={formData.imageUrl}
-                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                        placeholder="https://logo.clearbit.com/apple.com"
-                      />
-                    </div>
-                    {isEditing && editingPosition ? (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
-                        <p className="font-semibold text-slate-700">{t.positions.currentHolding}</p>
-                        <p className="mt-2">
-                          {formatNumber(editingPosition.quantity, locale)} · {formatCurrency(editingPosition.entryPrice, 'USD', locale)} • {formatDate(editingPosition.entryDate, locale)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t.positions.since} {formatDate(editingPosition.entryDate, locale)}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div>
-                          <Label>{t.positions.planModeLabel}</Label>
-                          <RadioGroup
-                            value={newPositionMode}
-                            onValueChange={(value) => setNewPositionMode(value as NewPositionMode)}
-                            className="mt-2 flex flex-col gap-2 sm:flex-row"
-                          >
-                            <label className="flex flex-1 items-start gap-2 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                              <RadioGroupItem value="immediate" id="position-mode-immediate" className="mt-1" />
-                              <div>
-                                <p className="font-semibold text-slate-700">{t.positions.planModeImmediate}</p>
-                                <p className="text-xs text-slate-500">{t.positions.planModeImmediateDescription}</p>
-                              </div>
-                            </label>
-                            <label className="flex flex-1 items-start gap-2 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                              <RadioGroupItem value="plan" id="position-mode-plan" className="mt-1" />
-                              <div>
-                                <p className="font-semibold text-slate-700">{t.positions.planModePlan}</p>
-                                <p className="text-xs text-slate-500">{t.positions.planModePlanDescription}</p>
-                              </div>
-                            </label>
-                          </RadioGroup>
-                        </div>
-                        {newPositionMode === 'immediate' ? (
-                          <div className="grid gap-4 sm:grid-cols-3">
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
-                              <Input
-                                id="initialPrice"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={Number.isFinite(formData.initialPrice) ? formData.initialPrice : 0}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    initialPrice: Number.parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="initialQuantity">{t.positions.initialQuantity}</Label>
-                              <Input
-                                id="initialQuantity"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={Number.isFinite(formData.initialQuantity) ? formData.initialQuantity : 0}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    initialQuantity: Number.parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
-                              <Input
-                                id="initialDate"
-                                type="date"
-                                value={formData.initialDate}
-                                onChange={(e) => setFormData({ ...formData, initialDate: e.target.value })}
-                                required
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="grid gap-4 sm:grid-cols-3">
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="targetPrice">{t.positions.planTargetPrice}</Label>
-                              <Input
-                                id="targetPrice"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={Number.isFinite(formData.targetPrice) ? formData.targetPrice : 0}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    targetPrice: Number.parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="targetQuantity">{t.positions.planTargetQuantity}</Label>
-                              <Input
-                                id="targetQuantity"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={Number.isFinite(formData.targetQuantity) ? formData.targetQuantity : 0}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    targetQuantity: Number.parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="sm:col-span-1">
-                              <Label htmlFor="targetDate">{t.positions.planTargetDate}</Label>
-                              <Input
-                                id="targetDate"
-                                type="date"
-                                value={formData.targetDate}
-                                onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                                required
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <Button type="submit">{t.positions.save}</Button>
-                      <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                        {t.positions.cancel}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-          <Dialog
-            open={transactionDialogOpen}
-            onOpenChange={(open) => {
-              setTransactionDialogOpen(open);
-              if (!open) {
-                setTransactionTarget(null);
-                setTransactionForm(createDefaultTransactionForm());
-              }
-            }}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditingTransaction ? t.positions.editTransaction : t.positions.addTransaction}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleTransactionSubmit} className="space-y-4">
-                  <div>
-                    <Label>{t.positions.transactionType}</Label>
-                    <RadioGroup
-                      value={transactionForm.type}
-                      onValueChange={(value) =>
-                        setTransactionForm({ ...transactionForm, type: value as PositionLotType })
-                      }
-                      className="mt-2 flex gap-4"
-                    >
-                      <label className="flex items-center gap-2 text-sm text-slate-600">
-                        <RadioGroupItem value="BUY" id="transaction-buy" />
-                        {t.positions.buy}
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-slate-600">
-                        <RadioGroupItem value="SELL" id="transaction-sell" />
-                        {t.positions.sell}
-                      </label>
-                    </RadioGroup>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="sm:col-span-1">
-                      <Label htmlFor="transactionPrice">{t.positions.transactionPrice}</Label>
-                      <Input
-                        id="transactionPrice"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={transactionForm.price}
-                        onChange={(e) =>
-                          setTransactionForm({
-                            ...transactionForm,
-                            price: Number.parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        required
-                      />
+                  <div>
+                    <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
+                    <Input
+                      id="imageUrl"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                      placeholder="https://logo.clearbit.com/apple.com"
+                    />
+                  </div>
+                  {isEditing && editingPosition ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
+                      <p className="font-semibold text-slate-700">{t.positions.currentHolding}</p>
+                      <p className="mt-2">
+                        {formatNumber(editingPosition.quantity, locale)} · {formatCurrency(editingPosition.entryPrice, 'USD', locale)} • {formatDate(editingPosition.entryDate, locale)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {t.positions.since} {formatDate(editingPosition.entryDate, locale)}
+                      </p>
                     </div>
-                    <div className="sm:col-span-1">
-                      <Label htmlFor="transactionQuantity">{t.positions.transactionQuantity}</Label>
-                      <Input
-                        id="transactionQuantity"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={transactionForm.quantity}
-                        onChange={(e) =>
-                          setTransactionForm({
-                            ...transactionForm,
-                            quantity: Number.parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        required
-                      />
-                      {transactionForm.type === 'SELL' && transactionTarget && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {t.positions.availableQuantity}: {formatNumber(transactionTarget.quantity, locale)}
-                        </p>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <Label>{t.positions.planModeLabel}</Label>
+                        <RadioGroup
+                          value={newPositionMode}
+                          onValueChange={(value) => setNewPositionMode(value as NewPositionMode)}
+                          className="mt-2 grid gap-2 sm:grid-cols-2"
+                        >
+                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                            <RadioGroupItem value="immediate" id="position-mode-immediate" className="order-[-1]" />
+                            <span className="font-semibold text-slate-700">{t.positions.planModeImmediate}</span>
+                            <span className="text-xs text-slate-500">{t.positions.planModeImmediateDescription}</span>
+                          </label>
+                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                            <RadioGroupItem value="plan" id="position-mode-plan" className="order-[-1]" />
+                            <span className="font-semibold text-slate-700">{t.positions.planModePlan}</span>
+                            <span className="text-xs text-slate-500">{t.positions.planModePlanDescription}</span>
+                          </label>
+                        </RadioGroup>
+                      </div>
+                      {newPositionMode === 'immediate' ? (
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                            <Input
+                              id="initialPrice"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={Number.isFinite(formData.initialPrice) ? formData.initialPrice : 0}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  initialPrice: Number.parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="initialQuantity">{t.positions.initialQuantity}</Label>
+                            <Input
+                              id="initialQuantity"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={Number.isFinite(formData.initialQuantity) ? formData.initialQuantity : 0}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  initialQuantity: Number.parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                            <Input
+                              id="initialDate"
+                              type="date"
+                              value={formData.initialDate}
+                              onChange={(e) => setFormData({ ...formData, initialDate: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="targetPrice">{t.positions.planTargetPrice}</Label>
+                            <Input
+                              id="targetPrice"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={Number.isFinite(formData.targetPrice) ? formData.targetPrice : 0}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  targetPrice: Number.parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="targetQuantity">{t.positions.planTargetQuantity}</Label>
+                            <Input
+                              id="targetQuantity"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={Number.isFinite(formData.targetQuantity) ? formData.targetQuantity : 0}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  targetQuantity: Number.parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <Label htmlFor="targetDate">{t.positions.planTargetDate}</Label>
+                            <Input
+                              id="targetDate"
+                              type="date"
+                              value={formData.targetDate}
+                              onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="sm:col-span-1">
-                      <Label htmlFor="transactionDate">{t.positions.transactionDate}</Label>
-                      <Input
-                        id="transactionDate"
-                        type="date"
-                        value={transactionForm.executedAt}
-                        onChange={(e) => setTransactionForm({ ...transactionForm, executedAt: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
+                  )}
                   <div className="flex gap-2">
-                    <Button type="submit">{t.positions.saveTransaction}</Button>
-                    <Button type="button" variant="outline" onClick={() => setTransactionDialogOpen(false)}>
+                    <Button type="submit">{t.positions.save}</Button>
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       {t.positions.cancel}
                     </Button>
                   </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={planDialogOpen} onOpenChange={handlePlanDialogOpenChange}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditingPlan
-                    ? t.positions.planEdit
-                    : planContextPosition
-                      ? t.positions.planAddFor(planContextPosition.display)
-                      : t.positions.planAddDialog}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handlePlanSubmit} className="space-y-4">
-                {planContextPosition && (
-                  <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600">
-                    <p className="font-semibold text-slate-700">{planContextPosition.display}</p>
-                    <p className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                      <Badge variant="secondary" className="bg-slate-200 text-slate-700">
-                        {planContextPosition.symbol}
-                      </Badge>
-                      {t.positions.planLinkedHelper}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <Label>{t.positions.planSideLabel}</Label>
-                  <RadioGroup
-                    value={planForm.side}
-                    onValueChange={(value) => setPlanForm({ ...planForm, side: value as PlanFormData['side'] })}
-                    className="mt-2 flex flex-col gap-2 sm:flex-row"
-                  >
-                    <label className="flex flex-1 items-start gap-2 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                      <RadioGroupItem value="buy" id="plan-side-buy" className="mt-1" />
-                      <div>
-                        <p className="font-semibold text-slate-700">{t.positions.planSideBuy}</p>
-                        <p className="text-xs text-slate-500">{t.positions.planSideBuyShort}</p>
-                      </div>
-                    </label>
-                    <label
-                      className={`flex flex-1 items-start gap-2 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm ${
-                        canSelectSell ? 'text-slate-600' : 'text-slate-400'
-                      }`}
-                    >
-                      <RadioGroupItem value="sell" id="plan-side-sell" className="mt-1" disabled={!canSelectSell} />
-                      <div>
-                        <p className="font-semibold text-slate-700">{t.positions.planSideSell}</p>
-                        <p className="text-xs text-slate-500">{t.positions.planSideSellShort}</p>
-                      </div>
-                    </label>
-                  </RadioGroup>
-                  {!canSelectSell && (
-                    <p className="mt-1 text-xs text-slate-500">{t.positions.planSellDetachedHelper}</p>
-                  )}
-                </div>
-                <div>
-                    <Label htmlFor="plan-symbol">{t.positions.symbol}</Label>
-                    <Input
-                      id="plan-symbol"
-                      value={planForm.symbol}
-                      onChange={(e) => setPlanForm({ ...planForm, symbol: e.target.value.toUpperCase() })}
-                      placeholder="AAPL"
-                      required
-                      disabled={Boolean(planContextPosition)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="plan-display">{t.positions.display}</Label>
-                    <Input
-                      id="plan-display"
-                      value={planForm.display}
-                      onChange={(e) => setPlanForm({ ...planForm, display: e.target.value })}
-                      placeholder="Apple Inc."
-                      required={!planContextPosition}
-                      disabled={Boolean(planContextPosition)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="plan-image">{t.positions.imageUrl}</Label>
-                    <Input
-                      id="plan-image"
-                      value={planForm.imageUrl}
-                      onChange={(e) => setPlanForm({ ...planForm, imageUrl: e.target.value })}
-                      placeholder="https://logo.clearbit.com/apple.com"
-                      disabled={Boolean(planContextPosition)}
-                    />
-                  </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="plan-target-price">{t.positions.planTargetPrice}</Label>
-                    <Input
-                      id="plan-target-price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={Number.isFinite(planForm.targetPrice) ? planForm.targetPrice : 0}
-                      onChange={(e) =>
-                        setPlanForm({
-                          ...planForm,
-                          targetPrice: Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="plan-target-quantity">{t.positions.planTargetQuantity}</Label>
-                    <Input
-                      id="plan-target-quantity"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={Number.isFinite(planForm.targetQuantity) ? planForm.targetQuantity : 0}
-                      onChange={(e) =>
-                        setPlanForm({
-                          ...planForm,
-                          targetQuantity: Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="plan-target-date">{t.positions.planTargetDate}</Label>
-                    <Input
-                      id="plan-target-date"
-                      type="date"
-                      value={planForm.targetDate}
-                      onChange={(e) => setPlanForm({ ...planForm, targetDate: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit">{t.positions.save}</Button>
-                  <Button type="button" variant="outline" onClick={() => handlePlanDialogOpenChange(false)}>
-                    {t.positions.cancel}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog
-            open={historyDialogOpen}
-            onOpenChange={(open) => {
-              setHistoryDialogOpen(open);
-              if (!open) {
-                setHistoryTargetId(null);
-              }
-            }}
-          >
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{t.positions.manageHistory}</DialogTitle>
-                {historyTarget && (
-                  <p className="text-sm text-slate-500">
-                    {historyTarget.display} · {historyTarget.symbol}
-                  </p>
-                )}
-              </DialogHeader>
-              {historyTarget ? (
-                historyTarget.lots && historyTarget.lots.length > 0 ? (
-                  <div className="space-y-3">
-                      {[...(historyTarget.lots ?? [])]
-                        .sort((a, b) => {
-                          const aTime = new Date(a.executedAt).getTime();
-                          const bTime = new Date(b.executedAt).getTime();
-                          return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
-                        })
-                        .map((lot) => {
-                          const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                          const badgeTone = lot.type === 'BUY'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-rose-100 text-rose-700';
-
-                          return (
-                            <div
-                              key={`${lot.id}-${lot.executedAt}`}
-                              className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-3"
-                            >
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
-                                {typeLabel}
-                              </span>
-                              <div className="flex flex-col text-sm text-slate-600">
-                                <span>
-                                  {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
-                                </span>
-                                <span className="text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
-                              </div>
-                              <div className="ml-auto flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => historyTarget && openEditTransactionDialog(historyTarget, lot)}
-                                  aria-label={t.positions.editTransaction}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteTransaction(lot)}
-                                  aria-label={t.positions.deleteTransaction}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500">{t.positions.noTransactions}</p>
-                )
-              ) : (
-                <p className="text-sm text-slate-500">{t.common.loading}</p>
-              )}
-              {historyTarget && (
-                <Button className="mt-4 w-full" onClick={() => openTransactionDialog(historyTarget)}>
-                  <Plus className="w-4 h-4" />
-                  {t.positions.addTransaction}
-                </Button>
-              )}
-            </DialogContent>
-          </Dialog>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-[#0F172A]">{t.positions.title}</h1>
+            <p className="max-w-2xl text-sm text-slate-600">{t.positions.subtitle}</p>
+          </div>
+          <section className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-sm backdrop-blur">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t.positions.overviewTitle}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">{t.positions.overviewDescription}</p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {overviewStats.map(({ key, label, value, icon: Icon }) => (
+                <Card key={key} className="border-none bg-white/90 shadow-inner">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+                      <p className="text-lg font-semibold text-slate-900">{value}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
         </header>
 
-        <div className="backdrop-blur-sm bg-white/85 rounded-2xl border border-white/50 shadow-xl p-6">
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
-          ) : positions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{t.dashboard.noPositions}</p>
-              <Button onClick={openAddDialog}>
-                <Plus className="w-4 h-4 mr-2" />
-                {t.positions.add}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {positions.map((position) => {
-                const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
-                  const aTime = new Date(a.executedAt).getTime();
-                  const bTime = new Date(b.executedAt).getTime();
-                  return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
-                });
-                const recentLots = sortedLots.slice(0, 6);
+        <Dialog
+          open={transactionDialogOpen}
+          onOpenChange={(open) => {
+            setTransactionDialogOpen(open);
+            if (!open) {
+              setTransactionTarget(null);
+              setTransactionForm(createDefaultTransactionForm());
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
+                {isEditingTransaction ? t.positions.editTransaction : t.positions.addTransaction}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+              <div>
+                <Label>{t.positions.transactionType}</Label>
+                <RadioGroup
+                  value={transactionForm.type}
+                  onValueChange={(value) =>
+                    setTransactionForm({ ...transactionForm, type: value as PositionLotType })
+                  }
+                  className="mt-2 flex gap-4"
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <RadioGroupItem value="BUY" id="transaction-buy" />
+                    {t.positions.buy}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <RadioGroupItem value="SELL" id="transaction-sell" />
+                    {t.positions.sell}
+                  </label>
+                </RadioGroup>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionPrice">{t.positions.transactionPrice}</Label>
+                  <Input
+                    id="transactionPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.price}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        price: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionQuantity">{t.positions.transactionQuantity}</Label>
+                  <Input
+                    id="transactionQuantity"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.quantity}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        quantity: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                  />
+                  {transactionForm.type === 'SELL' && transactionTarget && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t.positions.availableQuantity}: {formatNumber(transactionTarget.quantity, locale)}
+                    </p>
+                  )}
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionDate">{t.positions.transactionDate}</Label>
+                  <Input
+                    id="transactionDate"
+                    type="date"
+                    value={transactionForm.executedAt}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, executedAt: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit">{t.positions.saveTransaction}</Button>
+                <Button type="button" variant="outline" onClick={() => setTransactionDialogOpen(false)}>
+                  {t.positions.cancel}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-                return (
-                  <div
-                    key={position.id}
-                    className="rounded-lg border border-gray-200 bg-white/70 p-5"
+        <Dialog open={planDialogOpen} onOpenChange={handlePlanDialogOpenChange}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
+                {isEditingPlan
+                  ? t.positions.planEdit
+                  : planContextPosition
+                    ? t.positions.planAddFor(planContextPosition.display)
+                    : t.positions.planAddDialog}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handlePlanSubmit} className="space-y-4">
+              {planContextPosition && (
+                <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600">
+                  <p className="font-semibold text-slate-700">{planContextPosition.display}</p>
+                  <p className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                    <Badge variant="secondary" className="bg-slate-200 text-slate-700">
+                      {planContextPosition.symbol}
+                    </Badge>
+                    {t.positions.planLinkedHelper}
+                  </p>
+                </div>
+              )}
+              <div>
+                <Label>{t.positions.planSideLabel}</Label>
+                <RadioGroup
+                  value={planForm.side}
+                  onValueChange={(value) => setPlanForm({ ...planForm, side: value as PlanFormData['side'] })}
+                  className="mt-2 grid gap-2 sm:grid-cols-2"
+                >
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <RadioGroupItem value="buy" id="plan-side-buy" className="order-[-1]" />
+                    <span className="font-semibold text-slate-700">{t.positions.planSideBuy}</span>
+                    <span className="text-xs text-slate-500">{t.positions.planSideBuyShort}</span>
+                  </label>
+                  <label
+                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm ${
+                      canSelectSell ? 'text-slate-600' : 'text-slate-400'
+                    }`}
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-gray-900">{position.display}</span>
-                            <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                              {position.symbol}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-sm text-gray-600">
-                            {formatNumber(position.quantity, locale)} · {formatCurrency(position.entryPrice, 'USD', locale)} • {formatDate(position.entryDate, locale)}
-                          </p>
-                        </div>
+                    <RadioGroupItem value="sell" id="plan-side-sell" className="order-[-1]" disabled={!canSelectSell} />
+                    <span className="font-semibold text-slate-700">{t.positions.planSideSell}</span>
+                    <span className="text-xs text-slate-500">{t.positions.planSideSellShort}</span>
+                  </label>
+                </RadioGroup>
+                {!canSelectSell && (
+                  <p className="mt-1 text-xs text-slate-500">{t.positions.planSellDetachedHelper}</p>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="plan-symbol">{t.positions.symbol}</Label>
+                  <Input
+                    id="plan-symbol"
+                    value={planForm.symbol}
+                    onChange={(e) => setPlanForm({ ...planForm, symbol: e.target.value.toUpperCase() })}
+                    placeholder="AAPL"
+                    required
+                    disabled={Boolean(planContextPosition)}
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="plan-display">{t.positions.display}</Label>
+                  <Input
+                    id="plan-display"
+                    value={planForm.display}
+                    onChange={(e) => setPlanForm({ ...planForm, display: e.target.value })}
+                    placeholder="Apple Inc."
+                    required={!planContextPosition}
+                    disabled={Boolean(planContextPosition)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="plan-image">{t.positions.imageUrl}</Label>
+                <Input
+                  id="plan-image"
+                  value={planForm.imageUrl}
+                  onChange={(e) => setPlanForm({ ...planForm, imageUrl: e.target.value })}
+                  placeholder="https://logo.clearbit.com/apple.com"
+                  disabled={Boolean(planContextPosition)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="plan-target-price">{t.positions.planTargetPrice}</Label>
+                  <Input
+                    id="plan-target-price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={Number.isFinite(planForm.targetPrice) ? planForm.targetPrice : 0}
+                    onChange={(e) =>
+                      setPlanForm({
+                        ...planForm,
+                        targetPrice: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="plan-target-quantity">{t.positions.planTargetQuantity}</Label>
+                  <Input
+                    id="plan-target-quantity"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={Number.isFinite(planForm.targetQuantity) ? planForm.targetQuantity : 0}
+                    onChange={(e) =>
+                      setPlanForm({
+                        ...planForm,
+                        targetQuantity: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="plan-target-date">{t.positions.planTargetDate}</Label>
+                  <Input
+                    id="plan-target-date"
+                    type="date"
+                    value={planForm.targetDate}
+                    onChange={(e) => setPlanForm({ ...planForm, targetDate: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit">{t.positions.save}</Button>
+                <Button type="button" variant="outline" onClick={() => handlePlanDialogOpenChange(false)}>
+                  {t.positions.cancel}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-                        <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              {t.positions.transactionsTitle}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-400">
-                                {sortedLots.length === recentLots.length
-                                  ? sortedLots.length
-                                  : `${recentLots.length}/${sortedLots.length}`}
-                              </span>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="h-auto px-0 text-[11px] text-slate-500 hover:text-slate-700"
-                                onClick={() => openHistoryDialog(position)}
-                              >
-                                <History className="mr-1 h-3 w-3" />
-                                {t.positions.manageHistory}
-                              </Button>
+        <Dialog
+          open={historyDialogOpen}
+          onOpenChange={(open) => {
+            setHistoryDialogOpen(open);
+            if (!open) {
+              setHistoryTargetId(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t.positions.manageHistory}</DialogTitle>
+              {historyTarget && (
+                <p className="text-sm text-slate-500">
+                  {historyTarget.display} · {historyTarget.symbol}
+                </p>
+              )}
+            </DialogHeader>
+            {historyTarget ? (
+              historyTarget.lots && historyTarget.lots.length > 0 ? (
+                <div className="space-y-3">
+                  {[...(historyTarget.lots ?? [])]
+                    .sort((a, b) => {
+                      const aTime = new Date(a.executedAt).getTime();
+                      const bTime = new Date(b.executedAt).getTime();
+                      return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
+                    })
+                    .map((lot) => {
+                      const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                      const badgeTone =
+                        lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+
+                      return (
+                        <div
+                          key={`${lot.id}-${lot.executedAt}`}
+                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-3"
+                        >
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                            {typeLabel}
+                          </span>
+                          <div className="flex flex-col text-sm text-slate-600">
+                            <span>
+                              {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
+                            </span>
+                            <span className="text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                          </div>
+                          <div className="ml-auto flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => historyTarget && openEditTransactionDialog(historyTarget, lot)}
+                              aria-label={t.positions.editTransaction}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteTransaction(lot)}
+                              aria-label={t.positions.deleteTransaction}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">{t.positions.noTransactions}</p>
+              )
+            ) : (
+              <p className="text-sm text-slate-500">{t.common.loading}</p>
+            )}
+            {historyTarget && (
+              <Button className="mt-4 w-full" onClick={() => openTransactionDialog(historyTarget)}>
+                <Plus className="h-4 w-4" />
+                {t.positions.addTransaction}
+              </Button>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
+          <div className="space-y-4">
+            {loading ? (
+              <Card className="border border-white/60 bg-white/80 shadow-sm backdrop-blur">
+                <CardContent className="py-16 text-center text-slate-500">
+                  {t.common.loading}
+                </CardContent>
+              </Card>
+            ) : positions.length === 0 ? (
+              <Card className="border border-dashed border-slate-300 bg-white/60 text-center shadow-none backdrop-blur">
+                <CardContent className="flex flex-col items-center gap-4 py-12">
+                  <p className="text-base font-semibold text-slate-700">{t.dashboard.noPositions}</p>
+                  <p className="max-w-sm text-sm text-slate-500">{t.positions.emptyStateDescription}</p>
+                  <Button onClick={openAddDialog} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    {t.positions.add}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {positions.map((position) => {
+                  const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
+                    const aTime = new Date(a.executedAt).getTime();
+                    const bTime = new Date(b.executedAt).getTime();
+                    return Number.isNaN(bTime) || Number.isNaN(aTime) ? 0 : bTime - aTime;
+                  });
+                  const recentLots = sortedLots.slice(0, 3);
+                  const positionActivePlans = (position.plans ?? []).filter(
+                    (plan) => plan.status !== 'expired' && plan.status !== 'cancelled',
+                  );
+
+                  return (
+                    <Card
+                      key={position.id ?? position.symbol}
+                      className="border border-slate-200/80 bg-white/95 shadow-sm transition-all duration-200 hover:border-slate-300/80 hover:shadow-md"
+                    >
+                      <div className="flex flex-col gap-4 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <Avatar className="h-12 w-12 border border-slate-200/80 bg-white">
+                              {position.imageUrl ? (
+                                <AvatarImage
+                                  src={position.imageUrl}
+                                  alt={position.display}
+                                  className="object-contain p-1"
+                                  loading="lazy"
+                                />
+                              ) : null}
+                              <AvatarFallback className="bg-slate-100 text-sm font-medium text-slate-600">
+                                {position.symbol.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="truncate text-base font-semibold text-slate-900">
+                                  {position.display}
+                                </h3>
+                                <Badge
+                                  variant="outline"
+                                  className="border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-700"
+                                >
+                                  {position.symbol}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                                <span>
+                                  {t.positions.quantity}: {formatNumber(position.quantity, locale)}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span>
+                                  {t.positions.initialPrice}: {formatCurrency(position.entryPrice, 'USD', locale)}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span>
+                                  {t.positions.initialDate}: {formatDate(position.entryDate, locale)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          {recentLots.length > 0 ? (
-                            <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                              {recentLots.map((lot) => {
-                                const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                                const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-                                return (
-                                  <li
-                                    key={`${lot.id}-${lot.executedAt}`}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
-                                      {typeLabel}
-                                    </span>
-                                    <span>
-                                      {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
-                                    </span>
-                                    <span className="ml-auto text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-slate-400">{t.positions.noTransactions}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openTransactionDialog(position)}
-                        >
-                          <ArrowRightLeft className="mr-2 h-4 w-4" />
-                          {t.positions.addTransaction}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openPlanDialogForPosition(position)}
-                        >
-                          <CalendarPlus className="mr-2 h-4 w-4" />
-                          {t.positions.addPlan}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openHistoryDialog(position)}
-                        >
-                          <History className="mr-2 h-4 w-4" />
-                          {t.positions.manageHistory}
-                        </Button>
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/stock/${position.symbol}`}>
-                            <Button variant="ghost" size="sm">
-                              <BarChart3 className="w-4 h-4" />
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-8 gap-1 px-3 text-xs font-medium"
+                              onClick={() => openTransactionDialog(position)}
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                              {t.positions.addTransaction}
                             </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(position)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(position.id!)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1 px-3 text-xs font-medium"
+                              onClick={() => openPlanDialogForPosition(position)}
+                              disabled={!position.id}
+                            >
+                              <CalendarPlus className="h-3.5 w-3.5" />
+                              {t.positions.addPlan}
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-900"
+                                  >
+                                    <Link href={`/stock/${position.symbol}`} aria-label={t.dashboard.viewDetails}>
+                                      <BarChart3 className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent sideOffset={4}>{t.dashboard.viewDetails}</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-900"
+                                    onClick={() => openEditDialog(position)}
+                                    aria-label={t.positions.edit}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent sideOffset={4}>{t.positions.edit}</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg text-rose-500 hover:text-rose-600"
+                                    onClick={() => position.id && handleDelete(position.id)}
+                                    aria-label={t.positions.delete}
+                                    disabled={!position.id}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent sideOffset={4}>{t.positions.delete}</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <section className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t.positions.transactionsTitle}
+                              </p>
+                              {sortedLots.length > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 gap-1 px-2 text-[11px] font-medium text-slate-500 hover:text-slate-900"
+                                  onClick={() => openHistoryDialog(position)}
+                                >
+                                  <History className="h-3.5 w-3.5" />
+                                  <span className="hidden md:inline">{t.positions.manageHistory}</span>
+                                  <span className="sr-only md:hidden">{t.positions.manageHistory}</span>
+                                </Button>
+                              )}
+                            </div>
+                            {recentLots.length > 0 ? (
+                              <ScrollArea className="max-h-40 pr-1">
+                                <ul className="flex flex-col gap-1.5">
+                                  {recentLots.map((lot) => {
+                                    const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                                    const badgeTone =
+                                      lot.type === 'BUY'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-rose-100 text-rose-700';
+
+                                    return (
+                                      <li
+                                        key={`${lot.id}-${lot.executedAt}`}
+                                        className="flex items-center gap-3 rounded-lg border border-slate-200/70 bg-slate-50/60 px-2.5 py-1.5"
+                                      >
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeTone}`}>
+                                          {typeLabel}
+                                        </span>
+                                        <div className="flex flex-col text-xs text-slate-700">
+                                          <span>
+                                            {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
+                                          </span>
+                                          <span className="text-[11px] text-slate-500">
+                                            {formatDate(lot.executedAt, locale)}
+                                          </span>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </ScrollArea>
+                            ) : (
+                              <p className="text-xs text-slate-500">{t.positions.noTransactions}</p>
+                            )}
+                          </section>
+                          <section className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t.positions.activePlansTitle}
+                              </p>
+                              {positionActivePlans.length > 0 && (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-slate-100 text-[11px] font-medium text-slate-700"
+                                >
+                                  {formatNumber(positionActivePlans.length, locale)}
+                                </Badge>
+                              )}
+                            </div>
+                            {positionActivePlans.length > 0 ? (
+                              <ScrollArea className="max-h-40 pr-1">
+                                <ul className="flex flex-col gap-1.5">
+                                  {positionActivePlans.map((plan) => {
+                                    const statusClass = planStatusClasses[plan.status];
+                                    const statusLabel = planStatusLabels[plan.status];
+                                    const sideClass =
+                                      plan.side === 'sell'
+                                        ? 'bg-rose-100 text-rose-700'
+                                        : 'bg-emerald-100 text-emerald-700';
+                                    const sideLabel =
+                                      plan.side === 'sell'
+                                        ? t.positions.planSideSellShort
+                                        : t.positions.planSideBuyShort;
+
+                                    return (
+                                      <li
+                                        key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
+                                        className="rounded-lg border border-slate-200/70 bg-slate-50/60 px-2.5 py-1.5 text-xs text-slate-700"
+                                      >
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <Badge className={`${sideClass} text-[10px]`}>{sideLabel}</Badge>
+                                          <Badge className={`${statusClass} text-[10px]`}>{statusLabel}</Badge>
+                                          <span className="font-medium">
+                                            {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)}
+                                          </span>
+                                          <span className="text-[11px] text-slate-500">
+                                            {formatDate(plan.targetDate, locale)}
+                                          </span>
+                                          {plan.status === 'pending' && (
+                                            <div className="ml-auto flex items-center gap-1">
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-900"
+                                                    onClick={() => openEditPlanDialog(plan, position)}
+                                                    aria-label={t.positions.edit}
+                                                  >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent sideOffset={4}>{t.positions.edit}</TooltipContent>
+                                              </Tooltip>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 rounded-md text-rose-500 hover:text-rose-600"
+                                                    onClick={() => handlePlanCancel(plan)}
+                                                    aria-label={t.positions.planCancel}
+                                                  >
+                                                    <Ban className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent sideOffset={4}>{t.positions.planCancel}</TooltipContent>
+                                              </Tooltip>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {plan.status === 'triggered' && plan.triggeredAt && (
+                                          <p className="mt-1 text-[11px] text-emerald-600">
+                                            {t.positions.planTriggeredDetail(
+                                              formatDate(plan.triggeredAt, locale),
+                                              formatCurrency(plan.executedPrice ?? plan.targetPrice, 'USD', locale),
+                                            )}
+                                          </p>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </ScrollArea>
+                            ) : (
+                              <p className="text-xs text-slate-500">{t.positions.noActivePlans}</p>
+                            )}
+                          </section>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {!loading && (
-            <div className="mt-10 space-y-10">
-              <section>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-800">{t.positions.activePlansTitle}</h2>
-                    <p className="text-sm text-slate-500">{t.positions.activePlansDescription}</p>
-                  </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+              <CardHeader>
+                <CardTitle>{t.dashboard.quickActions}</CardTitle>
+                <CardDescription>{t.positions.quickActionsDescription}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button className="w-full justify-start gap-2 shadow-sm" onClick={openAddDialog}>
+                  <Plus className="h-4 w-4" />
+                  {t.positions.add}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={openDetachedPlanDialog}
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  {t.positions.addPlan}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    void processPlans();
+                  }}
+                >
+                  <History className="h-4 w-4" />
+                  {t.positions.processPlans}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={triggerRefresh}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {t.common.refresh}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+              <CardHeader>
+                <CardTitle>{t.positions.activePlansTitle}</CardTitle>
+                <CardDescription>{t.positions.activePlansDescription}</CardDescription>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                  <span>
+                    {t.positions.planStatusPending}: {formatNumber(pendingPlansCount, locale)}
+                  </span>
+                  <span>
+                    {t.positions.planStatusTriggered}: {formatNumber(triggeredPlansCount, locale)}
+                  </span>
                 </div>
+              </CardHeader>
+              <CardContent>
                 {activePlans.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">{t.positions.noActivePlans}</p>
+                  <p className="text-sm text-slate-500">{t.positions.noActivePlans}</p>
                 ) : (
-                  <div className="mt-4 space-y-6">
-                    {activeLinkedPlans.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansLinked}</h3>
-                        <div className="mt-2 space-y-3">
-                          {activeLinkedPlans.map(({ plan, position }) => {
-                            if (!position) {
-                              return null;
-                            }
-                            const displayName = position.display;
-                            const statusClass = planStatusClasses[plan.status];
-                            const statusLabel = planStatusLabels[plan.status];
-                            const sideClass =
-                              plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                            const sideLabel =
-                              plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                            return (
-                              <div
-                                key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="space-y-2">
+                  <ScrollArea className="max-h-[360px] pr-2">
+                    <div className="space-y-4">
+                      {activeLinkedPlans.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {t.positions.activePlansLinked}
+                          </p>
+                          <div className="mt-2 space-y-3">
+                            {activeLinkedPlans.map(({ plan, position }) => {
+                              if (!position) {
+                                return null;
+                              }
+                              const statusClass = planStatusClasses[plan.status];
+                              const statusLabel = planStatusLabels[plan.status];
+                              const sideClass =
+                                plan.side === 'sell'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-emerald-100 text-emerald-700';
+                              const sideLabel =
+                                plan.side === 'sell'
+                                  ? t.positions.planSideSellShort
+                                  : t.positions.planSideBuyShort;
+                              return (
+                                <div
+                                  key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
+                                  className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                                >
+                                  <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-semibold text-slate-800">{displayName}</span>
+                                      <span className="text-sm font-semibold text-slate-800">{position.display}</span>
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {position.symbol}
                                       </Badge>
@@ -1346,55 +1649,61 @@ export default function PositionsPage() {
                                         )}
                                       </p>
                                     )}
+                                    {plan.status === 'pending' && (
+                                      <div className="flex flex-wrap gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 gap-1 px-2"
+                                          onClick={() => openEditPlanDialog(plan, position)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                          {t.positions.edit}
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 gap-1 px-2"
+                                          onClick={() => handlePlanCancel(plan)}
+                                        >
+                                          <Ban className="h-4 w-4" />
+                                          {t.positions.planCancel}
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
-                                  {plan.status === 'pending' && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditPlanDialog(plan, position)}
-                                      >
-                                        <Pencil className="mr-1 h-4 w-4" />
-                                        {t.positions.edit}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handlePlanCancel(plan)}
-                                      >
-                                        <Ban className="mr-1 h-4 w-4" />
-                                        {t.positions.planCancel}
-                                      </Button>
-                                    </div>
-                                  )}
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {activeDetachedPlans.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-600">{t.positions.activePlansDetached}</h3>
-                        <div className="mt-2 space-y-3">
-                          {activeDetachedPlans.map(({ plan }) => {
-                            const displayName = plan.display || plan.symbol;
-                            const statusClass = planStatusClasses[plan.status];
-                            const statusLabel = planStatusLabels[plan.status];
-                            const sideClass =
-                              plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                            const sideLabel =
-                              plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                            return (
-                              <div
-                                key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
-                                className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="space-y-2">
+                      )}
+                      {activeDetachedPlans.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {t.positions.activePlansDetached}
+                          </p>
+                          <div className="mt-2 space-y-3">
+                            {activeDetachedPlans.map(({ plan }) => {
+                              const displayName = plan.display ?? plan.symbol;
+                              const statusClass = planStatusClasses[plan.status];
+                              const statusLabel = planStatusLabels[plan.status];
+                              const sideClass =
+                                plan.side === 'sell'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-emerald-100 text-emerald-700';
+                              const sideLabel =
+                                plan.side === 'sell'
+                                  ? t.positions.planSideSellShort
+                                  : t.positions.planSideBuyShort;
+                              return (
+                                <div
+                                  key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
+                                  className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                                >
+                                  <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-semibold text-slate-800">{displayName}</span>
+                                      <span className="text-sm font-semibold text-slate-800">{displayName}</span>
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {plan.symbol}
                                       </Badge>
@@ -1405,66 +1714,73 @@ export default function PositionsPage() {
                                       {formatNumber(plan.targetQuantity, locale)} · {formatCurrency(plan.targetPrice, 'USD', locale)} • {formatDate(plan.targetDate, locale)}
                                     </p>
                                     <p className="text-xs text-slate-500">{t.positions.planForNewPosition}</p>
+                                    {plan.status === 'pending' && (
+                                      <div className="flex flex-wrap gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 gap-1 px-2"
+                                          onClick={() => openEditPlanDialog(plan)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                          {t.positions.edit}
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 gap-1 px-2"
+                                          onClick={() => handlePlanCancel(plan)}
+                                        >
+                                          <Ban className="h-4 w-4" />
+                                          {t.positions.planCancel}
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
-                                  {plan.status === 'pending' && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditPlanDialog(plan)}
-                                      >
-                                        <Pencil className="mr-1 h-4 w-4" />
-                                        {t.positions.edit}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handlePlanCancel(plan)}
-                                      >
-                                        <Ban className="mr-1 h-4 w-4" />
-                                        {t.positions.planCancel}
-                                      </Button>
-                                    </div>
-                                  )}
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 )}
-              </section>
-              <section>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-800">{t.positions.closedPlansTitle}</h2>
-                    <p className="text-sm text-slate-500">{t.positions.closedPlansDescription}</p>
-                  </div>
-                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+              <CardHeader>
+                <CardTitle>{t.positions.closedPlansTitle}</CardTitle>
+                <CardDescription>{t.positions.closedPlansDescription}</CardDescription>
+              </CardHeader>
+              <CardContent>
                 {closedPlans.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">{t.positions.noClosedPlans}</p>
+                  <p className="text-sm text-slate-500">{t.positions.noClosedPlans}</p>
                 ) : (
-                  <div className="mt-4 space-y-3">
-                    {closedPlans.map(({ plan, position }) => {
-                      const displayName = position?.display ?? plan.display ?? plan.symbol;
-                      const symbol = position?.symbol ?? plan.symbol;
-                      const statusClass = planStatusClasses[plan.status];
-                      const statusLabel = planStatusLabels[plan.status];
-                      const sideClass =
-                        plan.side === 'sell' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-                      const sideLabel =
-                        plan.side === 'sell' ? t.positions.planSideSellShort : t.positions.planSideBuyShort;
-                      return (
-                        <div
-                          key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
-                          className="rounded-lg border border-slate-200 bg-white/70 p-4"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="space-y-2">
+                  <ScrollArea className="max-h-[360px] pr-2">
+                    <div className="space-y-3">
+                      {closedPlans.map(({ plan, position }) => {
+                        const displayName = position?.display ?? plan.display ?? plan.symbol;
+                        const symbol = position?.symbol ?? plan.symbol;
+                        const statusClass = planStatusClasses[plan.status];
+                        const statusLabel = planStatusLabels[plan.status];
+                        const sideClass =
+                          plan.side === 'sell'
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-emerald-100 text-emerald-700';
+                        const sideLabel =
+                          plan.side === 'sell'
+                            ? t.positions.planSideSellShort
+                            : t.positions.planSideBuyShort;
+                        return (
+                          <div
+                            key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
+                            className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                          >
+                            <div className="flex flex-col gap-2">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-semibold text-slate-800">{displayName}</span>
+                                <span className="text-sm font-semibold text-slate-800">{displayName}</span>
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                   {symbol}
                                 </Badge>
@@ -1484,28 +1800,30 @@ export default function PositionsPage() {
                                   {t.positions.planCancelledDetail(formatDate(plan.expiredAt, locale))}
                                 </p>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handlePlanDelete(plan)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4 text-red-500" />
-                                {t.positions.planDelete}
-                              </Button>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 gap-1 px-2"
+                                  onClick={() => handlePlanDelete(plan)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                  {t.positions.planDelete}
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
                 )}
-              </section>
+              </CardContent>
+            </Card>
             </div>
-          )}
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
