@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import type { DefaultLegendContentProps, TooltipProps as RechartsTooltipProps } from 'recharts';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody, CardHeader } from '@heroui/react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
@@ -252,12 +252,12 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
       <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-900">
             {t.dashboard.performanceTrendTitle}
-          </CardTitle>
+          </h3>
           <p className="text-sm text-slate-500">{t.dashboard.performanceTrendDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80">
           {!hasPerformanceData ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
@@ -322,17 +322,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </AreaChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
       <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-900">
             {t.dashboard.topMoversTitle}
-          </CardTitle>
+          </h3>
           <p className="text-sm text-slate-500">{t.dashboard.topMoversDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardBody className="space-y-6">
           {!hasMovers ? (
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/60 py-12 text-center text-sm text-slate-500">
               <ArrowUpRight className="h-5 w-5 text-slate-400" />
@@ -413,17 +413,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </div>
             </div>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
       <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-900">
             {t.dashboard.allocationChart}
-          </CardTitle>
+          </h3>
           <p className="text-sm text-slate-500">{t.dashboard.allocationDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80">
           {allocationData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
@@ -474,17 +474,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </PieChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
       <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-900">
             {t.dashboard.pnlChart}
-          </CardTitle>
+          </h3>
           <p className="text-sm text-slate-500">{t.dashboard.pnlDescription}</p>
         </CardHeader>
-        <CardContent className="h-80">
+        <CardBody className="h-80">
           {pnlData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
@@ -535,17 +535,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
       <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
         <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-900">
             {t.dashboard.holdingPeriodTitle}
-          </CardTitle>
+          </h3>
           <p className="text-sm text-slate-500">{t.dashboard.holdingPeriodDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardBody className="space-y-6">
           {!hasHoldingData ? (
             <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
               {t.dashboard.emptyChart}
@@ -607,7 +607,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               </div>
             </>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
     </div>
   );

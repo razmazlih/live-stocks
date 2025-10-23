@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Card, CardBody, Spinner } from '@heroui/react';
+
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -13,7 +15,7 @@ import {
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
@@ -58,21 +60,21 @@ export default function HomePage() {
   const getTrendTone = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-success-600',
+        chipColor: 'success' as const,
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-danger-600',
+        chipColor: 'danger' as const,
       };
     }
 
     return {
       text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      chipColor: 'default' as const,
     };
   };
 
@@ -115,7 +117,8 @@ export default function HomePage() {
   const dailyChangeData = hasDailyChange
     ? {
         value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
-        toneClass: dailyChangeTone.badge,
+        color: dailyChangeTone.chipColor,
+        variant: 'flat' as const,
         icon: dailyChangeIcon,
         label: t.dashboard.dailyChange,
       }
@@ -153,7 +156,8 @@ export default function HomePage() {
           ],
           badge: {
             value: formatSignedPercent(totalReturnPercent),
-            className: getTrendTone(totalReturnUsd).badge,
+            color: getTrendTone(totalReturnUsd).chipColor,
+            variant: 'flat',
             icon: getTrendIcon(totalReturnUsd),
           },
           footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
@@ -210,13 +214,18 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+            <Card
+              radius="2xl"
+              shadow="lg"
+              className="relative overflow-hidden border-none bg-white/80 px-4 py-8 backdrop-blur-xl sm:px-8"
+            >
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
-              <div className="relative z-10">
+              <div className="pointer-events-none absolute right-0 bottom-0 h-48 w-48 rounded-full bg-sky-100/60 blur-3xl" />
+              <CardBody className="relative z-10 space-y-10">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
-                    <p>{t.common.loading}</p>
+                    <Spinner color="primary" size="lg" />
+                    <p className="text-sm">{t.common.loading}</p>
                   </div>
                 ) : !hasAnyPositions ? (
                   <DashboardEmptyState
@@ -233,7 +242,8 @@ export default function HomePage() {
                           <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
                           {dailyChangeData && (
                             <DailyChangeBadge
-                              toneClass={dailyChangeData.toneClass}
+                              color={dailyChangeData.color}
+                              variant={dailyChangeData.variant}
                               icon={dailyChangeData.icon}
                               value={dailyChangeData.value}
                               label={dailyChangeData.label}
@@ -266,8 +276,8 @@ export default function HomePage() {
                     )}
                   </div>
                 )}
-              </div>
-            </section>
+              </CardBody>
+            </Card>
           </main>
         </div>
       </div>

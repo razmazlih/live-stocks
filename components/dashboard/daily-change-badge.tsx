@@ -1,27 +1,32 @@
 import { ReactNode } from 'react';
+import { Chip } from '@heroui/react';
 
 import { cn } from '@/lib/utils';
 
+type ChipColor = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+type ChipVariant = 'solid' | 'bordered' | 'light' | 'flat' | 'faded' | 'shadow' | 'dot';
+
 interface DailyChangeBadgeProps {
-  toneClass: string;
+  color: ChipColor;
+  variant?: ChipVariant;
   icon: ReactNode;
   value: string;
   label: string;
   className?: string;
 }
 
-export function DailyChangeBadge({ toneClass, icon, value, label, className }: DailyChangeBadgeProps) {
+export function DailyChangeBadge({ color, variant = 'flat', icon, value, label, className }: DailyChangeBadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm',
-        toneClass,
-        className
-      )}
+    <Chip
+      as="span"
+      radius="full"
+      color={color}
+      variant={variant}
+      startContent={icon}
+      className={cn('gap-2 px-3 py-2 text-xs font-semibold sm:text-sm', className)}
     >
-      {icon}
-      {value}
-      <span className="text-xs font-medium text-slate-600/80">{label}</span>
-    </span>
+      <span>{value}</span>
+      <span className="text-xs font-medium opacity-80">{label}</span>
+    </Chip>
   );
 }

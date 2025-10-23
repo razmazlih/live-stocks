@@ -7,8 +7,7 @@ import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/c
 import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, Card, CardBody, Chip } from '@heroui/react';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
@@ -231,21 +230,21 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const getTrendStyles = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-success-600',
+        color: 'success' as const,
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-danger-600',
+        color: 'danger' as const,
       };
     }
 
     return {
       text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      color: 'default' as const,
     };
   };
 
@@ -319,9 +318,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   }, []);
 
   return (
-    <div
+    <Card
+      radius="2xl"
+      shadow="sm"
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
         isHovered
           ? '-translate-y-1 border-blue-200/80 shadow-2xl'
           : 'translate-y-0 border-slate-200/70 shadow-lg'
@@ -342,29 +343,43 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         )}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
+      <CardBody className="relative z-10 flex flex-1 flex-col gap-6 p-6">
         {isClosed ? (
           <>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
                 <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    src={position.imageUrl ?? undefined}
+                    name={position.display}
+                    radius="lg"
+                    showFallback
+                    className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 text-blue-600"
+                    fallback={<span className="text-base font-semibold">{position.symbol.slice(0, 2)}</span>}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Chip
+                      size="sm"
+                      radius="full"
+                      variant="bordered"
+                      color="primary"
+                      className="border-blue-200 bg-blue-50/80 text-blue-700"
+                    >
                       {position.symbol}
-                    </Badge>
-                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    </Chip>
+                    <Chip
+                      size="sm"
+                      radius="full"
+                      variant="flat"
+                      color="success"
+                      className="bg-emerald-100/80 text-emerald-700"
+                    >
                       {t.dashboard.closedBadge}
-                    </Badge>
+                    </Chip>
                   </div>
                   {closedSummary?.lastSaleDate && (
                     <p className="text-sm text-slate-500">
@@ -436,29 +451,43 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex gap-4 items-start justify-between">
               <div className="flex items-start gap-4">
                 <div className="relative">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    src={position.imageUrl ?? undefined}
+                    name={position.display}
+                    radius="lg"
+                    showFallback
+                    className="h-14 w-14 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 text-blue-600"
+                    fallback={<span className="text-base font-semibold">{position.symbol.slice(0, 2)}</span>}
+                  />
 
                   {changeFromEntryPercent !== null && (
-                    <Badge
-                      variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                    <Chip
+                      size="sm"
+                      radius="full"
+                      variant="flat"
+                      color={changeFromEntryStyles?.color ?? 'default'}
+                      className={cn(
+                        'absolute -bottom-2 left-1/2 -translate-x-1/2 border-0 px-2 py-0.5 text-[10px] font-semibold shadow-sm backdrop-blur',
+                        changeFromEntryStyles?.text ?? 'text-slate-600'
+                      )}
                     >
                       {percentText(changeFromEntryPercent)}
-                    </Badge>
+                    </Chip>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Chip
+                      size="sm"
+                      radius="full"
+                      variant="bordered"
+                      color="primary"
+                      className="border-blue-200 bg-blue-50/80 text-blue-700"
+                    >
                       {position.symbol}
-                    </Badge>
+                    </Chip>
                   </div>
                   <p className="text-sm text-slate-500">
                     {t.dashboard.since} {formatDate(position.entryDate, locale)}
@@ -467,17 +496,20 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               </div>
 
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
-                <Badge
-                  variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                <Chip
+                  size="md"
+                  radius="full"
+                  variant="flat"
+                  color={dailyChangeStyles.color}
+                  className="flex items-center gap-2 bg-white/70 px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur"
+                  startContent={dailyChangeIcon}
                 >
-                  {dailyChangeIcon}
                   <span>{t.dashboard.dailyChange}</span>
                   <div className="flex flex-col items-start gap-1 font-semibold">
                     <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
                     <span>{percentText(dailyChangePercent)}</span>
                   </div>
-                </Badge>
+                </Chip>
               )}
             </div>
 
@@ -571,7 +603,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }

@@ -1,8 +1,10 @@
 import { ReactNode } from 'react';
+import { Card, CardBody, CardFooter, CardHeader, Chip } from '@heroui/react';
 
 export interface SummaryCardBadge {
   value: string;
-  className: string;
+  color: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+  variant?: 'solid' | 'bordered' | 'light' | 'flat' | 'faded' | 'shadow' | 'dot';
   icon: ReactNode;
 }
 
@@ -42,21 +44,29 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
         const valueClass = card.valueClass ?? 'text-3xl font-semibold text-slate-900';
 
         return (
-          <div
+          <Card
             key={card.key}
-            className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+            radius="2xl"
+            shadow="sm"
+            className="relative overflow-hidden border-none bg-white/90 backdrop-blur-xl"
           >
-            <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
-            <div className="relative z-10 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500">{card.label}</p>
-                {card.badge && (
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.className}`}>
-                    {card.badge.icon}
-                    {card.badge.value}
-                  </span>
-                )}
-              </div>
+            <div className="pointer-events-none absolute -right-10 top-0 h-24 w-24 rounded-full bg-blue-100/40 blur-3xl" />
+            <CardHeader className="relative z-10 flex items-center justify-between gap-2 pb-1">
+              <p className="text-sm font-semibold text-slate-600">{card.label}</p>
+              {card.badge && (
+                <Chip
+                  size="sm"
+                  radius="full"
+                  variant={card.badge.variant ?? 'flat'}
+                  color={card.badge.color}
+                  startContent={card.badge.icon}
+                  className="font-semibold"
+                >
+                  {card.badge.value}
+                </Chip>
+              )}
+            </CardHeader>
+            <CardBody className="relative z-10 space-y-3 pt-0">
               <p className={valueClass}>{card.value}</p>
               {card.secondary && (
                 <p className="text-sm text-slate-500">
@@ -70,9 +80,13 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
                   <span className="font-medium text-slate-700">{helper.value}</span>
                 </p>
               ))}
-              {card.footnote && <p className="text-xs font-medium text-slate-500">{card.footnote}</p>}
-            </div>
-          </div>
+            </CardBody>
+            {card.footnote && (
+              <CardFooter className="relative z-10 pt-0 text-xs font-medium text-slate-500">
+                {card.footnote}
+              </CardFooter>
+            )}
+          </Card>
         );
       })}
     </div>
