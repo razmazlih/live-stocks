@@ -1,5 +1,5 @@
 import { mapPositionPlanRow } from '@/lib/positions';
-import { fetchFinnhubQuote } from '@/lib/services/finnhub';
+import { fetchFinnhubQuote, FinnhubQuoteResult } from '@/lib/services/finnhub';
 import { supabase } from '@/lib/supabase';
 import { PositionPlan } from '@/types';
 
@@ -12,6 +12,8 @@ export interface ProcessPlansResult {
   expired: PositionPlan[];
   errors: string[];
 }
+
+const MAX_QUOTE_STALENESS_MS = 12 * 60 * 60 * 1000;
 
 function getTodayIsoDate(): string {
   return new Date().toISOString().split('T')[0];
@@ -68,7 +70,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
   }
 
   const uniqueSymbols = Array.from(new Set(triggerCandidates.map((plan) => plan.symbol)));
-  const quotes = new Map<string, number>();
+  const quotes = new Map<string, FinnhubQuoteResult>();
 
   if (options.token) {
     const quoteResults = await Promise.all(
@@ -80,15 +82,40 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
 
     for (const { symbol, quote } of quoteResults) {
       if (quote && Number.isFinite(quote.price)) {
-        quotes.set(symbol, quote.price);
+        quotes.set(symbol, quote);
       }
     }
   }
 
   for (const plan of triggerCandidates) {
     try {
-      const quotePrice = quotes.get(plan.symbol);
-      if (quotePrice === undefined) {
+      const quote = quotes.get(plan.symbol);
+      if (!quote) {
+        continue;
+      }
+
+      const { price: quotePrice, timestamp } = quote;
+
+      if (!Number.isFinite(quotePrice)) {
+        continue;
+      }
+
+      if (!timestamp) {
+        continue;
+      }
+
+      const quoteDate = new Date(timestamp * 1000);
+      if (Number.isNaN(quoteDate.getTime())) {
+        continue;
+      }
+
+      const quoteDateIso = quoteDate.toISOString().split('T')[0];
+      if (quoteDateIso < todayIso) {
+        continue;
+      }
+
+      const quoteAgeMs = Date.now() - quoteDate.getTime();
+      if (Number.isFinite(quoteAgeMs) && quoteAgeMs > MAX_QUOTE_STALENESS_MS) {
         continue;
       }
 

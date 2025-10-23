@@ -132,7 +132,8 @@ describe('processPendingPlans', () => {
       insert: positionInsertMock,
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135 });
+    const freshQuoteTimestamp = Math.floor(new Date('2024-03-10T09:55:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135, timestamp: freshQuoteTimestamp });
 
     const result = await processPendingPlans({ token: 'token-1' });
 
@@ -213,7 +214,8 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590 });
+    const freshQuoteTimestamp = Math.floor(new Date('2024-05-05T08:55:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590, timestamp: freshQuoteTimestamp });
 
     const result = await processPendingPlans({ token: 'token-2' });
 
@@ -237,6 +239,60 @@ describe('processPendingPlans', () => {
       executed_price: 590,
     });
     expect(result.triggered[0]?.positionId).toBe('pos-new');
+  });
+
+  it('skips triggering plans when quote data is stale', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-09-01T10:00:00Z'));
+
+    const pendingRow = {
+      id: 'plan-stale',
+      position_id: 'pos-stale',
+      symbol: 'NFLX',
+      display: 'Netflix',
+      image_url: 'https://logo.clearbit.com/netflix.com',
+      side: 'buy',
+      target_price: '400',
+      target_quantity: '1',
+      target_date: '2024-09-01',
+      status: 'pending' as const,
+      triggered_at: null,
+      expired_at: null,
+      executed_price: null,
+      created_at: null,
+      updated_at: null,
+    };
+
+    const updates: any[] = [];
+    const lotInserts: any[] = [];
+
+    setTableHandler('position_plans', () => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
+      }),
+      update: vi.fn((payload: any) => ({
+        eq: vi.fn().mockImplementation(async () => {
+          updates.push(payload);
+          return { data: null, error: null };
+        }),
+      })),
+    }));
+
+    setTableHandler('position_lots', () => ({
+      insert: vi.fn(async (payload: any) => {
+        lotInserts.push(payload);
+        return { data: null, error: null };
+      }),
+    }));
+
+    const staleTimestamp = Math.floor(new Date('2024-08-31T15:00:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 395, timestamp: staleTimestamp });
+
+    const result = await processPendingPlans({ token: 'token-stale' });
+
+    expect(result.triggered).toHaveLength(0);
+    expect(lotInserts).toHaveLength(0);
+    expect(updates).toHaveLength(0);
   });
 
   it('expires plans that pass their target date', async () => {
@@ -275,7 +331,7 @@ describe('processPendingPlans', () => {
       })),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 180 });
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 180, timestamp: Math.floor(new Date('2024-06-30T20:00:00Z').getTime() / 1000) });
 
     const result = await processPendingPlans({ token: 'token-3' });
 
@@ -329,7 +385,7 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155 });
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155, timestamp: Math.floor(new Date('2024-08-15T11:55:00Z').getTime() / 1000) });
 
     const result = await processPendingPlans({ token: 'token-4' });
 
