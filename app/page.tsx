@@ -24,6 +24,17 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { PositionMetrics } from '@/types';
+
+function sortByForecastPerformance(metrics: PositionMetrics[]) {
+  return [...metrics].sort((a, b) => {
+    if (b.combined === a.combined) {
+      return a.position.symbol.localeCompare(b.position.symbol);
+    }
+
+    return b.combined - a.combined;
+  });
+}
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
@@ -114,11 +125,17 @@ export default function HomePage() {
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
   const openMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity > 0),
+    () =>
+      sortByForecastPerformance(
+        metrics.filter((metric) => metric.position.quantity > 0)
+      ),
     [metrics]
   );
   const closedMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity <= 0),
+    () =>
+      sortByForecastPerformance(
+        metrics.filter((metric) => metric.position.quantity <= 0)
+      ),
     [metrics]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
@@ -339,6 +356,8 @@ export default function HomePage() {
                             openMetrics={openMetrics}
                             closedMetrics={closedMetrics}
                             sparklineData={sparklineData}
+                            sortingLabel={t.dashboard.positionsSortedLabel}
+                            sortingDescription={t.dashboard.positionsSortedDescription}
                           />
                         ) : (
                           renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)

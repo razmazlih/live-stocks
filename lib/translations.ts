@@ -51,6 +51,9 @@ export const translations = {
       summaryTitle: 'תמונת מצב התיק',
       positionsTitle: 'פוזיציות פעילות',
       closedPositionsTitle: 'פוזיציות סגורות',
+      positionsSortedLabel: 'דירוג מול תחזית',
+      positionsSortedDescription:
+        'הפוזיציות מסודרות לפי הפער הטוב ביותר מול התחזית, מהגבוה לנמוך.',
       closedBadge: 'נסגרה',
       closedLastSale: 'מכירה אחרונה',
       closedQuantitySold: 'כמות שנמכרה',
@@ -579,6 +582,9 @@ export const translations = {
       summaryTitle: 'Portfolio snapshot',
       positionsTitle: 'Active positions',
       closedPositionsTitle: 'Closed positions',
+      positionsSortedLabel: 'Forecast ranking',
+      positionsSortedDescription:
+        'Positions are ordered by the strongest performance versus forecast, from best to lowest.',
       closedBadge: 'Closed',
       closedLastSale: 'Last sale',
       closedQuantitySold: 'Quantity sold',
