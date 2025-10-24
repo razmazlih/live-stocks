@@ -1075,7 +1075,7 @@ export default function WatchlistPage() {
                               })
                             }
                             priceLabel={t.watchlist.labels.price}
-                            changeLabel={t.watchlist.labels.changeSince(formattedStartDate)}
+                            changeLabel={t.watchlist.labels.changeSince}
                             noteLabel={t.watchlist.labels.note}
                             emptySeriesLabel={t.watchlist.charts.empty}
                             errorLabel={t.watchlist.charts.error}

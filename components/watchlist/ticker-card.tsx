@@ -235,7 +235,7 @@ export function TickerCard({
       parts.push(changePercent > 0 ? `+${formattedPercent}` : formattedPercent);
     }
 
-    return parts.length ? parts.join(' · ') : '--';
+    return parts.length ? parts.join('\n') : '--';
   }, [changeAbsolute, changePercent, currency, locale]);
 
   const changeTone = useMemo(
@@ -358,7 +358,7 @@ export function TickerCard({
           </div>
           <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
-            <p className={cn('mt-1 break-words text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
+            <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>

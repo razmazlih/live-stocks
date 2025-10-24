@@ -310,7 +310,7 @@ export const translations = {
       labels: {
         price: 'מחיר נוכחי',
         change: 'שינוי',
-        changeSince: (date: string) => `שינוי מאז ${date}`,
+        changeSince: `שינוי מאז`,
         basePrice: 'מחיר בתחילת התקופה',
         hover: 'מחיר ב-',
         startDate: 'מתאריך',
@@ -827,7 +827,7 @@ export const translations = {
       labels: {
         price: 'Current price',
         change: 'Change',
-        changeSince: (date: string) => `Change since ${date}`,
+        changeSince: `Change since`,
         basePrice: 'Starting price',
         hover: 'Price on',
         startDate: 'From',
