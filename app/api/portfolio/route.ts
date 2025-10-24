@@ -4,6 +4,7 @@ import { mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { supabase } from '@/lib/supabase';
+import { isUtcDateToday } from '@/lib/utils/date';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
 import { Position, PositionMetrics } from '@/types';
 
@@ -106,11 +107,18 @@ export async function POST(request: NextRequest) {
 
     const finnhubToken = settingsData?.finnhub_token || process.env.FINNHUB_TOKEN;
 
+    const today = new Date();
+
     const metrics = await Promise.all(
       positions.map(async (position) => {
         const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
         const currentPrice = quote?.price && quote.price > 0 ? quote.price : position.entryPrice;
-        const dailyChange = quote?.dailyChange;
+        const entryDate = new Date(position.entryDate);
+        const isOpenedToday = isUtcDateToday(entryDate, today);
+        const averageEntryPrice = isFiniteNumber(position.entryPrice) ? position.entryPrice : undefined;
+        const dailyChange = isOpenedToday && averageEntryPrice !== undefined
+          ? currentPrice - averageEntryPrice
+          : quote?.dailyChange;
 
         return calculatePositionMetrics(
           position,

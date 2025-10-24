@@ -11,6 +11,7 @@ import {
   mapCandleDataToPoints,
   calculateRealizedTaxLiability,
 } from '@/lib/calculations';
+import { isUtcDateToday } from '@/lib/utils/date';
 import {
   CandleData,
   HistoricalPoint,
@@ -327,6 +328,7 @@ export function usePortfolioData() {
         const rate = rateData.usdToIls || 3.7;
 
         const trimmedToken = settings.finnhubToken?.trim();
+        const today = new Date();
 
         const metricsPromises = mappedPositions.map(async (position) => {
           try {
@@ -350,7 +352,12 @@ export function usePortfolioData() {
             }
 
             const currentPrice = quoteData?.c ?? position.entryPrice;
-            const dailyChange = quoteData?.d;
+            const entryDate = new Date(position.entryDate);
+            const isOpenedToday = isUtcDateToday(entryDate, today);
+            const averageEntryPrice = Number.isFinite(position.entryPrice) ? position.entryPrice : undefined;
+            const dailyChange = isOpenedToday && averageEntryPrice !== undefined
+              ? currentPrice - averageEntryPrice
+              : quoteData?.d;
 
             return calculatePositionMetrics(
               position,
