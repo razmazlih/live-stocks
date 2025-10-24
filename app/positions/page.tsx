@@ -96,8 +96,13 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
   };
 }
 
+interface QuoteResponse {
+  c?: number;
+  error?: string;
+}
+
 export default function PositionsPage() {
-  const { locale, triggerRefresh, processPlans, refreshTrigger } = useApp();
+  const { locale, triggerRefresh, processPlans, refreshTrigger, settings } = useApp();
   const { t } = useTranslation(locale);
   const [positions, setPositions] = useState<Position[]>([]);
   const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
@@ -264,6 +269,67 @@ export default function PositionsPage() {
     loadPositions();
   }, [loadPositions, refreshTrigger]);
 
+  const fetchCurrentPrice = useCallback(
+    async (symbol: string) => {
+      const trimmedSymbol = symbol.trim().toUpperCase();
+
+      if (!trimmedSymbol) {
+        return null;
+      }
+
+      try {
+        const params = new URLSearchParams({ symbol: trimmedSymbol });
+        const token = settings.finnhubToken?.trim();
+
+        if (token) {
+          params.set('token', token);
+        }
+
+        const response = await fetch(`/api/quote?${params.toString()}`, { cache: 'no-store' });
+        const data = (await response.json()) as QuoteResponse;
+
+        if (!response.ok || data.error || typeof data.c !== 'number' || data.c <= 0) {
+          throw new Error(data.error ?? 'Quote unavailable');
+        }
+
+        return data.c;
+      } catch (error) {
+        console.error('Failed to fetch current price:', error);
+        toast.error(locale === 'he' ? 'נכשלה טעינת מחיר המניה' : 'Failed to load stock price');
+        return null;
+      }
+    },
+    [locale, settings.finnhubToken],
+  );
+
+  const prefillInitialPrice = useCallback(
+    async (symbol: string) => {
+      const currentPrice = await fetchCurrentPrice(symbol);
+
+      if (currentPrice !== null) {
+        setFormData(prev => ({
+          ...prev,
+          initialPrice: Number.parseFloat(currentPrice.toFixed(2)),
+        }));
+      }
+    },
+    [fetchCurrentPrice],
+  );
+
+  const prefillTransactionPrice = useCallback(
+    async (symbol: string) => {
+      const currentPrice = await fetchCurrentPrice(symbol);
+
+      if (currentPrice !== null) {
+        setTransactionForm(prev => ({
+          ...prev,
+          price: Number.parseFloat(currentPrice.toFixed(2)),
+        }));
+      }
+    },
+    [fetchCurrentPrice],
+  );
+
   function openAddDialog() {
     setEditingPosition(null);
     setNewPositionMode('immediate');
@@ -305,6 +371,7 @@ export default function PositionsPage() {
       type,
     });
     setTransactionDialogOpen(true);
+    void prefillTransactionPrice(position.symbol);
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
@@ -730,6 +797,11 @@ export default function PositionsPage() {
                         id="symbol"
                         value={formData.symbol}
                         onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
+                        onBlur={() => {
+                          if (!isEditing && newPositionMode === 'immediate') {
+                            void prefillInitialPrice(formData.symbol);
+                          }
+                        }}
                         placeholder="AAPL"
                         required
                       />
