@@ -5,6 +5,7 @@ import { PositionPlan } from '@/types';
 
 export interface ProcessPlansOptions {
   token?: string | null;
+  timeZone?: string;
 }
 
 export interface ProcessPlansResult {
@@ -13,15 +14,120 @@ export interface ProcessPlansResult {
   errors: string[];
 }
 
-function getTodayIsoDate(): string {
-  return new Date().toISOString().split('T')[0];
+function resolveTimeZone(timeZone?: string): string {
+  if (timeZone) {
+    return timeZone;
+  }
+
+  if (process.env.PLAN_PROCESS_TIMEZONE) {
+    return process.env.PLAN_PROCESS_TIMEZONE;
+  }
+
+  if (process.env.TZ) {
+    return process.env.TZ;
+  }
+
+  const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return resolved || 'UTC';
+}
+
+function getTodayIsoDate(timeZone?: string): string {
+  const tz = resolveTimeZone(timeZone);
+  return new Date().toLocaleDateString('en-CA', { timeZone: tz });
+}
+
+async function claimPendingPlan(plan: PositionPlan): Promise<{ claimed: boolean; updatedAt?: string }> {
+  if (!plan.id) {
+    return { claimed: false };
+  }
+
+  const claimTimestamp = new Date().toISOString();
+  let claimQuery = supabase
+    .from('position_plans')
+    .update({ updated_at: claimTimestamp })
+    .eq('id', plan.id)
+    .eq('status', 'pending');
+
+  if (plan.updatedAt) {
+    claimQuery = claimQuery.eq('updated_at', plan.updatedAt);
+  } else {
+    claimQuery = claimQuery.is('updated_at', null);
+  }
+
+  const { data, error } = await claimQuery.select('id, updated_at').limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.length) {
+    return { claimed: false };
+  }
+
+  const updatedAt = data[0]?.updated_at ?? claimTimestamp;
+  return { claimed: true, updatedAt };
+}
+
+async function releasePlanClaim(planId: string | undefined, previousUpdatedAt?: string): Promise<void> {
+  if (!planId) {
+    return;
+  }
+
+  try {
+    let q = supabase
+      .from('position_plans')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', planId)
+      .eq('status', 'pending');
+
+    if (previousUpdatedAt) {
+      q = q.eq('updated_at', previousUpdatedAt);
+    }
+
+    await q;
+  } catch (releaseError) {
+    console.error('Failed to release claim for plan', planId, releaseError);
+  }
+}
+
+async function ensureSufficientSellQuantity(positionId: string, requiredQuantity: number): Promise<void> {
+  const { data, error } = await supabase
+    .from('position_lots')
+    .select('side, quantity')
+    .eq('position_id', positionId);
+
+  if (error) {
+    throw error;
+  }
+
+  const availableQuantity = (data || []).reduce((acc, lot) => {
+    const rawQuantity = typeof lot.quantity === 'number' ? lot.quantity : Number.parseFloat(String(lot.quantity));
+    const quantity = Number.isFinite(rawQuantity) ? rawQuantity : 0;
+    if (lot.side === 'BUY') {
+      return acc + quantity;
+    }
+    if (lot.side === 'SELL') {
+      return acc - quantity;
+    }
+    return acc;
+  }, 0);
+
+  if (!Number.isFinite(availableQuantity)) {
+    throw new Error(`Failed to determine available quantity for position ${positionId}`);
+  }
+
+  if (availableQuantity + 1e-6 < requiredQuantity) {
+    throw new Error(
+      `Insufficient quantity to sell. Required ${requiredQuantity}, available ${Math.max(availableQuantity, 0)}`,
+    );
+  }
 }
 
 // Accept quotes up to 24 hours old so we can trigger plans even if the latest trade was on the previous UTC day.
 const MAX_QUOTE_AGE_MS = 24 * 60 * 60 * 1000;
 
 export async function processPendingPlans(options: ProcessPlansOptions): Promise<ProcessPlansResult> {
-  const todayIso = getTodayIsoDate();
+  const todayIso = getTodayIsoDate(options.timeZone);
   const now = Date.now();
   const triggered: PositionPlan[] = [];
   const expired: PositionPlan[] = [];
@@ -45,12 +151,22 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
   const triggerCandidates: PositionPlan[] = [];
 
   for (const plan of pendingPlans) {
+    let expireClaimedUpdatedAt: string | undefined;
     if (todayIso > plan.targetDate) {
       try {
+        const { claimed, updatedAt } = await claimPendingPlan(plan);
+        expireClaimedUpdatedAt = updatedAt;
+
+        if (!claimed) {
+          continue;
+        }
+
         const { error: updateError } = await supabase
           .from('position_plans')
-          .update({ status: 'expired', expired_at: todayIso })
-          .eq('id', plan.id);
+          .update({ status: 'expired', expired_at: todayIso, updated_at: new Date().toISOString() })
+          .eq('id', plan.id)
+          .eq('status', 'pending')
+          .eq('updated_at', updatedAt);
 
         if (updateError) {
           throw updateError;
@@ -60,6 +176,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
       } catch (error) {
         console.error('Failed to expire plan', plan.id, error);
         errors.push(plan.id ?? '');
+        await releasePlanClaim(plan.id, expireClaimedUpdatedAt);
       }
       continue;
     }
@@ -75,21 +192,37 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
   const quotes = new Map<string, FinnhubQuoteResult>();
 
   if (options.token) {
-    const quoteResults = await Promise.all(
+    const quoteResults = await Promise.allSettled(
       uniqueSymbols.map(async (symbol) => {
         const quote = await fetchFinnhubQuote(symbol, { token: options.token });
         return { symbol, quote };
       }),
     );
 
-    for (const { symbol, quote } of quoteResults) {
-      if (quote && Number.isFinite(quote.price)) {
-        quotes.set(symbol, quote);
+    quoteResults.forEach((result, index) => {
+      const symbol = uniqueSymbols[index];
+      if (result.status === 'fulfilled') {
+        const { quote } = result.value;
+        if (quote && Number.isFinite(quote.price)) {
+          quotes.set(symbol, quote);
+        }
+        return;
       }
-    }
+
+      console.error('Failed to fetch quote', symbol, result.reason);
+      errors.push(`quote:${symbol}`);
+    });
   }
 
   for (const plan of triggerCandidates) {
+    const requiredQuantity = plan.targetQuantity;
+    let positionId = plan.positionId ?? null;
+    let createdPositionId: string | null = null;
+    let createdLotId: string | null = null;
+    let planClaimed = false;
+    let claimedUpdatedAt: string | undefined;
+    let planUpdated = false;
+
     try {
       const quote = quotes.get(plan.symbol);
       if (!quote) {
@@ -122,14 +255,25 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
         continue;
       }
 
-      let positionId = plan.positionId ?? null;
-
       const shouldTrigger =
         (plan.side === 'buy' && quotePrice <= plan.targetPrice) ||
         (plan.side === 'sell' && quotePrice >= plan.targetPrice);
 
       if (!shouldTrigger) {
         continue;
+      }
+
+      const claimResult = await claimPendingPlan(plan);
+
+      if (!claimResult.claimed) {
+        continue;
+      }
+
+      planClaimed = true;
+      claimedUpdatedAt = claimResult.updatedAt;
+
+      if (!Number.isFinite(requiredQuantity) || requiredQuantity <= 0) {
+        throw new Error(`Plan ${plan.id} has invalid target quantity ${plan.targetQuantity}`);
       }
 
       if (!positionId) {
@@ -147,10 +291,10 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
             display: fallbackDisplay,
             image_url: fallbackImage,
             entry_price: quotePrice,
-            quantity: plan.targetQuantity,
+            quantity: requiredQuantity,
             entry_date: todayIso,
           })
-          .select()
+          .select('id')
           .single();
 
         if (positionError) {
@@ -158,20 +302,36 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
         }
 
         positionId = newPosition.id;
+        createdPositionId = positionId;
       }
 
-      const { error: lotError } = await supabase.from('position_lots').insert({
-        position_id: positionId,
-        side: plan.side === 'sell' ? 'SELL' : 'BUY',
-        price: quotePrice,
-        quantity: plan.targetQuantity,
-        executed_at: todayIso,
-      });
+      if (!positionId) {
+        throw new Error(`Unable to resolve position for plan ${plan.id}`);
+      }
+
+      if (plan.side === 'sell') {
+        await ensureSufficientSellQuantity(positionId, requiredQuantity);
+      }
+
+      const { data: newLot, error: lotError } = await supabase
+        .from('position_lots')
+        .insert({
+          position_id: positionId,
+          side: plan.side === 'sell' ? 'SELL' : 'BUY',
+          price: quotePrice,
+          quantity: requiredQuantity,
+          executed_at: todayIso,
+        })
+        .select('id')
+        .single();
 
       if (lotError) {
         throw lotError;
       }
 
+      createdLotId = newLot.id ?? null;
+
+      const planUpdateTimestamp = new Date().toISOString();
       const { error: planUpdateError } = await supabase
         .from('position_plans')
         .update({
@@ -179,12 +339,17 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
           triggered_at: todayIso,
           executed_price: quotePrice,
           position_id: positionId,
+          updated_at: planUpdateTimestamp,
         })
-        .eq('id', plan.id);
+        .eq('id', plan.id)
+        .eq('status', 'pending')
+        .eq('updated_at', claimedUpdatedAt);
 
       if (planUpdateError) {
         throw planUpdateError;
       }
+
+      planUpdated = true;
 
       triggered.push({
         ...plan,
@@ -196,6 +361,26 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
     } catch (error) {
       console.error('Failed to process plan', plan.id, error);
       errors.push(plan.id ?? '');
+
+      if (createdLotId) {
+        try {
+          await supabase.from('position_lots').delete().eq('id', createdLotId);
+        } catch (lotCleanupError) {
+          console.error('Failed to rollback lot', createdLotId, lotCleanupError);
+        }
+      }
+
+      if (createdPositionId) {
+        try {
+          await supabase.from('positions').delete().eq('id', createdPositionId);
+        } catch (positionCleanupError) {
+          console.error('Failed to rollback position', createdPositionId, positionCleanupError);
+        }
+      }
+
+      if (planClaimed && !planUpdated) {
+        await releasePlanClaim(plan.id, claimedUpdatedAt);
+      }
     }
   }
 
