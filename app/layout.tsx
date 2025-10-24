@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Stocks Status',
   description: 'Advanced stock portfolio tracker with analytics',
+  icons: {
+    icon: 'https://res.cloudinary.com/dvdgfcniz/image/upload/v1761288262/image_sa6vpb.jpg',
+  },
 };
 
 export default function RootLayout({
