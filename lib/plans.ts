@@ -17,8 +17,12 @@ function getTodayIsoDate(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+// Accept quotes up to 24 hours old so we can trigger plans even if the latest trade was on the previous UTC day.
+const MAX_QUOTE_AGE_MS = 24 * 60 * 60 * 1000;
+
 export async function processPendingPlans(options: ProcessPlansOptions): Promise<ProcessPlansResult> {
   const todayIso = getTodayIsoDate();
+  const now = Date.now();
   const triggered: PositionPlan[] = [];
   const expired: PositionPlan[] = [];
   const errors: string[] = [];
@@ -103,14 +107,18 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
         continue;
       }
 
-      const quoteDate = new Date(quoteTimestamp * 1000);
-      if (Number.isNaN(quoteDate.getTime())) {
+      const quoteMs = quoteTimestamp * 1000;
+      if (!Number.isFinite(quoteMs)) {
         continue;
       }
 
-      const quoteIsoDate = quoteDate.toISOString().split('T')[0];
+      const quoteAgeMs = now - quoteMs;
 
-      if (quoteIsoDate !== todayIso) {
+      if (quoteAgeMs > MAX_QUOTE_AGE_MS) {
+        continue;
+      }
+
+      if (quoteAgeMs < -MAX_QUOTE_AGE_MS) {
         continue;
       }
 

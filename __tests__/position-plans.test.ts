@@ -398,6 +398,72 @@ describe('processPendingPlans', () => {
     expect(result.expired).toHaveLength(0);
   });
 
+  it('triggers plans when the latest quote is recent even if it is from the previous UTC day', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-09-02T12:00:00Z'));
+
+    const pendingRow = {
+      id: 'plan-recent-quote',
+      position_id: 'pos-3',
+      symbol: 'MSFT',
+      display: 'Microsoft',
+      image_url: null,
+      side: 'buy' as const,
+      target_price: '320',
+      target_quantity: '4',
+      target_date: '2024-09-05',
+      status: 'pending' as const,
+      triggered_at: null,
+      expired_at: null,
+      executed_price: null,
+      created_at: null,
+      updated_at: null,
+    };
+
+    const updates: any[] = [];
+    const lotInserts: any[] = [];
+
+    setTableHandler('position_plans', () => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
+      }),
+      update: vi.fn((payload: any) => ({
+        eq: vi.fn().mockImplementation(async () => {
+          updates.push(payload);
+          return { data: null, error: null };
+        }),
+      })),
+    }));
+
+    setTableHandler('position_lots', () => ({
+      insert: vi.fn(async (payload: any) => {
+        lotInserts.push(payload);
+        return { data: null, error: null };
+      }),
+    }));
+
+    const recentTimestamp = Math.floor(new Date('2024-09-01T23:30:00Z').getTime() / 1000);
+    fetchFinnhubQuoteMock.mockResolvedValue({ price: 310, timestamp: recentTimestamp });
+
+    const result = await processPendingPlans({ token: 'token-5' });
+
+    expect(lotInserts[0]).toMatchObject({
+      position_id: 'pos-3',
+      side: 'BUY',
+      price: 310,
+      quantity: 4,
+      executed_at: '2024-09-02',
+    });
+
+    expect(updates[0]).toMatchObject({
+      status: 'triggered',
+      position_id: 'pos-3',
+      executed_price: 310,
+    });
+
+    expect(result.triggered).toHaveLength(1);
+  });
+
   it('skips plans when only stale price data is available', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-09-02T12:00:00Z'));
@@ -434,7 +500,7 @@ describe('processPendingPlans', () => {
       insert: vi.fn(),
     }));
 
-    const staleTimestamp = Math.floor(new Date('2024-09-01T23:00:00Z').getTime() / 1000);
+    const staleTimestamp = Math.floor(new Date('2024-08-30T20:00:00Z').getTime() / 1000);
     fetchFinnhubQuoteMock.mockResolvedValue({ price: 315, timestamp: staleTimestamp });
 
     const result = await processPendingPlans({ token: 'token-5' });
