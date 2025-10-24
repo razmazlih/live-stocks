@@ -121,7 +121,48 @@ export default function HomePage() {
     () => metrics.filter((metric) => metric.position.quantity <= 0),
     [metrics]
   );
-  const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
+  const sortedOpenMetrics = useMemo(() => {
+    return [...openMetrics].sort((a, b) => {
+      const combinedA = Number.isFinite(a.combined) ? a.combined : Number.NEGATIVE_INFINITY;
+      const combinedB = Number.isFinite(b.combined) ? b.combined : Number.NEGATIVE_INFINITY;
+
+      if (combinedA !== combinedB) {
+        return combinedB - combinedA;
+      }
+
+      const pnlA = Number.isFinite(a.positionPnLUsd) ? a.positionPnLUsd : Number.NEGATIVE_INFINITY;
+      const pnlB = Number.isFinite(b.positionPnLUsd) ? b.positionPnLUsd : Number.NEGATIVE_INFINITY;
+
+      if (pnlA !== pnlB) {
+        return pnlB - pnlA;
+      }
+
+      return a.position.symbol.localeCompare(b.position.symbol);
+    });
+  }, [openMetrics]);
+
+  const sortedClosedMetrics = useMemo(() => {
+    return [...closedMetrics].sort((a, b) => {
+      const combinedA = Number.isFinite(a.combined) ? a.combined : Number.NEGATIVE_INFINITY;
+      const combinedB = Number.isFinite(b.combined) ? b.combined : Number.NEGATIVE_INFINITY;
+
+      if (combinedA !== combinedB) {
+        return combinedB - combinedA;
+      }
+
+      const pnlA = Number.isFinite(a.positionPnLUsd) ? a.positionPnLUsd : Number.NEGATIVE_INFINITY;
+      const pnlB = Number.isFinite(b.positionPnLUsd) ? b.positionPnLUsd : Number.NEGATIVE_INFINITY;
+
+      if (pnlA !== pnlB) {
+        return pnlB - pnlA;
+      }
+
+      return a.position.symbol.localeCompare(b.position.symbol);
+    });
+  }, [closedMetrics]);
+
+  const hasAnyPositions = sortedOpenMetrics.length > 0 || sortedClosedMetrics.length > 0;
 
   const dailyChangeData = hasDailyChange
     ? {
@@ -202,6 +243,14 @@ export default function HomePage() {
       ]
     : [];
 
+  const positionsSortingHelper = t.dashboard.positionsSortedByForecast;
+  const activePositionsCountLabel = t.dashboard.positionsCountLabel(
+    sortedOpenMetrics.length
+  );
+  const closedPositionsCountLabel = t.dashboard.closedPositionsCountLabel(
+    sortedClosedMetrics.length
+  );
+
   const sectionTabs = [
     {
       key: 'summary' as const,
@@ -222,7 +271,7 @@ export default function HomePage() {
       label: t.dashboard.sectionVisualizationsLabel,
       description: t.dashboard.sectionVisualizationsDescription,
       icon: LineChart,
-      available: Boolean(summary && openMetrics.length > 0),
+      available: Boolean(summary && sortedOpenMetrics.length > 0),
     },
   ];
 
@@ -336,8 +385,12 @@ export default function HomePage() {
                           <PositionsOverview
                             openTitle={t.dashboard.positionsTitle}
                             closedTitle={t.dashboard.closedPositionsTitle}
-                            openMetrics={openMetrics}
-                            closedMetrics={closedMetrics}
+                            sortingHelper={positionsSortingHelper}
+                            openCountLabel={activePositionsCountLabel}
+                            closedCountLabel={closedPositionsCountLabel}
+                            emptyOpenLabel={t.dashboard.sectionPositionsEmpty}
+                            openMetrics={sortedOpenMetrics}
+                            closedMetrics={sortedClosedMetrics}
                             sparklineData={sparklineData}
                           />
                         ) : (
@@ -346,14 +399,14 @@ export default function HomePage() {
                       )}
 
                       {activeSection === 'visualizations' && (
-                        summary && openMetrics.length > 0 ? (
+                        summary && sortedOpenMetrics.length > 0 ? (
                           <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-slate-900">
                               {t.dashboard.visualizationsTitle}
                             </h3>
                             <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
                               <PortfolioVisualizations
-                                metrics={openMetrics}
+                                metrics={sortedOpenMetrics}
                                 summary={summary}
                                 timeline={portfolioTimeline}
                               />
