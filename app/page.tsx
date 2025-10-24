@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -191,6 +191,48 @@ export default function HomePage() {
       ]
     : [];
 
+  type DashboardSectionKey = 'summary' | 'positions' | 'visualizations';
+
+  const availableSections = useMemo(
+    () => {
+      const sections: { key: DashboardSectionKey; label: string }[] = [];
+
+      if (summary && summaryCards.length > 0) {
+        sections.push({ key: 'summary', label: t.dashboard.summaryTitle });
+      }
+
+      if (hasAnyPositions) {
+        sections.push({ key: 'positions', label: t.dashboard.positionsTitle });
+      }
+
+      if (summary && openMetrics.length > 0) {
+        sections.push({ key: 'visualizations', label: t.dashboard.visualizationsTitle });
+      }
+
+      return sections;
+    },
+    [summary, summaryCards.length, hasAnyPositions, openMetrics.length, t]
+  );
+
+  const [selectedSection, setSelectedSection] = useState<DashboardSectionKey | ''>('');
+
+  useEffect(() => {
+    if (availableSections.length === 0) {
+      if (selectedSection !== '') {
+        setSelectedSection('');
+      }
+      return;
+    }
+
+    const hasSelection = availableSections.some((section) => section.key === selectedSection);
+
+    if (!hasSelection) {
+      setSelectedSection(availableSections[0].key);
+    }
+  }, [availableSections, selectedSection]);
+
+  const activeSection: DashboardSectionKey | '' = selectedSection || (availableSections[0]?.key ?? '');
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,8 +268,36 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
+                  <div className="space-y-8">
+                    {availableSections.length > 1 && (
+                      <nav aria-label="Dashboard sections">
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-100 bg-white/70 p-2 shadow-inner backdrop-blur">
+                          {availableSections.map((section) => {
+                            const isActive = section.key === activeSection;
+
+                            return (
+                              <button
+                                key={section.key}
+                                type="button"
+                                onClick={() => setSelectedSection(section.key)}
+                                className={`relative flex-1 min-w-[140px] overflow-hidden rounded-xl px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:flex-none sm:px-5 sm:py-2.5 ${
+                                  isActive
+                                    ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 text-white shadow-lg shadow-blue-200'
+                                    : 'bg-white/60 text-slate-500 hover:text-slate-700'
+                                }`}
+                              >
+                                <span className="relative z-10 block whitespace-nowrap">{section.label}</span>
+                                {isActive && (
+                                  <span className="pointer-events-none absolute inset-0 rounded-xl border border-white/40" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </nav>
+                    )}
+
+                    {summary && summaryCards.length > 0 && activeSection === 'summary' && (
                       <div className="space-y-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
@@ -244,16 +314,26 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
+                    {activeSection === 'positions' && (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <h2 className="text-lg font-semibold text-slate-900">{t.positions.title}</h2>
+                          <p className="text-sm text-slate-500 sm:max-w-xl">{t.positions.subtitle}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                          <PositionsOverview
+                            openTitle={t.dashboard.positionsTitle}
+                            closedTitle={t.dashboard.closedPositionsTitle}
+                            openMetrics={openMetrics}
+                            closedMetrics={closedMetrics}
+                            sparklineData={sparklineData}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
+                    {summary && openMetrics.length > 0 && activeSection === 'visualizations' && (
+                      <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
                         <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
                           <PortfolioVisualizations
