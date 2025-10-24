@@ -707,9 +707,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="relative h-[22rem] rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
-            <div className="relative h-full w-full p-4">
-              <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
+            <div className="flex h-full flex-col gap-6 p-6">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>
@@ -727,8 +727,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <span>{t.dashboard.timelineLegendForecast}</span>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartPoints} margin={{ top: 28, right: 32, left: 0, bottom: 16 }}>
+              <div className="relative h-[22rem] w-full lg:h-[24rem]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartPoints} margin={{ top: 12, right: 32, left: 0, bottom: 12 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
                       {netLineGradientStops.length === 0 ? (
@@ -828,8 +829,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     strokeLinejoin="round"
                     isAnimationActive={false}
                   />
-                </LineChart>
-              </ResponsiveContainer>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
