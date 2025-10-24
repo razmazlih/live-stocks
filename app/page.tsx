@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -13,11 +13,22 @@ import {
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import {
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  LayoutDashboard,
+  Layers,
+  LineChart,
+} from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
+  const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
+    'summary'
+  );
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const {
@@ -191,6 +202,37 @@ export default function HomePage() {
       ]
     : [];
 
+  const sectionTabs = [
+    {
+      key: 'summary' as const,
+      label: t.dashboard.sectionSummaryLabel,
+      description: t.dashboard.sectionSummaryDescription,
+      icon: LayoutDashboard,
+      available: Boolean(summary && summaryCards.length > 0),
+    },
+    {
+      key: 'positions' as const,
+      label: t.dashboard.sectionPositionsLabel,
+      description: t.dashboard.sectionPositionsDescription,
+      icon: Layers,
+      available: hasAnyPositions,
+    },
+    {
+      key: 'visualizations' as const,
+      label: t.dashboard.sectionVisualizationsLabel,
+      description: t.dashboard.sectionVisualizationsDescription,
+      icon: LineChart,
+      available: Boolean(summary && openMetrics.length > 0),
+    },
+  ];
+
+  const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
+  const renderSectionPlaceholder = (message: string) => (
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">
+      {message}
+    </div>
+  );
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,44 +268,102 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-                          {dailyChangeData && (
-                            <DailyChangeBadge
-                              toneClass={dailyChangeData.toneClass}
-                              icon={dailyChangeData.icon}
-                              value={dailyChangeData.value}
-                              label={dailyChangeData.label}
-                            />
-                          )}
-                        </div>
-                        <SummaryCardGrid cards={summaryCards} />
+                  <div className="space-y-6">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold text-slate-900">
+                          {t.dashboard.sectionSelectorTitle}
+                        </h2>
+                        {activeSectionConfig?.description && (
+                          <p className="text-sm text-slate-500">
+                            {activeSectionConfig.description}
+                          </p>
+                        )}
                       </div>
-                    )}
+                      <div className="flex flex-wrap gap-2">
+                        {sectionTabs.map(({ key, label, icon: Icon, available }) => {
+                          const isActive = activeSection === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => available && setActiveSection(key)}
+                              disabled={!available}
+                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                                isActive
+                                  ? 'border-blue-500 bg-blue-50/70 text-blue-600 shadow-sm'
+                                  : 'border-white/80 bg-white/70 text-slate-500 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600'
+                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-white/80 hover:bg-white/70 hover:text-slate-500'}`}
+                            >
+                              <Icon
+                                className={`h-4 w-4 transition ${
+                                  isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
+                                }`}
+                              />
+                              <span>{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
+                    <div className="space-y-10">
+                      {activeSection === 'summary' && (
+                        summary && summaryCards.length > 0 ? (
+                          <div className="space-y-5">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <h2 className="text-xl font-semibold text-slate-900">
+                                {t.dashboard.summaryTitle}
+                              </h2>
+                              {dailyChangeData && (
+                                <DailyChangeBadge
+                                  toneClass={dailyChangeData.toneClass}
+                                  icon={dailyChangeData.icon}
+                                  value={dailyChangeData.value}
+                                  label={dailyChangeData.label}
+                                />
+                              )}
+                            </div>
+                            <SummaryCardGrid cards={summaryCards} />
+                          </div>
+                        ) : (
+                          renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty)
+                        )
+                      )}
 
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
+                      {activeSection === 'positions' && (
+                        hasAnyPositions ? (
+                          <PositionsOverview
+                            openTitle={t.dashboard.positionsTitle}
+                            closedTitle={t.dashboard.closedPositionsTitle}
+                            openMetrics={openMetrics}
+                            closedMetrics={closedMetrics}
+                            sparklineData={sparklineData}
                           />
-                        </div>
-                      </div>
-                    )}
+                        ) : (
+                          renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
+                        )
+                      )}
+
+                      {activeSection === 'visualizations' && (
+                        summary && openMetrics.length > 0 ? (
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-slate-900">
+                              {t.dashboard.visualizationsTitle}
+                            </h3>
+                            <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                              <PortfolioVisualizations
+                                metrics={openMetrics}
+                                summary={summary}
+                                timeline={portfolioTimeline}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty)
+                        )
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

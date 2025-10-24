@@ -94,6 +94,16 @@ export const translations = {
       portfolioOverviewFootnote: 'תובנה מהירה',
       portfolioOverviewSummary: (open: string, realized: string, taxes: string) =>
         `הפוזיציות הפעילות מוסיפות ${open}, הרווחים הסגורים מסתכמים ב-${realized}, והמסים ששולמו עד כה הם ${taxes}.`,
+      sectionSelectorTitle: 'בחרו נושא לתצוגה',
+      sectionSummaryLabel: 'סיכום כללי',
+      sectionSummaryDescription: 'כרטיסי מדדים ומעקב אחרי שינוי יומי.',
+      sectionSummaryEmpty: 'אין נתונים להצגה בסיכום כרגע.',
+      sectionPositionsLabel: 'פוזיציות',
+      sectionPositionsDescription: 'פירוט פוזיציות פעילות וסגורות עם מגמות.',
+      sectionPositionsEmpty: 'אין פוזיציות להצגה כרגע.',
+      sectionVisualizationsLabel: 'ויזואליזציות',
+      sectionVisualizationsDescription: 'תרשימים אינטראקטיביים של התיק.',
+      sectionVisualizationsEmpty: 'אין מספיק נתונים להצגת תרשימים.',
     },
     portfolio: {
       title: 'סקירת התיק',
@@ -612,6 +622,16 @@ export const translations = {
       portfolioOverviewFootnote: 'Quick insight',
       portfolioOverviewSummary: (open: string, realized: string, taxes: string) =>
         `Open positions contribute ${open}, realized gains total ${realized}, and taxes paid so far are ${taxes}.`,
+      sectionSelectorTitle: 'Choose a focus area',
+      sectionSummaryLabel: 'Overview',
+      sectionSummaryDescription: 'Key metrics and the daily change at a glance.',
+      sectionSummaryEmpty: 'There is no summary data to display right now.',
+      sectionPositionsLabel: 'Positions',
+      sectionPositionsDescription: 'Dive into open and closed positions with recent trends.',
+      sectionPositionsEmpty: 'No positions are available to review yet.',
+      sectionVisualizationsLabel: 'Visualizations',
+      sectionVisualizationsDescription: 'Interactive charts that visualize your portfolio.',
+      sectionVisualizationsEmpty: 'There is not enough data to render the charts yet.',
     },
     portfolio: {
       title: 'Portfolio overview',
