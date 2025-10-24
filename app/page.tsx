@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -16,6 +16,9 @@ import { createCommonQuickActions } from '@/components/dashboard/common-quick-ac
 import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type SectionKey = 'summary' | 'positions' | 'insights';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -110,32 +113,6 @@ export default function HomePage() {
     () => metrics.filter((metric) => metric.position.quantity <= 0),
     [metrics]
   );
-  const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
-
-  const dailyChangeData = hasDailyChange
-    ? {
-        value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
-        toneClass: dailyChangeTone.badge,
-        icon: dailyChangeIcon,
-        label: t.dashboard.dailyChange,
-      }
-    : null;
-
-  const quickActions = useMemo(
-    () =>
-      createCommonQuickActions(t, {
-        exclude: ['dashboard'],
-        overrides: {
-          reload: {
-            onClick: reload,
-            disabled: loading || refreshing,
-            iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-          },
-        },
-      }),
-    [t, reload, loading, refreshing]
-  );
-
   const summaryCards: SummaryCard[] = summary
     ? [
         {
@@ -191,6 +168,62 @@ export default function HomePage() {
       ]
     : [];
 
+  const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
+
+  const [activeSection, setActiveSection] = useState<SectionKey>('summary');
+
+  const availableSections = useMemo<SectionKey[]>(() => {
+    const sections: SectionKey[] = [];
+
+    if (summaryCards.length > 0) {
+      sections.push('summary');
+    }
+
+    if (hasAnyPositions) {
+      sections.push('positions');
+    }
+
+    if (summary && openMetrics.length > 0) {
+      sections.push('insights');
+    }
+
+    return sections;
+  }, [summaryCards.length, hasAnyPositions, summary, openMetrics.length]);
+
+  useEffect(() => {
+    if (availableSections.length === 0) {
+      return;
+    }
+
+    if (!availableSections.includes(activeSection)) {
+      setActiveSection(availableSections[0]);
+    }
+  }, [availableSections, activeSection]);
+
+  const dailyChangeData = hasDailyChange
+    ? {
+        value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
+        toneClass: dailyChangeTone.badge,
+        icon: dailyChangeIcon,
+        label: t.dashboard.dailyChange,
+      }
+    : null;
+
+  const quickActions = useMemo(
+    () =>
+      createCommonQuickActions(t, {
+        exclude: ['dashboard'],
+        overrides: {
+          reload: {
+            onClick: reload,
+            disabled: loading || refreshing,
+            iconClassName: loading || refreshing ? 'animate-spin' : undefined,
+          },
+        },
+      }),
+    [t, reload, loading, refreshing]
+  );
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,45 +259,102 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-                          {dailyChangeData && (
-                            <DailyChangeBadge
-                              toneClass={dailyChangeData.toneClass}
-                              icon={dailyChangeData.icon}
-                              value={dailyChangeData.value}
-                              label={dailyChangeData.label}
+                  <Tabs
+                    value={activeSection}
+                    onValueChange={(value) => setActiveSection(value as SectionKey)}
+                    className="space-y-8"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                          {t.dashboard.sectionPickerTitle}
+                        </h2>
+                        <p className="text-sm text-slate-500 sm:text-base">
+                          {t.dashboard.sectionPickerSubtitle}
+                        </p>
+                      </div>
+                      <TabsList className="w-full justify-start gap-1 rounded-2xl bg-slate-100/80 p-1 sm:w-auto sm:justify-center">
+                        {availableSections.includes('summary') && (
+                          <TabsTrigger
+                            value="summary"
+                            className="flex-1 rounded-xl px-4 py-2 text-sm font-medium sm:flex-none"
+                          >
+                            {t.dashboard.sectionSummary}
+                          </TabsTrigger>
+                        )}
+                        {availableSections.includes('positions') && (
+                          <TabsTrigger
+                            value="positions"
+                            className="flex-1 rounded-xl px-4 py-2 text-sm font-medium sm:flex-none"
+                          >
+                            {t.dashboard.sectionPositions}
+                          </TabsTrigger>
+                        )}
+                        {availableSections.includes('insights') && (
+                          <TabsTrigger
+                            value="insights"
+                            className="flex-1 rounded-xl px-4 py-2 text-sm font-medium sm:flex-none"
+                          >
+                            {t.dashboard.sectionInsights}
+                          </TabsTrigger>
+                        )}
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value="summary" className="space-y-5">
+                      {summary && summaryCards.length > 0 ? (
+                        <>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <h3 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h3>
+                            {dailyChangeData && (
+                              <DailyChangeBadge
+                                toneClass={dailyChangeData.toneClass}
+                                icon={dailyChangeData.icon}
+                                value={dailyChangeData.value}
+                                label={dailyChangeData.label}
+                              />
+                            )}
+                          </div>
+                          <SummaryCardGrid cards={summaryCards} />
+                        </>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-sm text-slate-500">
+                          {t.dashboard.sectionEmpty}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="positions" className="space-y-6">
+                      <PositionsOverview
+                        openTitle={t.dashboard.positionsTitle}
+                        closedTitle={t.dashboard.closedPositionsTitle}
+                        openMetrics={openMetrics}
+                        closedMetrics={closedMetrics}
+                        sparklineData={sparklineData}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="insights" className="space-y-4">
+                      {summary && openMetrics.length > 0 ? (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {t.dashboard.visualizationsTitle}
+                          </h3>
+                          <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                            <PortfolioVisualizations
+                              metrics={openMetrics}
+                              summary={summary}
+                              timeline={portfolioTimeline}
                             />
-                          )}
+                          </div>
                         </div>
-                        <SummaryCardGrid cards={summaryCards} />
-                      </div>
-                    )}
-
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
-
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
-                          />
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-sm text-slate-500">
+                          {t.dashboard.sectionEmpty}
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 )}
               </div>
             </section>
