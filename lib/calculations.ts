@@ -32,6 +32,19 @@ export function calculatePositionMetrics(
 
   const yearsHeld = summary ? summary.weightedHoldingYears || fallbackYearsHeld : fallbackYearsHeld;
 
+  const entryDateSameDay = (() => {
+    const entry = new Date(normalizedEntryDate);
+    if (Number.isNaN(entry.getTime())) {
+      return false;
+    }
+
+    return (
+      entry.getFullYear() === now.getFullYear() &&
+      entry.getMonth() === now.getMonth() &&
+      entry.getDate() === now.getDate()
+    );
+  })();
+
   const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
@@ -49,9 +62,19 @@ export function calculatePositionMetrics(
   const costBasis = normalizedEntryPrice * normalizedQuantity;
   const roiPercent = costBasis !== 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
 
-  const dailyChangePercent = dailyChange !== undefined && currentPrice - dailyChange !== 0
-    ? (dailyChange / (currentPrice - dailyChange)) * 100
-    : undefined;
+  let normalizedDailyChange = dailyChange;
+  let dailyChangePercent: number | undefined;
+
+  if (entryDateSameDay) {
+    normalizedDailyChange = currentPrice - normalizedEntryPrice;
+    const basePrice = normalizedEntryPrice;
+    dailyChangePercent = basePrice !== 0 ? (normalizedDailyChange / basePrice) * 100 : undefined;
+  } else if (normalizedDailyChange !== undefined) {
+    const previousPrice = currentPrice - normalizedDailyChange;
+    if (previousPrice !== 0) {
+      dailyChangePercent = (normalizedDailyChange / previousPrice) * 100;
+    }
+  }
 
   return {
     position: normalizedPosition,
@@ -66,7 +89,7 @@ export function calculatePositionMetrics(
     yearsHeld,
     currentValue,
     roiPercent,
-    dailyChange,
+    dailyChange: normalizedDailyChange,
     dailyChangePercent,
   };
 }
