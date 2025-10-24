@@ -729,7 +729,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </div>
               <div className="relative h-[22rem] w-full lg:h-[24rem]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartPoints} margin={{ top: 12, right: 32, left: 0, bottom: 12 }}>
+                  <LineChart data={chartPoints} margin={{ top: 12, right: -50, left: 0, bottom: 12 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
                       {netLineGradientStops.length === 0 ? (
