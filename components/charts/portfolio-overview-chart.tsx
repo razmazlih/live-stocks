@@ -613,227 +613,223 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         </CardTitle>
         <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
       </CardHeader>
-      <CardContent className="pt-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="flex-1">
-            <div className="relative h-[22rem] rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
-              <div className="relative h-full w-full p-4">
-                <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
-                    <span>{t.dashboard.timelineLegendActualLoss}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
-                    <span>{t.dashboard.timelineLegendActualUnder}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
-                    <span>{t.dashboard.timelineLegendActualAbove}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
-                    <span>{t.dashboard.timelineLegendForecast}</span>
+      <CardContent>
+        <div className="space-y-6 pt-6">
+          <div className="rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-lg">
+            <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+              <div className="space-y-4">
+                <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                  {toneClass === 'text-emerald-600'
+                    ? t.dashboard.positiveTrend
+                    : toneClass === 'text-rose-600'
+                    ? t.dashboard.negativeTrend
+                    : t.dashboard.neutralTrend}
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
+                  <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
+                  <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+                  <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
+                        aria-hidden="true"
+                      >
+                        {forecastGapVisuals.icon}
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {t.dashboard.forecastGap}
+                        </p>
+                        <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
+                          {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
+                    </p>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartPoints} margin={{ top: 28, right: 32, left: 0, bottom: 16 }}>
-                    <defs>
-                      <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
-                        {netLineGradientStops.length === 0 ? (
-                          <stop offset="0%" stopColor={trendStateColors.above} />
-                        ) : (
-                          netLineGradientStops.map((stop, index) => {
-                            const offset = `${Number.isFinite(stop.offset) ? stop.offset.toFixed(3) : '0'}%`;
+              </div>
 
-                            if (index === 0) {
-                              return (
-                                <stop
-                                  key={`net-line-stop-${index}-start`}
-                                  offset={offset}
-                                  stopColor={stop.color}
-                                />
-                              );
-                            }
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
+                    <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
+                    <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
+                    <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
+                    <p className="text-xs text-slate-400">{formattedBestDate}</p>
+                  </div>
+                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
+                    <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
+                    <p className="text-xs text-slate-400">{formattedWorstDate}</p>
+                  </div>
+                </div>
 
-                            const previousColor = netLineGradientStops[index - 1]?.color ?? stop.color;
-
-                            return (
-                              <Fragment key={`net-line-stop-${index}`}>
-                                <stop offset={offset} stopColor={previousColor} />
-                                <stop offset={offset} stopColor={stop.color} />
-                              </Fragment>
-                            );
-                          })
-                        )}
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 6" stroke="rgba(148, 163, 184, 0.22)" vertical={false} />
-                    <XAxis
-                      dataKey="timestamp"
-                      type="number"
-                      domain={['dataMin', 'dataMax']}
-                      scale="time"
-                      tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={16}
-                      minTickGap={28}
-                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
-                    />
-                    <YAxis
-                      orientation="right"
-                      tickFormatter={(value) => compactFormatter.format(value)}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
-                      {...(yDomain ? { domain: yDomain } : {})}
-                    />
-                    <Tooltip
-                      wrapperStyle={{ zIndex: 40 }}
-                      cursor={{ strokeDasharray: '4 6', stroke: 'rgba(99, 102, 241, 0.35)', strokeWidth: 1.25 }}
-                      content={
-                        <ChartTooltip
-                          formatUsd={usdFormatter}
-                          formatIls={ilsFormatter}
-                          labelFormatter={(value) => tooltipDateFormatter.format(new Date(Number(value)))}
-                          summary={summary}
-                          labels={{
-                            at: t.dashboard.timelineTooltipMoment,
-                            net: t.dashboard.netPnL,
-                            forecast: t.dashboard.timelineTooltipForecast,
-                            open: t.dashboard.currentPnL,
-                            realized: t.dashboard.realizedPnL,
-                            taxes: t.dashboard.taxesPaid,
-                            change: t.dashboard.timelineTooltipChange,
-                            projection: t.dashboard.timelineTooltipProjection,
-                            usd: t.dashboard.usdLabel,
-                            ils: t.dashboard.ilsLabel,
-                          }}
-                        />
-                      }
-                    />
-                    <ReferenceLine y={0} stroke="rgba(99, 102, 241, 0.45)" strokeDasharray="1 6" strokeWidth={2} />
-                    <Line
-                      type="monotone"
-                      dataKey="netValue"
-                      stroke={`url(#${netLineGradientId})`}
-                      strokeWidth={3.5}
-                      dot={false}
-                      activeDot={<ActiveNetLineDot />}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      isAnimationActive={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="forecastValueUsd"
-                      stroke="#f59e0b"
-                      strokeWidth={2.5}
-                      strokeDasharray="6 6"
-                      dot={false}
-                      activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t.dashboard.portfolioOverviewFootnote}
+                  </p>
+                  <p className="mt-2 leading-relaxed">
+                    {t.dashboard.portfolioOverviewSummary(
+                      usdFormatter(openPnLUsd),
+                      usdFormatter(realizedPnLUsd),
+                      usdFormatter(Math.abs(taxesUsd))
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-5 rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-lg lg:max-w-sm">
-            <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
-              <span className="h-2.5 w-2.5 rounded-full bg-current" />
-              {toneClass === 'text-emerald-600'
-                ? t.dashboard.positiveTrend
-                : toneClass === 'text-rose-600'
-                ? t.dashboard.negativeTrend
-                : t.dashboard.neutralTrend}
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-              <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-              <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
-              <div
-                className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
-                    aria-hidden="true"
-                  >
-                    {forecastGapVisuals.icon}
-                  </span>
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {t.dashboard.forecastGap}
-                    </p>
-                    <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
-                      {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
-                    </p>
-                  </div>
+          <div className="relative h-[22rem] rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
+            <div className="relative h-full w-full p-4">
+              <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                  <span>{t.dashboard.timelineLegendActualLoss}</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                  <span>{t.dashboard.timelineLegendActualUnder}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                  <span>{t.dashboard.timelineLegendActualAbove}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
+                  <span>{t.dashboard.timelineLegendForecast}</span>
+                </div>
               </div>
-            </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartPoints} margin={{ top: 28, right: 32, left: 0, bottom: 16 }}>
+                  <defs>
+                    <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
+                      {netLineGradientStops.length === 0 ? (
+                        <stop offset="0%" stopColor={trendStateColors.above} />
+                      ) : (
+                        netLineGradientStops.map((stop, index) => {
+                          const offset = `${Number.isFinite(stop.offset) ? stop.offset.toFixed(3) : '0'}%`;
 
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
-              </div>
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
-              </div>
-            </div>
+                          if (index === 0) {
+                            return (
+                              <stop
+                                key={`net-line-stop-${index}-start`}
+                                offset={offset}
+                                stopColor={stop.color}
+                              />
+                            );
+                          }
 
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
-              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
-                <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
-                <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
-              </div>
-              <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
-                <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
-              </div>
-            </div>
+                          const previousColor = netLineGradientStops[index - 1]?.color ?? stop.color;
 
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
-              <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
-                <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
-                <p className="text-xs text-slate-400">{formattedBestDate}</p>
-              </div>
-              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
-                <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
-                <p className="text-xs text-slate-400">{formattedWorstDate}</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {t.dashboard.portfolioOverviewFootnote}
-              </p>
-              <p className="mt-2 leading-relaxed">
-                {t.dashboard.portfolioOverviewSummary(
-                  usdFormatter(openPnLUsd),
-                  usdFormatter(realizedPnLUsd),
-                  usdFormatter(Math.abs(taxesUsd))
-                )}
-              </p>
+                          return (
+                            <Fragment key={`net-line-stop-${index}`}>
+                              <stop offset={offset} stopColor={previousColor} />
+                              <stop offset={offset} stopColor={stop.color} />
+                            </Fragment>
+                          );
+                        })
+                      )}
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(148, 163, 184, 0.22)" vertical={false} />
+                  <XAxis
+                    dataKey="timestamp"
+                    type="number"
+                    domain={['dataMin', 'dataMax']}
+                    scale="time"
+                    tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={16}
+                    minTickGap={28}
+                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                  />
+                  <YAxis
+                    orientation="right"
+                    tickFormatter={(value) => compactFormatter.format(value)}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    {...(yDomain ? { domain: yDomain } : {})}
+                  />
+                  <Tooltip
+                    wrapperStyle={{ zIndex: 40 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(99, 102, 241, 0.35)', strokeWidth: 1.25 }}
+                    content={
+                      <ChartTooltip
+                        formatUsd={usdFormatter}
+                        formatIls={ilsFormatter}
+                        labelFormatter={(value) => tooltipDateFormatter.format(new Date(Number(value)))}
+                        summary={summary}
+                        labels={{
+                          at: t.dashboard.timelineTooltipMoment,
+                          net: t.dashboard.netPnL,
+                          forecast: t.dashboard.timelineTooltipForecast,
+                          open: t.dashboard.currentPnL,
+                          realized: t.dashboard.realizedPnL,
+                          taxes: t.dashboard.taxesPaid,
+                          change: t.dashboard.timelineTooltipChange,
+                          projection: t.dashboard.timelineTooltipProjection,
+                          usd: t.dashboard.usdLabel,
+                          ils: t.dashboard.ilsLabel,
+                        }}
+                      />
+                    }
+                  />
+                  <ReferenceLine y={0} stroke="rgba(99, 102, 241, 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="netValue"
+                    stroke={`url(#${netLineGradientId})`}
+                    strokeWidth={3.5}
+                    dot={false}
+                    activeDot={<ActiveNetLineDot />}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="forecastValueUsd"
+                    stroke="#f59e0b"
+                    strokeWidth={2.5}
+                    strokeDasharray="6 6"
+                    dot={false}
+                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
