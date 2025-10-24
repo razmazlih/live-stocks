@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -113,13 +114,38 @@ export default function HomePage() {
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
+  const sortByForecastGap = useCallback(
+    (items: PositionMetrics[]) => {
+      const localeKey = locale === 'he' ? 'he' : 'en';
+
+      return items
+        .slice()
+        .sort((a, b) => {
+          const aGap = Number.isFinite(a.combined) ? a.combined : Number.NEGATIVE_INFINITY;
+          const bGap = Number.isFinite(b.combined) ? b.combined : Number.NEGATIVE_INFINITY;
+
+          const gapDelta = bGap - aGap;
+
+          if (Math.abs(gapDelta) > 1e-8) {
+            return gapDelta;
+          }
+
+          const aLabel = a.position.display || a.position.symbol;
+          const bLabel = b.position.display || b.position.symbol;
+
+          return aLabel.localeCompare(bLabel, localeKey, { sensitivity: 'base' });
+        });
+    },
+    [locale]
+  );
+
   const openMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity > 0),
-    [metrics]
+    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity > 0)),
+    [metrics, sortByForecastGap]
   );
   const closedMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity <= 0),
-    [metrics]
+    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity <= 0)),
+    [metrics, sortByForecastGap]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
 

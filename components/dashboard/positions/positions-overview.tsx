@@ -1,4 +1,6 @@
 import { HistoricalPoint, PositionMetrics } from '@/types';
+import { useApp } from '@/lib/context';
+import { useTranslation } from '@/lib/translations';
 
 import { PositionCard } from '@/components/portfolio/position-card';
 
@@ -17,9 +19,16 @@ export function PositionsOverview({
   closedMetrics,
   sparklineData,
 }: PositionsOverviewProps) {
+  const { locale } = useApp();
+  const { t } = useTranslation(locale);
+  const sortNotice = t.dashboard.positionsSortedByForecast;
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
+        <p className="text-sm text-slate-500">{sortNotice}</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {openMetrics.map((metrics) => (
           <PositionCard
@@ -31,7 +40,10 @@ export function PositionsOverview({
       </div>
       {closedMetrics.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
+            <p className="text-sm text-slate-500">{sortNotice}</p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {closedMetrics.map((metrics) => (
               <PositionCard
