@@ -20,8 +20,6 @@ type TooltipValueType = number | string;
 type ChartPoint = PortfolioTimelinePoint & {
   netValue: number;
   netValueIls: number;
-  openValueUsd: number;
-  openValueIls: number;
   expectedValueUsd: number;
   expectedValueIls: number;
   forecastValueUsd: number;
@@ -89,14 +87,10 @@ interface ChartTooltipProps {
   formatUsd: (value: number) => string;
   formatIls: (value: number) => string;
   labelFormatter: (label: TooltipValueType) => string;
-  summary: PortfolioSummary;
   labels: {
     at: string;
     net: string;
     forecast: string;
-    open: string;
-    realized: string;
-    taxes: string;
     change: string;
     projection: string;
     usd: string;
@@ -152,7 +146,6 @@ const ChartTooltip = ({
   formatUsd,
   formatIls,
   labelFormatter,
-  summary,
   labels,
 }: ChartTooltipProps) => {
   if (!active || !payload?.length) {
@@ -176,12 +169,6 @@ const ChartTooltip = ({
 
   const netUsd = point.netValue;
   const netIls = point.netValueIls;
-  const openUsd = point.openValueUsd;
-  const openIls = point.openValueIls;
-  const realizedUsd = summary.totalRealizedProfitUsd;
-  const realizedIls = summary.totalRealizedProfitIls;
-  const taxesUsd = summary.totalTaxesPaidUsd;
-  const taxesIls = summary.totalTaxesPaidIls;
 
   const changeRows = [
     {
@@ -189,30 +176,6 @@ const ChartTooltip = ({
       label: labels.change,
       usd: changeUsd,
       ils: changeIls,
-    },
-  ];
-
-  const breakdownRows = [
-    {
-      key: 'open',
-      label: labels.open,
-      usd: openUsd,
-      ils: openIls,
-      accent: 'from-slate-500/15 via-slate-400/10 to-slate-300/5',
-    },
-    {
-      key: 'realized',
-      label: labels.realized,
-      usd: realizedUsd,
-      ils: realizedIls,
-      accent: 'from-emerald-500/15 via-emerald-400/10 to-emerald-300/5',
-    },
-    {
-      key: 'taxes',
-      label: labels.taxes,
-      usd: taxesUsd * -1,
-      ils: taxesIls * -1,
-      accent: 'from-rose-500/15 via-rose-400/10 to-rose-300/5',
     },
   ];
 
@@ -276,22 +239,6 @@ const ChartTooltip = ({
           );
         })}
       </div>
-
-      <div className="mt-4 grid gap-3 text-[13px] text-slate-600">
-        {breakdownRows.map((row) => (
-          <div key={row.key} className={`rounded-xl bg-gradient-to-br ${row.accent} p-3`}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{row.label}</p>
-            <div className="mt-1 flex items-center justify-between">
-              <span className="font-medium text-slate-500">{labels.usd}</span>
-              <span className="text-sm font-semibold text-slate-900">{formatUsd(row.usd)}</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span className="font-medium">{labels.ils}</span>
-              <span className="font-semibold text-slate-700">{formatIls(row.ils)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
@@ -351,11 +298,6 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         typeof point.netPnLIls === 'number'
           ? point.netPnLIls
           : netValue * summary.usdToIlsRate;
-      const openValueUsd = typeof point.totalPnLUsd === 'number' ? point.totalPnLUsd : netValue;
-      const openValueIls =
-        typeof point.totalPnLIls === 'number'
-          ? point.totalPnLIls
-          : openValueUsd * summary.usdToIlsRate;
       const expectedValueUsd =
         typeof point.expectedNetPnLUsd === 'number'
           ? point.expectedNetPnLUsd
@@ -384,8 +326,6 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         ...point,
         netValue,
         netValueIls,
-        openValueUsd,
-        openValueIls,
         expectedValueUsd,
         expectedValueIls,
         forecastValueUsd,
@@ -525,14 +465,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         point.netValue,
         point.expectedValueUsd,
         point.forecastValueUsd,
-        point.openValueUsd
+        point.totalPnLUsd
       );
       maxValue = Math.max(
         maxValue,
         point.netValue,
         point.expectedValueUsd,
         point.forecastValueUsd,
-        point.openValueUsd
+        point.totalPnLUsd
       );
     });
 
@@ -789,14 +729,10 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         formatUsd={usdFormatter}
                         formatIls={ilsFormatter}
                         labelFormatter={(value) => tooltipDateFormatter.format(new Date(Number(value)))}
-                        summary={summary}
                         labels={{
                           at: t.dashboard.timelineTooltipMoment,
                           net: t.dashboard.netPnL,
                           forecast: t.dashboard.timelineTooltipForecast,
-                          open: t.dashboard.currentPnL,
-                          realized: t.dashboard.realizedPnL,
-                          taxes: t.dashboard.taxesPaid,
                           change: t.dashboard.timelineTooltipChange,
                           projection: t.dashboard.timelineTooltipProjection,
                           usd: t.dashboard.usdLabel,
