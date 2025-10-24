@@ -245,13 +245,21 @@ export default function PortfolioPage() {
       ]
     : [];
 
+  type SummaryCardHelper = {
+    label: string;
+    value: string;
+    secondary?: string;
+    tone?: ReturnType<typeof getTrendTone>;
+    icon?: JSX.Element;
+  };
+
   type SummaryCard = {
     key: string;
     label: string;
     value: string;
     valueClass?: string;
     secondary?: { label: string; value: string };
-    helper?: { label: string; value: string }[];
+    helper?: SummaryCardHelper[];
     badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
     footnote?: string;
   };
@@ -261,6 +269,9 @@ export default function PortfolioPage() {
   if (summary) {
     const taxesUsdDisplay = summary.totalTaxesPaidUsd * -1;
     const taxesIlsDisplay = summary.totalTaxesPaidIls * -1;
+    const netForecastGapUsd = summary.totalNetPnLUsd - summary.totalProjectedPnLUsd;
+    const netForecastGapIls = summary.totalNetPnLIls - summary.totalProjectedPnLIls;
+    const netForecastGapTone = getTrendTone(netForecastGapUsd);
 
     summaryCards.push(
       {
@@ -292,6 +303,17 @@ export default function PortfolioPage() {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
         },
+        helper: [
+          {
+            label: t.dashboard.forecastGap,
+            value: formatSignedCurrency(netForecastGapUsd, 'USD'),
+            secondary: t.dashboard.forecastGapSecondary(
+              formatSignedCurrency(netForecastGapIls, 'ILS')
+            ),
+            tone: netForecastGapTone,
+            icon: getTrendIcon(netForecastGapUsd),
+          },
+        ],
       },
       {
         key: 'current',
@@ -532,10 +554,37 @@ export default function PortfolioPage() {
                                   </p>
                                 )}
                                 {card.helper?.map((helper) => (
-                                  <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
-                                    {helper.label}:{' '}
-                                    <span className="font-medium text-slate-700">{helper.value}</span>
-                                  </p>
+                                  <div
+                                    key={`${card.key}-${helper.label}`}
+                                    className="mt-3 rounded-2xl border border-slate-100 bg-white/70 px-3 py-2 text-xs text-slate-500 shadow-inner"
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2">
+                                        {helper.icon && (
+                                          <span
+                                            className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                                              helper.tone?.badge ?? 'bg-slate-100 text-slate-500'
+                                            }`}
+                                          >
+                                            {helper.icon}
+                                          </span>
+                                        )}
+                                        <span className="font-medium">{helper.label}</span>
+                                      </div>
+                                      <span
+                                        className={`font-semibold ${
+                                          helper.tone?.text ?? 'text-slate-700'
+                                        }`}
+                                      >
+                                        {helper.value}
+                                      </span>
+                                    </div>
+                                    {helper.secondary && (
+                                      <span className="mt-1 block text-[11px] font-medium text-slate-400">
+                                        {helper.secondary}
+                                      </span>
+                                    )}
+                                  </div>
                                 ))}
                                 {card.footnote && (
                                   <p className="text-xs font-medium text-slate-500">{card.footnote}</p>

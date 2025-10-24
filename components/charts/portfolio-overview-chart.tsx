@@ -2,6 +2,7 @@
 
 import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Fragment, useId, useMemo } from 'react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
@@ -39,6 +40,30 @@ const trendStateColors: Record<ChartPoint['trendState'], string> = {
   loss: '#ef4444',
   under: '#0ea5e9',
   above: '#22c55e',
+};
+
+const resolveGapTone = (value: number) => {
+  if (value > 0) {
+    return {
+      text: 'text-emerald-600',
+      badge: 'bg-emerald-50 text-emerald-600',
+      icon: <ArrowUpRight className="h-4 w-4" />,
+    };
+  }
+
+  if (value < 0) {
+    return {
+      text: 'text-rose-600',
+      badge: 'bg-rose-50 text-rose-600',
+      icon: <ArrowDownRight className="h-4 w-4" />,
+    };
+  }
+
+  return {
+    text: 'text-slate-600',
+    badge: 'bg-slate-100 text-slate-500',
+    icon: <Minus className="h-4 w-4" />,
+  };
 };
 
 const resolveTrendState = (
@@ -530,6 +555,18 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
+  const netForecastGapUsd = netPnLUsd - projectedPnLUsd;
+  const netForecastGapIls = netPnLIls - projectedPnLIls;
+  const netForecastGapTone = resolveGapTone(netForecastGapUsd);
+
+  const formatSigned = (value: number, formatter: (value: number) => string) => {
+    if (value === 0) {
+      return formatter(0);
+    }
+
+    const formatted = formatter(Math.abs(value));
+    return value > 0 ? `+${formatted}` : `-${formatted}`;
+  };
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!chartPoints.length) {
@@ -721,6 +758,30 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
               <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
               <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-inner">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-full ${netForecastGapTone.badge}`}
+                    aria-hidden="true"
+                  >
+                    {netForecastGapTone.icon}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {t.dashboard.forecastGap}
+                    </p>
+                    <p className={`text-sm font-semibold ${netForecastGapTone.text}`}>
+                      {formatSigned(netForecastGapUsd, usdFormatter)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-slate-500 text-right">
+                  {t.dashboard.forecastGapSecondary(formatSigned(netForecastGapIls, ilsFormatter))}
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
