@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLot, PositionLotType, PositionPlan } from '@/types';
+import { Position, PositionLot, PositionLotType, PositionPlan, StockQuote } from '@/types';
 import { mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -97,7 +97,7 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
 }
 
 export default function PositionsPage() {
-  const { locale, triggerRefresh, processPlans, refreshTrigger } = useApp();
+  const { locale, triggerRefresh, processPlans, refreshTrigger, settings } = useApp();
   const { t } = useTranslation(locale);
   const [positions, setPositions] = useState<Position[]>([]);
   const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
@@ -124,6 +124,7 @@ export default function PositionsPage() {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [planForm, setPlanForm] = useState<PlanFormData>(createDefaultPlanForm());
   const [planContextPosition, setPlanContextPosition] = useState<Position | null>(null);
+  const transactionContextRef = useRef<{ symbol: string; type: PositionLotType } | null>(null);
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
   const isEditingPlan = Boolean(planForm.id);
@@ -140,6 +141,78 @@ export default function PositionsPage() {
     cancelled: 'bg-rose-100 text-rose-700',
   };
   const canSelectSell = Boolean(planContextPosition?.id ?? planForm.positionId);
+  const finnhubToken = settings.finnhubToken?.trim();
+
+  const fetchLatestPrice = useCallback(
+    async (rawSymbol: string): Promise<number | null> => {
+      const normalizedSymbol = rawSymbol.trim().toUpperCase();
+      if (!normalizedSymbol) {
+        return null;
+      }
+
+      try {
+        const params = new URLSearchParams({ symbol: normalizedSymbol });
+        if (finnhubToken) {
+          params.set('token', finnhubToken);
+        }
+
+        const response = await fetch(`/api/quote?${params.toString()}`);
+        const payload = (await response.json().catch(() => null)) as (StockQuote & { error?: string }) | null;
+
+        if (!response.ok) {
+          const errorMessage = payload && 'error' in payload && payload.error ? payload.error : response.statusText;
+          console.warn(`Failed to load current price for ${normalizedSymbol}: ${errorMessage}`);
+          return null;
+        }
+
+        const price = payload && typeof payload.c === 'number' ? payload.c : null;
+        if (price !== null && Number.isFinite(price) && price > 0) {
+          return price;
+        }
+      } catch (error) {
+        console.error('Failed to fetch current price:', rawSymbol, error);
+      }
+
+      return null;
+    },
+    [finnhubToken],
+  );
+
+  useEffect(() => {
+    if (!dialogOpen || isEditing || newPositionMode !== 'immediate') {
+      return;
+    }
+
+    const symbol = formData.symbol.trim().toUpperCase();
+    if (!symbol) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        const latestPrice = await fetchLatestPrice(symbol);
+        if (latestPrice === null) {
+          return;
+        }
+
+        const normalizedPrice = Number.parseFloat(latestPrice.toFixed(2));
+        setFormData(prev => {
+          if (prev.symbol.trim().toUpperCase() !== symbol) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            initialPrice: normalizedPrice,
+          };
+        });
+      })();
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [dialogOpen, fetchLatestPrice, formData.symbol, isEditing, newPositionMode]);
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -305,6 +378,34 @@ export default function PositionsPage() {
       type,
     });
     setTransactionDialogOpen(true);
+
+    if (position.symbol) {
+      const targetSymbol = position.symbol.trim().toUpperCase();
+      transactionContextRef.current = { symbol: targetSymbol, type };
+      void (async () => {
+        const latestPrice = await fetchLatestPrice(targetSymbol);
+        if (latestPrice === null) {
+          return;
+        }
+
+        const normalizedPrice = Number.parseFloat(latestPrice.toFixed(2));
+        setTransactionForm(prev => {
+          const context = transactionContextRef.current;
+          if (!context || context.symbol !== targetSymbol) {
+            return prev;
+          }
+
+          if (prev.id || prev.price > 0) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            price: normalizedPrice,
+          };
+        });
+      })();
+    }
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
@@ -926,6 +1027,7 @@ export default function PositionsPage() {
           onOpenChange={(open) => {
             setTransactionDialogOpen(open);
             if (!open) {
+              transactionContextRef.current = null;
               setTransactionTarget(null);
               setTransactionForm(createDefaultTransactionForm());
             }
