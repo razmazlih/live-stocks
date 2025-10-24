@@ -253,6 +253,7 @@ export default function PortfolioPage() {
     secondary?: { label: string; value: string };
     helper?: { label: string; value: string }[];
     badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
+    insight?: { label: string; value: string; helper?: string; tone: { text: string; badge: string } };
     footnote?: string;
   };
 
@@ -261,6 +262,12 @@ export default function PortfolioPage() {
   if (summary) {
     const taxesUsdDisplay = summary.totalTaxesPaidUsd * -1;
     const taxesIlsDisplay = summary.totalTaxesPaidIls * -1;
+    const netForecastGapUsd = summary.totalNetPnLUsd - summary.totalProjectedPnLUsd;
+    const netForecastGapIls = summary.totalNetPnLIls - summary.totalProjectedPnLIls;
+    const netForecastGapPercent = summary.totalProjectedPnLUsd !== 0
+      ? (netForecastGapUsd / Math.abs(summary.totalProjectedPnLUsd)) * 100
+      : 0;
+    const netForecastTone = getTrendTone(netForecastGapUsd);
 
     summaryCards.push(
       {
@@ -291,6 +298,12 @@ export default function PortfolioPage() {
         secondary: {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
+        },
+        insight: {
+          label: t.dashboard.netForecastGap,
+          value: formatSignedCurrency(netForecastGapUsd, 'USD'),
+          helper: `${formatSignedCurrency(netForecastGapIls, 'ILS')} · ${formatSignedPercent(netForecastGapPercent)}`,
+          tone: netForecastTone,
         },
       },
       {
@@ -530,6 +543,21 @@ export default function PortfolioPage() {
                                     {card.secondary.label}:{' '}
                                     <span className="font-medium text-slate-700">{card.secondary.value}</span>
                                   </p>
+                                )}
+                                {card.insight && (
+                                  <div className={`rounded-2xl px-3 py-2 shadow-sm ${card.insight.tone.badge}`}>
+                                    <div className="flex flex-col gap-1">
+                                      <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
+                                        {card.insight.label}
+                                      </p>
+                                      <p className={`text-base font-semibold leading-tight ${card.insight.tone.text}`}>
+                                        {card.insight.value}
+                                      </p>
+                                      {card.insight.helper && (
+                                        <p className="text-xs font-medium opacity-80">{card.insight.helper}</p>
+                                      )}
+                                    </div>
+                                  </div>
                                 )}
                                 {card.helper?.map((helper) => (
                                   <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
