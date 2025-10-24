@@ -3,6 +3,14 @@ import { computeOpenLots, summarizeLots } from '@/lib/positions';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
+function isSameUtcDay(dateA: Date, dateB: Date): boolean {
+  return (
+    dateA.getUTCFullYear() === dateB.getUTCFullYear() &&
+    dateA.getUTCMonth() === dateB.getUTCMonth() &&
+    dateA.getUTCDate() === dateB.getUTCDate()
+  );
+}
+
 export function calculatePositionMetrics(
   position: Position,
   currentPrice: number,
@@ -32,6 +40,9 @@ export function calculatePositionMetrics(
 
   const yearsHeld = summary ? summary.weightedHoldingYears || fallbackYearsHeld : fallbackYearsHeld;
 
+  const isOpenedToday = !Number.isNaN(entryDate.getTime()) && isSameUtcDay(entryDate, now);
+  const effectiveDailyChange = isOpenedToday ? currentPrice - normalizedEntryPrice : dailyChange;
+
   const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
   const positionPnLIls = positionPnLUsd * usdToIlsRate;
 
@@ -49,8 +60,8 @@ export function calculatePositionMetrics(
   const costBasis = normalizedEntryPrice * normalizedQuantity;
   const roiPercent = costBasis !== 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
 
-  const dailyChangePercent = dailyChange !== undefined && currentPrice - dailyChange !== 0
-    ? (dailyChange / (currentPrice - dailyChange)) * 100
+  const dailyChangePercent = effectiveDailyChange !== undefined && currentPrice - effectiveDailyChange !== 0
+    ? (effectiveDailyChange / (currentPrice - effectiveDailyChange)) * 100
     : undefined;
 
   return {
@@ -66,7 +77,7 @@ export function calculatePositionMetrics(
     yearsHeld,
     currentValue,
     roiPercent,
-    dailyChange,
+    dailyChange: effectiveDailyChange,
     dailyChangePercent,
   };
 }
