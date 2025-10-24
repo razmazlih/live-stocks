@@ -16,6 +16,7 @@ import { createCommonQuickActions } from '@/components/dashboard/common-quick-ac
 import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -191,6 +192,31 @@ export default function HomePage() {
       ]
     : [];
 
+  const summaryAvailable = summaryCards.length > 0;
+  const hasActivePositions = openMetrics.length > 0;
+  const positionsAvailable = hasAnyPositions;
+  const visualizationsHasContent = Boolean(summary && openMetrics.length > 0);
+
+  const sectionDefinitions = [
+    { value: 'summary', label: t.dashboard.summaryTitle, available: summaryAvailable },
+    { value: 'positions', label: t.dashboard.positionsTitle, available: positionsAvailable },
+    { value: 'visualizations', label: t.dashboard.visualizationsTitle, available: Boolean(summary) },
+  ];
+
+  const sections = sectionDefinitions.filter((section) => section.available);
+
+  const defaultSection = summaryAvailable
+    ? 'summary'
+    : hasActivePositions
+      ? 'positions'
+      : visualizationsHasContent
+        ? 'visualizations'
+        : sections[0]?.value ?? 'positions';
+
+  const hasSummaryTab = sections.some((section) => section.value === 'summary');
+  const hasPositionsTab = sections.some((section) => section.value === 'positions');
+  const hasVisualizationsTab = sections.some((section) => section.value === 'visualizations');
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,45 +252,86 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-                          {dailyChangeData && (
-                            <DailyChangeBadge
-                              toneClass={dailyChangeData.toneClass}
-                              icon={dailyChangeData.icon}
-                              value={dailyChangeData.value}
-                              label={dailyChangeData.label}
-                            />
-                          )}
-                        </div>
-                        <SummaryCardGrid cards={summaryCards} />
-                      </div>
+                  <Tabs defaultValue={defaultSection} className="flex flex-col gap-6">
+                    <TabsList className="grid grid-cols-1 gap-2 rounded-2xl bg-white/60 p-2 sm:grid-cols-3">
+                      {sectionDefinitions.map((section) => (
+                        <TabsTrigger
+                          key={section.value}
+                          value={section.value}
+                          disabled={!section.available}
+                          className={`rounded-xl border border-transparent bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 transition data-[state=active]:border-slate-200 data-[state=active]:bg-white data-[state=active]:text-slate-900 ${
+                            section.available ? '' : 'hidden'
+                          }`}
+                        >
+                          {section.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {hasSummaryTab && (
+                      <TabsContent value="summary" className="space-y-5">
+                        {summaryAvailable && summary ? (
+                          <>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
+                              {dailyChangeData && (
+                                <DailyChangeBadge
+                                  toneClass={dailyChangeData.toneClass}
+                                  icon={dailyChangeData.icon}
+                                  value={dailyChangeData.value}
+                                  label={dailyChangeData.label}
+                                />
+                              )}
+                            </div>
+                            <SummaryCardGrid cards={summaryCards} />
+                          </>
+                        ) : (
+                          <p className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-10 text-center text-sm text-slate-500">
+                            {t.dashboard.summaryEmpty}
+                          </p>
+                        )}
+                      </TabsContent>
                     )}
 
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
-
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
+                    {hasPositionsTab && (
+                      <TabsContent value="positions">
+                        {positionsAvailable ? (
+                          <PositionsOverview
+                            openTitle={t.dashboard.positionsTitle}
+                            closedTitle={t.dashboard.closedPositionsTitle}
+                            openMetrics={openMetrics}
+                            closedMetrics={closedMetrics}
+                            sparklineData={sparklineData}
                           />
-                        </div>
-                      </div>
+                        ) : (
+                          <p className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-10 text-center text-sm text-slate-500">
+                            {t.dashboard.noPositions}
+                          </p>
+                        )}
+                      </TabsContent>
                     )}
-                  </div>
+
+                    {hasVisualizationsTab && (
+                      <TabsContent value="visualizations" className="space-y-4 border-t border-slate-100 pt-6">
+                        {visualizationsHasContent && summary ? (
+                          <>
+                            <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
+                            <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                              <PortfolioVisualizations
+                                metrics={openMetrics}
+                                summary={summary}
+                                timeline={portfolioTimeline}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <p className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-10 text-center text-sm text-slate-500">
+                            {t.dashboard.visualizationsEmpty}
+                          </p>
+                        )}
+                      </TabsContent>
+                    )}
+                  </Tabs>
                 )}
               </div>
             </section>
