@@ -151,57 +151,81 @@ export function TickerCard({
       : null;
   }, [currentPrice, quote, historical]);
 
-  const activePrice = hoveredPoint?.price ?? derivedCurrentPrice ?? null;
-
-  const priceText = useMemo(() => {
-    if (typeof activePrice === 'number' && Number.isFinite(activePrice)) {
-      return formatCurrency(activePrice, currency, locale);
+  const currentPriceText = useMemo(() => {
+    if (typeof derivedCurrentPrice === 'number' && Number.isFinite(derivedCurrentPrice)) {
+      return formatCurrency(derivedCurrentPrice, currency, locale);
     }
 
     return '--';
-  }, [activePrice, currency, locale]);
+  }, [derivedCurrentPrice, currency, locale]);
 
-  const basePriceText = useMemo(() => {
-    if (typeof derivedBasePrice === 'number' && Number.isFinite(derivedBasePrice)) {
-      return formatCurrency(derivedBasePrice, currency, locale);
-    }
-
-    return '--';
-  }, [derivedBasePrice, currency, locale]);
-
-  const baseDateText = useMemo(() => {
-    if (!derivedBaseDate) {
-      return null;
-    }
-
-    return formatDate(derivedBaseDate, locale);
-  }, [derivedBaseDate, locale]);
-
-  const changeAbsolute = useMemo(() => {
+  const hoveredBasePrice = useMemo(() => {
     if (
-      typeof derivedBasePrice === 'number' &&
-      Number.isFinite(derivedBasePrice) &&
-      typeof derivedCurrentPrice === 'number' &&
-      Number.isFinite(derivedCurrentPrice)
+      hoveredPoint &&
+      typeof hoveredPoint.price === 'number' &&
+      Number.isFinite(hoveredPoint.price)
     ) {
-      return derivedCurrentPrice - derivedBasePrice;
+      return hoveredPoint.price;
     }
 
     return null;
-  }, [derivedBasePrice, derivedCurrentPrice]);
+  }, [hoveredPoint]);
+
+  const hoveredBaseDate = useMemo(() => {
+    if (hoveredPoint && Number.isFinite(hoveredPoint.timestamp)) {
+      const date = new Date(hoveredPoint.timestamp);
+      if (!Number.isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    return null;
+  }, [hoveredPoint]);
+
+  const effectiveBasePrice = hoveredBasePrice ?? derivedBasePrice;
+  const effectiveBaseDate = hoveredBaseDate ?? derivedBaseDate;
+
+  const basePriceText = useMemo(() => {
+    if (typeof effectiveBasePrice === 'number' && Number.isFinite(effectiveBasePrice)) {
+      return formatCurrency(effectiveBasePrice, currency, locale);
+    }
+
+    return '--';
+  }, [effectiveBasePrice, currency, locale]);
+
+  const baseDateText = useMemo(() => {
+    if (!effectiveBaseDate) {
+      return null;
+    }
+
+    return formatDate(effectiveBaseDate, locale);
+  }, [effectiveBaseDate, locale]);
+
+  const changeAbsolute = useMemo(() => {
+    if (
+      typeof effectiveBasePrice === 'number' &&
+      Number.isFinite(effectiveBasePrice) &&
+      typeof derivedCurrentPrice === 'number' &&
+      Number.isFinite(derivedCurrentPrice)
+    ) {
+      return derivedCurrentPrice - effectiveBasePrice;
+    }
+
+    return null;
+  }, [effectiveBasePrice, derivedCurrentPrice]);
 
   const changePercent = useMemo(() => {
     if (
       changeAbsolute === null ||
-      typeof derivedBasePrice !== 'number' ||
-      !Number.isFinite(derivedBasePrice) ||
-      derivedBasePrice === 0
+      typeof effectiveBasePrice !== 'number' ||
+      !Number.isFinite(effectiveBasePrice) ||
+      effectiveBasePrice === 0
     ) {
       return null;
     }
 
-    return (changeAbsolute / derivedBasePrice) * 100;
-  }, [changeAbsolute, derivedBasePrice]);
+    return (changeAbsolute / effectiveBasePrice) * 100;
+  }, [changeAbsolute, effectiveBasePrice]);
 
   const changeText = useMemo(() => {
     const parts: string[] = [];
@@ -245,12 +269,8 @@ export function TickerCard({
     return `linear-gradient(90deg, ${base} 0%, ${base}CC 45%, ${base}66 100%)`;
   }, [trendColor]);
 
-  const hoverMeta = hoveredPoint ? `${hoverLabel} ${formatTooltipTimestamp(hoveredPoint.timestamp)}` : null;
-  const activePriceLabel = hoverMeta ?? priceLabel;
-  const priceLabelClassName = cn(
-    'text-[0.65rem] font-semibold text-slate-500',
-    hoverMeta ? null : 'uppercase tracking-wide'
-  );
+  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500';
+  const baseDateLabel = hoveredPoint ? hoverLabel : startDateLabel;
 
   const showSparkline = Array.isArray(historical) && historical.length > 1;
 
@@ -328,9 +348,9 @@ export function TickerCard({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3 sm:col-span-2">
-            <p className={priceLabelClassName}>{activePriceLabel}</p>
+            <p className={priceLabelClassName}>{priceLabel}</p>
             <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
-              {priceText}
+              {currentPriceText}
             </p>
           </div>
           <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
@@ -346,7 +366,7 @@ export function TickerCard({
             </p>
             {baseDateText ? (
               <p className="mt-1 text-[0.68rem] text-slate-400">
-                {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
+                {baseDateLabel ? `${baseDateLabel} ${baseDateText}` : baseDateText}
               </p>
             ) : null}
           </div>
