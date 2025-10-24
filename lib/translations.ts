@@ -49,6 +49,7 @@ export const translations = {
       viewDetails: 'מסך פירוט',
       viewForecast: 'צפה בתחזית',
       summaryTitle: 'תמונת מצב התיק',
+      summaryEmpty: 'אין נתונים להצגת תמונת מצב.',
       positionsTitle: 'פוזיציות פעילות',
       closedPositionsTitle: 'פוזיציות סגורות',
       closedBadge: 'נסגרה',
@@ -94,6 +95,7 @@ export const translations = {
       portfolioOverviewFootnote: 'תובנה מהירה',
       portfolioOverviewSummary: (open: string, realized: string, taxes: string) =>
         `הפוזיציות הפעילות מוסיפות ${open}, הרווחים הסגורים מסתכמים ב-${realized}, והמסים ששולמו עד כה הם ${taxes}.`,
+      visualizationsEmpty: 'אין מספיק נתונים להצגת ויזואליזציות כרגע.',
     },
     portfolio: {
       title: 'סקירת התיק',
@@ -567,6 +569,7 @@ export const translations = {
       viewDetails: 'View details',
       viewForecast: 'View forecast',
       summaryTitle: 'Portfolio snapshot',
+      summaryEmpty: 'No summary data to display yet.',
       positionsTitle: 'Active positions',
       closedPositionsTitle: 'Closed positions',
       closedBadge: 'Closed',
@@ -612,6 +615,7 @@ export const translations = {
       portfolioOverviewFootnote: 'Quick insight',
       portfolioOverviewSummary: (open: string, realized: string, taxes: string) =>
         `Open positions contribute ${open}, realized gains total ${realized}, and taxes paid so far are ${taxes}.`,
+      visualizationsEmpty: 'Not enough data to render visualizations yet.',
     },
     portfolio: {
       title: 'Portfolio overview',
