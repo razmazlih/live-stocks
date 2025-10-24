@@ -252,7 +252,7 @@ export default function PortfolioPage() {
     valueClass?: string;
     secondary?: { label: string; value: string };
     helper?: { label: string; value: string }[];
-    badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
+    badge?: { label?: string; value: string; tone: { text: string; badge: string }; icon: JSX.Element };
     footnote?: string;
   };
 
@@ -261,6 +261,9 @@ export default function PortfolioPage() {
   if (summary) {
     const taxesUsdDisplay = summary.totalTaxesPaidUsd * -1;
     const taxesIlsDisplay = summary.totalTaxesPaidIls * -1;
+    const netVsForecastUsd = summary.totalNetPnLUsd - summary.totalProjectedPnLUsd;
+    const netVsForecastIls = summary.totalNetPnLIls - summary.totalProjectedPnLIls;
+    const netVsForecastTone = getTrendTone(netVsForecastUsd);
 
     summaryCards.push(
       {
@@ -292,6 +295,18 @@ export default function PortfolioPage() {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
         },
+        badge: {
+          label: t.dashboard.distanceFromForecastShort,
+          value: formatSignedCurrency(netVsForecastUsd, 'USD'),
+          tone: netVsForecastTone,
+          icon: getTrendIcon(netVsForecastUsd),
+        },
+        helper: [
+          {
+            label: `${t.dashboard.distanceFromForecastShort} (${t.dashboard.ilsLabel})`,
+            value: formatSignedCurrency(netVsForecastIls, 'ILS'),
+          },
+        ],
       },
       {
         key: 'current',
@@ -516,12 +531,15 @@ export default function PortfolioPage() {
                                 <div className="flex items-center justify-between">
                                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
                                   {card.badge && (
-                                    <span
-                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
-                                    >
-                                      {card.badge.icon}
-                                      {card.badge.value}
-                                    </span>
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
+                                  >
+                                    {card.badge.icon}
+                                    {card.badge.label && (
+                                      <span className="font-medium">{card.badge.label}</span>
+                                    )}
+                                    <span className="font-semibold">{card.badge.value}</span>
+                                  </span>
                                   )}
                                 </div>
                                 <p className={card.valueClass}>{card.value}</p>
