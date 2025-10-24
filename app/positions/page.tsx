@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Position, PositionLot, PositionLotType, PositionPlan } from '@/types';
 import { mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
+import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,7 +98,7 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
 }
 
 export default function PositionsPage() {
-  const { locale, triggerRefresh, processPlans, refreshTrigger } = useApp();
+  const { locale, triggerRefresh, processPlans, refreshTrigger, settings } = useApp();
   const { t } = useTranslation(locale);
   const [positions, setPositions] = useState<Position[]>([]);
   const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
@@ -140,6 +141,67 @@ export default function PositionsPage() {
     cancelled: 'bg-rose-100 text-rose-700',
   };
   const canSelectSell = Boolean(planContextPosition?.id ?? planForm.positionId);
+
+  const fetchQuotePrice = useCallback(
+    async (symbol: string): Promise<number | null> => {
+      const trimmedSymbol = symbol.trim().toUpperCase();
+
+      if (!trimmedSymbol || !settings.finnhubToken) {
+        return null;
+      }
+
+      const quote = await fetchFinnhubQuote(trimmedSymbol, { token: settings.finnhubToken });
+
+      if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+        return null;
+      }
+
+      return Number.parseFloat(quote.price.toFixed(2));
+    },
+    [settings.finnhubToken],
+  );
+
+  const prefillTransactionPrice = useCallback(
+    async (symbol: string) => {
+      const price = await fetchQuotePrice(symbol);
+
+      if (price === null) {
+        return;
+      }
+
+      setTransactionForm(prev => {
+        if (prev.id || prev.price !== 0) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          price,
+        };
+      });
+    },
+    [fetchQuotePrice],
+  );
+
+  const updateInitialPriceFromSymbol = useCallback(
+    async (symbol: string) => {
+      if (isEditing) {
+        return;
+      }
+
+      const price = await fetchQuotePrice(symbol);
+
+      if (price === null) {
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        initialPrice: price,
+      }));
+    },
+    [fetchQuotePrice, isEditing],
+  );
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -305,6 +367,7 @@ export default function PositionsPage() {
       type,
     });
     setTransactionDialogOpen(true);
+    void prefillTransactionPrice(position.symbol);
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
@@ -729,7 +792,10 @@ export default function PositionsPage() {
                       <Input
                         id="symbol"
                         value={formData.symbol}
-                        onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, symbol: e.target.value.toUpperCase() })
+                        }
+                        onBlur={(e) => void updateInitialPriceFromSymbol(e.target.value)}
                         placeholder="AAPL"
                         required
                       />
