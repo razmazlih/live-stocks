@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -191,6 +191,103 @@ export default function HomePage() {
       ]
     : [];
 
+  const sectionOptions = useMemo(
+    () => [
+      {
+        key: 'summary' as const,
+        label: t.dashboard.sectionSummaryLabel,
+        description: t.dashboard.sectionSummaryDescription,
+        disabled: summaryCards.length === 0,
+      },
+      {
+        key: 'positions' as const,
+        label: t.dashboard.sectionPositionsLabel,
+        description: t.dashboard.sectionPositionsDescription,
+        disabled: !hasAnyPositions,
+      },
+      {
+        key: 'insights' as const,
+        label: t.dashboard.sectionInsightsLabel,
+        description: t.dashboard.sectionInsightsDescription,
+        disabled: !(summary && openMetrics.length > 0),
+      },
+    ],
+    [
+      t.dashboard.sectionSummaryLabel,
+      t.dashboard.sectionSummaryDescription,
+      t.dashboard.sectionPositionsLabel,
+      t.dashboard.sectionPositionsDescription,
+      t.dashboard.sectionInsightsLabel,
+      t.dashboard.sectionInsightsDescription,
+      summaryCards.length,
+      hasAnyPositions,
+      summary,
+      openMetrics.length,
+    ]
+  );
+
+  const [activeSection, setActiveSection] = useState(sectionOptions[0]?.key ?? 'summary');
+
+  useEffect(() => {
+    const hasActiveSection = sectionOptions.some(
+      (option) => option.key === activeSection && !option.disabled
+    );
+
+    if (!hasActiveSection) {
+      const nextSection = sectionOptions.find((option) => !option.disabled);
+      if (nextSection) {
+        setActiveSection(nextSection.key);
+      }
+    }
+  }, [activeSection, sectionOptions]);
+
+  const summarySection = summaryCards.length > 0 && (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
+        {dailyChangeData && (
+          <DailyChangeBadge
+            toneClass={dailyChangeData.toneClass}
+            icon={dailyChangeData.icon}
+            value={dailyChangeData.value}
+            label={dailyChangeData.label}
+          />
+        )}
+      </div>
+      <SummaryCardGrid cards={summaryCards} />
+    </div>
+  );
+
+  const positionsSection = hasAnyPositions && (
+    <div className="space-y-6">
+      <PositionsOverview
+        openTitle={t.dashboard.positionsTitle}
+        closedTitle={t.dashboard.closedPositionsTitle}
+        openMetrics={openMetrics}
+        closedMetrics={closedMetrics}
+        sparklineData={sparklineData}
+      />
+    </div>
+  );
+
+  const insightsSection = summary && openMetrics.length > 0 && (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold text-slate-900">
+          {t.dashboard.visualizationsTitle}
+        </h3>
+        <p className="text-sm text-slate-500">{t.dashboard.sectionInsightsHelper}</p>
+      </div>
+      <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+        <PortfolioVisualizations
+          metrics={openMetrics}
+          summary={summary}
+          timeline={portfolioTimeline}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,44 +323,64 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-                          {dailyChangeData && (
-                            <DailyChangeBadge
-                              toneClass={dailyChangeData.toneClass}
-                              icon={dailyChangeData.icon}
-                              value={dailyChangeData.value}
-                              label={dailyChangeData.label}
-                            />
-                          )}
-                        </div>
-                        <SummaryCardGrid cards={summaryCards} />
-                      </div>
-                    )}
-
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
-
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
-                          />
+                  <div className="space-y-8">
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="space-y-1">
+                          <h2 className="text-lg font-semibold text-slate-900">
+                            {t.dashboard.sectionSelectorTitle}
+                          </h2>
+                          <p className="text-sm text-slate-500">
+                            {t.dashboard.sectionSelectorSubtitle}
+                          </p>
                         </div>
                       </div>
-                    )}
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {sectionOptions.map((option) => {
+                          const isActive = activeSection === option.key;
+                          const baseClasses =
+                            'relative flex h-full flex-col justify-between rounded-2xl border px-4 py-4 text-left transition-all';
+                          const stateClasses = option.disabled
+                            ? 'cursor-not-allowed border-white/40 bg-white/30 text-slate-400'
+                            : isActive
+                              ? 'border-blue-400 bg-white shadow-lg shadow-blue-100/60 ring-2 ring-blue-200'
+                              : 'border-white/50 bg-white/60 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white/80';
+
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              disabled={option.disabled}
+                              onClick={() => setActiveSection(option.key)}
+                              className={`${baseClasses} ${stateClasses}`}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-slate-900">
+                                    {option.label}
+                                  </span>
+                                  {isActive && (
+                                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
+                                      {t.dashboard.sectionSelected}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-slate-500">{option.description}</p>
+                              </div>
+                              {option.disabled && (
+                                <span className="mt-3 text-xs font-medium text-slate-400">
+                                  {t.dashboard.sectionUnavailable}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {activeSection === 'summary' && summarySection}
+                    {activeSection === 'positions' && positionsSection}
+                    {activeSection === 'insights' && insightsSection}
                   </div>
                 )}
               </div>
