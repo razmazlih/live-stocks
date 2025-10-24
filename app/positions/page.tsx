@@ -1626,24 +1626,6 @@ export default function PositionsPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2"
-                  onClick={openDetachedPlanDialog}
-                >
-                  <CalendarPlus className="h-4 w-4" />
-                  {t.positions.addPlan}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => {
-                    void processPlans();
-                  }}
-                >
-                  <History className="h-4 w-4" />
-                  {t.positions.processPlans}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
                   onClick={triggerRefresh}
                 >
                   <RefreshCw className="h-4 w-4" />
