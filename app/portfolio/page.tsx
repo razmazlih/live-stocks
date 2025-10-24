@@ -90,6 +90,15 @@ export default function PortfolioPage() {
     [positions, rateForSummary]
   );
 
+  const totalNetPnLUsd = summary?.totalNetPnLUsd ?? 0;
+  const totalNetPnLIls = summary?.totalNetPnLIls ?? 0;
+  const netForecastGapUsd = summary ? summary.totalNetPnLUsd - summary.totalProjectedPnLUsd : 0;
+  const netForecastGapIls = summary ? summary.totalNetPnLIls - summary.totalProjectedPnLIls : 0;
+  const netForecastGapTone = getTrendTone(netForecastGapUsd);
+  const netForecastGapIcon = getTrendIcon(netForecastGapUsd);
+  const netPnLTone = getTrendTone(totalNetPnLUsd);
+  const netPnLIcon = getTrendIcon(totalNetPnLUsd);
+
   const closedSummary = useMemo(() => {
     if (realizedSales.length === 0) {
       return null;
@@ -245,13 +254,21 @@ export default function PortfolioPage() {
       ]
     : [];
 
+  type SummaryCardHelper = {
+    label: string;
+    value: string;
+    secondary?: string;
+    tone?: ReturnType<typeof getTrendTone>;
+    icon?: JSX.Element;
+  };
+
   type SummaryCard = {
     key: string;
     label: string;
     value: string;
     valueClass?: string;
     secondary?: { label: string; value: string };
-    helper?: { label: string; value: string }[];
+    helper?: SummaryCardHelper[];
     badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
     footnote?: string;
   };
@@ -292,6 +309,17 @@ export default function PortfolioPage() {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
         },
+        helper: [
+          {
+            label: t.dashboard.forecastGap,
+            value: formatSignedCurrency(netForecastGapUsd, 'USD'),
+            secondary: t.dashboard.forecastGapSecondary(
+              formatSignedCurrency(netForecastGapIls, 'ILS')
+            ),
+            tone: netForecastGapTone,
+            icon: netForecastGapIcon,
+          },
+        ],
       },
       {
         key: 'current',
@@ -474,20 +502,73 @@ export default function PortfolioPage() {
                   </div>
                 ) : (
                   <div className="space-y-10">
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
-                          <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
+                            <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
+                          </div>
                         </div>
+                        {portfolioTimeline.length > 0 ? (
+                          <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/80 py-14 text-center text-slate-500">
+                            <LineChart className="h-6 w-6 text-slate-400" />
+                            <p>{t.portfolio.timelineEmpty}</p>
+                          </div>
+                        )}
                       </div>
-                      {portfolioTimeline.length > 0 ? (
-                        <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/80 py-14 text-center text-slate-500">
-                          <LineChart className="h-6 w-6 text-slate-400" />
-                          <p>{t.portfolio.timelineEmpty}</p>
-                        </div>
+
+                      {summary && (
+                        <aside
+                          className="space-y-4 rounded-3xl border border-white/70 bg-white/90 p-6 shadow-inner"
+                          aria-labelledby="net-pnl-snapshot"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p id="net-pnl-snapshot" className="text-sm font-medium text-slate-500">
+                                {t.dashboard.netPnL}
+                              </p>
+                              <p className={`mt-2 text-3xl font-semibold ${netPnLTone.text}`}>
+                                {formatSignedCurrency(totalNetPnLUsd, 'USD')}
+                              </p>
+                              <p className="text-sm font-medium text-slate-500">
+                                {t.portfolio.netSnapshotActualSecondary(
+                                  formatSignedCurrency(totalNetPnLIls, 'ILS')
+                                )}
+                              </p>
+                            </div>
+                            <span
+                              className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${netPnLTone.badge}`}
+                              aria-hidden="true"
+                            >
+                              {netPnLIcon}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">{t.portfolio.netSnapshotDescription}</p>
+                          <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/80 bg-slate-50/80 p-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t.dashboard.forecastGap}
+                              </p>
+                              <p className={`mt-2 text-lg font-semibold ${netForecastGapTone.text}`}>
+                                {formatSignedCurrency(netForecastGapUsd, 'USD')}
+                              </p>
+                              <p className="text-xs font-medium text-slate-500">
+                                {t.dashboard.forecastGapSecondary(
+                                  formatSignedCurrency(netForecastGapIls, 'ILS')
+                                )}
+                              </p>
+                            </div>
+                            <span
+                              className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${netForecastGapTone.badge}`}
+                              aria-hidden="true"
+                            >
+                              {netForecastGapIcon}
+                            </span>
+                          </div>
+                        </aside>
                       )}
                     </div>
 
@@ -532,10 +613,37 @@ export default function PortfolioPage() {
                                   </p>
                                 )}
                                 {card.helper?.map((helper) => (
-                                  <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
-                                    {helper.label}:{' '}
-                                    <span className="font-medium text-slate-700">{helper.value}</span>
-                                  </p>
+                                  <div
+                                    key={`${card.key}-${helper.label}`}
+                                    className="mt-3 rounded-2xl border border-slate-100 bg-white/70 px-3 py-2 text-xs text-slate-500 shadow-inner"
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2">
+                                        {helper.icon && (
+                                          <span
+                                            className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                                              helper.tone?.badge ?? 'bg-slate-100 text-slate-500'
+                                            }`}
+                                          >
+                                            {helper.icon}
+                                          </span>
+                                        )}
+                                        <span className="font-medium">{helper.label}</span>
+                                      </div>
+                                      <span
+                                        className={`font-semibold ${
+                                          helper.tone?.text ?? 'text-slate-700'
+                                        }`}
+                                      >
+                                        {helper.value}
+                                      </span>
+                                    </div>
+                                    {helper.secondary && (
+                                      <span className="mt-1 block text-[11px] font-medium text-slate-400">
+                                        {helper.secondary}
+                                      </span>
+                                    )}
+                                  </div>
                                 ))}
                                 {card.footnote && (
                                   <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
