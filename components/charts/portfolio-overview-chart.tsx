@@ -707,28 +707,28 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="relative h-[22rem] rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
-            <div className="relative h-full w-full p-4">
-              <div className="pointer-events-none absolute left-6 top-6 z-30 flex flex-wrap items-center gap-4 rounded-2xl bg-white/85 px-4 py-2 text-[11px] font-medium text-slate-600 shadow-lg backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
-                  <span>{t.dashboard.timelineLegendActualLoss}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
-                  <span>{t.dashboard.timelineLegendActualUnder}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
-                  <span>{t.dashboard.timelineLegendActualAbove}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
-                  <span>{t.dashboard.timelineLegendForecast}</span>
-                </div>
+          <div className="flex h-[24rem] flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/80 p-4 shadow-inner">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/85 px-4 py-3 text-[11px] font-medium text-slate-600 shadow-md backdrop-blur">
+              <div className="flex items-center gap-2">
+                <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                <span>{t.dashboard.timelineLegendActualLoss}</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                <span>{t.dashboard.timelineLegendActualUnder}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                <span>{t.dashboard.timelineLegendActualAbove}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
+                <span>{t.dashboard.timelineLegendForecast}</span>
+              </div>
+            </div>
+            <div className="relative flex-1">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartPoints} margin={{ top: 28, right: 32, left: 0, bottom: 16 }}>
+                <LineChart data={chartPoints} margin={{ top: 8, right: 32, left: 0, bottom: 16 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
                       {netLineGradientStops.length === 0 ? (
