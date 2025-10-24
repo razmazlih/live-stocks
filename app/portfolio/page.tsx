@@ -292,6 +292,12 @@ export default function PortfolioPage() {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
         },
+        helper: [
+          {
+            label: t.dashboard.combinedPnL,
+            value: `${formatSignedCurrency(summary.totalCombinedUsd, 'USD')} · ${formatSignedCurrency(summary.totalCombinedIls, 'ILS')}`,
+          },
+        ],
       },
       {
         key: 'current',
