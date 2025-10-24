@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLot, PositionLotType, PositionPlan } from '@/types';
+import { Position, PositionLot, PositionLotType, PositionPlan, StockQuote } from '@/types';
 import { mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -96,6 +96,36 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
   };
 }
 
+async function fetchQuotePrice(symbol: string): Promise<number | null> {
+  const trimmedSymbol = symbol.trim().toUpperCase();
+
+  if (!trimmedSymbol) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/quote?symbol=${encodeURIComponent(trimmedSymbol)}`,
+      { cache: 'no-store' },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: StockQuote = await response.json();
+
+    if (typeof data.c === 'number' && Number.isFinite(data.c) && data.c > 0) {
+      return data.c;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch quote price for symbol:', symbol, error);
+    return null;
+  }
+}
+
 export default function PositionsPage() {
   const { locale, triggerRefresh, processPlans, refreshTrigger } = useApp();
   const { t } = useTranslation(locale);
@@ -124,6 +154,7 @@ export default function PositionsPage() {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [planForm, setPlanForm] = useState<PlanFormData>(createDefaultPlanForm());
   const [planContextPosition, setPlanContextPosition] = useState<Position | null>(null);
+  const lastFetchedSymbolRef = useRef<string | null>(null);
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
   const isEditingPlan = Boolean(planForm.id);
@@ -278,6 +309,7 @@ export default function PositionsPage() {
       targetQuantity: 0,
       targetDate: getTodayIsoDate(),
     });
+    lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
   }
 
@@ -367,6 +399,80 @@ export default function PositionsPage() {
     });
     setPlanDialogOpen(true);
   }
+
+  useEffect(() => {
+    if (!dialogOpen || isEditing) {
+      return;
+    }
+
+    const symbol = formData.symbol.trim().toUpperCase();
+
+    if (!symbol) {
+      lastFetchedSymbolRef.current = null;
+      return;
+    }
+
+    if (symbol === lastFetchedSymbolRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        const price = await fetchQuotePrice(symbol);
+
+        if (cancelled || price === null) {
+          return;
+        }
+
+        lastFetchedSymbolRef.current = symbol;
+        setFormData((previous) => ({
+          ...previous,
+          initialPrice: price,
+          targetPrice: price,
+        }));
+      })();
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [dialogOpen, formData.symbol, isEditing]);
+
+  const transactionSymbol = transactionTarget?.symbol?.trim().toUpperCase() ?? '';
+
+  useEffect(() => {
+    if (!transactionDialogOpen || transactionForm.id || !transactionSymbol) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const price = await fetchQuotePrice(transactionSymbol);
+
+      if (cancelled || price === null) {
+        return;
+      }
+
+      setTransactionForm((previous) => {
+        if (previous.id || (typeof previous.price === 'number' && previous.price > 0)) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          price,
+        };
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transactionDialogOpen, transactionForm.id, transactionSymbol]);
 
   const handlePlanDialogOpenChange = useCallback((open: boolean) => {
     setPlanDialogOpen(open);
