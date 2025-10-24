@@ -2,6 +2,7 @@
 
 import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Fragment, useId, useMemo } from 'react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
@@ -110,6 +111,38 @@ const formatSignedCurrency = (value: number, formatter: (value: number) => strin
 
   const formatted = formatter(Math.abs(value));
   return value > 0 ? `+${formatted}` : `-${formatted}`;
+};
+
+const resolveForecastGapVisuals = (
+  value: number
+): { text: string; badge: string; border: string; background: string; icon: JSX.Element } => {
+  if (value > 0) {
+    return {
+      text: 'text-emerald-600',
+      badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-emerald-200/70',
+      border: 'border-emerald-100/80',
+      background: 'from-emerald-500/10 via-emerald-400/5 to-white',
+      icon: <ArrowUpRight className="h-4 w-4" />,
+    };
+  }
+
+  if (value < 0) {
+    return {
+      text: 'text-rose-600',
+      badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200/70',
+      border: 'border-rose-100/80',
+      background: 'from-rose-500/10 via-rose-400/5 to-white',
+      icon: <ArrowDownRight className="h-4 w-4" />,
+    };
+  }
+
+  return {
+    text: 'text-slate-600',
+    badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/70',
+    border: 'border-slate-200/80',
+    background: 'from-slate-500/5 via-slate-400/5 to-white',
+    icon: <Minus className="h-4 w-4" />,
+  };
 };
 
 const ChartTooltip = ({
@@ -530,6 +563,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
+  const netForecastGapUsd = netPnLUsd - projectedPnLUsd;
+  const netForecastGapIls = netPnLIls - projectedPnLIls;
+  const forecastGapVisuals = resolveForecastGapVisuals(netForecastGapUsd);
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!chartPoints.length) {
@@ -717,10 +753,33 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 : t.dashboard.neutralTrend}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
               <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
               <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+              <div
+                className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
+                    aria-hidden="true"
+                  >
+                    {forecastGapVisuals.icon}
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {t.dashboard.forecastGap}
+                    </p>
+                    <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
+                      {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
