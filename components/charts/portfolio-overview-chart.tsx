@@ -2,6 +2,7 @@
 
 import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Fragment, useId, useMemo } from 'react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
@@ -530,6 +531,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const netPnLIls = summary.totalNetPnLIls;
   const projectedPnLUsd = summary.totalProjectedPnLUsd;
   const projectedPnLIls = summary.totalProjectedPnLIls;
+  const netForecastGapUsd = netPnLUsd - projectedPnLUsd;
+  const netForecastGapIls = netPnLIls - projectedPnLIls;
 
   const { bestPoint, worstPoint } = useMemo(() => {
     if (!chartPoints.length) {
@@ -560,6 +563,43 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       : trendTone < 0
       ? 'bg-rose-50 text-rose-600'
       : 'bg-slate-100 text-slate-600';
+
+  const forecastGapStyles = netForecastGapUsd > 0
+    ? {
+        surface: 'border-emerald-100/80 bg-gradient-to-r from-emerald-500/15 via-white/95 to-emerald-500/10',
+        icon: 'bg-emerald-100 text-emerald-600',
+        value: 'text-emerald-600',
+        badge: 'bg-emerald-100/80 text-emerald-700',
+      }
+    : netForecastGapUsd < 0
+    ? {
+        surface: 'border-rose-100/80 bg-gradient-to-r from-rose-500/15 via-white/95 to-rose-500/10',
+        icon: 'bg-rose-100 text-rose-600',
+        value: 'text-rose-600',
+        badge: 'bg-rose-100/80 text-rose-700',
+      }
+    : {
+        surface: 'border-slate-200/80 bg-white/90',
+        icon: 'bg-slate-200 text-slate-600',
+        value: 'text-slate-600',
+        badge: 'bg-slate-200/80 text-slate-700',
+      };
+
+  const forecastGapIcon = netForecastGapUsd > 0
+    ? <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+    : netForecastGapUsd < 0
+    ? <ArrowDownRight className="h-4 w-4" aria-hidden="true" />
+    : <Minus className="h-4 w-4" aria-hidden="true" />;
+
+  const forecastGapStatusLabel =
+    netForecastGapUsd > 0
+      ? t.dashboard.forecastGapStatusAhead
+      : netForecastGapUsd < 0
+      ? t.dashboard.forecastGapStatusBehind
+      : t.dashboard.forecastGapStatusEven;
+
+  const formattedForecastGapUsd = formatSignedCurrency(netForecastGapUsd, usdFormatter);
+  const formattedForecastGapIls = formatSignedCurrency(netForecastGapIls, ilsFormatter);
 
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
@@ -721,6 +761,35 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
               <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
               <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+            </div>
+
+            <div
+              className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 shadow-sm transition-colors ${forecastGapStyles.surface}`}
+              aria-live="polite"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${forecastGapStyles.icon}`}
+                  aria-hidden="true"
+                >
+                  {forecastGapIcon}
+                </div>
+                <div className="flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    {t.dashboard.forecastGap}
+                  </p>
+                  <p className={`text-sm font-semibold ${forecastGapStyles.value}`}>{formattedForecastGapUsd}</p>
+                  <p className="text-xs text-slate-500">
+                    {t.dashboard.forecastGapSecondary(formattedForecastGapIls)}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${forecastGapStyles.badge}`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                  {forecastGapStatusLabel}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
