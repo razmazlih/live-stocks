@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
@@ -16,6 +16,7 @@ import { createCommonQuickActions } from '@/components/dashboard/common-quick-ac
 import { RefreshCw, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function HomePage() {
   const { locale } = useApp();
@@ -191,6 +192,87 @@ export default function HomePage() {
       ]
     : [];
 
+  const summaryAvailable = summaryCards.length > 0;
+  const hasActivePositions = openMetrics.length > 0;
+  const visualizationsHasData = openMetrics.length > 0 || portfolioTimeline.length > 0;
+  const visualizationsVisible = Boolean(summary || visualizationsHasData);
+
+  const sections = useMemo(
+    () =>
+      [
+        summaryAvailable
+          ? {
+              value: 'summary' as const,
+              label: t.dashboard.summaryTitle,
+              disabled: false,
+            }
+          : null,
+        hasAnyPositions
+          ? {
+              value: 'positions' as const,
+              label: t.dashboard.positionsTitle,
+              disabled: !hasActivePositions && closedMetrics.length === 0,
+            }
+          : null,
+        visualizationsVisible
+          ? {
+              value: 'visualizations' as const,
+              label: t.dashboard.visualizationsTitle,
+              disabled: !visualizationsHasData,
+            }
+          : null,
+      ].filter((section): section is { value: 'summary' | 'positions' | 'visualizations'; label: string; disabled: boolean } =>
+        Boolean(section)
+      ),
+    [
+      closedMetrics.length,
+      hasActivePositions,
+      hasAnyPositions,
+      summaryAvailable,
+      t.dashboard.positionsTitle,
+      t.dashboard.summaryTitle,
+      t.dashboard.visualizationsTitle,
+      visualizationsHasData,
+      visualizationsVisible,
+    ]
+  );
+
+  const firstEnabledSection = useMemo(
+    () => sections.find((section) => !section.disabled)?.value ?? sections[0]?.value ?? 'positions',
+    [sections]
+  );
+
+  const defaultSection = useMemo(() => {
+    if (summaryAvailable) {
+      return 'summary' as const;
+    }
+
+    if (hasActivePositions) {
+      return 'positions' as const;
+    }
+
+    if (visualizationsVisible) {
+      const visualizationsSection = sections.find((section) => section.value === 'visualizations');
+      if (visualizationsSection && !visualizationsSection.disabled) {
+        return 'visualizations' as const;
+      }
+    }
+
+    return firstEnabledSection;
+  }, [firstEnabledSection, hasActivePositions, sections, summaryAvailable, visualizationsVisible]);
+
+  const [activeSection, setActiveSection] = useState(defaultSection);
+
+  useEffect(() => {
+    setActiveSection((current) => {
+      if (current && sections.some((section) => section.value === current && !section.disabled)) {
+        return current;
+      }
+
+      return defaultSection;
+    });
+  }, [defaultSection, sections]);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -226,9 +308,28 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-10">
-                    {summary && summaryCards.length > 0 && (
-                      <div className="space-y-5">
+                  <Tabs
+                    value={activeSection}
+                    onValueChange={setActiveSection}
+                    defaultValue={defaultSection}
+                    className="flex flex-col gap-6"
+                    dir={locale === 'he' ? 'rtl' : 'ltr'}
+                  >
+                    <TabsList className="!grid grid-cols-1 gap-2 rounded-2xl bg-white/60 p-1 sm:!grid-cols-3">
+                      {sections.map((section) => (
+                        <TabsTrigger
+                          key={section.value}
+                          value={section.value}
+                          disabled={section.disabled}
+                          className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+                        >
+                          {section.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {summaryAvailable && (
+                      <TabsContent value="summary" className="mt-0 space-y-5 focus-visible:outline-none">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
                           {dailyChangeData && (
@@ -241,30 +342,48 @@ export default function HomePage() {
                           )}
                         </div>
                         <SummaryCardGrid cards={summaryCards} />
-                      </div>
+                      </TabsContent>
                     )}
 
-                    <PositionsOverview
-                      openTitle={t.dashboard.positionsTitle}
-                      closedTitle={t.dashboard.closedPositionsTitle}
-                      openMetrics={openMetrics}
-                      closedMetrics={closedMetrics}
-                      sparklineData={sparklineData}
-                    />
+                    {hasAnyPositions && (
+                      <TabsContent value="positions" className="mt-0 space-y-6 focus-visible:outline-none">
+                        <PositionsOverview
+                          openTitle={t.dashboard.positionsTitle}
+                          closedTitle={t.dashboard.closedPositionsTitle}
+                          openMetrics={openMetrics}
+                          closedMetrics={closedMetrics}
+                          sparklineData={sparklineData}
+                        />
+                        {!hasActivePositions && closedMetrics.length === 0 && (
+                          <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
+                            {t.dashboard.noPositions}
+                          </p>
+                        )}
+                      </TabsContent>
+                    )}
 
-                    {summary && openMetrics.length > 0 && (
-                      <div className="space-y-4 border-t border-slate-100 pt-6">
+                    {visualizationsVisible && (
+                      <TabsContent
+                        value="visualizations"
+                        className="mt-0 space-y-4 border-t border-slate-100 pt-6 focus-visible:outline-none"
+                      >
                         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                          <PortfolioVisualizations
-                            metrics={openMetrics}
-                            summary={summary}
-                            timeline={portfolioTimeline}
-                          />
-                        </div>
-                      </div>
+                        {visualizationsHasData ? (
+                          <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                            <PortfolioVisualizations
+                              metrics={openMetrics}
+                              summary={summary}
+                              timeline={portfolioTimeline}
+                            />
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-10 text-center text-sm text-slate-500">
+                            {t.dashboard.emptyChart}
+                          </div>
+                        )}
+                      </TabsContent>
                     )}
-                  </div>
+                  </Tabs>
                 )}
               </div>
             </section>
