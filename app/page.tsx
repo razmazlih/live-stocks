@@ -114,11 +114,17 @@ export default function HomePage() {
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
   const openMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity > 0),
+    () =>
+      metrics
+        .filter((metric) => metric.position.quantity > 0)
+        .sort((a, b) => b.combined - a.combined),
     [metrics]
   );
   const closedMetrics = useMemo(
-    () => metrics.filter((metric) => metric.position.quantity <= 0),
+    () =>
+      metrics
+        .filter((metric) => metric.position.quantity <= 0)
+        .sort((a, b) => b.combined - a.combined),
     [metrics]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
@@ -335,7 +341,9 @@ export default function HomePage() {
                         hasAnyPositions ? (
                           <PositionsOverview
                             openTitle={t.dashboard.positionsTitle}
+                            openDescription={t.dashboard.positionsSortedDescription}
                             closedTitle={t.dashboard.closedPositionsTitle}
+                            closedDescription={t.dashboard.closedPositionsSortedDescription}
                             openMetrics={openMetrics}
                             closedMetrics={closedMetrics}
                             sparklineData={sparklineData}
