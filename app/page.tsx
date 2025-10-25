@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -228,31 +228,45 @@ export default function HomePage() {
       ]
     : [];
 
-  const sectionTabs = [
-    {
-      key: 'summary' as const,
-      label: t.dashboard.sectionSummaryLabel,
-      description: t.dashboard.sectionSummaryDescription,
-      icon: LayoutDashboard,
-      available: Boolean(summary && summaryCards.length > 0),
-    },
-    {
-      key: 'positions' as const,
-      label: t.dashboard.sectionPositionsLabel,
-      description: t.dashboard.sectionPositionsDescription,
-      icon: Layers,
-      available: hasAnyPositions,
-    },
-    {
-      key: 'visualizations' as const,
-      label: t.dashboard.sectionVisualizationsLabel,
-      description: t.dashboard.sectionVisualizationsDescription,
-      icon: LineChart,
-      available: Boolean(summary && openMetrics.length > 0),
-    },
-  ];
+  const sectionTabs = useMemo(
+    () => [
+      {
+        key: 'summary' as const,
+        label: t.dashboard.sectionSummaryLabel,
+        description: t.dashboard.sectionSummaryDescription,
+        icon: LayoutDashboard,
+        available: Boolean(summary && summaryCards.length > 0),
+      },
+      {
+        key: 'positions' as const,
+        label: t.dashboard.sectionPositionsLabel,
+        description: t.dashboard.sectionPositionsDescription,
+        icon: Layers,
+        available: hasAnyPositions,
+      },
+      {
+        key: 'visualizations' as const,
+        label: t.dashboard.sectionVisualizationsLabel,
+        description: t.dashboard.sectionVisualizationsDescription,
+        icon: LineChart,
+        available: Boolean(summary && openMetrics.length > 0),
+      },
+    ],
+    [hasAnyPositions, openMetrics.length, summary, summaryCards.length, t]
+  );
+
+  const firstAvailableSectionKey = useMemo(
+    () => sectionTabs.find((tab) => tab.available)?.key ?? 'summary',
+    [sectionTabs]
+  );
 
   const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
+  const isActiveSectionAvailable = Boolean(activeSectionConfig?.available);
+  useEffect(() => {
+    if (!isActiveSectionAvailable && firstAvailableSectionKey !== activeSection) {
+      setActiveSection(firstAvailableSectionKey);
+    }
+  }, [activeSection, firstAvailableSectionKey, isActiveSectionAvailable]);
   const renderSectionPlaceholder = (message: string) => (
     <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">
       {message}
@@ -295,7 +309,7 @@ export default function HomePage() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:hidden">
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold text-slate-900">
                           {t.dashboard.sectionSelectorTitle}
