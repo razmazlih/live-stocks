@@ -9,6 +9,7 @@ import { Sparkline } from '@/components/charts/sparkline';
 import { formatCurrency, formatPercent, formatDate } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } from '@/types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TickerCardProps {
   ticker: WatchlistTicker;
@@ -287,6 +288,9 @@ export function TickerCard({
     [formatTooltipTimestamp]
   );
 
+  const isMobile = useIsMobile();
+  const sparklineHeight = isMobile ? 112 : 144;
+
   useEffect(() => {
     if (!showSparkline) {
       setHoveredPoint(null);
@@ -301,7 +305,7 @@ export function TickerCard({
       )}
     >
       <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
-      <div className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
+      <div className="relative flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-5">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -377,19 +381,27 @@ export function TickerCard({
 
         <div className="rounded-2xl border border-slate-100/80 bg-slate-50/70 p-3">
           {loading ? (
-            <div className="flex h-36 items-center justify-center text-xs text-slate-500">{loadingLabel}</div>
+            <div
+              className="flex items-center justify-center text-xs text-slate-500"
+              style={{ height: sparklineHeight }}
+            >
+              {loadingLabel}
+            </div>
           ) : error ? (
-            <div className="flex h-36 items-center justify-center text-center text-xs text-rose-500">
+            <div
+              className="flex items-center justify-center text-center text-xs text-rose-500"
+              style={{ height: sparklineHeight }}
+            >
               {error || errorLabel}
             </div>
           ) : showSparkline ? (
-            <div className="h-36">
+            <div style={{ height: sparklineHeight }}>
               <Sparkline
                 points={historical ?? []}
                 color={trendColor}
                 className="h-full w-full"
                 showYAxis
-                height={144}
+                height={sparklineHeight}
                 yAxisWidth={48}
                 interactive
                 onHoverPoint={setHoveredPoint}
@@ -398,7 +410,10 @@ export function TickerCard({
               />
             </div>
           ) : (
-            <div className="flex h-36 items-center justify-center text-center text-xs text-slate-500">
+            <div
+              className="flex items-center justify-center text-center text-xs text-slate-500"
+              style={{ height: sparklineHeight }}
+            >
               {emptySeriesLabel}
             </div>
           )}
