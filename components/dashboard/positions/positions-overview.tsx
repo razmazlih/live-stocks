@@ -24,12 +24,12 @@ export function PositionsOverview({
   const sortNotice = t.dashboard.positionsSortedByForecast;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
         <p className="text-sm text-slate-500">{sortNotice}</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {openMetrics.map((metrics) => (
           <PositionCard
             key={metrics.position.id || metrics.position.symbol}
@@ -39,12 +39,12 @@ export function PositionsOverview({
         ))}
       </div>
       {closedMetrics.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
             <p className="text-sm text-slate-500">{sortNotice}</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {closedMetrics.map((metrics) => (
               <PositionCard
                 key={`closed-${metrics.position.id || metrics.position.symbol}`}
