@@ -1,41 +1,24 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardHero } from '@/components/dashboard/dashboard-hero';
 import { DashboardEmptyState } from '@/components/dashboard/empty-state';
-import { DailyChangeBadge } from '@/components/dashboard/daily-change-badge';
-import {
-  SummaryCard,
-  SummaryCardGrid,
-} from '@/components/dashboard/summary/summary-card-grid';
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import {
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  LayoutDashboard,
-  Layers,
-  LineChart,
-} from 'lucide-react';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { RefreshCw } from 'lucide-react';
+import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
-  const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
-    'summary'
-  );
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const {
     loading,
     refreshing,
-    positions,
     metrics,
     summary: portfolioSummary,
     openSummary,
@@ -57,62 +40,8 @@ export default function HomePage() {
     });
   }, [lastUpdate, locale]);
 
-  const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
-    const formatted = formatCurrency(value, currency, locale);
-    return value > 0 ? `+${formatted}` : formatted;
-  };
-
-  const formatSignedPercent = (value: number) => {
-    const formatted = formatPercent(value, locale);
-    return value > 0 ? `+${formatted}` : formatted;
-  };
-
-  const getTrendTone = (value: number) => {
-    if (value > 0) {
-      return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
-      };
-    }
-
-    if (value < 0) {
-      return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
-      };
-    }
-
-    return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
-    };
-  };
-
-  const getTrendIcon = (value: number) => {
-    if (value > 0) {
-      return <ArrowUpRight className="h-4 w-4" />;
-    }
-
-    if (value < 0) {
-      return <ArrowDownRight className="h-4 w-4" />;
-    }
-
-    return <Minus className="h-4 w-4" />;
-  };
-
-  const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
-  const totalDailyChangeUsd = metrics.reduce(
-    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
-    0
-  );
-  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
-  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
-
   const summary = openSummary ?? portfolioSummary;
   const currentRate = summary?.usdToIlsRate ?? usdToIls;
-  const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
-  const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
-  const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
   const sortByForecastGap = useCallback(
     (items: PositionMetrics[]) => {
@@ -149,15 +78,6 @@ export default function HomePage() {
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
 
-  const dailyChangeData = hasDailyChange
-    ? {
-        value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
-        toneClass: dailyChangeTone.badge,
-        icon: dailyChangeIcon,
-        label: t.dashboard.dailyChange,
-      }
-    : null;
-
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
@@ -173,86 +93,6 @@ export default function HomePage() {
     [t, reload, loading, refreshing]
   );
 
-  const summaryCards: SummaryCard[] = summary
-    ? [
-        {
-          key: 'value',
-          label: t.dashboard.totalValue,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-3xl font-semibold text-slate-900',
-          secondary: {
-            label: 'ILS',
-            value: formatCurrency(totalValueIls, 'ILS', locale),
-          },
-          helper: [
-            { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
-          ],
-          badge: {
-            value: formatSignedPercent(totalReturnPercent),
-            className: getTrendTone(totalReturnUsd).badge,
-            icon: getTrendIcon(totalReturnUsd),
-          },
-          footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
-        },
-        {
-          key: 'current',
-          label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
-          },
-        },
-        {
-          key: 'projected',
-          label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
-          },
-        },
-        {
-          key: 'combined',
-          label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD'),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
-          },
-        },
-      ]
-    : [];
-
-  const sectionTabs = [
-    {
-      key: 'summary' as const,
-      label: t.dashboard.sectionSummaryLabel,
-      description: t.dashboard.sectionSummaryDescription,
-      icon: LayoutDashboard,
-      available: Boolean(summary && summaryCards.length > 0),
-    },
-    {
-      key: 'positions' as const,
-      label: t.dashboard.sectionPositionsLabel,
-      description: t.dashboard.sectionPositionsDescription,
-      icon: Layers,
-      available: hasAnyPositions,
-    },
-    {
-      key: 'visualizations' as const,
-      label: t.dashboard.sectionVisualizationsLabel,
-      description: t.dashboard.sectionVisualizationsDescription,
-      icon: LineChart,
-      available: Boolean(summary && openMetrics.length > 0),
-    },
-  ];
-
-  const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
     <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">
       {message}
@@ -274,7 +114,6 @@ export default function HomePage() {
             exchangeRateValue={formatCurrency(currentRate, 'ILS', locale)}
             quickActionsTitle={t.dashboard.quickActions}
             quickActions={quickActions}
-            dailyChange={dailyChangeData}
           />
 
           <main className="mt-10">
@@ -294,100 +133,29 @@ export default function HomePage() {
                     actionHref="/positions"
                   />
                 ) : (
-                  <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">
-                          {t.dashboard.sectionSelectorTitle}
-                        </h2>
-                        {activeSectionConfig?.description && (
-                          <p className="text-sm text-slate-500">
-                            {activeSectionConfig.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {sectionTabs.map(({ key, label, icon: Icon, available }) => {
-                          const isActive = activeSection === key;
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => available && setActiveSection(key)}
-                              disabled={!available}
-                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                                isActive
-                                  ? 'border-blue-500 bg-blue-50/70 text-blue-600 shadow-sm'
-                                  : 'border-white/80 bg-white/70 text-slate-500 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600'
-                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-white/80 hover:bg-white/70 hover:text-slate-500'}`}
-                            >
-                              <Icon
-                                className={`h-4 w-4 transition ${
-                                  isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
-                                }`}
-                              />
-                              <span>{label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div className="space-y-10">
+                    <PositionsOverview
+                      openTitle={t.dashboard.positionsTitle}
+                      closedTitle={t.dashboard.closedPositionsTitle}
+                      openMetrics={openMetrics}
+                      closedMetrics={closedMetrics}
+                      sparklineData={sparklineData}
+                    />
 
-                    <div className="space-y-10">
-                      {activeSection === 'summary' && (
-                        summary && summaryCards.length > 0 ? (
-                          <div className="space-y-5">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <h2 className="text-xl font-semibold text-slate-900">
-                                {t.dashboard.summaryTitle}
-                              </h2>
-                              {dailyChangeData && (
-                                <DailyChangeBadge
-                                  toneClass={dailyChangeData.toneClass}
-                                  icon={dailyChangeData.icon}
-                                  value={dailyChangeData.value}
-                                  label={dailyChangeData.label}
-                                />
-                              )}
-                            </div>
-                            <SummaryCardGrid cards={summaryCards} />
-                          </div>
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty)
-                        )
-                      )}
-
-                      {activeSection === 'positions' && (
-                        hasAnyPositions ? (
-                          <PositionsOverview
-                            openTitle={t.dashboard.positionsTitle}
-                            closedTitle={t.dashboard.closedPositionsTitle}
-                            openMetrics={openMetrics}
-                            closedMetrics={closedMetrics}
-                            sparklineData={sparklineData}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {t.dashboard.visualizationsTitle}
+                      </h3>
+                      {summary && openMetrics.length > 0 ? (
+                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+                          <PortfolioVisualizations
+                            metrics={openMetrics}
+                            summary={summary}
+                            timeline={portfolioTimeline}
                           />
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
-                        )
-                      )}
-
-                      {activeSection === 'visualizations' && (
-                        summary && openMetrics.length > 0 ? (
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {t.dashboard.visualizationsTitle}
-                            </h3>
-                            <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                              <PortfolioVisualizations
-                                metrics={openMetrics}
-                                summary={summary}
-                                timeline={portfolioTimeline}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty)
-                        )
+                        </div>
+                      ) : (
+                        renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty)
                       )}
                     </div>
                   </div>

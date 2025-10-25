@@ -22,23 +22,34 @@ export function PositionsOverview({
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const sortNotice = t.dashboard.positionsSortedByForecast;
+  const hasOpen = openMetrics.length > 0;
+  const hasClosed = closedMetrics.length > 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
-        <p className="text-sm text-slate-500">{sortNotice}</p>
+    <div className="space-y-10">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
+          {hasOpen && <p className="text-sm text-slate-500">{sortNotice}</p>}
+        </div>
+        {hasOpen ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {openMetrics.map((metrics) => (
+              <PositionCard
+                key={metrics.position.id || metrics.position.symbol}
+                metrics={metrics}
+                sparklineData={sparklineData[metrics.position.symbol] || []}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">
+            {t.dashboard.noOpenPositions}
+          </div>
+        )}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {openMetrics.map((metrics) => (
-          <PositionCard
-            key={metrics.position.id || metrics.position.symbol}
-            metrics={metrics}
-            sparklineData={sparklineData[metrics.position.symbol] || []}
-          />
-        ))}
-      </div>
-      {closedMetrics.length > 0 && (
+
+      {hasClosed && (
         <div className="space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
