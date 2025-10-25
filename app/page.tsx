@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -259,6 +259,60 @@ export default function HomePage() {
     </div>
   );
 
+  const renderSummarySection = (): ReactNode => {
+    if (summary && summaryCards.length > 0) {
+      return (
+        <div className="space-y-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
+            {dailyChangeData && (
+              <DailyChangeBadge
+                toneClass={dailyChangeData.toneClass}
+                icon={dailyChangeData.icon}
+                value={dailyChangeData.value}
+                label={dailyChangeData.label}
+              />
+            )}
+          </div>
+          <SummaryCardGrid cards={summaryCards} />
+        </div>
+      );
+    }
+
+    return renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty);
+  };
+
+  const renderPositionsSection = (): ReactNode => {
+    if (hasAnyPositions) {
+      return (
+        <PositionsOverview
+          openTitle={t.dashboard.positionsTitle}
+          closedTitle={t.dashboard.closedPositionsTitle}
+          openMetrics={openMetrics}
+          closedMetrics={closedMetrics}
+          sparklineData={sparklineData}
+        />
+      );
+    }
+
+    return renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty);
+  };
+
+  const renderVisualizationsSection = (): ReactNode => {
+    if (summary && openMetrics.length > 0) {
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
+          <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
+            <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
+          </div>
+        </div>
+      );
+    }
+
+    return renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty);
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
@@ -295,7 +349,7 @@ export default function HomePage() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 shadow-sm sm:hidden">
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold text-slate-900">
                           {t.dashboard.sectionSelectorTitle}
@@ -333,62 +387,16 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="space-y-10">
-                      {activeSection === 'summary' && (
-                        summary && summaryCards.length > 0 ? (
-                          <div className="space-y-5">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <h2 className="text-xl font-semibold text-slate-900">
-                                {t.dashboard.summaryTitle}
-                              </h2>
-                              {dailyChangeData && (
-                                <DailyChangeBadge
-                                  toneClass={dailyChangeData.toneClass}
-                                  icon={dailyChangeData.icon}
-                                  value={dailyChangeData.value}
-                                  label={dailyChangeData.label}
-                                />
-                              )}
-                            </div>
-                            <SummaryCardGrid cards={summaryCards} />
-                          </div>
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty)
-                        )
-                      )}
+                    <div className="space-y-10 sm:hidden">
+                      {activeSection === 'summary' && renderSummarySection()}
+                      {activeSection === 'positions' && renderPositionsSection()}
+                      {activeSection === 'visualizations' && renderVisualizationsSection()}
+                    </div>
 
-                      {activeSection === 'positions' && (
-                        hasAnyPositions ? (
-                          <PositionsOverview
-                            openTitle={t.dashboard.positionsTitle}
-                            closedTitle={t.dashboard.closedPositionsTitle}
-                            openMetrics={openMetrics}
-                            closedMetrics={closedMetrics}
-                            sparklineData={sparklineData}
-                          />
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
-                        )
-                      )}
-
-                      {activeSection === 'visualizations' && (
-                        summary && openMetrics.length > 0 ? (
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {t.dashboard.visualizationsTitle}
-                            </h3>
-                            <div className="rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-inner">
-                              <PortfolioVisualizations
-                                metrics={openMetrics}
-                                summary={summary}
-                                timeline={portfolioTimeline}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty)
-                        )
-                      )}
+                    <div className="hidden space-y-10 sm:block">
+                      {renderSummarySection()}
+                      {renderPositionsSection()}
+                      {renderVisualizationsSection()}
                     </div>
                   </div>
                 )}
