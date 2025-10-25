@@ -301,8 +301,8 @@ export function TickerCard({
       )}
     >
       <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
-      <div className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="relative flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-5">
+        <header className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-base font-semibold tracking-tight text-slate-900">
@@ -349,20 +349,20 @@ export function TickerCard({
           </div>
         </header>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3 sm:col-span-2">
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 sm:col-span-2 sm:p-3">
             <p className={priceLabelClassName}>{priceLabel}</p>
             <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
               {priceText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-2.5 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
             <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-3">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-white/90 p-2.5 sm:p-3">
             <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
             <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
               {basePriceText}
@@ -375,21 +375,21 @@ export function TickerCard({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-100/80 bg-slate-50/70 p-3">
+        <div className="rounded-2xl border border-slate-100/80 bg-slate-50/70 p-2.5 sm:p-3">
           {loading ? (
-            <div className="flex h-36 items-center justify-center text-xs text-slate-500">{loadingLabel}</div>
+            <div className="flex h-28 items-center justify-center text-xs text-slate-500 sm:h-36">{loadingLabel}</div>
           ) : error ? (
-            <div className="flex h-36 items-center justify-center text-center text-xs text-rose-500">
+            <div className="flex h-28 items-center justify-center text-center text-xs text-rose-500 sm:h-36">
               {error || errorLabel}
             </div>
           ) : showSparkline ? (
-            <div className="h-36">
+            <div className="h-28 sm:h-36">
               <Sparkline
                 points={historical ?? []}
                 color={trendColor}
                 className="h-full w-full"
                 showYAxis
-                height={144}
+                height={128}
                 yAxisWidth={48}
                 interactive
                 onHoverPoint={setHoveredPoint}
@@ -398,14 +398,14 @@ export function TickerCard({
               />
             </div>
           ) : (
-            <div className="flex h-36 items-center justify-center text-center text-xs text-slate-500">
+            <div className="flex h-28 items-center justify-center text-center text-xs text-slate-500 sm:h-36">
               {emptySeriesLabel}
             </div>
           )}
         </div>
 
         {ticker.note ? (
-          <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-[0.8rem] text-slate-600">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-[0.78rem] text-slate-600 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
             <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>

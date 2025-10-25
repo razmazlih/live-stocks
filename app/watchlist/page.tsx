@@ -1024,7 +1024,7 @@ export default function WatchlistPage() {
                   </div>
 
                   {tickerList.length ? (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
                       {tickerList.map((ticker) => {
                         const state = tickerStates[getTickerKey(ticker)];
                         const historical = state?.historical ?? [];
