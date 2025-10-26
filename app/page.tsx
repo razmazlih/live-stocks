@@ -28,7 +28,7 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
-    'summary'
+    'positions'
   );
   const { locale } = useApp();
   const { t } = useTranslation(locale);
