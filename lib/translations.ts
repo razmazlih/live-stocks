@@ -194,6 +194,11 @@ export const translations = {
           years: '~{{count}} שנים',
         },
         showVolume: 'הצג נפח',
+        tradeMarkers: {
+          buy: 'קנייה',
+          sell: 'מכירה',
+          quantity: 'כמות',
+        },
         tooltip: {
           volume: 'נפח',
         },
@@ -724,6 +729,11 @@ export const translations = {
           years: '~{{count}} years',
         },
         showVolume: 'Show volume',
+        tradeMarkers: {
+          buy: 'Buy trade',
+          sell: 'Sell trade',
+          quantity: 'Quantity',
+        },
         tooltip: {
           volume: 'Volume',
         },

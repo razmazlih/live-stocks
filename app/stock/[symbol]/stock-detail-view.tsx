@@ -7,6 +7,7 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  Scatter,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -42,13 +43,60 @@ import {
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow } from '@/lib/positions';
 import { cn } from '@/lib/utils';
-import { CandleData, HistoricalPoint, Position, PositionMetrics, StockQuote, TimeRange } from '@/types';
+import {
+  CandleData,
+  HistoricalPoint,
+  Position,
+  PositionLotType,
+  PositionMetrics,
+  StockQuote,
+  TimeRange,
+} from '@/types';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
 
+const TRADE_MARKER_COLORS: Record<PositionLotType, string> = {
+  BUY: '#10B981',
+  SELL: '#EF4444',
+};
+
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
+
+interface TradeMarkerDatum {
+  id?: string;
+  x: number;
+  y: number;
+  type: PositionLotType;
+  quantity: number;
+  executedAt: string;
+}
+
+function TradeMarkerShape({
+  cx,
+  cy,
+  payload,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: TradeMarkerDatum;
+}) {
+  if (typeof cx !== 'number' || typeof cy !== 'number' || !payload) {
+    return null;
+  }
+
+  const color = TRADE_MARKER_COLORS[payload.type];
+  const isBuy = payload.type === 'BUY';
+  const arrowPath = isBuy ? 'M -3 2 L 0 -3 L 3 2 Z' : 'M -3 -2 L 0 3 L 3 -2 Z';
+
+  return (
+    <g transform={`translate(${cx}, ${cy})`}>
+      <circle r={8} fill="#FFFFFF" fillOpacity={0.95} stroke={color} strokeWidth={2} />
+      <path d={arrowPath} fill={color} />
+    </g>
+  );
+}
 
 function getRangeParams(range: TimeRange, entryDate?: string) {
   const now = Math.floor(Date.now() / 1000);
@@ -224,6 +272,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       return bTime - aTime;
     });
   }, [position?.lots]);
+  const tradeMarkerLabels = t.stock.detailView.tradeMarkers;
 
   useEffect(() => {
     let cancelled = false;
@@ -423,20 +472,85 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
+  const tradeMarkers = useMemo(() => {
+    if (!position?.lots?.length || chartData.length === 0) {
+      return { buys: [] as TradeMarkerDatum[], sells: [] as TradeMarkerDatum[] };
+    }
+
+    const firstTimestamp = chartData[0]?.timestamp;
+    const lastTimestamp = chartData[chartData.length - 1]?.timestamp;
+
+    if (firstTimestamp === undefined || lastTimestamp === undefined) {
+      return { buys: [] as TradeMarkerDatum[], sells: [] as TradeMarkerDatum[] };
+    }
+
+    const markers = { buys: [] as TradeMarkerDatum[], sells: [] as TradeMarkerDatum[] };
+
+    for (const lot of position.lots) {
+      const executedAtMs = new Date(lot.executedAt).getTime();
+      const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+
+      if (
+        Number.isNaN(executedAtMs) ||
+        executedAtMs < firstTimestamp ||
+        executedAtMs > lastTimestamp ||
+        quantity <= 0
+      ) {
+        continue;
+      }
+
+      const marker: TradeMarkerDatum = {
+        id: lot.id,
+        x: executedAtMs,
+        y: lot.price,
+        type: lot.type,
+        quantity,
+        executedAt: lot.executedAt,
+      };
+
+      if (lot.type === 'BUY') {
+        markers.buys.push(marker);
+      } else {
+        markers.sells.push(marker);
+      }
+    }
+
+    markers.buys.sort((a, b) => a.x - b.x);
+    markers.sells.sort((a, b) => a.x - b.x);
+
+    return markers;
+  }, [chartData, position?.lots]);
+
+  const hasTradeMarkers = tradeMarkers.buys.length > 0 || tradeMarkers.sells.length > 0;
+
   const priceDomain = useMemo<[number, number]>(() => {
-    if (chartData.length === 0) {
+    const values: number[] = [];
+
+    for (const point of chartData) {
+      values.push(point.close);
+    }
+
+    for (const marker of tradeMarkers.buys) {
+      values.push(marker.y);
+    }
+
+    for (const marker of tradeMarkers.sells) {
+      values.push(marker.y);
+    }
+
+    if (values.length === 0) {
       return [0, 0];
     }
 
-    let min = chartData[0].close;
-    let max = chartData[0].close;
+    let min = values[0];
+    let max = values[0];
 
-    for (const point of chartData) {
-      if (point.close < min) {
-        min = point.close;
+    for (const value of values) {
+      if (value < min) {
+        min = value;
       }
-      if (point.close > max) {
-        max = point.close;
+      if (value > max) {
+        max = value;
       }
     }
 
@@ -446,7 +560,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     }
 
     return [min, max];
-  }, [chartData]);
+  }, [chartData, tradeMarkers]);
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
@@ -760,6 +874,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         {t.stock.detailView.showVolume}
                       </label>
                     </div>
+                    {hasTradeMarkers && (
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                        {tradeMarkers.buys.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded-full border border-white bg-emerald-500 shadow-sm" />
+                            <span>{tradeMarkerLabels.buy}</span>
+                          </div>
+                        )}
+                        {tradeMarkers.sells.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded-full border border-white bg-rose-500 shadow-sm" />
+                            <span>{tradeMarkerLabels.sell}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -783,6 +913,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
+                          type="number"
+                          scale="time"
+                          domain={['dataMin', 'dataMax']}
                           tickLine={false}
                           axisLine={false}
                           tickMargin={12}
@@ -812,19 +945,21 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           }}
                           labelStyle={{ color: '#E2E8F0', fontWeight: 500 }}
                           itemStyle={{ color: '#F8FAFC' }}
-                          formatter={(value, name) => {
+                          formatter={(value, name, entry) => {
                             if (name === 'volume') {
                               return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
                             }
+                            if (name === tradeMarkerLabels.buy || name === tradeMarkerLabels.sell) {
+                              const trade = entry?.payload as TradeMarkerDatum | undefined;
+                              const quantityLabel =
+                                trade?.quantity !== undefined
+                                  ? `${tradeMarkerLabels.quantity}: ${formatNumber(trade.quantity, locale)}`
+                                  : undefined;
+                              const displayLabel = quantityLabel ? `${name} · ${quantityLabel}` : name;
+                              return [formatDualCurrency(value as number), displayLabel];
+                            }
                             const usdValue = value as number;
-                            return [
-                              `${formatCurrency(usdValue, 'USD', locale)} · ${formatCurrency(
-                                usdValue * usdToIls,
-                                'ILS',
-                                locale
-                              )}`,
-                              t.stock.detailView.chartPriceLabel,
-                            ];
+                            return [formatDualCurrency(usdValue), t.stock.detailView.chartPriceLabel];
                           }}
                           labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
                         />
@@ -851,6 +986,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />
+                        {tradeMarkers.buys.length > 0 && (
+                          <Scatter
+                            yAxisId="price"
+                            data={tradeMarkers.buys}
+                            name={tradeMarkerLabels.buy}
+                            shape={TradeMarkerShape}
+                          />
+                        )}
+                        {tradeMarkers.sells.length > 0 && (
+                          <Scatter
+                            yAxisId="price"
+                            data={tradeMarkers.sells}
+                            name={tradeMarkerLabels.sell}
+                            shape={TradeMarkerShape}
+                          />
+                        )}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
