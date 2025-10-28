@@ -196,6 +196,10 @@ export const translations = {
         showVolume: 'הצג נפח',
         tooltip: {
           volume: 'נפח',
+          trade: 'עסקה',
+          buy: 'קנייה',
+          sell: 'מכירה',
+          quantity: 'כמות: {{count}}',
         },
         states: {
           loading: 'טוען נתוני מניה...',
@@ -726,6 +730,10 @@ export const translations = {
         showVolume: 'Show volume',
         tooltip: {
           volume: 'Volume',
+          trade: 'Trade',
+          buy: 'Buy',
+          sell: 'Sell',
+          quantity: 'Quantity: {{count}}',
         },
         states: {
           loading: 'Loading stock data...',
