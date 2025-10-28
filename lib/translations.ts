@@ -188,6 +188,12 @@ export const translations = {
         chartSubtitle: 'גרף פשוט שמראה את מחיר הסגירה בטווח שתבחר.',
         chartHelper: 'הערה: הנתונים היסטוריים ואינם הבטחה לתוצאות עתידיות.',
         chartPriceLabel: 'מחיר סגירה',
+        tradeMarkers: {
+          seriesLabel: 'עסקאות',
+          buy: 'עסקת קנייה',
+          sell: 'עסקת מכירה',
+          quantityLabel: 'כמות',
+        },
         holdingPeriod: {
           lessThanMonth: 'פחות מחודש',
           months: '~{{count}} חודשים',
@@ -195,7 +201,10 @@ export const translations = {
         },
         showVolume: 'הצג נפח',
         tooltip: {
+          price: 'מחיר',
           volume: 'נפח',
+          tradesTitle: 'עסקאות ביום זה',
+          tradePriceLabel: 'מחיר עסקה',
         },
         states: {
           loading: 'טוען נתוני מניה...',
@@ -718,6 +727,12 @@ export const translations = {
         chartSubtitle: 'A clean closing-price chart for the range you choose.',
         chartHelper: 'Reminder: past performance is not a promise for the future.',
         chartPriceLabel: 'Closing price',
+        tradeMarkers: {
+          seriesLabel: 'Trades',
+          buy: 'Buy trade',
+          sell: 'Sell trade',
+          quantityLabel: 'Quantity',
+        },
         holdingPeriod: {
           lessThanMonth: 'Less than a month',
           months: '~{{count}} months',
@@ -725,7 +740,10 @@ export const translations = {
         },
         showVolume: 'Show volume',
         tooltip: {
+          price: 'Price',
           volume: 'Volume',
+          tradesTitle: 'Trades this day',
+          tradePriceLabel: 'Trade price',
         },
         states: {
           loading: 'Loading stock data...',

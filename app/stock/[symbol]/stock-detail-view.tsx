@@ -8,10 +8,12 @@ import {
   CartesianGrid,
   ComposedChart,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { ArrowLeft, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -42,10 +44,155 @@ import {
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow } from '@/lib/positions';
 import { cn } from '@/lib/utils';
-import { CandleData, HistoricalPoint, Position, PositionMetrics, StockQuote, TimeRange } from '@/types';
+import {
+  CandleData,
+  HistoricalPoint,
+  Position,
+  PositionLotType,
+  PositionMetrics,
+  StockQuote,
+  TimeRange,
+  Locale,
+} from '@/types';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
+const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
+
+interface TradeMarkerDatum {
+  id: string;
+  timestamp: number;
+  tradePrice: number;
+  quantity: number;
+  type: PositionLotType;
+  isTradeMarker: true;
+}
+
+interface TradeMarkerShapeProps {
+  cx?: number;
+  cy?: number;
+  payload?: TradeMarkerDatum;
+}
+
+function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
+  if (typeof cx !== 'number' || typeof cy !== 'number' || !payload) {
+    return null;
+  }
+
+  const isBuy = payload.type === 'BUY';
+  const fill = isBuy ? '#059669' : '#DC2626';
+  const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
+
+  return (
+    <g transform={`translate(${cx}, ${cy})`}>
+      <circle r={6.5} fill="white" fillOpacity={0.92} />
+      <circle r={5} fill={fill} />
+      <path d={arrowPath} fill="white" />
+    </g>
+  );
+}
+
+function getDayBucket(timestamp: number) {
+  const bucket = new Date(timestamp);
+  bucket.setHours(0, 0, 0, 0);
+  return bucket.getTime();
+}
+
+interface StockChartTooltipProps extends TooltipProps<number, string> {
+  range: TimeRange;
+  locale: Locale;
+  localeCode: string;
+  isRtl: boolean;
+  tradesByDate: Map<number, TradeMarkerDatum[]>;
+  formatDualCurrency: (valueUsd?: number) => string;
+  formatVolume: (value?: number) => string;
+  t: ReturnType<typeof useTranslation>['t'];
+}
+
+function StockChartTooltip({
+  active,
+  payload,
+  label,
+  range,
+  locale,
+  localeCode,
+  isRtl,
+  tradesByDate,
+  formatDualCurrency,
+  formatVolume,
+  t,
+}: StockChartTooltipProps) {
+  if (!active || !payload || payload.length === 0 || typeof label !== 'number') {
+    return null;
+  }
+
+  const labelText = formatTooltipLabel(label, range, localeCode);
+  const priceEntry = payload.find((entry) => entry.dataKey === 'close');
+  const volumeEntry = payload.find((entry) => entry.dataKey === 'volume');
+  const priceValue = typeof priceEntry?.value === 'number' ? priceEntry.value : undefined;
+  const volumeValue = typeof volumeEntry?.value === 'number' ? volumeEntry.value : undefined;
+
+  const dayTrades = tradesByDate.get(getDayBucket(label)) ?? [];
+
+  return (
+    <div
+      dir={isRtl ? 'rtl' : 'ltr'}
+      className="min-w-[220px] space-y-3 rounded-2xl border border-slate-900/50 bg-slate-950/95 p-4 text-sm text-slate-100 shadow-2xl"
+    >
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-300/80">{labelText}</div>
+      {priceValue !== undefined && (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-300">{t.stock.detailView.tooltip.price}</span>
+          <span className="font-semibold text-slate-50">{formatDualCurrency(priceValue)}</span>
+        </div>
+      )}
+      {volumeValue !== undefined && (
+        <div className="flex items-center justify-between gap-4 text-xs text-slate-400">
+          <span>{t.stock.detailView.tooltip.volume}</span>
+          <span className="font-medium text-slate-200">{formatVolume(volumeValue)}</span>
+        </div>
+      )}
+      {dayTrades.length > 0 && (
+        <div className="space-y-2 border-t border-slate-900/60 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-300/80">
+            {t.stock.detailView.tooltip.tradesTitle}
+          </p>
+          <div className="space-y-2">
+            {dayTrades.map((trade) => {
+              const isBuy = trade.type === 'BUY';
+              const tradeLabel = isBuy
+                ? t.stock.detailView.tradeMarkers.buy
+                : t.stock.detailView.tradeMarkers.sell;
+              const tradeTime = new Date(trade.timestamp).toLocaleTimeString(localeCode, {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              return (
+                <div
+                  key={`${trade.id}-${trade.timestamp}`}
+                  className="rounded-xl border border-slate-900/40 bg-slate-900/80 p-2"
+                >
+                  <div className="flex items-center justify-between text-[13px] font-medium">
+                    <span className={isBuy ? 'text-emerald-300' : 'text-rose-300'}>{tradeLabel}</span>
+                    <span className="text-[11px] font-normal text-slate-400">{tradeTime}</span>
+                  </div>
+                  <div className="mt-1 space-y-1 text-[11px] text-slate-300/80">
+                    <div>
+                      {t.stock.detailView.tradeMarkers.quantityLabel}: {formatNumber(trade.quantity, locale)}
+                    </div>
+                    <div>
+                      {t.stock.detailView.tooltip.tradePriceLabel}: {formatDualCurrency(trade.tradePrice)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
@@ -423,6 +570,59 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
+  const tradeMarkers = useMemo<TradeMarkerDatum[]>(() => {
+    if (!transactions.length || !chartData.length) {
+      return [];
+    }
+
+    const rangeStart = chartData[0]?.timestamp ?? Number.NEGATIVE_INFINITY;
+    const rangeEnd = chartData[chartData.length - 1]?.timestamp ?? Number.POSITIVE_INFINITY;
+
+    return transactions
+      .map((lot) => {
+        const timestamp = new Date(lot.executedAt).getTime();
+        if (Number.isNaN(timestamp)) {
+          return null;
+        }
+
+        return {
+          id: lot.id ?? `${lot.executedAt}-${lot.type}-${lot.price}-${lot.quantity}`,
+          timestamp,
+          tradePrice: lot.price,
+          quantity: lot.quantity,
+          type: lot.type,
+          isTradeMarker: true as const,
+        } satisfies TradeMarkerDatum;
+      })
+      .filter((marker): marker is TradeMarkerDatum => {
+        if (!marker) {
+          return false;
+        }
+        return marker.timestamp >= rangeStart && marker.timestamp <= rangeEnd;
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [chartData, transactions]);
+
+  const tradesByDate = useMemo(() => {
+    const map = new Map<number, TradeMarkerDatum[]>();
+
+    for (const marker of tradeMarkers) {
+      const bucket = getDayBucket(marker.timestamp);
+      const entries = map.get(bucket);
+      if (entries) {
+        entries.push(marker);
+      } else {
+        map.set(bucket, [marker]);
+      }
+    }
+
+    for (const entries of map.values()) {
+      entries.sort((a, b) => a.timestamp - b.timestamp);
+    }
+
+    return map;
+  }, [tradeMarkers]);
+
   const priceDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) {
       return [0, 0];
@@ -440,13 +640,33 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       }
     }
 
+    for (const marker of tradeMarkers) {
+      if (marker.tradePrice < min) {
+        min = marker.tradePrice;
+      }
+      if (marker.tradePrice > max) {
+        max = marker.tradePrice;
+      }
+    }
+
     if (min === max) {
       const buffer = min === 0 ? 1 : Math.abs(min) * 0.01;
       return [min - buffer, max + buffer];
     }
 
     return [min, max];
-  }, [chartData]);
+  }, [chartData, tradeMarkers]);
+
+  const xAxisDomain = useMemo<[number, number] | undefined>(() => {
+    const { from } = getRangeParams(range, position?.entryDate);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    if (!Number.isFinite(from) || from >= nowSeconds) {
+      return undefined;
+    }
+
+    return [from * 1000, nowSeconds * 1000];
+  }, [position?.entryDate, range]);
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
@@ -783,6 +1003,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
+                          type="number"
+                          domain={xAxisDomain ?? FALLBACK_X_AXIS_DOMAIN}
+                          allowDataOverflow
                           tickLine={false}
                           axisLine={false}
                           tickMargin={12}
@@ -803,30 +1026,21 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         />
                         <Tooltip
                           cursor={{ stroke: 'rgba(37, 99, 235, 0.25)', strokeWidth: 2 }}
-                          contentStyle={{
-                            backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                            borderRadius: '12px',
-                            border: 'none',
-                            boxShadow: '0 18px 48px -12px rgba(15, 23, 42, 0.45)',
-                            color: '#F8FAFC',
-                          }}
-                          labelStyle={{ color: '#E2E8F0', fontWeight: 500 }}
-                          itemStyle={{ color: '#F8FAFC' }}
-                          formatter={(value, name) => {
-                            if (name === 'volume') {
-                              return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
-                            }
-                            const usdValue = value as number;
-                            return [
-                              `${formatCurrency(usdValue, 'USD', locale)} · ${formatCurrency(
-                                usdValue * usdToIls,
-                                'ILS',
-                                locale
-                              )}`,
-                              t.stock.detailView.chartPriceLabel,
-                            ];
-                          }}
-                          labelFormatter={(value) => formatTooltipLabel(value as number, range, localeCode)}
+                          contentStyle={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}
+                          wrapperStyle={{ outline: 'none' }}
+                          content={(props) => (
+                            <StockChartTooltip
+                              {...props}
+                              range={range}
+                              locale={locale}
+                              localeCode={localeCode}
+                              isRtl={isRtl}
+                              tradesByDate={tradesByDate}
+                              formatDualCurrency={formatDualCurrency}
+                              formatVolume={formatVolume}
+                              t={t}
+                            />
+                          )}
                         />
                         {showVolume && (
                           <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
@@ -851,6 +1065,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />
+                        {tradeMarkers.length > 0 && (
+                          <Scatter
+                            data={tradeMarkers}
+                            dataKey="tradePrice"
+                            yAxisId="price"
+                            name={t.stock.detailView.tradeMarkers.seriesLabel}
+                            shape={<TradeMarkerShape />}
+                          />
+                        )}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
