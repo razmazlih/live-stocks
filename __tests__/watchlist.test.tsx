@@ -152,6 +152,39 @@ describe('TickerCard', () => {
     { timestamp: Date.now() - 86400000, close: 118 },
     { timestamp: Date.now(), close: 120 },
   ];
+  const originalMatchMedia = window.matchMedia;
+
+  beforeAll(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  afterEach(() => {
+    document.documentElement.removeAttribute('dir');
+    window.history.replaceState(null, '', '/');
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
 
   it('displays price, change, and note content', () => {
     const handleEdit = vi.fn();
@@ -186,7 +219,13 @@ describe('TickerCard', () => {
     if (pricePanel) {
       expect(within(pricePanel).getByText('$120.00')).toBeInTheDocument();
     }
-    expect(screen.getByText('+$2.00 · +1.69%')).toBeInTheDocument();
+    const changePanel = screen.getByText('Change').closest('div');
+    expect(changePanel).not.toBeNull();
+    if (changePanel) {
+      const condensed = changePanel.textContent?.replace(/\s+/g, ' ').trim();
+      expect(condensed).toContain('+$2.00');
+      expect(condensed).toContain('+1.69%');
+    }
     expect(screen.getByText('Starting price')).toBeInTheDocument();
     const basePanel = screen.getByText('Starting price').closest('div');
     expect(basePanel).not.toBeNull();
@@ -204,5 +243,75 @@ describe('TickerCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete ticker' }));
     expect(handleDelete).toHaveBeenCalled();
+  });
+
+  it('links to the stock details page from the card content', async () => {
+    render(
+      <TickerCard
+        ticker={baseTicker}
+        quote={quote}
+        historical={historical}
+        range="1M"
+        locale="en"
+        priceLabel="Price"
+        changeLabel="Change"
+        noteLabel="Notes"
+        emptySeriesLabel="No data"
+        errorLabel="Error"
+        loadingLabel="Loading"
+        refreshLabel="Refresh ticker"
+        editLabel="Edit ticker"
+        deleteLabel="Delete ticker"
+      />
+    );
+
+    const link = screen.getByRole('link', { name: /AAPL/i });
+    expect(link.getAttribute('href')).toBe('/stock/AAPL');
+
+    const clicks: string[] = [];
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      clicks.push((event.currentTarget as HTMLAnchorElement).getAttribute('href') ?? '');
+    });
+
+    const user = userEvent.setup();
+    await user.click(link);
+    expect(clicks[0]).toBe('/stock/AAPL');
+  });
+
+  it('supports navigation in RTL layouts', async () => {
+    document.documentElement.setAttribute('dir', 'rtl');
+
+    render(
+      <TickerCard
+        ticker={baseTicker}
+        quote={quote}
+        historical={historical}
+        range="1M"
+        locale="he"
+        priceLabel="Price"
+        changeLabel="Change"
+        noteLabel="Notes"
+        emptySeriesLabel="No data"
+        errorLabel="Error"
+        loadingLabel="Loading"
+        refreshLabel="Refresh ticker"
+        editLabel="Edit ticker"
+        deleteLabel="Delete ticker"
+      />
+    );
+
+    const link = screen.getByRole('link', { name: /AAPL/i });
+    expect(link.getAttribute('href')).toBe('/stock/AAPL');
+
+    const clicks: string[] = [];
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      clicks.push((event.currentTarget as HTMLAnchorElement).getAttribute('href') ?? '');
+    });
+
+    const user = userEvent.setup();
+    await user.click(link);
+    expect(clicks[0]).toBe('/stock/AAPL');
   });
 });

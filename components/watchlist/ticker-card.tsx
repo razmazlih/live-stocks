@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useId } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { formatCurrency, formatPercent, formatDate } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } from '@/types';
+import Link from 'next/link';
 
 interface TickerCardProps {
   ticker: WatchlistTicker;
@@ -80,6 +81,7 @@ export function TickerCard({
   const [hoveredPoint, setHoveredPoint] = useState<{ price: number; timestamp: number } | null>(null);
   const isMobile = useIsMobile();
   const chartHeight = isMobile ? 112 : 144;
+  const headingId = useId();
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
 
@@ -278,6 +280,9 @@ export function TickerCard({
     hoverMeta ? null : 'uppercase tracking-wide'
   );
 
+  const stockHref = `/stock/${encodeURIComponent(ticker.symbol)}`;
+  const descriptionId = ticker.display ? `${headingId}-description` : undefined;
+
   const showSparkline = Array.isArray(historical) && historical.length > 1;
 
   const priceFormatter = useCallback(
@@ -304,52 +309,26 @@ export function TickerCard({
       )}
     >
       <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
-      <div className="relative flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold tracking-tight text-slate-900">
-                {ticker.symbol.toUpperCase()}
-              </span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
-                {range}
-              </span>
-            </div>
-            {ticker.display ? (
-              <p className="text-xs text-slate-500">{ticker.display}</p>
-            ) : null}
+      <Link
+        href={stockHref}
+        aria-labelledby={headingId}
+        aria-describedby={descriptionId}
+        className="relative flex flex-1 flex-col gap-3 rounded-xl p-3 pt-6 outline-none transition-[box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:gap-4 sm:p-5"
+      >
+        <header className="space-y-1 pr-16">
+          <div className="flex flex-wrap items-center gap-2">
+            <span id={headingId} className="text-base font-semibold tracking-tight text-slate-900">
+              {ticker.symbol.toUpperCase()}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
+              {range}
+            </span>
           </div>
-          <div className="flex items-center gap-1">
-            {onRefresh ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={() => onRefresh(ticker)}
-                disabled={loading}
-              >
-                <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
-                <span className="sr-only">{refreshLabel}</span>
-              </Button>
-            ) : null}
-            {onEdit ? (
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">{editLabel}</span>
-              </Button>
-            ) : null}
-            {onDelete ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-rose-500 hover:text-rose-600"
-                onClick={() => onDelete(ticker)}
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">{deleteLabel}</span>
-              </Button>
-            ) : null}
-          </div>
+          {ticker.display ? (
+            <p id={descriptionId} className="text-xs text-slate-500">
+              {ticker.display}
+            </p>
+          ) : null}
         </header>
 
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
@@ -420,6 +399,38 @@ export function TickerCard({
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
             <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>
+        ) : null}
+      </Link>
+
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-1 sm:right-5 sm:top-5">
+        {onRefresh ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8"
+            onClick={() => onRefresh(ticker)}
+            disabled={loading}
+          >
+            <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
+            <span className="sr-only">{refreshLabel}</span>
+          </Button>
+        ) : null}
+        {onEdit ? (
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
+            <Pencil className="h-4 w-4" />
+            <span className="sr-only">{editLabel}</span>
+          </Button>
+        ) : null}
+        {onDelete ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-rose-500 hover:text-rose-600"
+            onClick={() => onDelete(ticker)}
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">{deleteLabel}</span>
+          </Button>
         ) : null}
       </div>
     </Card>
