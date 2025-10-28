@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   ComposedChart,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -42,10 +43,51 @@ import {
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow } from '@/lib/positions';
 import { cn } from '@/lib/utils';
-import { CandleData, HistoricalPoint, Position, PositionMetrics, StockQuote, TimeRange } from '@/types';
+import {
+  CandleData,
+  HistoricalPoint,
+  Position,
+  PositionLotType,
+  PositionMetrics,
+  StockQuote,
+  TimeRange,
+} from '@/types';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
+
+interface TradeMarkerDatum {
+  id: string;
+  timestamp: number;
+  tradePrice: number;
+  quantity: number;
+  type: PositionLotType;
+  isTradeMarker: true;
+}
+
+interface TradeMarkerShapeProps {
+  cx?: number;
+  cy?: number;
+  payload?: TradeMarkerDatum;
+}
+
+function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
+  if (typeof cx !== 'number' || typeof cy !== 'number' || !payload) {
+    return null;
+  }
+
+  const isBuy = payload.type === 'BUY';
+  const fill = isBuy ? '#059669' : '#DC2626';
+  const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
+
+  return (
+    <g transform={`translate(${cx}, ${cy})`}>
+      <circle r={6.5} fill="white" fillOpacity={0.92} />
+      <circle r={5} fill={fill} />
+      <path d={arrowPath} fill="white" />
+    </g>
+  );
+}
 
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
@@ -423,6 +465,39 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
+  const tradeMarkers = useMemo<TradeMarkerDatum[]>(() => {
+    if (!transactions.length || !chartData.length) {
+      return [];
+    }
+
+    const rangeStart = chartData[0]?.timestamp ?? Number.NEGATIVE_INFINITY;
+    const rangeEnd = chartData[chartData.length - 1]?.timestamp ?? Number.POSITIVE_INFINITY;
+
+    return transactions
+      .map((lot) => {
+        const timestamp = new Date(lot.executedAt).getTime();
+        if (Number.isNaN(timestamp)) {
+          return null;
+        }
+
+        return {
+          id: lot.id ?? `${lot.executedAt}-${lot.type}-${lot.price}-${lot.quantity}`,
+          timestamp,
+          tradePrice: lot.price,
+          quantity: lot.quantity,
+          type: lot.type,
+          isTradeMarker: true as const,
+        } satisfies TradeMarkerDatum;
+      })
+      .filter((marker): marker is TradeMarkerDatum => {
+        if (!marker) {
+          return false;
+        }
+        return marker.timestamp >= rangeStart && marker.timestamp <= rangeEnd;
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [chartData, transactions]);
+
   const priceDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) {
       return [0, 0];
@@ -440,13 +515,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       }
     }
 
+    for (const marker of tradeMarkers) {
+      if (marker.tradePrice < min) {
+        min = marker.tradePrice;
+      }
+      if (marker.tradePrice > max) {
+        max = marker.tradePrice;
+      }
+    }
+
     if (min === max) {
       const buffer = min === 0 ? 1 : Math.abs(min) * 0.01;
       return [min - buffer, max + buffer];
     }
 
     return [min, max];
-  }, [chartData]);
+  }, [chartData, tradeMarkers]);
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
@@ -812,7 +896,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           }}
                           labelStyle={{ color: '#E2E8F0', fontWeight: 500 }}
                           itemStyle={{ color: '#F8FAFC' }}
-                          formatter={(value, name) => {
+                          formatter={(value, name, entry) => {
+                            const payload = entry?.payload as TradeMarkerDatum | undefined;
+                            if (payload?.isTradeMarker) {
+                              const label =
+                                payload.type === 'BUY'
+                                  ? t.stock.detailView.tradeMarkers.buy
+                                  : t.stock.detailView.tradeMarkers.sell;
+                              const quantityLabel = t.stock.detailView.tradeMarkers.quantityLabel;
+                              return [
+                                `${formatDualCurrency(value as number)} · ${quantityLabel}: ${formatNumber(
+                                  payload.quantity,
+                                  locale
+                                )}`,
+                                label,
+                              ];
+                            }
                             if (name === 'volume') {
                               return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
                             }
@@ -851,6 +950,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />
+                        {tradeMarkers.length > 0 && (
+                          <Scatter
+                            data={tradeMarkers}
+                            dataKey="tradePrice"
+                            yAxisId="price"
+                            name={t.stock.detailView.tradeMarkers.seriesLabel}
+                            shape={<TradeMarkerShape />}
+                          />
+                        )}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
