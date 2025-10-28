@@ -1,6 +1,16 @@
 'use client';
 
+import type { CSSProperties, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  DndContext,
+  PointerSensor,
+  type DragEndEvent,
+  type DragStartEvent,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -225,6 +235,36 @@ function getTickerKey(ticker: WatchlistTickerType): string {
   return ticker.id ?? ticker.symbol;
 }
 
+interface SortableTickerCardProps {
+  id: string;
+  isActive: boolean;
+  children: ReactNode;
+}
+
+function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'h-full cursor-grab select-none touch-pan-y active:cursor-grabbing',
+        isDragging ? 'z-50' : undefined,
+        isActive ? 'ring-2 ring-blue-200' : undefined
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function WatchlistPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
@@ -245,6 +285,7 @@ export default function WatchlistPage() {
     createTicker,
     updateTicker,
     deleteTicker,
+    reorderTickers,
   } = useWatchlist();
 
   const [range, setRange] = useState<TimeRange>('1M');
@@ -255,8 +296,25 @@ export default function WatchlistPage() {
   const [tickerForm, setTickerForm] = useState<TickerFormState>(createEmptyTickerForm);
   const [tickerStates, setTickerStates] = useState<Record<string, TickerState>>({});
   const [refreshingTickers, setRefreshingTickers] = useState(false);
+  const [sortableTickers, setSortableTickers] = useState<WatchlistTickerType[]>(
+    selectedGroup?.tickers ?? []
+  );
+  const [activeTickerId, setActiveTickerId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  );
 
   const finnhubToken = settings.finnhubToken?.trim();
+
+  useEffect(() => {
+    if (selectedGroup?.tickers) {
+      setSortableTickers([...selectedGroup.tickers]);
+    } else {
+      setSortableTickers([]);
+    }
+  }, [selectedGroup]);
 
   const effectiveStartDate = useMemo(() => {
     if (customStartDate instanceof Date && !Number.isNaN(customStartDate.getTime())) {
@@ -748,7 +806,59 @@ export default function WatchlistPage() {
     [selectGroup]
   );
 
-  const tickerList = selectedGroup?.tickers ?? [];
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveTickerId(String(event.active.id));
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveTickerId(null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      setActiveTickerId(null);
+
+      const { active, over } = event;
+      if (!over || active.id === over.id) {
+        return;
+      }
+
+      const oldIndex = sortableTickers.findIndex((ticker) => getTickerKey(ticker) === active.id);
+      const newIndex = sortableTickers.findIndex((ticker) => getTickerKey(ticker) === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
+
+      if (!selectedGroup?.id) {
+        return;
+      }
+
+      const previousTickers = sortableTickers;
+      const nextTickers = arrayMove(sortableTickers, oldIndex, newIndex).map((ticker, index) => ({
+        ...ticker,
+        sortOrder: index,
+      }));
+
+      setSortableTickers(nextTickers);
+
+      try {
+        await reorderTickers(selectedGroup.id, nextTickers);
+        toast.success(t.watchlist.notifications.orderUpdated);
+      } catch (error) {
+        console.error('Failed to reorder tickers', error);
+        setSortableTickers([...previousTickers]);
+        toast.error(t.watchlist.notifications.error);
+      }
+    },
+    [
+      reorderTickers,
+      selectedGroup,
+      sortableTickers,
+      t.watchlist.notifications.error,
+      t.watchlist.notifications.orderUpdated,
+    ]
+  );
 
   const totalTickers = useMemo(
     () => groups.reduce((acc, group) => acc + group.tickers.length, 0),
@@ -1023,77 +1133,95 @@ export default function WatchlistPage() {
                     </div>
                   </div>
 
-                  {tickerList.length ? (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {tickerList.map((ticker) => {
-                        const state = tickerStates[getTickerKey(ticker)];
-                        const historical = state?.historical ?? [];
-                        const basePoint = historical.length ? historical[0] : null;
-                        const basePriceValue =
-                          typeof basePoint?.close === 'number' && Number.isFinite(basePoint.close)
-                            ? basePoint.close
-                            : null;
-                        const baseTimestamp =
-                          typeof basePoint?.timestamp === 'number' && Number.isFinite(basePoint.timestamp)
-                            ? basePoint.timestamp
-                            : null;
-                        const baseDateValue = baseTimestamp
-                          ? (() => {
-                              const date = new Date(baseTimestamp);
-                              return Number.isNaN(date.getTime()) ? null : date;
-                            })()
-                          : null;
-                        const latestHistorical =
-                          historical.length > 0 ? historical[historical.length - 1] : null;
-                        const fallbackCurrentPrice =
-                          typeof latestHistorical?.close === 'number' &&
-                          Number.isFinite(latestHistorical.close)
-                            ? latestHistorical.close
-                            : null;
-                        const quotePrice =
-                          typeof state?.quote?.c === 'number' && Number.isFinite(state.quote.c)
-                            ? state.quote.c
-                            : null;
-                        const currentPriceValue = quotePrice ?? fallbackCurrentPrice ?? null;
+                  {sortableTickers.length ? (
+                    <DndContext
+                      sensors={sensors}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragCancel={handleDragCancel}
+                    >
+                      <SortableContext
+                        items={sortableTickers.map((ticker) => getTickerKey(ticker))}
+                        strategy={rectSortingStrategy}
+                      >
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {sortableTickers.map((ticker) => {
+                            const tickerKey = getTickerKey(ticker);
+                            const state = tickerStates[tickerKey];
+                            const historical = state?.historical ?? [];
+                            const basePoint = historical.length ? historical[0] : null;
+                            const basePriceValue =
+                              typeof basePoint?.close === 'number' && Number.isFinite(basePoint.close)
+                                ? basePoint.close
+                                : null;
+                            const baseTimestamp =
+                              typeof basePoint?.timestamp === 'number' && Number.isFinite(basePoint.timestamp)
+                                ? basePoint.timestamp
+                                : null;
+                            const baseDateValue = baseTimestamp
+                              ? (() => {
+                                  const date = new Date(baseTimestamp);
+                                  return Number.isNaN(date.getTime()) ? null : date;
+                                })()
+                              : null;
+                            const latestHistorical =
+                              historical.length > 0 ? historical[historical.length - 1] : null;
+                            const fallbackCurrentPrice =
+                              typeof latestHistorical?.close === 'number' &&
+                              Number.isFinite(latestHistorical.close)
+                                ? latestHistorical.close
+                                : null;
+                            const quotePrice =
+                              typeof state?.quote?.c === 'number' && Number.isFinite(state.quote.c)
+                                ? state.quote.c
+                                : null;
+                            const currentPriceValue = quotePrice ?? fallbackCurrentPrice ?? null;
 
-                        return (
-                          <TickerCard
-                            key={ticker.id ?? ticker.symbol}
-                            ticker={ticker}
-                            quote={state?.quote}
-                            historical={historical}
-                            range={range}
-                            locale={locale}
-                            loading={state?.loading}
-                            error={state?.error}
-                            onEdit={openEditTickerDialog}
-                            onDelete={handleDeleteTicker}
-                            onRefresh={(item) =>
-                              fetchTickerData(item, {
-                                force: true,
-                                startDate: effectiveStartDate,
-                              })
-                            }
-                            priceLabel={t.watchlist.labels.price}
-                            changeLabel={t.watchlist.labels.changeSince}
-                            noteLabel={t.watchlist.labels.note}
-                            emptySeriesLabel={t.watchlist.charts.empty}
-                            errorLabel={t.watchlist.charts.error}
-                            loadingLabel={chartLoadingMessage}
-                            refreshLabel={t.watchlist.actions.refreshTicker}
-                            editLabel={t.watchlist.actions.editTicker}
-                            deleteLabel={t.watchlist.actions.deleteTicker}
-                            basePrice={basePriceValue}
-                            baseDate={baseDateValue ?? effectiveStartDate}
-                            currentPrice={currentPriceValue}
-                            basePriceLabel={t.watchlist.labels.basePrice}
-                            hoverLabel={t.watchlist.labels.hover}
-                            startDateLabel={t.watchlist.labels.startDate}
-                            className="border-white/60 bg-white/90 shadow-lg backdrop-blur-sm"
-                          />
-                        );
-                      })}
-                    </div>
+                            return (
+                              <SortableTickerCard
+                                key={tickerKey}
+                                id={tickerKey}
+                                isActive={activeTickerId === tickerKey}
+                              >
+                                <TickerCard
+                                  ticker={ticker}
+                                  quote={state?.quote}
+                                  historical={historical}
+                                  range={range}
+                                  locale={locale}
+                                  loading={state?.loading}
+                                  error={state?.error}
+                                  onEdit={openEditTickerDialog}
+                                  onDelete={handleDeleteTicker}
+                                  onRefresh={(item) =>
+                                    fetchTickerData(item, {
+                                      force: true,
+                                      startDate: effectiveStartDate,
+                                    })
+                                  }
+                                  priceLabel={t.watchlist.labels.price}
+                                  changeLabel={t.watchlist.labels.changeSince}
+                                  noteLabel={t.watchlist.labels.note}
+                                  emptySeriesLabel={t.watchlist.charts.empty}
+                                  errorLabel={t.watchlist.charts.error}
+                                  loadingLabel={chartLoadingMessage}
+                                  refreshLabel={t.watchlist.actions.refreshTicker}
+                                  editLabel={t.watchlist.actions.editTicker}
+                                  deleteLabel={t.watchlist.actions.deleteTicker}
+                                  basePrice={basePriceValue}
+                                  baseDate={baseDateValue ?? effectiveStartDate}
+                                  currentPrice={currentPriceValue}
+                                  basePriceLabel={t.watchlist.labels.basePrice}
+                                  hoverLabel={t.watchlist.labels.hover}
+                                  startDateLabel={t.watchlist.labels.startDate}
+                                  className="border-white/60 bg-white/90 shadow-lg backdrop-blur-sm"
+                                />
+                              </SortableTickerCard>
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-white/60 bg-white/60 p-10 text-center text-sm text-slate-500 shadow-inner backdrop-blur-sm">
                       <p>{t.watchlist.status.noTickers}</p>

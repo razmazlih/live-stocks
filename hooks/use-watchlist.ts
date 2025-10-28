@@ -46,6 +46,7 @@ interface UseWatchlistState {
   createTicker: (groupId: string, input: WatchlistTickerInput) => Promise<WatchlistTicker>;
   updateTicker: (tickerId: string, input: WatchlistTickerInput) => Promise<WatchlistTicker>;
   deleteTicker: (tickerId: string) => Promise<void>;
+  reorderTickers: (groupId: string, tickers: WatchlistTicker[]) => Promise<void>;
 }
 
 const GROUP_SELECT = `
@@ -300,6 +301,52 @@ export function useWatchlist(): UseWatchlistState {
     );
   }, []);
 
+  const reorderTickers = useCallback<UseWatchlistState['reorderTickers']>(
+    async (groupId, tickers) => {
+      if (!groupId) {
+        return;
+      }
+
+      const normalizedTickers = tickers.map((ticker, index) => ({
+        ...ticker,
+        sortOrder: index,
+      }));
+
+      setGroups((prev) =>
+        prev.map((group) => (group.id === groupId ? { ...group, tickers: normalizedTickers } : group))
+      );
+
+      const updates = normalizedTickers
+        .map((ticker) =>
+          ticker.id
+            ? {
+                id: ticker.id,
+                sort_order: ticker.sortOrder ?? 0,
+              }
+            : null
+        )
+        .filter((value): value is { id: string; sort_order: number } => value !== null);
+
+      try {
+        if (updates.length > 0) {
+          const { error: updateError } = await supabase
+            .from('watchlist_tickers')
+            .upsert(updates, { onConflict: 'id' });
+
+          if (updateError) {
+            throw updateError;
+          }
+        }
+      } catch (error) {
+        await loadGroups();
+        throw error;
+      }
+
+      await loadGroups();
+    },
+    [loadGroups]
+  );
+
   return {
     groups,
     selectedGroupId,
@@ -315,5 +362,6 @@ export function useWatchlist(): UseWatchlistState {
     createTicker,
     updateTicker,
     deleteTicker,
+    reorderTickers,
   };
 }
