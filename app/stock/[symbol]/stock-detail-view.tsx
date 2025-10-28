@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   ComposedChart,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -42,7 +43,23 @@ import {
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow } from '@/lib/positions';
 import { cn } from '@/lib/utils';
-import { CandleData, HistoricalPoint, Position, PositionMetrics, StockQuote, TimeRange } from '@/types';
+import {
+  CandleData,
+  HistoricalPoint,
+  Position,
+  PositionLotType,
+  PositionMetrics,
+  StockQuote,
+  TimeRange,
+} from '@/types';
+
+interface TransactionMarker {
+  markerType: 'transaction';
+  timestamp: number;
+  price: number;
+  quantity: number;
+  type: PositionLotType;
+}
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
@@ -423,6 +440,64 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
+  const transactionMarkers = useMemo(() => {
+    if (transactions.length === 0 || chartData.length === 0) {
+      return { buys: [] as TransactionMarker[], sells: [] as TransactionMarker[] };
+    }
+
+    const firstTimestamp = chartData[0]?.timestamp ?? 0;
+    const lastTimestamp = chartData[chartData.length - 1]?.timestamp ?? 0;
+
+    return transactions.reduce(
+      (acc, lot) => {
+        const timestamp = new Date(lot.executedAt).getTime();
+        if (Number.isNaN(timestamp)) {
+          return acc;
+        }
+
+        if (timestamp < firstTimestamp || timestamp > lastTimestamp) {
+          return acc;
+        }
+
+        const marker: TransactionMarker = {
+          markerType: 'transaction',
+          timestamp,
+          price: lot.price,
+          quantity: lot.quantity,
+          type: lot.type,
+        };
+
+        if (lot.type === 'BUY') {
+          acc.buys.push(marker);
+        } else {
+          acc.sells.push(marker);
+        }
+
+        return acc;
+      },
+      { buys: [] as TransactionMarker[], sells: [] as TransactionMarker[] }
+    );
+  }, [chartData, transactions]);
+
+  const renderTransactionDot = useCallback(
+    ({ cx, cy, payload }: { cx?: number; cy?: number; payload?: TransactionMarker }) => {
+      if (cx === undefined || cy === undefined || !payload) {
+        return null;
+      }
+
+      const isBuy = payload.type === 'BUY';
+      const strokeColor = isBuy ? '#059669' : '#F43F5E';
+
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={7} fill="#FFFFFF" stroke={strokeColor} strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={3.5} fill={strokeColor} />
+        </g>
+      );
+    },
+    []
+  );
+
   const priceDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) {
       return [0, 0];
@@ -772,6 +847,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                 ) : (
                   <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
+                    {transactions.length > 0 && (
+                      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-emerald-500 bg-white">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          </span>
+                          <span className="font-medium text-emerald-600">{t.positions.buy}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-rose-500 bg-white">
+                            <span className="h-2 w-2 rounded-full bg-rose-500" />
+                          </span>
+                          <span className="font-medium text-rose-600">{t.positions.sell}</span>
+                        </div>
+                      </div>
+                    )}
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
                         <defs>
@@ -812,7 +903,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           }}
                           labelStyle={{ color: '#E2E8F0', fontWeight: 500 }}
                           itemStyle={{ color: '#F8FAFC' }}
-                          formatter={(value, name) => {
+                          formatter={(value, name, item) => {
+                            const payload = item?.payload as TransactionMarker | undefined;
+                            if (payload?.markerType === 'transaction') {
+                              const isBuy = payload.type === 'BUY';
+                              const label = isBuy ? t.positions.buy : t.positions.sell;
+                              const quantity = formatNumber(payload.quantity, locale);
+                              const usdValue = value as number;
+                              return [
+                                `${formatCurrency(usdValue, 'USD', locale)} · ${formatCurrency(
+                                  usdValue * usdToIls,
+                                  'ILS',
+                                  locale
+                                )}`,
+                                `${label} · ${quantity}`,
+                              ];
+                            }
+
                             if (name === 'volume') {
                               return [formatVolume(value as number), t.stock.detailView.tooltip.volume];
                             }
@@ -839,6 +946,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             barSize={14}
                             radius={[6, 6, 0, 0]}
                             fill="rgba(59, 130, 246, 0.18)"
+                          />
+                        )}
+                        {transactionMarkers.buys.length > 0 && (
+                          <Scatter
+                            yAxisId="price"
+                            data={transactionMarkers.buys}
+                            shape={renderTransactionDot}
+                            name={t.positions.buy}
+                          />
+                        )}
+                        {transactionMarkers.sells.length > 0 && (
+                          <Scatter
+                            yAxisId="price"
+                            data={transactionMarkers.sells}
+                            shape={renderTransactionDot}
+                            name={t.positions.sell}
                           />
                         )}
                         <Area
