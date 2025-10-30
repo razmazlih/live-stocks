@@ -19,6 +19,7 @@ import { ArrowLeft, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BankBadge } from '@/components/ui/bank-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -773,9 +774,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </Badge>
+                      <BankBadge
+                        location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                        label={
+                          position.location === 'bank_two'
+                            ? t.positions.bankTwo
+                            : t.positions.bankOne
+                        }
+                        size="sm"
+                        className="shadow-none ring-black/10"
+                      />
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -790,11 +798,18 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           {formatDualCurrency(position.entryPrice)}
                         </span>
                       </span>
-                      <span>
-                        {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </span>
+                      <span className="inline-flex items-center gap-2">
+                        {t.positions.locationLabel}
+                        <BankBadge
+                          location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                          label={
+                            position.location === 'bank_two'
+                              ? t.positions.bankTwo
+                              : t.positions.bankOne
+                          }
+                          size="sm"
+                          className="shadow-none ring-black/10"
+                        />
                       </span>
                       <span>
                         {t.dashboard.since}{' '}

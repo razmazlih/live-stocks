@@ -8,6 +8,7 @@ import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
+import { BankBadge } from '@/components/ui/bank-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
@@ -364,9 +365,16 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                     <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
-                    <Badge variant="secondary" className="border border-indigo-100 bg-indigo-50 text-indigo-700">
-                      {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                    </Badge>
+                    <BankBadge
+                      location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                      label={
+                        position.location === 'bank_two'
+                          ? t.positions.bankTwo
+                          : t.positions.bankOne
+                      }
+                      size="sm"
+                      className="shadow-none ring-black/10"
+                    />
                     <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
                       {t.dashboard.closedBadge}
                     </Badge>
@@ -464,9 +472,16 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                     <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
-                    <Badge variant="secondary" className="border border-indigo-100 bg-indigo-50 text-indigo-700">
-                      {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                    </Badge>
+                    <BankBadge
+                      location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                      label={
+                        position.location === 'bank_two'
+                          ? t.positions.bankTwo
+                          : t.positions.bankOne
+                      }
+                      size="sm"
+                      className="shadow-none ring-black/10"
+                    />
                   </div>
                   <p className="text-xs text-slate-500 sm:text-sm">
                     {t.dashboard.since} {formatDate(position.entryDate, locale)}
