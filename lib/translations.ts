@@ -102,6 +102,46 @@ export const translations = {
       sectionPositionsDescription: 'פירוט פוזיציות פעילות וסגורות עם מגמות.',
       sectionPositionsEmpty: 'אין פוזיציות להצגה כרגע.',
       positionsSortedByForecast: 'מסודר לפי הפער מול התחזית (הגבוה ראשון)',
+      filters: {
+        buttonLabel: 'סינון פוזיציות',
+        activeLabel: (label: string) => `מסונן לפי: ${label}`,
+        badgeLabel: 'פעיל',
+        title: 'מסננים חכמים',
+        subtitle: 'התאימו את התצוגה כדי לראות רק את מה שחשוב עכשיו.',
+        reset: 'איפוס מסנן',
+        emptyState: 'אין פוזיציות שמתאימות למסנן שנבחר.',
+        noMatches: 'אין פוזיציות פעילות שמתאימות למסנן הזה.',
+        options: {
+          all: {
+            label: 'כל הפוזיציות',
+            description: 'הצגת כל הפוזיציות הפעילות והסגורות יחד.',
+          },
+          gains: {
+            label: 'רק פוזיציות ברווח',
+            description: 'מיקוד במניות עם רווח נוכחי חיובי.',
+          },
+          losses: {
+            label: 'רק פוזיציות בהפסד',
+            description: 'הצגת הפוזיציות שדורשות תשומת לב מידית.',
+          },
+          ahead: {
+            label: 'מובילות מול התחזית',
+            description: 'פוזיציות שהרווח המצטבר שלהן מעל הצפי.',
+          },
+          lagging: {
+            label: 'מפגרות מול התחזית',
+            description: 'מיקוד במקומות שבהם הפער מול התחזית שלילי.',
+          },
+          momentumUp: {
+            label: 'מומנטום יומי חיובי',
+            description: 'עלייה יומית ברווח או במחיר המניה.',
+          },
+          momentumDown: {
+            label: 'מומנטום יומי שלילי',
+            description: 'ירידה יומית ברווח או במחיר המניה.',
+          },
+        },
+      },
       sectionVisualizationsLabel: 'ויזואליזציות',
       sectionVisualizationsDescription: 'תרשימים אינטראקטיביים של התיק.',
       sectionVisualizationsEmpty: 'אין מספיק נתונים להצגת תרשימים.',
@@ -654,6 +694,46 @@ export const translations = {
       sectionPositionsDescription: 'Dive into open and closed positions with recent trends.',
       sectionPositionsEmpty: 'No positions are available to review yet.',
       positionsSortedByForecast: 'Sorted by gap vs projection (highest first)',
+      filters: {
+        buttonLabel: 'Filter positions',
+        activeLabel: (label: string) => `Filter: ${label}`,
+        badgeLabel: 'On',
+        title: 'Smart filters',
+        subtitle: 'Focus on the positions that matter right now.',
+        reset: 'Clear filter',
+        emptyState: 'No positions match the selected filter yet.',
+        noMatches: 'No active positions match this filter.',
+        options: {
+          all: {
+            label: 'Show everything',
+            description: 'All open and closed positions in one place.',
+          },
+          gains: {
+            label: 'Only winning positions',
+            description: 'Highlight positions with a positive current profit.',
+          },
+          losses: {
+            label: 'Only losing positions',
+            description: 'Surface positions that may need attention.',
+          },
+          ahead: {
+            label: 'Ahead of forecast',
+            description: 'Positions whose combined performance is above expectations.',
+          },
+          lagging: {
+            label: 'Behind forecast',
+            description: 'See where the combined gap versus forecast is negative.',
+          },
+          momentumUp: {
+            label: 'Positive daily momentum',
+            description: 'Daily profit or price movement is currently positive.',
+          },
+          momentumDown: {
+            label: 'Negative daily momentum',
+            description: 'Daily profit or price movement is currently negative.',
+          },
+        },
+      },
       sectionVisualizationsLabel: 'Visualizations',
       sectionVisualizationsDescription: 'Interactive charts that visualize your portfolio.',
       sectionVisualizationsEmpty: 'There is not enough data to render the charts yet.',
