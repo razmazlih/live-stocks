@@ -5,7 +5,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
 import { Position, PositionLot, PositionLotType, PositionPlan, StockQuote } from '@/types';
-import { mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
+import { DEFAULT_COMMISSION_USD, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
   Plus,
@@ -43,9 +44,13 @@ interface PositionFormData {
   initialPrice: number;
   initialQuantity: number;
   initialDate: string;
+  initialHasCommission: boolean;
+  initialCommissionAmount: number;
   targetPrice: number;
   targetQuantity: number;
   targetDate: string;
+  planHasCommission: boolean;
+  planCommissionAmount: number;
 }
 
 interface TransactionFormData {
@@ -54,6 +59,8 @@ interface TransactionFormData {
   price: number;
   quantity: number;
   executedAt: string;
+  hasCommission: boolean;
+  commissionAmount: number;
 }
 
 type NewPositionMode = 'immediate' | 'plan';
@@ -68,6 +75,8 @@ interface PlanFormData {
   targetPrice: number;
   targetQuantity: number;
   targetDate: string;
+  hasCommission: boolean;
+  commissionAmount: number;
 }
 
 function getTodayIsoDate(): string {
@@ -80,6 +89,8 @@ function createDefaultTransactionForm(): TransactionFormData {
     price: 0,
     quantity: 0,
     executedAt: getTodayIsoDate(),
+    hasCommission: true,
+    commissionAmount: DEFAULT_COMMISSION_USD,
   };
 }
 
@@ -92,6 +103,8 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
     targetPrice: 0,
     targetQuantity: 0,
     targetDate: getTodayIsoDate(),
+    hasCommission: true,
+    commissionAmount: DEFAULT_COMMISSION_USD,
     ...overrides,
   };
 }
@@ -141,9 +154,13 @@ export default function PositionsPage() {
     initialPrice: 0,
     initialQuantity: 0,
     initialDate: getTodayIsoDate(),
+    initialHasCommission: true,
+    initialCommissionAmount: DEFAULT_COMMISSION_USD,
     targetPrice: 0,
     targetQuantity: 0,
     targetDate: getTodayIsoDate(),
+    planHasCommission: true,
+    planCommissionAmount: DEFAULT_COMMISSION_USD,
   });
   const [newPositionMode, setNewPositionMode] = useState<NewPositionMode>('immediate');
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
@@ -305,9 +322,13 @@ export default function PositionsPage() {
       initialPrice: 0,
       initialQuantity: 0,
       initialDate: getTodayIsoDate(),
+      initialHasCommission: true,
+      initialCommissionAmount: DEFAULT_COMMISSION_USD,
       targetPrice: 0,
       targetQuantity: 0,
       targetDate: getTodayIsoDate(),
+      planHasCommission: true,
+      planCommissionAmount: DEFAULT_COMMISSION_USD,
     });
     lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
@@ -323,9 +344,13 @@ export default function PositionsPage() {
       initialPrice: position.entryPrice,
       initialQuantity: position.quantity,
       initialDate: position.entryDate,
+      initialHasCommission: true,
+      initialCommissionAmount: DEFAULT_COMMISSION_USD,
       targetPrice: 0,
       targetQuantity: 0,
       targetDate: getTodayIsoDate(),
+      planHasCommission: true,
+      planCommissionAmount: DEFAULT_COMMISSION_USD,
     });
     setDialogOpen(true);
   }
@@ -348,6 +373,8 @@ export default function PositionsPage() {
       price: lot.price,
       quantity: lot.quantity,
       executedAt: lot.executedAt,
+      hasCommission: lot.hasCommission,
+      commissionAmount: lot.hasCommission ? lot.commissionAmount : 0,
     });
     setTransactionDialogOpen(true);
   }
@@ -396,6 +423,8 @@ export default function PositionsPage() {
       targetPrice: plan.targetPrice,
       targetQuantity: plan.targetQuantity,
       targetDate: plan.targetDate,
+      hasCommission: plan.hasCommission,
+      commissionAmount: plan.hasCommission ? plan.commissionAmount : 0,
     });
     setPlanDialogOpen(true);
   }
@@ -500,9 +529,17 @@ export default function PositionsPage() {
           );
           return;
         }
+        if (formData.initialHasCommission && formData.initialCommissionAmount < 0) {
+          toast.error(t.positions.transactionCommissionValidationError);
+          return;
+        }
       } else {
         if (formData.targetPrice <= 0 || formData.targetQuantity <= 0) {
           toast.error(t.positions.planValidationError);
+          return;
+        }
+        if (formData.planHasCommission && formData.planCommissionAmount < 0) {
+          toast.error(t.positions.transactionCommissionValidationError);
           return;
         }
       }
@@ -523,6 +560,10 @@ export default function PositionsPage() {
         if (error) throw error;
         toast.success(locale === 'he' ? 'הפרטים עודכנו' : 'Position details updated');
       } else if (newPositionMode === 'immediate') {
+        const initialCommissionAmount = formData.initialHasCommission
+          ? Math.max(formData.initialCommissionAmount, 0)
+          : 0;
+
         const { data, error } = await supabase
           .from('positions')
           .insert({
@@ -545,6 +586,8 @@ export default function PositionsPage() {
             price: formData.initialPrice,
             quantity: formData.initialQuantity,
             executed_at: formData.initialDate,
+            has_commission: formData.initialHasCommission,
+            commission_amount: initialCommissionAmount,
           });
 
           if (lotError) throw lotError;
@@ -552,6 +595,10 @@ export default function PositionsPage() {
 
         toast.success(locale === 'he' ? 'הפוזיציה נוספה' : 'Position added');
       } else {
+        const planCommissionAmount = formData.planHasCommission
+          ? Math.max(formData.planCommissionAmount, 0)
+          : 0;
+
         const { error } = await supabase.from('position_plans').insert({
           position_id: null,
           symbol: formData.symbol,
@@ -561,6 +608,8 @@ export default function PositionsPage() {
           target_price: formData.targetPrice,
           target_quantity: formData.targetQuantity,
           target_date: formData.targetDate,
+          has_commission: formData.planHasCommission,
+          commission_amount: planCommissionAmount,
         });
 
         if (error) throw error;
@@ -592,12 +641,20 @@ export default function PositionsPage() {
       return;
     }
 
+    if (transactionForm.hasCommission && transactionForm.commissionAmount < 0) {
+      toast.error(t.positions.transactionCommissionValidationError);
+      return;
+    }
+
     if (!transactionForm.id && transactionForm.type === 'SELL' && transactionForm.quantity > transactionTarget.quantity) {
       toast.error(locale === 'he' ? 'אין מספיק כמות פנויה למכירה' : 'Not enough quantity to sell');
       return;
     }
 
     try {
+      const commissionAmount = transactionForm.hasCommission
+        ? Math.max(transactionForm.commissionAmount, 0)
+        : 0;
       if (transactionForm.id) {
         const { error } = await supabase
           .from('position_lots')
@@ -606,6 +663,8 @@ export default function PositionsPage() {
             price: transactionForm.price,
             quantity: transactionForm.quantity,
             executed_at: transactionForm.executedAt,
+            has_commission: transactionForm.hasCommission,
+            commission_amount: commissionAmount,
           })
           .eq('id', transactionForm.id);
 
@@ -619,6 +678,8 @@ export default function PositionsPage() {
           price: transactionForm.price,
           quantity: transactionForm.quantity,
           executed_at: transactionForm.executedAt,
+          has_commission: transactionForm.hasCommission,
+          commission_amount: commissionAmount,
         });
 
         if (error) throw error;
@@ -678,7 +739,13 @@ export default function PositionsPage() {
       return;
     }
 
+    if (planForm.hasCommission && planForm.commissionAmount < 0) {
+      toast.error(t.positions.transactionCommissionValidationError);
+      return;
+    }
+
     const positionId = planContextPosition?.id ?? planForm.positionId ?? null;
+    const commissionAmount = planForm.hasCommission ? Math.max(planForm.commissionAmount, 0) : 0;
 
     if (side === 'sell' && !positionId) {
       toast.error(t.positions.planSellDetachedError);
@@ -698,6 +765,8 @@ export default function PositionsPage() {
             target_quantity: targetQuantity,
             target_date: targetDate,
             position_id: positionId,
+            has_commission: planForm.hasCommission,
+            commission_amount: commissionAmount,
           })
           .eq('id', planForm.id);
 
@@ -713,6 +782,8 @@ export default function PositionsPage() {
           target_quantity: targetQuantity,
           target_date: targetDate,
           position_id: positionId,
+          has_commission: planForm.hasCommission,
+          commission_amount: commissionAmount,
         });
 
         if (error) throw error;
@@ -892,97 +963,191 @@ export default function PositionsPage() {
                         </RadioGroup>
                       </div>
                       {newPositionMode === 'immediate' ? (
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
-                            <Input
-                              id="initialPrice"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={Number.isFinite(formData.initialPrice) ? formData.initialPrice : 0}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  initialPrice: Number.parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              required
-                            />
+                        <div className="space-y-4">
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                              <Input
+                                id="initialPrice"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={Number.isFinite(formData.initialPrice) ? formData.initialPrice : 0}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    initialPrice: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                required
+                              />
+                            </div>
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="initialQuantity">{t.positions.initialQuantity}</Label>
+                              <Input
+                                id="initialQuantity"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={Number.isFinite(formData.initialQuantity) ? formData.initialQuantity : 0}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    initialQuantity: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                required
+                              />
+                            </div>
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                              <Input
+                                id="initialDate"
+                                type="date"
+                                value={formData.initialDate}
+                                onChange={(e) => setFormData({ ...formData, initialDate: e.target.value })}
+                                required
+                              />
+                            </div>
                           </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="initialQuantity">{t.positions.initialQuantity}</Label>
-                            <Input
-                              id="initialQuantity"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={Number.isFinite(formData.initialQuantity) ? formData.initialQuantity : 0}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  initialQuantity: Number.parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              required
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
-                            <Input
-                              id="initialDate"
-                              type="date"
-                              value={formData.initialDate}
-                              onChange={(e) => setFormData({ ...formData, initialDate: e.target.value })}
-                              required
-                            />
+                          <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <Label htmlFor="initial-commission-toggle" className="text-sm font-medium">
+                                  {t.positions.transactionCommissionToggle}
+                                </Label>
+                                <p className="text-xs text-slate-500">{t.positions.transactionCommissionHelper}</p>
+                              </div>
+                              <Switch
+                                id="initial-commission-toggle"
+                                checked={formData.initialHasCommission}
+                                onCheckedChange={(checked) =>
+                                  setFormData((previous) => ({
+                                    ...previous,
+                                    initialHasCommission: checked,
+                                    initialCommissionAmount: checked
+                                      ? previous.initialCommissionAmount > 0
+                                        ? previous.initialCommissionAmount
+                                        : DEFAULT_COMMISSION_USD
+                                      : 0,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="mt-3">
+                              <Label htmlFor="initial-commission-amount">
+                                {t.positions.transactionCommissionAmount}
+                              </Label>
+                              <Input
+                                id="initial-commission-amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.initialCommissionAmount}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    initialCommissionAmount: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                disabled={!formData.initialHasCommission}
+                                required={formData.initialHasCommission}
+                              />
+                            </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="targetPrice">{t.positions.planTargetPrice}</Label>
-                            <Input
-                              id="targetPrice"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={Number.isFinite(formData.targetPrice) ? formData.targetPrice : 0}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  targetPrice: Number.parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              required
-                            />
+                        <div className="space-y-4">
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="targetPrice">{t.positions.planTargetPrice}</Label>
+                              <Input
+                                id="targetPrice"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={Number.isFinite(formData.targetPrice) ? formData.targetPrice : 0}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    targetPrice: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                required
+                              />
+                            </div>
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="targetQuantity">{t.positions.planTargetQuantity}</Label>
+                              <Input
+                                id="targetQuantity"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={Number.isFinite(formData.targetQuantity) ? formData.targetQuantity : 0}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    targetQuantity: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                required
+                              />
+                            </div>
+                            <div className="sm:col-span-1">
+                              <Label htmlFor="targetDate">{t.positions.planTargetDate}</Label>
+                              <Input
+                                id="targetDate"
+                                type="date"
+                                value={formData.targetDate}
+                                onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+                                required
+                              />
+                            </div>
                           </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="targetQuantity">{t.positions.planTargetQuantity}</Label>
-                            <Input
-                              id="targetQuantity"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={Number.isFinite(formData.targetQuantity) ? formData.targetQuantity : 0}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  targetQuantity: Number.parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              required
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="targetDate">{t.positions.planTargetDate}</Label>
-                            <Input
-                              id="targetDate"
-                              type="date"
-                              value={formData.targetDate}
-                              onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                              required
-                            />
+                          <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <Label htmlFor="plan-commission-toggle-inline" className="text-sm font-medium">
+                                  {t.positions.transactionCommissionToggle}
+                                </Label>
+                                <p className="text-xs text-slate-500">{t.positions.transactionCommissionHelper}</p>
+                              </div>
+                              <Switch
+                                id="plan-commission-toggle-inline"
+                                checked={formData.planHasCommission}
+                                onCheckedChange={(checked) =>
+                                  setFormData((previous) => ({
+                                    ...previous,
+                                    planHasCommission: checked,
+                                    planCommissionAmount: checked
+                                      ? previous.planCommissionAmount > 0
+                                        ? previous.planCommissionAmount
+                                        : DEFAULT_COMMISSION_USD
+                                      : 0,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="mt-3">
+                              <Label htmlFor="plan-commission-amount-inline">
+                                {t.positions.transactionCommissionAmount}
+                              </Label>
+                              <Input
+                                id="plan-commission-amount-inline"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.planCommissionAmount}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    planCommissionAmount: Number.parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                disabled={!formData.planHasCommission}
+                                required={formData.planHasCommission}
+                              />
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1111,6 +1276,51 @@ export default function PositionsPage() {
                     value={transactionForm.executedAt}
                     onChange={(e) => setTransactionForm({ ...transactionForm, executedAt: e.target.value })}
                     required
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="transaction-commission-toggle" className="text-sm font-medium">
+                      {t.positions.transactionCommissionToggle}
+                    </Label>
+                    <p className="text-xs text-slate-500">{t.positions.transactionCommissionHelper}</p>
+                  </div>
+                  <Switch
+                    id="transaction-commission-toggle"
+                    checked={transactionForm.hasCommission}
+                    onCheckedChange={(checked) =>
+                      setTransactionForm((previous) => ({
+                        ...previous,
+                        hasCommission: checked,
+                        commissionAmount: checked
+                          ? previous.commissionAmount > 0
+                            ? previous.commissionAmount
+                            : DEFAULT_COMMISSION_USD
+                          : 0,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="mt-3">
+                  <Label htmlFor="transaction-commission-amount">
+                    {t.positions.transactionCommissionAmount}
+                  </Label>
+                  <Input
+                    id="transaction-commission-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.commissionAmount}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        commissionAmount: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    disabled={!transactionForm.hasCommission}
+                    required={transactionForm.hasCommission}
                   />
                 </div>
               </div>
@@ -1253,6 +1463,51 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
+              <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="plan-commission-toggle" className="text-sm font-medium">
+                      {t.positions.transactionCommissionToggle}
+                    </Label>
+                    <p className="text-xs text-slate-500">{t.positions.transactionCommissionHelper}</p>
+                  </div>
+                  <Switch
+                    id="plan-commission-toggle"
+                    checked={planForm.hasCommission}
+                    onCheckedChange={(checked) =>
+                      setPlanForm((previous) => ({
+                        ...previous,
+                        hasCommission: checked,
+                        commissionAmount: checked
+                          ? previous.commissionAmount > 0
+                            ? previous.commissionAmount
+                            : DEFAULT_COMMISSION_USD
+                          : 0,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="mt-3">
+                  <Label htmlFor="plan-commission-amount">
+                    {t.positions.transactionCommissionAmount}
+                  </Label>
+                  <Input
+                    id="plan-commission-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={planForm.commissionAmount}
+                    onChange={(e) =>
+                      setPlanForm({
+                        ...planForm,
+                        commissionAmount: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    disabled={!planForm.hasCommission}
+                    required={planForm.hasCommission}
+                  />
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Button type="submit">{t.positions.save}</Button>
                 <Button type="button" variant="outline" onClick={() => handlePlanDialogOpenChange(false)}>
@@ -1294,6 +1549,12 @@ export default function PositionsPage() {
                       const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                       const badgeTone =
                         lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+                      const commissionApplied = lot.hasCommission && lot.commissionAmount > 0;
+                      const commissionLabel = commissionApplied
+                        ? t.positions.transactionCommissionApplied(
+                            formatCurrency(lot.commissionAmount, 'USD', locale),
+                          )
+                        : t.positions.transactionCommissionWaived;
 
                       return (
                         <div
@@ -1308,6 +1569,7 @@ export default function PositionsPage() {
                               {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, 'USD', locale)}
                             </span>
                             <span className="text-xs text-slate-500">{formatDate(lot.executedAt, locale)}</span>
+                            <span className="text-xs text-slate-500">{commissionLabel}</span>
                           </div>
                           <div className="ml-auto flex items-center gap-1">
                             <Button
@@ -1490,6 +1752,12 @@ export default function PositionsPage() {
                                     lot.type === 'BUY'
                                       ? 'bg-emerald-500/10 text-emerald-600'
                                       : 'bg-rose-500/10 text-rose-600';
+                                  const commissionApplied = lot.hasCommission && lot.commissionAmount > 0;
+                                  const commissionLabel = commissionApplied
+                                    ? t.positions.transactionCommissionShort(
+                                        formatCurrency(lot.commissionAmount, 'USD', locale),
+                                      )
+                                    : t.positions.transactionCommissionWaived;
                                   return (
                                     <div
                                       key={`${lot.id}-${lot.executedAt}`}
@@ -1507,6 +1775,8 @@ export default function PositionsPage() {
                                       <span>{formatCurrency(lot.price, 'USD', locale)}</span>
                                       <span className="text-slate-400">·</span>
                                       <span>{formatDate(lot.executedAt, locale)}</span>
+                                      <span className="text-slate-400">·</span>
+                                      <span className="text-slate-500">{commissionLabel}</span>
                                     </div>
                                   );
                                 })}

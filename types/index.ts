@@ -7,6 +7,8 @@ export interface PositionLot {
   price: number;
   quantity: number;
   executedAt: string;
+  hasCommission: boolean;
+  commissionAmount: number;
 }
 
 export type PositionPlanStatus = 'pending' | 'triggered' | 'expired' | 'cancelled';
@@ -22,6 +24,8 @@ export interface PositionPlan {
   targetPrice: number;
   targetQuantity: number;
   targetDate: string;
+  hasCommission: boolean;
+  commissionAmount: number;
   status: PositionPlanStatus;
   triggeredAt?: string | null;
   expiredAt?: string | null;
@@ -205,4 +209,3 @@ export interface ForecastApiResponse {
   generated_at?: string;
   [key: string]: unknown;
 }
-

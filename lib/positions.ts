@@ -1,5 +1,7 @@
 import { Position, PositionLot, PositionLotType, PositionPlan, RealizedSale } from '@/types';
 
+export const DEFAULT_COMMISSION_USD = 8;
+
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
 interface SupabasePositionLot {
@@ -9,6 +11,8 @@ interface SupabasePositionLot {
   price: number | string;
   quantity: number | string;
   executed_at: string;
+  has_commission: boolean | null;
+  commission_amount: number | string | null;
 }
 
 interface SupabasePositionPlan {
@@ -21,6 +25,8 @@ interface SupabasePositionPlan {
   target_price: number | string;
   target_quantity: number | string;
   target_date: string;
+  has_commission: boolean | null;
+  commission_amount: number | string | null;
   status: PositionPlan['status'];
   triggered_at: string | null;
   expired_at: string | null;
@@ -46,6 +52,7 @@ export interface OpenLot {
   price: number;
   quantity: number;
   executedAt: string;
+  totalCost: number;
 }
 
 export interface PositionSummary {
@@ -69,6 +76,9 @@ function parseNumeric(value?: number | string | null): number {
 }
 
 function normalizeLot(lot: SupabasePositionLot): PositionLot {
+  const hasCommission = lot.has_commission !== false;
+  const rawCommission = parseNumeric(lot.commission_amount);
+  const commissionAmount = hasCommission ? Math.max(rawCommission, 0) : 0;
   return {
     id: lot.id,
     positionId: lot.position_id,
@@ -76,11 +86,16 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
     price: parseNumeric(lot.price),
     quantity: parseNumeric(lot.quantity),
     executedAt: lot.executed_at,
+    hasCommission,
+    commissionAmount,
   };
 }
 
 export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
   const executedPrice = plan.executed_price;
+  const hasCommission = plan.has_commission !== false;
+  const rawCommission = parseNumeric(plan.commission_amount);
+  const commissionAmount = hasCommission ? Math.max(rawCommission, 0) : 0;
 
   return {
     id: plan.id,
@@ -92,6 +107,8 @@ export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
     targetPrice: parseNumeric(plan.target_price),
     targetQuantity: parseNumeric(plan.target_quantity),
     targetDate: plan.target_date,
+    hasCommission,
+    commissionAmount,
     status: plan.status,
     triggeredAt: plan.triggered_at,
     expiredAt: plan.expired_at,
@@ -124,24 +141,47 @@ export function computeOpenLots(lots: PositionLot[]): OpenLot[] {
     }
 
     if (lot.type === 'BUY') {
-      queue.push({ id: lot.id, price: lot.price, quantity, executedAt: lot.executedAt });
+      const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+      const totalCost = quantity * lot.price + commission;
+      queue.push({
+        id: lot.id,
+        price: lot.price,
+        quantity,
+        executedAt: lot.executedAt,
+        totalCost,
+      });
       continue;
     }
 
     let remaining = quantity;
     while (remaining > 0 && queue.length) {
       const current = queue[0];
+      if (current.quantity <= 0) {
+        queue.shift();
+        continue;
+      }
+
+      const availableQuantity = current.quantity;
       if (current.quantity > remaining) {
-        current.quantity -= remaining;
+        const costPerUnit = availableQuantity > 0 ? current.totalCost / availableQuantity : current.price;
+        const matched = remaining;
+        const costPortion = costPerUnit * matched;
+        current.quantity = availableQuantity - matched;
+        current.totalCost = Math.max(current.totalCost - costPortion, 0);
         remaining = 0;
       } else {
-        remaining -= current.quantity;
+        const matched = availableQuantity;
+        const costPerUnit = availableQuantity > 0 ? current.totalCost / availableQuantity : current.price;
+        const costPortion = costPerUnit * matched;
+        remaining -= matched;
+        current.quantity = 0;
+        current.totalCost = Math.max(current.totalCost - costPortion, 0);
         queue.shift();
       }
     }
   }
 
-  return queue.filter((lot) => lot.quantity > 0);
+  return queue.filter((lot) => lot.quantity > 1e-8);
 }
 
 export function summarizeLots(lots: PositionLot[], asOf: Date = new Date()): PositionSummary {
@@ -158,7 +198,7 @@ export function summarizeLots(lots: PositionLot[], asOf: Date = new Date()): Pos
   }
 
   const totalQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
-  const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
+  const costBasis = openLots.reduce((sum, lot) => sum + lot.totalCost, 0);
   const averageEntryPrice = totalQuantity > 0 ? costBasis / totalQuantity : 0;
 
   const earliestEntryDate = openLots.reduce<string | undefined>((earliest, lot) => {
@@ -251,6 +291,7 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
     price: number;
     quantity: number;
     executedAt: string;
+    totalCost: number;
   };
 
   const openBuys: BuyLot[] = [];
@@ -268,6 +309,7 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
         price: lot.price,
         quantity,
         executedAt: lot.executedAt,
+        totalCost: quantity * lot.price + (lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0),
       });
       continue;
     }
@@ -280,9 +322,15 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
 
     while (remaining > 0 && openBuys.length) {
       const current = openBuys[0];
+      if (current.quantity <= 0) {
+        openBuys.shift();
+        continue;
+      }
       const matched = Math.min(remaining, current.quantity);
 
-      costBasisUsd += matched * current.price;
+      const costPerUnit = current.quantity > 0 ? current.totalCost / current.quantity : current.price;
+      const costPortion = costPerUnit * matched;
+      costBasisUsd += costPortion;
       matchedQuantity += matched;
 
       const buyDate = new Date(current.executedAt);
@@ -292,7 +340,8 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
         weightedHoldingDays += diffDays * matched;
       }
 
-      current.quantity -= matched;
+      current.quantity = Math.max(current.quantity - matched, 0);
+      current.totalCost = Math.max(current.totalCost - costPortion, 0);
       remaining -= matched;
 
       if (current.quantity <= 1e-8) {
@@ -300,7 +349,9 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
       }
     }
 
-    const proceedsUsd = lot.price * quantity;
+    const grossProceeds = lot.price * quantity;
+    const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+    const proceedsUsd = grossProceeds - commission;
     const averageEntryPrice = matchedQuantity > 0 ? costBasisUsd / matchedQuantity : 0;
     const profitUsd = proceedsUsd - costBasisUsd;
     const profitPercent = costBasisUsd > 0 ? (profitUsd / costBasisUsd) * 100 : 0;

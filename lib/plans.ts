@@ -313,6 +313,8 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
         await ensureSufficientSellQuantity(positionId, requiredQuantity);
       }
 
+      const commissionAmount = plan.hasCommission ? Math.max(plan.commissionAmount, 0) : 0;
+
       const { data: newLot, error: lotError } = await supabase
         .from('position_lots')
         .insert({
@@ -321,6 +323,8 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
           price: quotePrice,
           quantity: requiredQuantity,
           executed_at: todayIso,
+          has_commission: plan.hasCommission,
+          commission_amount: commissionAmount,
         })
         .select('id')
         .single();

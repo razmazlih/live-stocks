@@ -900,31 +900,39 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <TableHeader>
                         <TableRow>
                           <TableHead>{t.positions.transactionType}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {transactions.map((lot) => {
+                      <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
+                      <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
+                      <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
+                      <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((lot) => {
                           const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
                           const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                           return (
-                            <TableRow key={`${lot.id}-${lot.executedAt}`}>
-                              <TableCell>
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
-                                  {label}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatNumber(lot.quantity, locale)}
-                              </TableCell>
-                              <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
-                              <TableCell className="text-right text-xs text-gray-500">
-                                {formatDate(lot.executedAt, locale)}
-                              </TableCell>
-                            </TableRow>
-                          );
+                        <TableRow key={`${lot.id}-${lot.executedAt}`}>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                              {label}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatNumber(lot.quantity, locale)}
+                          </TableCell>
+                          <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
+                          <TableCell className="text-right text-xs text-gray-500">
+                            {lot.hasCommission && lot.commissionAmount > 0
+                              ? t.positions.transactionCommissionShort(
+                                  formatDualCurrency(lot.commissionAmount),
+                                )
+                              : t.positions.transactionCommissionWaived}
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-gray-500">
+                            {formatDate(lot.executedAt, locale)}
+                          </TableCell>
+                        </TableRow>
+                      );
                         })}
                       </TableBody>
                     </Table>

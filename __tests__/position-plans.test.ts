@@ -1,8 +1,13 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
-import { mapPositionPlanRow } from '@/lib/positions';
+import {
+  DEFAULT_COMMISSION_USD,
+  computeRealizedSales,
+  mapPositionPlanRow,
+  summarizeLots,
+} from '@/lib/positions';
 import { processPendingPlans } from '@/lib/plans';
-import type { PositionPlan } from '@/types';
+import type { Position, PositionPlan } from '@/types';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 
 const tableHandlers: Record<string, () => Record<string, any>> = {};
@@ -27,6 +32,19 @@ const fetchFinnhubQuoteMock = fetchFinnhubQuote as unknown as ReturnType<typeof 
 
 function setTableHandler(table: string, factory: () => Record<string, any>) {
   tableHandlers[table] = factory;
+}
+
+function createQuery(result: any) {
+  const chain: any = {
+    eq: vi.fn(() => chain),
+    is: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    single: vi.fn(() => chain),
+    order: vi.fn(() => chain),
+    then: (resolve: any, reject?: any) => Promise.resolve(result).then(resolve, reject),
+  };
+  return chain;
 }
 
 beforeEach(() => {
@@ -56,6 +74,8 @@ describe('mapPositionPlanRow', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: false,
+      commission_amount: '0',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     };
@@ -72,6 +92,8 @@ describe('mapPositionPlanRow', () => {
       targetPrice: 250.5,
       targetQuantity: 12.75,
       targetDate: '2024-01-15',
+      hasCommission: false,
+      commissionAmount: 0,
       status: 'pending',
       triggeredAt: null,
       expiredAt: null,
@@ -101,6 +123,8 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '12.50',
       created_at: null,
       updated_at: null,
     };
@@ -109,24 +133,33 @@ describe('processPendingPlans', () => {
     const lotInserts: any[] = [];
     const positionInsertMock = vi.fn();
 
-    setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
-      update: vi.fn((payload: any) => ({
-        eq: vi.fn().mockImplementation(async () => {
-          updates.push(payload);
-          return { data: null, error: null };
-        }),
-      })),
-    }));
+  setTableHandler('position_plans', () => ({
+    select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
+    update: vi.fn((payload: any) => {
+      if ('status' in payload) {
+        updates.push(payload);
+        return createQuery({ data: null, error: null });
+      }
+      return createQuery({
+        data: [{ id: pendingRow.id, updated_at: '2024-03-10T00:00:00.000Z' }],
+        error: null,
+      });
+    }),
+  }));
 
-    setTableHandler('position_lots', () => ({
-      insert: vi.fn(async (payload: any) => {
-        lotInserts.push(payload);
-        return { data: null, error: null };
-      }),
-    }));
+  setTableHandler('position_lots', () => ({
+    select: vi.fn(() => createQuery({
+      data: [
+        { side: 'BUY', quantity: 10 },
+      ],
+      error: null,
+    })),
+    insert: vi.fn((payload: any) => {
+      lotInserts.push(payload);
+      return createQuery({ data: { id: 'lot-created' }, error: null });
+    }),
+    delete: vi.fn(() => createQuery({ data: null, error: null })),
+  }));
 
     setTableHandler('positions', () => ({
       insert: positionInsertMock,
@@ -146,6 +179,8 @@ describe('processPendingPlans', () => {
         price: 135,
         quantity: 5,
         executed_at: '2024-03-10',
+        has_commission: true,
+        commission_amount: 12.5,
       },
     ]);
     expect(updates[0]).toMatchObject({
@@ -176,6 +211,8 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: false,
+      commission_amount: '0',
       created_at: null,
       updated_at: null,
     };
@@ -184,35 +221,42 @@ describe('processPendingPlans', () => {
     const lotInserts: any[] = [];
     const positionInserts: any[] = [];
 
-    setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
-      update: vi.fn((payload: any) => ({
-        eq: vi.fn().mockImplementation(async () => {
-          updates.push(payload);
-          return { data: null, error: null };
-        }),
-      })),
-    }));
+  setTableHandler('position_plans', () => ({
+    select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
+    update: vi.fn((payload: any) => {
+      if ('status' in payload) {
+        updates.push(payload);
+        return createQuery({ data: null, error: null });
+      }
+      return createQuery({
+        data: [{ id: pendingRow.id ?? 'plan-detached', updated_at: '2024-05-05T09:00:00.000Z' }],
+        error: null,
+      });
+    }),
+  }));
 
-    setTableHandler('position_lots', () => ({
-      insert: vi.fn(async (payload: any) => {
-        lotInserts.push(payload);
-        return { data: null, error: null };
-      }),
-    }));
+  setTableHandler('position_lots', () => ({
+    select: vi.fn(() => createQuery({
+      data: [
+        { side: 'BUY', quantity: 3 },
+      ],
+      error: null,
+    })),
+    insert: vi.fn((payload: any) => {
+      lotInserts.push(payload);
+      return createQuery({ data: { id: 'lot-created' }, error: null });
+    }),
+    delete: vi.fn(() => createQuery({ data: null, error: null })),
+  }));
 
-    setTableHandler('positions', () => ({
-      insert: vi.fn((payload: any) => {
-        positionInserts.push(payload);
-        return {
-          select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: { id: 'pos-new' }, error: null }),
-          }),
-        };
-      }),
-    }));
+  setTableHandler('positions', () => ({
+    insert: vi.fn((payload: any) => {
+      positionInserts.push(payload);
+      return {
+        select: vi.fn(() => createQuery({ data: { id: 'pos-new' }, error: null })),
+      };
+    }),
+  }));
 
     const quoteTimestamp = Math.floor(new Date('2024-05-05T08:30:00Z').getTime() / 1000);
     fetchFinnhubQuoteMock.mockResolvedValue({ price: 590, timestamp: quoteTimestamp });
@@ -232,6 +276,8 @@ describe('processPendingPlans', () => {
       quantity: 2,
       side: 'BUY',
       executed_at: '2024-05-05',
+      has_commission: false,
+      commission_amount: 0,
     });
     expect(updates[0]).toMatchObject({
       status: 'triggered',
@@ -259,6 +305,8 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '8',
       created_at: null,
       updated_at: null,
     };
@@ -266,15 +314,17 @@ describe('processPendingPlans', () => {
     const updates: any[] = [];
 
     setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
-      update: vi.fn((payload: any) => ({
-        eq: vi.fn().mockImplementation(async () => {
+      select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
+      update: vi.fn((payload: any) => {
+        if ('status' in payload) {
           updates.push(payload);
-          return { data: null, error: null };
-        }),
-      })),
+          return createQuery({ data: null, error: null });
+        }
+        return createQuery({
+          data: [{ id: pendingRow.id ?? 'plan-expire', updated_at: '2024-07-01T00:00:00.000Z' }],
+          error: null,
+        });
+      }),
     }));
 
     fetchFinnhubQuoteMock.mockResolvedValue({ price: 180 });
@@ -305,6 +355,8 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '8',
       created_at: null,
       updated_at: null,
     };
@@ -312,24 +364,33 @@ describe('processPendingPlans', () => {
     const updates: any[] = [];
     const lotInserts: any[] = [];
 
-    setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
-      update: vi.fn((payload: any) => ({
-        eq: vi.fn().mockImplementation(async () => {
-          updates.push(payload);
-          return { data: null, error: null };
-        }),
-      })),
-    }));
+  setTableHandler('position_plans', () => ({
+    select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
+    update: vi.fn((payload: any) => {
+      if ('status' in payload) {
+        updates.push(payload);
+        return createQuery({ data: null, error: null });
+      }
+      return createQuery({
+        data: [{ id: pendingRow.id, updated_at: '2024-08-15T12:00:00.000Z' }],
+        error: null,
+      });
+    }),
+  }));
 
-    setTableHandler('position_lots', () => ({
-      insert: vi.fn(async (payload: any) => {
-        lotInserts.push(payload);
-        return { data: null, error: null };
-      }),
-    }));
+  setTableHandler('position_lots', () => ({
+    select: vi.fn(() => createQuery({
+      data: [
+        { side: 'BUY', quantity: 3 },
+      ],
+      error: null,
+    })),
+    insert: vi.fn((payload: any) => {
+      lotInserts.push(payload);
+      return createQuery({ data: { id: 'lot-created' }, error: null });
+    }),
+    delete: vi.fn(() => createQuery({ data: null, error: null })),
+  }));
 
     const quoteTimestamp = Math.floor(new Date('2024-08-15T11:50:00Z').getTime() / 1000);
     fetchFinnhubQuoteMock.mockResolvedValue({ price: 155, timestamp: quoteTimestamp });
@@ -343,6 +404,8 @@ describe('processPendingPlans', () => {
       price: 155,
       quantity: 3,
       executed_at: '2024-08-15',
+      has_commission: true,
+      commission_amount: DEFAULT_COMMISSION_USD,
     });
     expect(updates[0]).toMatchObject({
       status: 'triggered',
@@ -371,18 +434,19 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '8',
       created_at: null,
       updated_at: null,
     };
 
     setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
+      select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
     }));
 
     setTableHandler('position_lots', () => ({
-      insert: vi.fn(async () => ({ data: null, error: null })),
+      insert: vi.fn(() => createQuery({ data: { id: 'lot-created' }, error: null })),
+      delete: vi.fn(() => createQuery({ data: null, error: null })),
     }));
 
     setTableHandler('positions', () => ({
@@ -416,6 +480,8 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '8',
       created_at: null,
       updated_at: null,
     };
@@ -424,22 +490,25 @@ describe('processPendingPlans', () => {
     const lotInserts: any[] = [];
 
     setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
-      update: vi.fn((payload: any) => ({
-        eq: vi.fn().mockImplementation(async () => {
+      select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
+      update: vi.fn((payload: any) => {
+        if ('status' in payload) {
           updates.push(payload);
-          return { data: null, error: null };
-        }),
-      })),
+          return createQuery({ data: null, error: null });
+        }
+        return createQuery({
+          data: [{ id: pendingRow.id ?? 'plan-recent-quote', updated_at: '2024-09-02T12:00:00.000Z' }],
+          error: null,
+        });
+      }),
     }));
 
     setTableHandler('position_lots', () => ({
-      insert: vi.fn(async (payload: any) => {
+      insert: vi.fn((payload: any) => {
         lotInserts.push(payload);
-        return { data: null, error: null };
+        return createQuery({ data: { id: 'lot-created' }, error: null });
       }),
+      delete: vi.fn(() => createQuery({ data: null, error: null })),
     }));
 
     const recentTimestamp = Math.floor(new Date('2024-09-01T23:30:00Z').getTime() / 1000);
@@ -453,6 +522,8 @@ describe('processPendingPlans', () => {
       price: 310,
       quantity: 4,
       executed_at: '2024-09-02',
+      has_commission: true,
+      commission_amount: DEFAULT_COMMISSION_USD,
     });
 
     expect(updates[0]).toMatchObject({
@@ -482,18 +553,18 @@ describe('processPendingPlans', () => {
       triggered_at: null,
       expired_at: null,
       executed_price: null,
+      has_commission: true,
+      commission_amount: '8',
       created_at: null,
       updated_at: null,
     };
 
     setTableHandler('position_plans', () => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [pendingRow], error: null }),
-      }),
+      select: vi.fn(() => createQuery({ data: [pendingRow], error: null })),
     }));
 
     setTableHandler('position_lots', () => ({
-      insert: vi.fn(async () => ({ data: null, error: null })),
+      insert: vi.fn(() => createQuery({ data: null, error: null })),
     }));
 
     setTableHandler('positions', () => ({
@@ -507,5 +578,64 @@ describe('processPendingPlans', () => {
 
     expect(result.triggered).toHaveLength(0);
     expect(result.expired).toHaveLength(0);
+  });
+
+  it('accounts for commissions in cost basis and realized proceeds', () => {
+    const lots = [
+      {
+        id: 'lot-buy',
+        type: 'BUY' as const,
+        price: 100,
+        quantity: 10,
+        executedAt: '2024-01-02',
+        hasCommission: true,
+        commissionAmount: DEFAULT_COMMISSION_USD,
+      },
+      {
+        id: 'lot-sell-1',
+        type: 'SELL' as const,
+        price: 120,
+        quantity: 4,
+        executedAt: '2024-02-15',
+        hasCommission: true,
+        commissionAmount: DEFAULT_COMMISSION_USD,
+      },
+      {
+        id: 'lot-sell-2',
+        type: 'SELL' as const,
+        price: 130,
+        quantity: 6,
+        executedAt: '2024-03-20',
+        hasCommission: false,
+        commissionAmount: 0,
+      },
+    ];
+
+    const summary = summarizeLots(lots.slice(0, 2));
+    expect(summary.totalQuantity).toBeCloseTo(6, 5);
+    expect(summary.costBasis).toBeCloseTo(604.8, 4);
+    expect(summary.averageEntryPrice).toBeCloseTo(100.8, 4);
+
+    const position: Position = {
+      id: 'pos-commission',
+      symbol: 'XYZ',
+      display: 'Commission Corp',
+      imageUrl: '',
+      entryPrice: 100,
+      quantity: 0,
+      entryDate: '2024-01-02',
+      lots,
+    };
+
+    const sales = computeRealizedSales(position);
+    expect(sales).toHaveLength(2);
+
+    expect(sales[0]?.proceedsUsd).toBeCloseTo(472, 4);
+    expect(sales[0]?.costBasisUsd).toBeCloseTo(403.2, 4);
+    expect(sales[0]?.profitUsd).toBeCloseTo(68.8, 4);
+
+    expect(sales[1]?.proceedsUsd).toBeCloseTo(780, 4);
+    expect(sales[1]?.costBasisUsd).toBeCloseTo(604.8, 4);
+    expect(sales[1]?.profitUsd).toBeCloseTo(175.2, 4);
   });
 });

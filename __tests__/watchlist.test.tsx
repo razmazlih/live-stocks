@@ -22,6 +22,22 @@ function createTicker(overrides: Partial<WatchlistTicker> = {}): WatchlistTicker
   };
 }
 
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 describe('watchlist utilities', () => {
   it('maps and sorts watchlist groups by sort order then symbol', () => {
     const groupRow = {
@@ -186,7 +202,8 @@ describe('TickerCard', () => {
     if (pricePanel) {
       expect(within(pricePanel).getByText('$120.00')).toBeInTheDocument();
     }
-    expect(screen.getByText('+$2.00 · +1.69%')).toBeInTheDocument();
+    expect(screen.getByText(/\+\$2\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/\+1\.69%/)).toBeInTheDocument();
     expect(screen.getByText('Starting price')).toBeInTheDocument();
     const basePanel = screen.getByText('Starting price').closest('div');
     expect(basePanel).not.toBeNull();
