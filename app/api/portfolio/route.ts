@@ -3,7 +3,7 @@ import { calculatePositionMetrics } from '@/lib/calculations';
 import { mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
 import { Position, PositionMetrics } from '@/types';
 
@@ -68,6 +68,17 @@ export async function POST(request: NextRequest) {
 
     const includeWeightedPrice = Boolean(body?.includeWeightedPrice);
     const targetCurrency = (body?.targetCurrency ?? 'USD').toUpperCase();
+
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (error) {
+      console.error('Supabase client initialization failed:', error);
+      return NextResponse.json(
+        { error: 'Supabase client is not configured.' },
+        { status: 500, headers: NO_STORE_HEADERS },
+      );
+    }
 
     const [{ data: positionsData, error: positionsError }, { data: settingsData, error: settingsError }] = await Promise.all([
       supabase

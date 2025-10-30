@@ -154,24 +154,32 @@ export function TickerCard({
       : null;
   }, [currentPrice, quote, historical]);
 
+  const showSparkline = Array.isArray(historical) && historical.length > 1;
+
+  const effectiveHoveredPoint = showSparkline ? hoveredPoint : null;
+
   const effectiveBasePrice = useMemo(() => {
-    if (hoveredPoint && typeof hoveredPoint.price === 'number' && Number.isFinite(hoveredPoint.price)) {
-      return hoveredPoint.price;
+    if (
+      effectiveHoveredPoint &&
+      typeof effectiveHoveredPoint.price === 'number' &&
+      Number.isFinite(effectiveHoveredPoint.price)
+    ) {
+      return effectiveHoveredPoint.price;
     }
 
     return derivedBasePrice;
-  }, [hoveredPoint, derivedBasePrice]);
+  }, [effectiveHoveredPoint, derivedBasePrice]);
 
   const effectiveBaseDate = useMemo(() => {
-    if (hoveredPoint && typeof hoveredPoint.timestamp === 'number') {
-      const date = new Date(hoveredPoint.timestamp);
+    if (effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number') {
+      const date = new Date(effectiveHoveredPoint.timestamp);
       if (!Number.isNaN(date.getTime())) {
         return date;
       }
     }
 
     return derivedBaseDate;
-  }, [hoveredPoint, derivedBaseDate]);
+  }, [effectiveHoveredPoint, derivedBaseDate]);
 
   const activePrice = derivedCurrentPrice ?? null;
 
@@ -268,8 +276,8 @@ export function TickerCard({
   }, [trendColor]);
 
   const hoverMeta =
-    hoveredPoint && typeof hoveredPoint.timestamp === 'number'
-      ? `${hoverLabel} ${formatTooltipTimestamp(hoveredPoint.timestamp)}`
+    effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number'
+      ? `${hoverLabel} ${formatTooltipTimestamp(effectiveHoveredPoint.timestamp)}`
       : null;
   const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500';
   const basePriceLabelText = hoverMeta ?? basePriceLabel;
@@ -277,8 +285,6 @@ export function TickerCard({
     'text-[0.65rem] font-semibold text-slate-500',
     hoverMeta ? null : 'uppercase tracking-wide'
   );
-
-  const showSparkline = Array.isArray(historical) && historical.length > 1;
 
   const priceFormatter = useCallback(
     (value: number) => formatCurrency(value, currency, locale),
@@ -289,12 +295,6 @@ export function TickerCard({
     (timestamp: number) => formatTooltipTimestamp(timestamp),
     [formatTooltipTimestamp]
   );
-
-  useEffect(() => {
-    if (!showSparkline) {
-      setHoveredPoint(null);
-    }
-  }, [showSparkline]);
 
   return (
     <Card

@@ -12,8 +12,8 @@ import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 
 const tableHandlers: Record<string, () => Record<string, any>> = {};
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
+vi.mock('@/lib/supabase', () => {
+  const supabase = {
     from: (table: string) => {
       const factory = tableHandlers[table];
       if (!factory) {
@@ -21,8 +21,13 @@ vi.mock('@/lib/supabase', () => ({
       }
       return factory();
     },
-  },
-}));
+  };
+
+  return {
+    supabase,
+    getSupabaseClient: vi.fn(() => supabase),
+  };
+});
 
 vi.mock('@/lib/services/finnhub', () => ({
   fetchFinnhubQuote: vi.fn(),

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import {
@@ -292,21 +292,22 @@ export function usePortfolioData() {
         portfolioTimeline: sortedTimeline,
       };
     },
-    [settings.finnhubToken]
+    [settings.annualGrowthRate, settings.finnhubToken]
   );
 
   const loadData = useCallback(
     async ({ background = false }: LoadOptions = {}) => {
       try {
-        if (background) {
-          setRefreshingCount((count) => count + 1);
-        } else {
-          setLoading(true);
-        }
+      if (background) {
+        setRefreshingCount((count) => count + 1);
+      } else {
+        setLoading(true);
+      }
 
-        const [positionsResult, unattachedPlansResult] = await Promise.all([
-          supabase
-            .from('positions')
+      const supabase = getSupabaseClient();
+      const [positionsResult, unattachedPlansResult] = await Promise.all([
+        supabase
+          .from('positions')
             .select('*, position_lots(*), position_plans(*)')
             .order('symbol'),
           supabase

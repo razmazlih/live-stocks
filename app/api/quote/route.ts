@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/http';
 import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { StockQuote } from '@/types';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
@@ -22,6 +22,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (!token) {
+      let supabase;
+      try {
+        supabase = getSupabaseClient();
+      } catch (error) {
+        console.error('Supabase client initialization failed:', error);
+        return NextResponse.json(
+          { error: 'Supabase client is not configured.' },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
+
       const { data: settingsData, error: settingsError } = await supabase
         .from('settings')
         .select('finnhub_token')

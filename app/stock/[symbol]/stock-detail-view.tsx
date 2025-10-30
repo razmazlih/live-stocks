@@ -31,7 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import {
@@ -287,6 +287,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       setError(null);
 
       try {
+        const supabase = getSupabaseClient();
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')

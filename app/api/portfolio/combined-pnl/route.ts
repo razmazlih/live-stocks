@@ -7,7 +7,7 @@ import {
 import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
 import { Position } from '@/types';
 
@@ -19,6 +19,17 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (error) {
+      console.error('Supabase client initialization failed:', error);
+      return NextResponse.json(
+        { error: 'Supabase client is not configured.' },
+        { status: 500, headers: NO_STORE_HEADERS },
+      );
+    }
+
     const [positionsResult, settingsResult] = await Promise.all([
       supabase
         .from('positions')

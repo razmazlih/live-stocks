@@ -10,7 +10,7 @@ import React, {
   useRef,
 } from 'react';
 import { Locale, Settings } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 import { processPendingPlans } from '@/lib/plans';
 import { useTranslation } from '@/lib/translations';
@@ -61,6 +61,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('settings')
           .select('*')

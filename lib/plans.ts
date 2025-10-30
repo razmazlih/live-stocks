@@ -1,6 +1,6 @@
 import { mapPositionPlanRow } from '@/lib/positions';
 import { fetchFinnhubQuote, FinnhubQuoteResult } from '@/lib/services/finnhub';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { PositionLocation, PositionPlan } from '@/types';
 
 export interface ProcessPlansOptions {
@@ -42,6 +42,7 @@ async function claimPendingPlan(plan: PositionPlan): Promise<{ claimed: boolean;
   }
 
   const claimTimestamp = new Date().toISOString();
+  const supabase = getSupabaseClient();
   let claimQuery = supabase
     .from('position_plans')
     .update({ updated_at: claimTimestamp })
@@ -74,6 +75,7 @@ async function releasePlanClaim(planId: string | undefined, previousUpdatedAt?: 
   }
 
   try {
+    const supabase = getSupabaseClient();
     let q = supabase
       .from('position_plans')
       .update({ updated_at: new Date().toISOString() })
@@ -91,6 +93,7 @@ async function releasePlanClaim(planId: string | undefined, previousUpdatedAt?: 
 }
 
 async function ensureSufficientSellQuantity(positionId: string, requiredQuantity: number): Promise<void> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('position_lots')
     .select('side, quantity')
@@ -133,13 +136,24 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
   const expired: PositionPlan[] = [];
   const errors: string[] = [];
 
+  let supabase: ReturnType<typeof getSupabaseClient>;
+  try {
+    supabase = getSupabaseClient();
+  } catch (clientError) {
+    console.error('Failed to initialize Supabase client for plan processing:', clientError);
+    errors.push('supabase');
+    return { triggered, expired, errors };
+  }
+
   const { data: pendingData, error: pendingError } = await supabase
     .from('position_plans')
     .select('*')
     .eq('status', 'pending');
 
   if (pendingError) {
-    throw pendingError;
+    console.error('Failed to fetch pending plans:', pendingError);
+    errors.push('pending');
+    return { triggered, expired, errors };
   }
 
   const pendingPlans = (pendingData || []).map(mapPositionPlanRow);

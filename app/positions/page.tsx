@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import {
   Position,
   PositionLocation,
@@ -289,6 +289,7 @@ export default function PositionsPage() {
   const loadPositions = useCallback(async () => {
     try {
       setLoading(true);
+      const supabase = getSupabaseClient();
       const [positionsResult, unattachedPlansResult] = await Promise.all([
         supabase
           .from('positions')
@@ -561,6 +562,7 @@ export default function PositionsPage() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       if (editingPosition) {
         const { error } = await supabase
           .from('positions')
@@ -673,6 +675,7 @@ export default function PositionsPage() {
       const commissionAmount = transactionForm.hasCommission
         ? Math.max(transactionForm.commissionAmount, 0)
         : 0;
+      const supabase = getSupabaseClient();
       if (transactionForm.id) {
         const { error } = await supabase
           .from('position_lots')
@@ -725,6 +728,7 @@ export default function PositionsPage() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       const { error } = await supabase.from('position_lots').delete().eq('id', lot.id);
 
       if (error) throw error;
@@ -777,6 +781,7 @@ export default function PositionsPage() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       if (isEditingPlan && planForm.id) {
         const { error } = await supabase
           .from('position_plans')
@@ -839,6 +844,7 @@ export default function PositionsPage() {
     const today = getTodayIsoDate();
 
     try {
+      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('position_plans')
         .update({ status: 'cancelled', expired_at: today })
@@ -867,6 +873,7 @@ export default function PositionsPage() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       const { error } = await supabase.from('position_plans').delete().eq('id', plan.id);
 
       if (error) throw error;
@@ -887,6 +894,7 @@ export default function PositionsPage() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('positions')
         .delete()

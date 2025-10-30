@@ -1,15 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import { FORECAST_BASE_URL } from '@/lib/forecast-config';
 
 type RouteParams = {
-  params: {
+  params: Promise<{
     horizon: string;
     symbol: string;
-  };
+  }>;
 };
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+  const { horizon, symbol } = await params;
+
   if (!FORECAST_BASE_URL) {
     return NextResponse.json(
       { error: 'Forecast service is not configured.' },
@@ -17,8 +19,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     );
   }
 
-  const trimmedSymbol = params.symbol?.trim();
-  const trimmedHorizon = params.horizon?.trim();
+  const trimmedSymbol = symbol?.trim();
+  const trimmedHorizon = horizon?.trim();
 
   if (!trimmedSymbol || !trimmedHorizon) {
     return NextResponse.json(

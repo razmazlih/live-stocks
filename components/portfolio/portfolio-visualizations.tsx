@@ -84,12 +84,16 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 sm:text-sm">
-      {payload.map((entry) => (
-        <span key={entry.value} className="inline-flex items-center gap-2 rounded-full bg-slate-100/70 px-3 py-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
-          <span>{entry.value}</span>
-        </span>
-      ))}
+      {payload.map((entry, index) => {
+        const payloadInfo = entry.payload as { symbol?: string } | undefined;
+        const legendKey = `${entry.dataKey ?? 'legend'}-${payloadInfo?.symbol ?? entry.value}-${index}`;
+        return (
+          <span key={legendKey} className="inline-flex items-center gap-2 rounded-full bg-slate-100/70 px-3 py-1">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+            <span>{entry.value}</span>
+          </span>
+        );
+      })}
     </div>
   );
 };
@@ -347,9 +351,9 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     {t.dashboard.topMoversPositiveLabel}
                   </span>
                 </div>
-                {topMovers.gainers.map((item) => (
+                {topMovers.gainers.map((item, index) => (
                   <div
-                    key={`gainer-${item.symbol}`}
+                    key={`gainer-${item.symbol}-${index}`}
                     className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -383,9 +387,9 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     {t.dashboard.topMoversNegativeLabel}
                   </span>
                 </div>
-                {topMovers.losers.map((item) => (
+                {topMovers.losers.map((item, index) => (
                   <div
-                    key={`loser-${item.symbol}`}
+                    key={`loser-${item.symbol}-${index}`}
                     className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
@@ -432,10 +436,12 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <defs>
-                  {allocationData.map((entry, index) => (
+                  {allocationData.map((entry, index) => {
+                    const gradientId = `allocationGradient-${entry.symbol}-${index}`;
+                    return (
                     <linearGradient
-                      key={entry.symbol}
-                      id={`allocationGradient-${entry.symbol}`}
+                      key={gradientId}
+                      id={gradientId}
                       x1="0%"
                       y1="0%"
                       x2="100%"
@@ -444,7 +450,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                       <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.95} />
                       <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6} />
                     </linearGradient>
-                  ))}
+                    );
+                  })}
                 </defs>
                 <Pie
                   data={allocationData}
@@ -457,9 +464,10 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   stroke="#fff"
                   strokeWidth={2}
                 >
-                  {allocationData.map((entry, index) => (
-                    <Cell key={entry.symbol} fill={`url(#allocationGradient-${entry.symbol})`} />
-                  ))}
+                  {allocationData.map((entry, index) => {
+                    const gradientId = `allocationGradient-${entry.symbol}-${index}`;
+                    return <Cell key={gradientId} fill={`url(#${gradientId})`} />;
+                  })}
                 </Pie>
                 <Tooltip
                   cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }}

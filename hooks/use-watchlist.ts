@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PostgrestError } from '@supabase/supabase-js';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { mapWatchlistGroup, mapWatchlistTicker, sortWatchlistGroups, sortWatchlistTickers } from '@/lib/watchlist';
 import type { WatchlistGroup, WatchlistTicker } from '@/types';
 
@@ -78,6 +78,7 @@ export function useWatchlist(): UseWatchlistState {
   const loadGroups = useCallback(async () => {
     setRefreshing(true);
     try {
+      const supabase = getSupabaseClient();
       const { data, error: queryError } = await supabase
         .from('watchlist_groups')
         .select(GROUP_SELECT)
@@ -138,6 +139,7 @@ export function useWatchlist(): UseWatchlistState {
         description: normalizeOptional(input.description),
       };
 
+      const supabase = getSupabaseClient();
       const { data, error: insertError } = await supabase
         .from('watchlist_groups')
         .insert(payload)
@@ -163,6 +165,7 @@ export function useWatchlist(): UseWatchlistState {
         description: normalizeOptional(input.description),
       };
 
+      const supabase = getSupabaseClient();
       const { data, error: updateError } = await supabase
         .from('watchlist_groups')
         .update(payload)
@@ -185,6 +188,7 @@ export function useWatchlist(): UseWatchlistState {
   );
 
   const deleteGroup = useCallback<UseWatchlistState['deleteGroup']>(async (groupId) => {
+    const supabase = getSupabaseClient();
     const { error: deleteError } = await supabase.from('watchlist_groups').delete().eq('id', groupId);
 
     if (deleteError) {
@@ -221,6 +225,7 @@ export function useWatchlist(): UseWatchlistState {
         sort_order: nextSortOrder,
       };
 
+      const supabase = getSupabaseClient();
       const { data, error: insertError } = await supabase
         .from('watchlist_tickers')
         .insert(payload)
@@ -257,6 +262,7 @@ export function useWatchlist(): UseWatchlistState {
         sort_order: typeof input.sortOrder === 'number' ? input.sortOrder : undefined,
       };
 
+      const supabase = getSupabaseClient();
       const { data, error: updateError } = await supabase
         .from('watchlist_tickers')
         .update(payload)
@@ -287,6 +293,7 @@ export function useWatchlist(): UseWatchlistState {
   );
 
   const deleteTicker = useCallback<UseWatchlistState['deleteTicker']>(async (tickerId) => {
+    const supabase = getSupabaseClient();
     const { error: deleteError } = await supabase.from('watchlist_tickers').delete().eq('id', tickerId);
 
     if (deleteError) {
@@ -329,6 +336,7 @@ export function useWatchlist(): UseWatchlistState {
 
       try {
         if (updates.length > 0) {
+          const supabase = getSupabaseClient();
           const { error: updateError } = await supabase
             .from('watchlist_tickers')
             .upsert(updates, { onConflict: 'id' });
