@@ -1,7 +1,7 @@
 import { mapPositionPlanRow } from '@/lib/positions';
 import { fetchFinnhubQuote, FinnhubQuoteResult } from '@/lib/services/finnhub';
 import { supabase } from '@/lib/supabase';
-import { PositionPlan } from '@/types';
+import { PositionLocation, PositionPlan } from '@/types';
 
 export interface ProcessPlansOptions {
   token?: string | null;
@@ -222,6 +222,9 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
     let planClaimed = false;
     let claimedUpdatedAt: string | undefined;
     let planUpdated = false;
+    let resolvedLocation: PositionLocation | null = plan.positionId
+      ? plan.location ?? null
+      : plan.location ?? 'bank_one';
 
     try {
       const quote = quotes.get(plan.symbol);
@@ -283,6 +286,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
 
         const fallbackImage = plan.imageUrl || `https://logo.clearbit.com/${plan.symbol.toLowerCase()}.com`;
         const fallbackDisplay = plan.display ?? plan.symbol;
+        const locationToUse = resolvedLocation ?? 'bank_one';
 
         const { data: newPosition, error: positionError } = await supabase
           .from('positions')
@@ -293,6 +297,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
             entry_price: quotePrice,
             quantity: requiredQuantity,
             entry_date: todayIso,
+            location: locationToUse,
           })
           .select('id')
           .single();
@@ -303,6 +308,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
 
         positionId = newPosition.id;
         createdPositionId = positionId;
+        resolvedLocation = locationToUse;
       }
 
       if (!positionId) {
@@ -361,6 +367,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
         status: 'triggered',
         triggeredAt: todayIso,
         executedPrice: quotePrice,
+        location: resolvedLocation,
       });
     } catch (error) {
       console.error('Failed to process plan', plan.id, error);

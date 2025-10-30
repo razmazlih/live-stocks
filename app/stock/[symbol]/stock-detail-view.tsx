@@ -772,6 +772,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
+                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
+                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                      </Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -784,6 +787,12 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         {t.dashboard.entryPrice}{' '}
                         <span className="font-medium text-gray-900">
                           {formatDualCurrency(position.entryPrice)}
+                        </span>
+                      </span>
+                      <span>
+                        {t.positions.locationLabel}{' '}
+                        <span className="font-medium text-gray-900">
+                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                         </span>
                       </span>
                       <span>

@@ -1,4 +1,11 @@
-import { Position, PositionLot, PositionLotType, PositionPlan, RealizedSale } from '@/types';
+import {
+  Position,
+  PositionLocation,
+  PositionLot,
+  PositionLotType,
+  PositionPlan,
+  RealizedSale,
+} from '@/types';
 
 export const DEFAULT_COMMISSION_USD = 8;
 
@@ -33,6 +40,7 @@ interface SupabasePositionPlan {
   executed_price: number | string | null;
   created_at: string | null;
   updated_at: string | null;
+  location: string | null;
 }
 
 interface SupabasePositionRow {
@@ -45,6 +53,7 @@ interface SupabasePositionRow {
   entry_date?: string | null;
   position_lots?: SupabasePositionLot[] | null;
   position_plans?: SupabasePositionPlan[] | null;
+  location?: string | null;
 }
 
 export interface OpenLot {
@@ -91,6 +100,17 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
   };
 }
 
+function normalizePositionLocation(value: unknown): PositionLocation {
+  return value === 'bank_two' ? 'bank_two' : 'bank_one';
+}
+
+function normalizePlanLocation(value: unknown): PositionLocation | null {
+  if (value === 'bank_one' || value === 'bank_two') {
+    return value;
+  }
+  return null;
+}
+
 export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
   const executedPrice = plan.executed_price;
   const hasCommission = plan.has_commission !== false;
@@ -115,6 +135,7 @@ export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
     executedPrice: executedPrice == null ? null : parseNumeric(executedPrice),
     createdAt: plan.created_at ?? undefined,
     updatedAt: plan.updated_at ?? undefined,
+    location: normalizePlanLocation(plan.location),
   };
 }
 
@@ -265,6 +286,7 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
     entryPrice,
     quantity,
     entryDate,
+    location: normalizePositionLocation(row.location),
     lots,
     plans,
   };

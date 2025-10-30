@@ -1,4 +1,5 @@
 export type PositionLotType = 'BUY' | 'SELL';
+export type PositionLocation = 'bank_one' | 'bank_two';
 
 export interface PositionLot {
   id?: string;
@@ -32,6 +33,7 @@ export interface PositionPlan {
   executedPrice?: number | null;
   createdAt?: string;
   updatedAt?: string;
+  location?: PositionLocation | null;
 }
 
 export interface Position {
@@ -42,6 +44,7 @@ export interface Position {
   entryPrice: number;
   quantity: number;
   entryDate: string;
+  location: PositionLocation;
   lots?: PositionLot[];
   plans?: PositionPlan[];
 }

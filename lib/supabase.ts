@@ -19,6 +19,7 @@ export type Database = {
           entry_date: string;
           created_at: string;
           updated_at: string;
+          location: 'bank_one' | 'bank_two';
         };
         Insert: {
           id?: string;
@@ -30,6 +31,7 @@ export type Database = {
           entry_date: string;
           created_at?: string;
           updated_at?: string;
+          location?: 'bank_one' | 'bank_two';
         };
         Update: {
           id?: string;
@@ -41,6 +43,7 @@ export type Database = {
           entry_date?: string;
           created_at?: string;
           updated_at?: string;
+          location?: 'bank_one' | 'bank_two';
         };
       };
       position_lots: {
@@ -100,6 +103,7 @@ export type Database = {
       commission_amount: number;
       created_at: string;
       updated_at: string;
+      location: 'bank_one' | 'bank_two' | null;
     };
     Insert: {
       id?: string;
@@ -119,6 +123,7 @@ export type Database = {
       commission_amount?: number;
       created_at?: string;
       updated_at?: string;
+      location?: 'bank_one' | 'bank_two' | null;
     };
     Update: {
       id?: string;
@@ -138,6 +143,7 @@ export type Database = {
       commission_amount?: number;
       created_at?: string;
       updated_at?: string;
+      location?: 'bank_one' | 'bank_two' | null;
     };
   };
       settings: {

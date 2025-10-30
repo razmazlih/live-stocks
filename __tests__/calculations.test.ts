@@ -15,6 +15,7 @@ describe('calculatePositionMetrics', () => {
     entryPrice: 100,
     quantity: 10,
     entryDate: '2024-05-30T10:00:00Z',
+    location: 'bank_one',
   };
 
   it('uses quote-based daily change for positions opened before today', () => {

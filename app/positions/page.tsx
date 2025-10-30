@@ -4,7 +4,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
-import { Position, PositionLot, PositionLotType, PositionPlan, StockQuote } from '@/types';
+import {
+  Position,
+  PositionLocation,
+  PositionLot,
+  PositionLotType,
+  PositionPlan,
+  StockQuote,
+} from '@/types';
 import { DEFAULT_COMMISSION_USD, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
@@ -41,6 +48,7 @@ interface PositionFormData {
   symbol: string;
   display: string;
   imageUrl: string;
+  location: PositionLocation;
   initialPrice: number;
   initialQuantity: number;
   initialDate: string;
@@ -77,6 +85,7 @@ interface PlanFormData {
   targetDate: string;
   hasCommission: boolean;
   commissionAmount: number;
+  location: PositionLocation | null;
 }
 
 function getTodayIsoDate(): string {
@@ -105,6 +114,7 @@ function createDefaultPlanForm(overrides: Partial<PlanFormData> = {}): PlanFormD
     targetDate: getTodayIsoDate(),
     hasCommission: true,
     commissionAmount: DEFAULT_COMMISSION_USD,
+    location: 'bank_one',
     ...overrides,
   };
 }
@@ -151,6 +161,7 @@ export default function PositionsPage() {
     symbol: '',
     display: '',
     imageUrl: '',
+    location: 'bank_one',
     initialPrice: 0,
     initialQuantity: 0,
     initialDate: getTodayIsoDate(),
@@ -319,6 +330,7 @@ export default function PositionsPage() {
       symbol: '',
       display: '',
       imageUrl: '',
+      location: 'bank_one',
       initialPrice: 0,
       initialQuantity: 0,
       initialDate: getTodayIsoDate(),
@@ -341,6 +353,7 @@ export default function PositionsPage() {
       symbol: position.symbol,
       display: position.display,
       imageUrl: position.imageUrl,
+      location: position.location,
       initialPrice: position.entryPrice,
       initialQuantity: position.quantity,
       initialDate: position.entryDate,
@@ -396,6 +409,7 @@ export default function PositionsPage() {
         display: position.display,
         imageUrl: position.imageUrl,
         side: 'buy',
+        location: position.location,
       }),
     );
     setPlanDialogOpen(true);
@@ -425,6 +439,7 @@ export default function PositionsPage() {
       targetDate: plan.targetDate,
       hasCommission: plan.hasCommission,
       commissionAmount: plan.hasCommission ? plan.commissionAmount : 0,
+      location: plan.positionId ? position?.location ?? plan.location ?? null : plan.location ?? 'bank_one',
     });
     setPlanDialogOpen(true);
   }
@@ -553,6 +568,7 @@ export default function PositionsPage() {
             symbol: formData.symbol,
             display: formData.display,
             image_url: formData.imageUrl || `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
+            location: formData.location,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingPosition.id);
@@ -573,6 +589,7 @@ export default function PositionsPage() {
             entry_price: formData.initialPrice,
             quantity: formData.initialQuantity,
             entry_date: formData.initialDate,
+            location: formData.location,
           })
           .select()
           .single();
@@ -610,6 +627,7 @@ export default function PositionsPage() {
           target_date: formData.targetDate,
           has_commission: formData.planHasCommission,
           commission_amount: planCommissionAmount,
+          location: formData.location,
         });
 
         if (error) throw error;
@@ -746,9 +764,15 @@ export default function PositionsPage() {
 
     const positionId = planContextPosition?.id ?? planForm.positionId ?? null;
     const commissionAmount = planForm.hasCommission ? Math.max(planForm.commissionAmount, 0) : 0;
+    const resolvedLocation = planContextPosition?.location ?? planForm.location ?? null;
 
     if (side === 'sell' && !positionId) {
       toast.error(t.positions.planSellDetachedError);
+      return;
+    }
+
+    if (!positionId && !resolvedLocation) {
+      toast.error(t.positions.locationValidationError);
       return;
     }
 
@@ -767,6 +791,7 @@ export default function PositionsPage() {
             position_id: positionId,
             has_commission: planForm.hasCommission,
             commission_amount: commissionAmount,
+            location: resolvedLocation,
           })
           .eq('id', planForm.id);
 
@@ -784,6 +809,7 @@ export default function PositionsPage() {
           position_id: positionId,
           has_commission: planForm.hasCommission,
           commission_amount: commissionAmount,
+          location: resolvedLocation,
         });
 
         if (error) throw error;
@@ -930,6 +956,27 @@ export default function PositionsPage() {
                       onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                       placeholder="https://logo.clearbit.com/apple.com"
                     />
+                  </div>
+                  <div>
+                    <Label>{t.positions.locationLabel}</Label>
+                    <RadioGroup
+                      value={formData.location}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, location: value as PositionLocation })
+                      }
+                      className="mt-2 grid gap-2 sm:grid-cols-2"
+                    >
+                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                        <RadioGroupItem value="bank_one" id="position-location-one" className="order-[-1]" />
+                        <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
+                        <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
+                      </label>
+                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                        <RadioGroupItem value="bank_two" id="position-location-two" className="order-[-1]" />
+                        <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
+                        <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
+                      </label>
+                    </RadioGroup>
                   </div>
                   {isEditing && editingPosition ? (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
@@ -1346,15 +1393,42 @@ export default function PositionsPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
-              {planContextPosition && (
+              {planContextPosition ? (
                 <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600">
                   <p className="font-semibold text-slate-700">{planContextPosition.display}</p>
-                  <p className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                     <Badge variant="secondary" className="bg-slate-200 text-slate-700">
                       {planContextPosition.symbol}
                     </Badge>
+                    <Badge className="bg-indigo-100 text-indigo-700">
+                      {planContextPosition.location === 'bank_two'
+                        ? t.positions.bankTwo
+                        : t.positions.bankOne}
+                    </Badge>
                     {t.positions.planLinkedHelper}
                   </p>
+                </div>
+              ) : (
+                <div>
+                  <Label>{t.positions.locationLabel}</Label>
+                  <RadioGroup
+                    value={planForm.location ?? 'bank_one'}
+                    onValueChange={(value) =>
+                      setPlanForm({ ...planForm, location: value as PositionLocation })
+                    }
+                    className="mt-2 grid gap-2 sm:grid-cols-2"
+                  >
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <RadioGroupItem value="bank_one" id="plan-location-one" className="order-[-1]" />
+                      <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
+                      <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
+                    </label>
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <RadioGroupItem value="bank_two" id="plan-location-two" className="order-[-1]" />
+                      <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
+                      <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
+                    </label>
+                  </RadioGroup>
                 </div>
               )}
               <div>
@@ -1671,6 +1745,9 @@ export default function PositionsPage() {
                               <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                                 {position.symbol}
                               </Badge>
+                              <Badge className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+                                {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                              </Badge>
                               <span className="flex items-center gap-1">
                                 <Package className="h-3.5 w-3.5 text-slate-400" />
                                 {formatNumber(position.quantity, locale)}
@@ -1954,6 +2031,9 @@ export default function PositionsPage() {
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {position.symbol}
                                       </Badge>
+                                      <Badge className="bg-indigo-100 text-indigo-700">
+                                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                                      </Badge>
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
                                     </div>
@@ -2027,6 +2107,11 @@ export default function PositionsPage() {
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {plan.symbol}
                                       </Badge>
+                                      {plan.location ? (
+                                        <Badge className="bg-indigo-100 text-indigo-700">
+                                          {plan.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                                        </Badge>
+                                      ) : null}
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
                                     </div>
@@ -2083,6 +2168,7 @@ export default function PositionsPage() {
                       {closedPlans.map(({ plan, position }) => {
                         const displayName = position?.display ?? plan.display ?? plan.symbol;
                         const symbol = position?.symbol ?? plan.symbol;
+                        const locationLabel = position?.location ?? plan.location ?? null;
                         const statusClass = planStatusClasses[plan.status];
                         const statusLabel = planStatusLabels[plan.status];
                         const sideClass =
@@ -2104,6 +2190,11 @@ export default function PositionsPage() {
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                   {symbol}
                                 </Badge>
+                                {locationLabel ? (
+                                  <Badge className="bg-indigo-100 text-indigo-700">
+                                    {locationLabel === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                                  </Badge>
+                                ) : null}
                                 <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                 <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
                               </div>

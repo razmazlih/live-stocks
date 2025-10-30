@@ -78,6 +78,7 @@ describe('mapPositionPlanRow', () => {
       commission_amount: '0',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
+      location: 'bank_two',
     };
 
     const mapped = mapPositionPlanRow(row as any);
@@ -100,6 +101,7 @@ describe('mapPositionPlanRow', () => {
       executedPrice: null,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
+      location: 'bank_two',
     });
   });
 });
@@ -127,6 +129,7 @@ describe('processPendingPlans', () => {
       commission_amount: '12.50',
       created_at: null,
       updated_at: null,
+      location: null,
     };
 
     const updates: any[] = [];
@@ -215,6 +218,7 @@ describe('processPendingPlans', () => {
       commission_amount: '0',
       created_at: null,
       updated_at: null,
+      location: 'bank_two',
     };
 
     const updates: any[] = [];
@@ -269,6 +273,7 @@ describe('processPendingPlans', () => {
       entry_price: 590,
       quantity: 2,
       entry_date: '2024-05-05',
+      location: 'bank_two',
     });
     expect(lotInserts[0]).toMatchObject({
       position_id: 'pos-new',
@@ -285,6 +290,7 @@ describe('processPendingPlans', () => {
       executed_price: 590,
     });
     expect(result.triggered[0]?.positionId).toBe('pos-new');
+    expect(result.triggered[0]?.location).toBe('bank_two');
   });
 
   it('expires plans that pass their target date', async () => {
@@ -309,6 +315,7 @@ describe('processPendingPlans', () => {
       commission_amount: '8',
       created_at: null,
       updated_at: null,
+      location: 'bank_one',
     };
 
     const updates: any[] = [];
@@ -359,6 +366,7 @@ describe('processPendingPlans', () => {
       commission_amount: '8',
       created_at: null,
       updated_at: null,
+      location: null,
     };
 
     const updates: any[] = [];
@@ -438,6 +446,7 @@ describe('processPendingPlans', () => {
       commission_amount: '8',
       created_at: null,
       updated_at: null,
+      location: 'bank_one',
     };
 
     setTableHandler('position_plans', () => ({
@@ -484,6 +493,7 @@ describe('processPendingPlans', () => {
       commission_amount: '8',
       created_at: null,
       updated_at: null,
+      location: null,
     };
 
     const updates: any[] = [];
@@ -557,6 +567,7 @@ describe('processPendingPlans', () => {
       commission_amount: '8',
       created_at: null,
       updated_at: null,
+      location: 'bank_one',
     };
 
     setTableHandler('position_plans', () => ({
@@ -624,6 +635,7 @@ describe('processPendingPlans', () => {
       entryPrice: 100,
       quantity: 0,
       entryDate: '2024-01-02',
+      location: 'bank_one',
       lots,
     };
 
