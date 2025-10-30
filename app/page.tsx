@@ -26,10 +26,28 @@ import {
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 
+type PositionFilterKey =
+  | 'all'
+  | 'profitable'
+  | 'losing'
+  | 'outperforming'
+  | 'underperforming'
+  | 'recentMovers'
+  | 'highConviction';
+
+interface PositionFilterOption {
+  key: PositionFilterKey;
+  label: string;
+  description: string;
+  tone: 'focus' | 'positive' | 'negative' | 'neutral';
+  predicate?: (metrics: PositionMetrics) => boolean;
+}
+
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
     'positions'
   );
+  const [positionsFilter, setPositionsFilter] = useState<PositionFilterKey>('all');
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const {
@@ -158,6 +176,105 @@ export default function HomePage() {
       }
     : null;
 
+  const positionFilterOptions = useMemo<PositionFilterOption[]>(() => {
+    const totalValue = summary?.totalValue ?? 0;
+    const sortedByValue = openMetrics
+      .slice()
+      .sort((a, b) => b.currentValue - a.currentValue);
+    const fallbackIndex = Math.min(
+      Math.max(0, Math.floor(sortedByValue.length / 3)),
+      Math.max(0, sortedByValue.length - 1)
+    );
+    const fallbackThreshold = sortedByValue[fallbackIndex]?.currentValue ?? 0;
+    const convictionThreshold = totalValue > 0 ? totalValue * 0.1 : fallbackThreshold;
+
+    return [
+      {
+        key: 'all',
+        label: t.dashboard.positionsFiltersAll,
+        description: t.dashboard.positionsFiltersAllDescription,
+        tone: 'focus',
+      },
+      {
+        key: 'profitable',
+        label: t.dashboard.positionsFiltersProfitable,
+        description: t.dashboard.positionsFiltersProfitableDescription,
+        tone: 'positive',
+        predicate: (metric) => metric.positionPnLUsd > 0,
+      },
+      {
+        key: 'losing',
+        label: t.dashboard.positionsFiltersLosing,
+        description: t.dashboard.positionsFiltersLosingDescription,
+        tone: 'negative',
+        predicate: (metric) => metric.positionPnLUsd < 0,
+      },
+      {
+        key: 'outperforming',
+        label: t.dashboard.positionsFiltersOutperforming,
+        description: t.dashboard.positionsFiltersOutperformingDescription,
+        tone: 'positive',
+        predicate: (metric) => metric.combined > 0,
+      },
+      {
+        key: 'underperforming',
+        label: t.dashboard.positionsFiltersUnderperforming,
+        description: t.dashboard.positionsFiltersUnderperformingDescription,
+        tone: 'negative',
+        predicate: (metric) => metric.combined < 0,
+      },
+      {
+        key: 'recentMovers',
+        label: t.dashboard.positionsFiltersRecentMovers,
+        description: t.dashboard.positionsFiltersRecentMoversDescription,
+        tone: 'neutral',
+        predicate: (metric) =>
+          typeof metric.dailyChange === 'number' && metric.position.quantity > 0 && metric.dailyChange !== 0,
+      },
+      {
+        key: 'highConviction',
+        label: t.dashboard.positionsFiltersHighConviction,
+        description: t.dashboard.positionsFiltersHighConvictionDescription,
+        tone: 'focus',
+        predicate: (metric) =>
+          Number.isFinite(convictionThreshold) && convictionThreshold > 0
+            ? metric.currentValue >= convictionThreshold
+            : metric.currentValue >= fallbackThreshold,
+      },
+    ];
+  }, [openMetrics, summary, t]);
+
+  const activeFilterOption =
+    positionFilterOptions.find((option) => option.key === positionsFilter) ?? positionFilterOptions[0];
+
+  const filteredOpenMetrics = useMemo(() => {
+    if (!activeFilterOption?.predicate) {
+      return openMetrics;
+    }
+
+    return openMetrics.filter((metric) => activeFilterOption.predicate?.(metric));
+  }, [openMetrics, activeFilterOption]);
+
+  const filteredClosedMetrics = useMemo(() => {
+    if (!activeFilterOption?.predicate) {
+      return closedMetrics;
+    }
+
+    return closedMetrics.filter((metric) => activeFilterOption.predicate?.(metric));
+  }, [closedMetrics, activeFilterOption]);
+
+  const filterSummary = useMemo(() => {
+    if (!activeFilterOption || activeFilterOption.key === 'all') {
+      return '';
+    }
+
+    const formatter = new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US');
+    const activeCount = formatter.format(filteredOpenMetrics.length);
+    const totalCount = formatter.format(openMetrics.length);
+
+    return t.dashboard.positionsFiltersActiveSummary(activeCount, totalCount);
+  }, [activeFilterOption, filteredOpenMetrics.length, locale, openMetrics.length, t.dashboard.positionsFiltersActiveSummary]);
+
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
@@ -284,9 +401,23 @@ export default function HomePage() {
       <PositionsOverview
         openTitle={t.dashboard.positionsTitle}
         closedTitle={t.dashboard.closedPositionsTitle}
-        openMetrics={openMetrics}
-        closedMetrics={closedMetrics}
+        openMetrics={filteredOpenMetrics}
+        closedMetrics={filteredClosedMetrics}
         sparklineData={sparklineData}
+        filterLabel={t.dashboard.positionsFiltersTrigger}
+        filterOptions={positionFilterOptions.map(({ key, label, description, tone }) => ({
+          key,
+          label,
+          description,
+          tone,
+        }))}
+        activeFilterKey={activeFilterOption.key}
+        activeFilterDescription={activeFilterOption.description}
+        filterSummary={filterSummary}
+        isFilterActive={activeFilterOption.key !== 'all'}
+        emptyFilteredMessage={t.dashboard.positionsFiltersEmpty}
+        resetLabel={t.dashboard.positionsFiltersReset}
+        onFilterChange={(key) => setPositionsFilter(key as PositionFilterKey)}
       />
     ) : (
       renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
