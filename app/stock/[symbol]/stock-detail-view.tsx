@@ -53,6 +53,7 @@ import {
   StockQuote,
   TimeRange,
 } from '@/types';
+import { BankBadge } from '@/components/bank/bank-badge';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
@@ -91,6 +92,8 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
   const isBuy = payload.type === 'BUY';
   const fill = isBuy ? '#059669' : '#DC2626';
   const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
+
+  const locationDisplay = position?.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne;
 
   return (
     <g transform={`translate(${cx}, ${cy})`}>
@@ -773,9 +776,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </Badge>
+                      <BankBadge location={position.location} label={locationDisplay} size="md" />
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -790,11 +791,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           {formatDualCurrency(position.entryPrice)}
                         </span>
                       </span>
-                      <span>
-                        {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </span>
+                      <span className="inline-flex items-center gap-2">
+                        {t.positions.locationLabel}
+                        <BankBadge location={position.location} label={locationDisplay} size="sm" />
                       </span>
                       <span>
                         {t.dashboard.since}{' '}

@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { BankBadge } from '@/components/bank/bank-badge';
 
 interface PositionFormData {
   symbol: string;
@@ -974,14 +975,14 @@ export default function PositionsPage() {
                       }
                       className="mt-2 grid gap-2 sm:grid-cols-2"
                     >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
                         <RadioGroupItem value="bank_one" id="position-location-one" className="order-[-1]" />
-                        <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
+                        <BankBadge location="bank_one" label={t.positions.bankOne} size="md" />
                         <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
                       </label>
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
                         <RadioGroupItem value="bank_two" id="position-location-two" className="order-[-1]" />
-                        <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
+                        <BankBadge location="bank_two" label={t.positions.bankTwo} size="md" />
                         <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
                       </label>
                     </RadioGroup>
@@ -1408,11 +1409,15 @@ export default function PositionsPage() {
                     <Badge variant="secondary" className="bg-slate-200 text-slate-700">
                       {planContextPosition.symbol}
                     </Badge>
-                    <Badge className="bg-indigo-100 text-indigo-700">
-                      {planContextPosition.location === 'bank_two'
-                        ? t.positions.bankTwo
-                        : t.positions.bankOne}
-                    </Badge>
+                    <BankBadge
+                      location={planContextPosition.location}
+                      label={
+                        planContextPosition.location === 'bank_two'
+                          ? t.positions.bankTwo
+                          : t.positions.bankOne
+                      }
+                      size="sm"
+                    />
                     {t.positions.planLinkedHelper}
                   </p>
                 </div>
@@ -1426,16 +1431,16 @@ export default function PositionsPage() {
                     }
                     className="mt-2 grid gap-2 sm:grid-cols-2"
                   >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                      <RadioGroupItem value="bank_one" id="plan-location-one" className="order-[-1]" />
-                      <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
-                      <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
-                    </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                      <RadioGroupItem value="bank_two" id="plan-location-two" className="order-[-1]" />
-                      <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
-                      <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
-                    </label>
+                      <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                        <RadioGroupItem value="bank_one" id="plan-location-one" className="order-[-1]" />
+                        <BankBadge location="bank_one" label={t.positions.bankOne} size="md" />
+                        <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
+                      </label>
+                      <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                        <RadioGroupItem value="bank_two" id="plan-location-two" className="order-[-1]" />
+                        <BankBadge location="bank_two" label={t.positions.bankTwo} size="md" />
+                        <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
+                      </label>
                   </RadioGroup>
                 </div>
               )}
@@ -1721,6 +1726,7 @@ export default function PositionsPage() {
                   const positionActivePlans = (position.plans ?? []).filter(
                     (plan) => plan.status !== 'expired' && plan.status !== 'cancelled',
                   );
+                  const locationDisplay = position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne;
 
                   const fallbackInitials =
                     ((position.display || position.symbol || '?')
@@ -1753,9 +1759,7 @@ export default function PositionsPage() {
                               <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                                 {position.symbol}
                               </Badge>
-                              <Badge className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-                                {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                              </Badge>
+                              <BankBadge location={position.location} label={locationDisplay} size="sm" />
                               <span className="flex items-center gap-1">
                                 <Package className="h-3.5 w-3.5 text-slate-400" />
                                 {formatNumber(position.quantity, locale)}
@@ -2028,6 +2032,10 @@ export default function PositionsPage() {
                                 plan.side === 'sell'
                                   ? t.positions.planSideSellShort
                                   : t.positions.planSideBuyShort;
+                              const locationDisplay =
+                                position.location === 'bank_two'
+                                  ? t.positions.bankTwo
+                                  : t.positions.bankOne;
                               return (
                                 <div
                                   key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
@@ -2039,9 +2047,7 @@ export default function PositionsPage() {
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {position.symbol}
                                       </Badge>
-                                      <Badge className="bg-indigo-100 text-indigo-700">
-                                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                      </Badge>
+                                      <BankBadge location={position.location} label={locationDisplay} size="sm" />
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
                                     </div>
@@ -2104,6 +2110,17 @@ export default function PositionsPage() {
                                 plan.side === 'sell'
                                   ? t.positions.planSideSellShort
                                   : t.positions.planSideBuyShort;
+                              const location =
+                                plan.location === 'bank_two'
+                                  ? 'bank_two'
+                                  : plan.location === 'bank_one'
+                                    ? 'bank_one'
+                                    : null;
+                              const locationDisplay = location
+                                ? location === 'bank_two'
+                                  ? t.positions.bankTwo
+                                  : t.positions.bankOne
+                                : null;
                               return (
                                 <div
                                   key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
@@ -2115,10 +2132,8 @@ export default function PositionsPage() {
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {plan.symbol}
                                       </Badge>
-                                      {plan.location ? (
-                                        <Badge className="bg-indigo-100 text-indigo-700">
-                                          {plan.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                        </Badge>
+                                      {location && locationDisplay ? (
+                                        <BankBadge location={location} label={locationDisplay} size="sm" />
                                       ) : null}
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
@@ -2177,6 +2192,17 @@ export default function PositionsPage() {
                         const displayName = position?.display ?? plan.display ?? plan.symbol;
                         const symbol = position?.symbol ?? plan.symbol;
                         const locationLabel = position?.location ?? plan.location ?? null;
+                        const resolvedLocation =
+                          locationLabel === 'bank_two'
+                            ? 'bank_two'
+                            : locationLabel === 'bank_one'
+                              ? 'bank_one'
+                              : null;
+                        const locationDisplay = resolvedLocation
+                          ? resolvedLocation === 'bank_two'
+                            ? t.positions.bankTwo
+                            : t.positions.bankOne
+                          : null;
                         const statusClass = planStatusClasses[plan.status];
                         const statusLabel = planStatusLabels[plan.status];
                         const sideClass =
@@ -2198,10 +2224,8 @@ export default function PositionsPage() {
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                   {symbol}
                                 </Badge>
-                                {locationLabel ? (
-                                  <Badge className="bg-indigo-100 text-indigo-700">
-                                    {locationLabel === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                  </Badge>
+                                {resolvedLocation && locationDisplay ? (
+                                  <BankBadge location={resolvedLocation} label={locationDisplay} size="sm" />
                                 ) : null}
                                 <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                 <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
