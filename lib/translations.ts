@@ -102,6 +102,38 @@ export const translations = {
       sectionPositionsDescription: 'פירוט פוזיציות פעילות וסגורות עם מגמות.',
       sectionPositionsEmpty: 'אין פוזיציות להצגה כרגע.',
       positionsSortedByForecast: 'מסודר לפי הפער מול התחזית (הגבוה ראשון)',
+      positionFilters: {
+        title: 'מסנני תצוגה',
+        triggerLabel: 'סינון חכם',
+        activeBadge: (label: string) => `מסנן פעיל: ${label}`,
+        resultCount: (count: number, total: number) =>
+          `מציג ${count} מתוך ${total} פוזיציות פעילות`,
+        empty: 'אין פוזיציות שמתאימות למסנן הנבחר.',
+        all: {
+          label: 'כל הפוזיציות',
+          description: 'הצגת כל הפוזיציות הפעילות כפי שהן.',
+        },
+        winners: {
+          label: 'ברווח',
+          description: 'פוזיציות עם רווח נוכחי חיובי.',
+        },
+        losers: {
+          label: 'בהפסד',
+          description: 'פוזיציות עם רווח נוכחי שלילי.',
+        },
+        ahead: {
+          label: 'מקדימות את התחזית',
+          description: 'ביצועי הפוזיציה גבוהים מהתחזית שהגדרת.',
+        },
+        lagging: {
+          label: 'דורשות תשומת לב',
+          description: 'פוזיציות שנמצאות מתחת לתחזית הצפויה.',
+        },
+        recent: {
+          label: 'נוספו השנה',
+          description: 'פוזיציות שנפתחו במהלך השנה האחרונה.',
+        },
+      },
       sectionVisualizationsLabel: 'ויזואליזציות',
       sectionVisualizationsDescription: 'תרשימים אינטראקטיביים של התיק.',
       sectionVisualizationsEmpty: 'אין מספיק נתונים להצגת תרשימים.',
@@ -654,6 +686,38 @@ export const translations = {
       sectionPositionsDescription: 'Dive into open and closed positions with recent trends.',
       sectionPositionsEmpty: 'No positions are available to review yet.',
       positionsSortedByForecast: 'Sorted by gap vs projection (highest first)',
+      positionFilters: {
+        title: 'Smart filters',
+        triggerLabel: 'Refine view',
+        activeBadge: (label: string) => `Active filter: ${label}`,
+        resultCount: (count: number, total: number) =>
+          `Showing ${count} of ${total} active positions`,
+        empty: 'No positions match the selected filter.',
+        all: {
+          label: 'All positions',
+          description: 'Display every active position as-is.',
+        },
+        winners: {
+          label: 'In profit',
+          description: 'Positions currently generating a positive return.',
+        },
+        losers: {
+          label: 'In loss',
+          description: 'Positions that are in a negative profit & loss.',
+        },
+        ahead: {
+          label: 'Ahead of projection',
+          description: 'Performance is tracking above your projection.',
+        },
+        lagging: {
+          label: 'Needs attention',
+          description: 'Positions that are falling behind the expected trend.',
+        },
+        recent: {
+          label: 'Added this year',
+          description: 'Positions opened within the past year.',
+        },
+      },
       sectionVisualizationsLabel: 'Visualizations',
       sectionVisualizationsDescription: 'Interactive charts that visualize your portfolio.',
       sectionVisualizationsEmpty: 'There is not enough data to render the charts yet.',
