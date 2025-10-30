@@ -102,6 +102,43 @@ export const translations = {
       sectionPositionsDescription: 'פירוט פוזיציות פעילות וסגורות עם מגמות.',
       sectionPositionsEmpty: 'אין פוזיציות להצגה כרגע.',
       positionsSortedByForecast: 'מסודר לפי הפער מול התחזית (הגבוה ראשון)',
+      positionFilters: {
+        triggerLabel: 'סינון פוזיציות',
+        menuLabel: 'בחר סינון להצגה',
+        activeLabel: (label: string) => `סינון: ${label}`,
+        resultsLabel: (count: number, total: number) => `מציג ${count} מתוך ${total} פוזיציות`,
+        noMatches: 'אין פוזיציות שעונות לסינון הנבחר.',
+        options: {
+          all: {
+            label: 'כל הפוזיציות',
+            description: 'מציג את כל הפוזיציות הפעילות והסגורות בלי הגבלות.',
+          },
+          winners: {
+            label: 'ברווח',
+            description: 'פוזיציות עם רווח לא ממומש חיובי.',
+          },
+          losers: {
+            label: 'בהפסד',
+            description: 'פוזיציות עם הפסד לא ממומש.',
+          },
+          forecastAhead: {
+            label: 'מעל התחזית',
+            description: 'הביצועים בפועל גבוהים מהתחזית שלך.',
+          },
+          forecastBehind: {
+            label: 'מתחת לתחזית',
+            description: 'הביצועים בפועל עדיין לא השיגו את התחזית.',
+          },
+          longTerm: {
+            label: 'טווח ארוך',
+            description: 'החזקה של שלוש שנים ומעלה.',
+          },
+          shortTerm: {
+            label: 'נפתח לאחרונה',
+            description: 'החזקה שנפתחה במהלך השנה האחרונה.',
+          },
+        },
+      },
       sectionVisualizationsLabel: 'ויזואליזציות',
       sectionVisualizationsDescription: 'תרשימים אינטראקטיביים של התיק.',
       sectionVisualizationsEmpty: 'אין מספיק נתונים להצגת תרשימים.',
@@ -654,6 +691,43 @@ export const translations = {
       sectionPositionsDescription: 'Dive into open and closed positions with recent trends.',
       sectionPositionsEmpty: 'No positions are available to review yet.',
       positionsSortedByForecast: 'Sorted by gap vs projection (highest first)',
+      positionFilters: {
+        triggerLabel: 'Filter positions',
+        menuLabel: 'Choose a filter',
+        activeLabel: (label: string) => `Filter: ${label}`,
+        resultsLabel: (count: number, total: number) => `Showing ${count} of ${total} positions`,
+        noMatches: 'No positions match the selected filter.',
+        options: {
+          all: {
+            label: 'All positions',
+            description: 'Display every active and closed position in one view.',
+          },
+          winners: {
+            label: 'In profit',
+            description: 'Positions with a positive unrealized gain.',
+          },
+          losers: {
+            label: 'In loss',
+            description: 'Positions currently below their cost basis.',
+          },
+          forecastAhead: {
+            label: 'Ahead of projection',
+            description: 'Actual performance is running above the forecast.',
+          },
+          forecastBehind: {
+            label: 'Behind projection',
+            description: 'Actual performance is still trailing the forecast.',
+          },
+          longTerm: {
+            label: 'Long-term holdings',
+            description: 'Held for three years or longer.',
+          },
+          shortTerm: {
+            label: 'Recently opened',
+            description: 'Held for less than one year.',
+          },
+        },
+      },
       sectionVisualizationsLabel: 'Visualizations',
       sectionVisualizationsDescription: 'Interactive charts that visualize your portfolio.',
       sectionVisualizationsEmpty: 'There is not enough data to render the charts yet.',
