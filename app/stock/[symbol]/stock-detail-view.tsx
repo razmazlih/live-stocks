@@ -53,6 +53,7 @@ import {
   StockQuote,
   TimeRange,
 } from '@/types';
+import { BankBadge } from '@/components/bank/bank-badge';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 const DAY_SECONDS = 60 * 60 * 24;
@@ -773,9 +774,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </Badge>
+                      <BankBadge
+                        location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                        label={position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        size="sm"
+                      />
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -792,9 +795,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </span>
                       <span>
                         {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </span>
+                        <BankBadge
+                          location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                          label={position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                          size="sm"
+                        />
                       </span>
                       <span>
                         {t.dashboard.since}{' '}

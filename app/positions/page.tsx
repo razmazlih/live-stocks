@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { BankBadge, bankHelperClass } from '@/components/bank/bank-badge';
 
 interface PositionFormData {
   symbol: string;
@@ -974,16 +975,20 @@ export default function PositionsPage() {
                       }
                       className="mt-2 grid gap-2 sm:grid-cols-2"
                     >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                        <RadioGroupItem value="bank_one" id="position-location-one" className="order-[-1]" />
-                        <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
-                        <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
-                      </label>
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
-                        <RadioGroupItem value="bank_two" id="position-location-two" className="order-[-1]" />
-                        <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
-                        <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
-                      </label>
+                    <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <RadioGroupItem value="bank_one" id="position-location-one" className="order-[-1]" />
+                      <BankBadge location="bank_one" label={t.positions.bankOne} size="sm" />
+                      <span className={`text-xs font-medium ${bankHelperClass('bank_one', true)}`}>
+                        {t.positions.bankOneHelper}
+                      </span>
+                    </label>
+                    <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <RadioGroupItem value="bank_two" id="position-location-two" className="order-[-1]" />
+                      <BankBadge location="bank_two" label={t.positions.bankTwo} size="sm" />
+                      <span className={`text-xs font-medium ${bankHelperClass('bank_two', true)}`}>
+                        {t.positions.bankTwoHelper}
+                      </span>
+                    </label>
                     </RadioGroup>
                   </div>
                   {isEditing && editingPosition ? (
@@ -1408,11 +1413,15 @@ export default function PositionsPage() {
                     <Badge variant="secondary" className="bg-slate-200 text-slate-700">
                       {planContextPosition.symbol}
                     </Badge>
-                    <Badge className="bg-indigo-100 text-indigo-700">
-                      {planContextPosition.location === 'bank_two'
-                        ? t.positions.bankTwo
-                        : t.positions.bankOne}
-                    </Badge>
+                    <BankBadge
+                      location={planContextPosition.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                      label={
+                        planContextPosition.location === 'bank_two'
+                          ? t.positions.bankTwo
+                          : t.positions.bankOne
+                      }
+                      size="sm"
+                    />
                     {t.positions.planLinkedHelper}
                   </p>
                 </div>
@@ -1426,15 +1435,19 @@ export default function PositionsPage() {
                     }
                     className="mt-2 grid gap-2 sm:grid-cols-2"
                   >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_one" id="plan-location-one" className="order-[-1]" />
-                      <span className="font-semibold text-slate-700">{t.positions.bankOne}</span>
-                      <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
+                      <BankBadge location="bank_one" label={t.positions.bankOne} size="sm" />
+                      <span className={`text-xs font-medium ${bankHelperClass('bank_one', true)}`}>
+                        {t.positions.bankOneHelper}
+                      </span>
                     </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_two" id="plan-location-two" className="order-[-1]" />
-                      <span className="font-semibold text-slate-700">{t.positions.bankTwo}</span>
-                      <span className="text-xs text-slate-500">{t.positions.bankTwoHelper}</span>
+                      <BankBadge location="bank_two" label={t.positions.bankTwo} size="sm" />
+                      <span className={`text-xs font-medium ${bankHelperClass('bank_two', true)}`}>
+                        {t.positions.bankTwoHelper}
+                      </span>
                     </label>
                   </RadioGroup>
                 </div>
@@ -1753,9 +1766,11 @@ export default function PositionsPage() {
                               <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                                 {position.symbol}
                               </Badge>
-                              <Badge className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-                                {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                              </Badge>
+                              <BankBadge
+                                location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                                label={position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                                size="sm"
+                              />
                               <span className="flex items-center gap-1">
                                 <Package className="h-3.5 w-3.5 text-slate-400" />
                                 {formatNumber(position.quantity, locale)}
@@ -2039,9 +2054,11 @@ export default function PositionsPage() {
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                                         {position.symbol}
                                       </Badge>
-                                      <Badge className="bg-indigo-100 text-indigo-700">
-                                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                      </Badge>
+                                      <BankBadge
+                                        location={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                                        label={position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                                        size="sm"
+                                      />
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
                                     </div>
@@ -2116,9 +2133,15 @@ export default function PositionsPage() {
                                         {plan.symbol}
                                       </Badge>
                                       {plan.location ? (
-                                        <Badge className="bg-indigo-100 text-indigo-700">
-                                          {plan.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                        </Badge>
+                                        <BankBadge
+                                          location={plan.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                                          label={
+                                            plan.location === 'bank_two'
+                                              ? t.positions.bankTwo
+                                              : t.positions.bankOne
+                                          }
+                                          size="sm"
+                                        />
                                       ) : null}
                                       <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                       <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
@@ -2199,9 +2222,15 @@ export default function PositionsPage() {
                                   {symbol}
                                 </Badge>
                                 {locationLabel ? (
-                                  <Badge className="bg-indigo-100 text-indigo-700">
-                                    {locationLabel === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                                  </Badge>
+                                  <BankBadge
+                                    location={locationLabel === 'bank_two' ? 'bank_two' : 'bank_one'}
+                                    label={
+                                      locationLabel === 'bank_two'
+                                        ? t.positions.bankTwo
+                                        : t.positions.bankOne
+                                    }
+                                    size="sm"
+                                  />
                                 ) : null}
                                 <Badge className={`${sideClass} text-[11px]`}>{sideLabel}</Badge>
                                 <Badge className={`${statusClass} text-[11px]`}>{statusLabel}</Badge>
