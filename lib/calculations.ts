@@ -116,7 +116,8 @@ export function calculateWeightedProjectedPrice(
     }
 
     const yearsHeld = Math.max((asOf.getTime() - executedAt.getTime()) / MS_PER_YEAR, 0);
-    const projectedPrice = lot.price * Math.pow(1 + annualGrowthRate, yearsHeld);
+    const baseCostPerUnit = lot.quantity > 0 ? lot.totalCost / lot.quantity : lot.price;
+    const projectedPrice = baseCostPerUnit * Math.pow(1 + annualGrowthRate, yearsHeld);
     return sum + projectedPrice * lot.quantity;
   }, 0);
 

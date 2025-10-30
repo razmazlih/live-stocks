@@ -44,5 +44,33 @@ describe('calculatePositionMetrics', () => {
     expect(metrics.dailyChange).toBe(15);
     expect(metrics.dailyChangePercent).toBeCloseTo(((110 - 95) / 95) * 100, 10);
   });
-});
 
+  it('bases projected price on commission-adjusted cost basis', () => {
+    const now = new Date('2024-06-10T12:00:00Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const positionWithCommission: Position = {
+      ...basePosition,
+      entryPrice: 100,
+      quantity: 10,
+      entryDate: '2024-06-10T12:00:00Z',
+      lots: [
+        {
+          id: 'lot-1',
+          positionId: 'pos-1',
+          type: 'BUY',
+          price: 100,
+          quantity: 10,
+          executedAt: '2024-06-10T12:00:00Z',
+          hasCommission: true,
+          commissionAmount: 20,
+        },
+      ],
+    };
+
+    const metrics = calculatePositionMetrics(positionWithCommission, 120, 3.7, 0);
+
+    expect(metrics.projectedPrice).toBeCloseTo(102, 6);
+  });
+});
