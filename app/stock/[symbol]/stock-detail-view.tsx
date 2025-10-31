@@ -42,12 +42,13 @@ import {
   formatPercent,
   mapCandleDataToPoints,
 } from '@/lib/calculations';
-import { computeOpenLots, mapPositionRow } from '@/lib/positions';
+import { computeOpenLots, mapPositionRow, summarizeLots } from '@/lib/positions';
 import { cn } from '@/lib/utils';
 import {
   CandleData,
   HistoricalPoint,
   Position,
+  PositionLocation,
   PositionLotType,
   PositionMetrics,
   StockQuote,
@@ -66,6 +67,113 @@ function getDateKey(timestamp: number) {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getEarliestValidDate(dates: Array<string | undefined>): string | undefined {
+  let earliestValue: string | undefined;
+  let earliestTimestamp = Number.POSITIVE_INFINITY;
+
+  for (const value of dates) {
+    if (!value) {
+      continue;
+    }
+
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) {
+      continue;
+    }
+
+    if (timestamp < earliestTimestamp) {
+      earliestTimestamp = timestamp;
+      earliestValue = value;
+    }
+  }
+
+  return Number.isFinite(earliestTimestamp) ? earliestValue : undefined;
+}
+
+function combinePositions(positions: Position[]): Position | null {
+  if (!positions.length) {
+    return null;
+  }
+
+  const combinedLots = positions.flatMap((pos) => pos.lots ?? []);
+  const combinedPlans = positions.flatMap((pos) => pos.plans ?? []);
+  const summary = combinedLots.length ? summarizeLots(combinedLots) : undefined;
+
+  const fallbackQuantity = positions.reduce((sum, pos) => sum + Math.max(pos.quantity, 0), 0);
+  const quantity = summary && summary.totalQuantity > 0 ? summary.totalQuantity : fallbackQuantity;
+
+  const entryPrice = summary && summary.totalQuantity > 0
+    ? summary.averageEntryPrice
+    : fallbackQuantity > 0
+      ? positions.reduce((sum, pos) => sum + pos.entryPrice * Math.max(pos.quantity, 0), 0) /
+        fallbackQuantity
+      : positions[0].entryPrice;
+
+  const entryDate = summary?.earliestEntryDate
+    ?? getEarliestValidDate(positions.map((pos) => pos.entryDate))
+    ?? positions[0].entryDate;
+
+  return {
+    ...positions[0],
+    id: positions.length === 1 ? positions[0].id : undefined,
+    entryPrice,
+    quantity,
+    entryDate,
+    location: positions[0].location,
+    lots: combinedLots,
+    plans: combinedPlans,
+  };
+}
+
+interface LocationBreakdown {
+  location: PositionLocation;
+  quantity: number;
+  averageEntryPrice: number;
+  entryDate?: string;
+}
+
+function buildLocationBreakdowns(positions: Position[]): LocationBreakdown[] {
+  if (!positions.length) {
+    return [];
+  }
+
+  const aggregations = new Map<PositionLocation, { quantity: number; cost: number; dates: string[] }>();
+
+  for (const pos of positions) {
+    const quantity = Math.max(pos.quantity, 0);
+    const cost = pos.entryPrice * quantity;
+    const existing = aggregations.get(pos.location);
+
+    if (existing) {
+      existing.quantity += quantity;
+      existing.cost += cost;
+      if (pos.entryDate) {
+        existing.dates.push(pos.entryDate);
+      }
+    } else {
+      aggregations.set(pos.location, {
+        quantity,
+        cost,
+        dates: pos.entryDate ? [pos.entryDate] : [],
+      });
+    }
+  }
+
+  return Array.from(aggregations.entries())
+    .map(([location, info]) => ({
+      location,
+      quantity: info.quantity,
+      averageEntryPrice: info.quantity > 0 ? info.cost / info.quantity : 0,
+      entryDate: getEarliestValidDate(info.dates),
+    }))
+    .sort((a, b) => {
+      if (a.location === b.location) {
+        return 0;
+      }
+      return a.location === 'bank_one' ? -1 : 1;
+    });
 }
 
 interface TradeMarkerDatum {
@@ -256,7 +364,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [position, setPosition] = useState<Position | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
@@ -264,6 +372,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [showVolume, setShowVolume] = useState(true);
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const position = useMemo(() => combinePositions(positions), [positions]);
+  const locationBreakdowns = useMemo(() => buildLocationBreakdowns(positions), [positions]);
   const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
   const transactions = useMemo(() => {
     if (!position?.lots) {
@@ -291,29 +401,41 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
-          .maybeSingle();
+          .eq('symbol', normalizedSymbol);
 
         if (positionError) {
           throw positionError;
         }
 
-        if (!data) {
+        const mappedPositions = (data ?? []).map(mapPositionRow);
+
+        if (!mappedPositions.length) {
           if (!cancelled) {
             setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
-            setPosition(null);
+            setPositions([]);
             setMetrics(null);
+            setQuote(null);
           }
           return;
         }
 
-        const mappedPosition = mapPositionRow(data);
+        const combinedPosition = combinePositions(mappedPositions);
+
+        if (!combinedPosition) {
+          if (!cancelled) {
+            setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
+            setPositions([]);
+            setMetrics(null);
+            setQuote(null);
+          }
+          return;
+        }
 
         if (cancelled) {
           return;
         }
 
-        setPosition(mappedPosition);
+        setPositions(mappedPositions);
 
         const trimmedToken = settings.finnhubToken?.trim();
         const quoteUrl = trimmedToken
@@ -346,11 +468,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           console.warn(`Exchange rate request failed with status ${rateResponse.status}`);
         }
 
-        const currentPrice = fetchedQuote?.c ?? mappedPosition.entryPrice;
+        const currentPrice = fetchedQuote?.c ?? combinedPosition.entryPrice;
         const dailyChange = fetchedQuote?.d;
 
         const computedMetrics = calculatePositionMetrics(
-          mappedPosition,
+          combinedPosition,
           currentPrice,
           rate,
           settings.annualGrowthRate,
@@ -773,9 +895,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </Badge>
+                      {locationBreakdowns.map((breakdown) => (
+                        <Badge
+                          key={breakdown.location}
+                          variant="secondary"
+                          className="text-sm uppercase bg-indigo-100 text-indigo-700"
+                        >
+                          {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        </Badge>
+                      ))}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -793,7 +921,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <span>
                         {t.positions.locationLabel}{' '}
                         <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                          {locationBreakdowns.length
+                            ? locationBreakdowns
+                                .map((breakdown) =>
+                                  breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne
+                                )
+                                .join(' · ')
+                            : '--'}
                         </span>
                       </span>
                       <span>
@@ -803,6 +937,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </span>
                       </span>
                     </div>
+                    {locationBreakdowns.length > 1 && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                        {locationBreakdowns.map((breakdown) => (
+                          <div
+                            key={`${breakdown.location}-breakdown`}
+                            className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
+                          >
+                            <span className="font-medium text-gray-700">
+                              {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                            </span>
+                            <span>
+                              {formatNumber(breakdown.quantity, locale)} · {formatDualCurrency(breakdown.averageEntryPrice)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
