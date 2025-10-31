@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { FORECAST_BASE_URL } from '@/lib/forecast-config';
 
-type RouteParams = {
-  params: Promise<{
+type RouteContext = {
+  params: {
     horizon: string;
     symbol: string;
-  }>;
+  };
 };
 
-export async function GET(_request: NextRequest, { params }: RouteParams) {
-  const { horizon, symbol } = await params;
+export async function GET(_request: NextRequest, { params }: RouteContext) {
+  const { horizon, symbol } = params;
 
   if (!FORECAST_BASE_URL) {
     return NextResponse.json(
@@ -38,9 +38,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   }
 
   const normalizedSymbol = trimmedSymbol.toUpperCase();
-  const upstreamUrl = `${FORECAST_BASE_URL}/predict/${horizonValue}/ticker/${encodeURIComponent(
-    normalizedSymbol
-  )}`;
+  const upstreamUrl = new URL(
+    `${horizonValue}/ticker/${encodeURIComponent(normalizedSymbol)}`,
+    `${FORECAST_BASE_URL}/predict/`,
+  );
 
   try {
     const response = await fetch(upstreamUrl, {

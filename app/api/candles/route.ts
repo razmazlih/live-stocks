@@ -68,10 +68,14 @@ export async function GET(request: NextRequest) {
     }
 
     const interval = resolveInterval(resolution);
-    const url = `${YAHOO_BASE_URL}/${encodeURIComponent(symbol)}?period1=${fromSeconds}&period2=${toSeconds}&interval=${interval}&includeAdjustedClose=true`;
+    const upstreamUrl = new URL(`${encodeURIComponent(symbol)}`, `${YAHOO_BASE_URL}/`);
+    upstreamUrl.searchParams.set('period1', String(fromSeconds));
+    upstreamUrl.searchParams.set('period2', String(toSeconds));
+    upstreamUrl.searchParams.set('interval', interval);
+    upstreamUrl.searchParams.set('includeAdjustedClose', 'true');
 
     const response = await fetchWithRetry(
-      url,
+      upstreamUrl,
       { cache: 'no-store' },
       { shouldRetry: response => !response.ok },
     );

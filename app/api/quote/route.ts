@@ -57,8 +57,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url, { cache: 'no-store' });
+    const upstreamUrl = new URL('quote', `${FINNHUB_BASE_URL}/`);
+    upstreamUrl.searchParams.set('symbol', symbol);
+    upstreamUrl.searchParams.set('token', token);
+
+    const response = await fetchWithRetry(upstreamUrl, { cache: 'no-store' });
     const data: StockQuote = await response.json();
 
     if (data.c === 0 || data.c === undefined) {

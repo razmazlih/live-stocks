@@ -26,7 +26,10 @@ export async function fetchFinnhubQuote(
   }
 
   try {
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
+    const url = new URL('quote', `${FINNHUB_BASE_URL}/`);
+    url.searchParams.set('symbol', symbol);
+    url.searchParams.set('token', token);
+
     const response = await fetchWithRetry(url, init);
     const data = await response.json() as StockQuote;
 
