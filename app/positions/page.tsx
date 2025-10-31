@@ -1722,6 +1722,9 @@ export default function PositionsPage() {
                     (plan) => plan.status !== 'expired' && plan.status !== 'cancelled',
                   );
 
+                  const sanitizedSymbol = (position.symbol ?? '').trim();
+                  const encodedSymbol = encodeURIComponent(sanitizedSymbol);
+
                   const fallbackInitials =
                     ((position.display || position.symbol || '?')
                       .split(/\s+/)
@@ -1772,7 +1775,7 @@ export default function PositionsPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-1">
-                          <Link href={`/stock/${position.symbol}`} className="shrink-0">
+                          <Link href={`/stock/${encodedSymbol}`} className="shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"

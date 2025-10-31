@@ -247,7 +247,8 @@ interface StockDetailViewProps {
 }
 
 export function StockDetailView({ symbol }: StockDetailViewProps) {
-  const normalizedSymbol = symbol.toUpperCase();
+  const sanitizedSymbol = symbol.trim();
+  const normalizedSymbol = sanitizedSymbol.toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
@@ -288,10 +289,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
       try {
         const supabase = getSupabaseClient();
+        if (!sanitizedSymbol) {
+          throw new Error('Symbol is required');
+        }
+
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
+          .ilike('symbol', sanitizedSymbol)
           .maybeSingle();
 
         if (positionError) {
@@ -381,7 +386,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
+  }, [
+    locale,
+    normalizedSymbol,
+    reloadKey,
+    sanitizedSymbol,
+    settings.annualGrowthRate,
+    settings.finnhubToken,
+  ]);
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate?: string) => {

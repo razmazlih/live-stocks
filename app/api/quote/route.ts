@@ -10,16 +10,20 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const symbol = searchParams.get('symbol');
-    let token = searchParams.get('token');
+    const { searchParams } = new URL(request.url);
+    const rawSymbol = searchParams.get('symbol');
+    const rawToken = searchParams.get('token');
+    const trimmedSymbol = rawSymbol ? rawSymbol.trim() : '';
+    let token = rawToken ? rawToken.trim() : null;
 
-    if (!symbol) {
+    if (!trimmedSymbol) {
       return NextResponse.json(
         { error: 'Symbol parameter is required' },
         { status: 400, headers: NO_STORE_HEADERS }
       );
     }
+
+    const normalizedSymbol = trimmedSymbol.toUpperCase();
 
     if (!token) {
       let supabase;
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
+    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(normalizedSymbol)}&token=${token}`;
     const response = await fetchWithRetry(url, { cache: 'no-store' });
     const data: StockQuote = await response.json();
 

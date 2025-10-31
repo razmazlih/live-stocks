@@ -35,6 +35,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     yearsHeld,
   } = metrics;
 
+  const sanitizedSymbol = position.symbol?.trim() ?? '';
+  const encodedSymbol = encodeURIComponent(sanitizedSymbol);
+
   const isClosed = position.quantity <= 0;
   const changeFromEntryPercent = position.entryPrice !== 0
     ? ((currentPrice - position.entryPrice) / position.entryPrice) * 100
@@ -420,7 +423,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
               {forecastEnabled ? (
                 <Link
-                  href={`/stock/${position.symbol}/forecast`}
+                  href={`/stock/${encodedSymbol}/forecast`}
                   className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
                 >
                   {t.dashboard.viewForecast}
@@ -428,7 +431,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </Link>
               ) : null}
               <Link
-                href={`/stock/${position.symbol}`}
+                href={`/stock/${encodedSymbol}`}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}
@@ -562,7 +565,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
               {forecastEnabled ? (
                 <Link
-                  href={`/stock/${position.symbol}/forecast`}
+                  href={`/stock/${encodedSymbol}/forecast`}
                   className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
                 >
                   {t.dashboard.viewForecast}
@@ -570,7 +573,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </Link>
               ) : null}
               <Link
-                href={`/stock/${position.symbol}`}
+                href={`/stock/${encodedSymbol}`}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}

@@ -467,7 +467,8 @@ interface ForecastViewProps {
 
 export function ForecastView({ symbol }: ForecastViewProps) {
   const featureEnabled = FORECAST_FEATURE_ENABLED;
-  const normalizedSymbol = symbol.toUpperCase();
+  const sanitizedSymbol = symbol.trim();
+  const normalizedSymbol = sanitizedSymbol.toUpperCase();
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
@@ -483,6 +484,13 @@ export function ForecastView({ symbol }: ForecastViewProps) {
 
   useEffect(() => {
     if (!featureEnabled) {
+      return;
+    }
+
+    if (!sanitizedSymbol) {
+      setError('Symbol is required');
+      setForecastSets([]);
+      setLoading(false);
       return;
     }
 
@@ -538,7 +546,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     return () => {
       controller.abort();
     };
-  }, [featureEnabled, normalizedSymbol, reloadKey]);
+  }, [featureEnabled, normalizedSymbol, reloadKey, sanitizedSymbol]);
 
   const handleRefresh = useCallback(() => {
     setReloadKey((value) => value + 1);
@@ -552,6 +560,12 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     const controller = new AbortController();
 
     async function loadHistory() {
+      if (!sanitizedSymbol) {
+        setHistoricalPoints([]);
+        setHistoricalLoading(false);
+        return;
+      }
+
       try {
         setHistoricalLoading(true);
 
@@ -596,7 +610,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     return () => {
       controller.abort();
     };
-  }, [featureEnabled, normalizedSymbol]);
+  }, [featureEnabled, normalizedSymbol, sanitizedSymbol]);
 
   const primaryModels = useMemo(
     () => forecastSets.map((dataset) => dataset.primary),
