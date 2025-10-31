@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { FORECAST_BASE_URL } from '@/lib/forecast-config';
 
+type Awaitable<T> = T | Promise<T>;
+
 type RouteParams = {
-  params: Promise<{
+  params: Awaitable<{
     horizon: string;
     symbol: string;
   }>;
@@ -12,7 +14,9 @@ type RouteParams = {
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { horizon, symbol } = await params;
 
-  if (!FORECAST_BASE_URL) {
+  const baseUrl = FORECAST_BASE_URL;
+
+  if (!baseUrl) {
     return NextResponse.json(
       { error: 'Forecast service is not configured.' },
       { status: 503 }
@@ -38,9 +42,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   }
 
   const normalizedSymbol = trimmedSymbol.toUpperCase();
-  const upstreamUrl = `${FORECAST_BASE_URL}/predict/${horizonValue}/ticker/${encodeURIComponent(
-    normalizedSymbol
-  )}`;
+  const upstreamUrl = new URL(
+    `predict/${horizonValue}/ticker/${normalizedSymbol}`,
+    `${baseUrl}/`,
+  );
 
   try {
     const response = await fetch(upstreamUrl, {

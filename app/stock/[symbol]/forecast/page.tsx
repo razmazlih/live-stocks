@@ -3,16 +3,19 @@ import { notFound } from 'next/navigation';
 import { ForecastView } from './forecast-view';
 import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 
+type Awaitable<T> = T | Promise<T>;
+
 interface ForecastPageProps {
-  params: {
+  params: Awaitable<{
     symbol: string;
-  };
+  }>;
 }
 
-export default function ForecastPage({ params }: ForecastPageProps) {
+export default async function ForecastPage({ params }: ForecastPageProps) {
   if (!FORECAST_FEATURE_ENABLED) {
     notFound();
   }
 
-  return <ForecastView symbol={params.symbol} />;
+  const { symbol } = await params;
+  return <ForecastView symbol={symbol} />;
 }

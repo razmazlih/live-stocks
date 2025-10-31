@@ -21,7 +21,7 @@ async function wait(ms: number): Promise<void> {
 }
 
 export async function fetchWithRetry(
-  url: string,
+  input: RequestInfo | URL,
   init: RequestInit = {},
   options: RetryOptions = {},
 ): Promise<Response> {
@@ -35,7 +35,7 @@ export async function fetchWithRetry(
 
   for (let attempt = 0; attempt < retries; attempt += 1) {
     try {
-      const response = await fetch(url, init);
+      const response = await fetch(input, init);
 
       if (response.ok) {
         return response;

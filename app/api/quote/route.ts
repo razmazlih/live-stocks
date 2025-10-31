@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/http';
-import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
+import { buildFinnhubQuoteUrl } from '@/lib/services/finnhub';
 import { getSupabaseClient } from '@/lib/supabase';
 import { StockQuote } from '@/types';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
@@ -11,8 +11,8 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const symbol = searchParams.get('symbol');
-    let token = searchParams.get('token');
+    const symbol = searchParams.get('symbol')?.trim();
+    let token = searchParams.get('token')?.trim() ?? null;
 
     if (!symbol) {
       return NextResponse.json(
@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      token = settingsData?.finnhub_token || process.env.FINNHUB_TOKEN || undefined;
+      const storedToken = settingsData?.finnhub_token ?? process.env.FINNHUB_TOKEN ?? null;
+      token = storedToken?.trim() ?? null;
     }
 
     if (!token) {
@@ -57,8 +58,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url, { cache: 'no-store' });
+    const endpoint = buildFinnhubQuoteUrl(symbol, token);
+    const response = await fetchWithRetry(endpoint, { cache: 'no-store' });
     const data: StockQuote = await response.json();
 
     if (data.c === 0 || data.c === undefined) {

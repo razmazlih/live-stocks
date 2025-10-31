@@ -4,6 +4,21 @@ import { CandleData } from '@/types';
 
 const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
+function buildYahooChartUrl(
+  symbol: string,
+  fromSeconds: number,
+  toSeconds: number,
+  interval: string,
+): URL {
+  const endpoint = new URL(YAHOO_BASE_URL);
+  endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/${symbol}`;
+  endpoint.searchParams.set('period1', fromSeconds.toString());
+  endpoint.searchParams.set('period2', toSeconds.toString());
+  endpoint.searchParams.set('interval', interval);
+  endpoint.searchParams.set('includeAdjustedClose', 'true');
+  return endpoint;
+}
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
@@ -45,10 +60,15 @@ interface YahooChartResponse {
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
-    const symbol = params.get('symbol');
-    const from = params.get('from');
-    const to = params.get('to');
-    const resolution = params.get('resolution') || 'D';
+    const symbolParam = params.get('symbol');
+    const fromParam = params.get('from');
+    const toParam = params.get('to');
+    const resolutionParam = params.get('resolution');
+
+    const symbol = symbolParam?.trim().toUpperCase();
+    const from = fromParam?.trim();
+    const to = toParam?.trim();
+    const resolution = resolutionParam?.trim().toUpperCase() || 'D';
 
     if (!symbol || !from || !to) {
       return NextResponse.json(
@@ -68,10 +88,10 @@ export async function GET(request: NextRequest) {
     }
 
     const interval = resolveInterval(resolution);
-    const url = `${YAHOO_BASE_URL}/${encodeURIComponent(symbol)}?period1=${fromSeconds}&period2=${toSeconds}&interval=${interval}&includeAdjustedClose=true`;
+    const endpoint = buildYahooChartUrl(symbol, fromSeconds, toSeconds, interval);
 
     const response = await fetchWithRetry(
-      url,
+      endpoint,
       { cache: 'no-store' },
       { shouldRetry: response => !response.ok },
     );

@@ -10,15 +10,41 @@ const FALLBACK_RATE = (() => {
 const DEFAULT_FETCH_INIT: RequestInit = { cache: 'no-store' };
 
 interface FetchExchangeRateOptions extends Partial<RetryOptions> {
-  url?: string;
+  url?: string | URL;
   init?: RequestInit;
+}
+
+function resolveExchangeRateUrl(candidate: string | URL): URL {
+  try {
+    if (candidate instanceof URL) {
+      return new URL(candidate.toString());
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+      throw new Error('Exchange rate URL cannot be empty.');
+    }
+
+    return new URL(trimmed);
+  } catch (error) {
+    throw new Error(`Invalid exchange rate URL provided: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function fetchExchangeRateResponse(
   options: FetchExchangeRateOptions = {},
 ): Promise<ExchangeRateResponse> {
   const { url = DEFAULT_EXCHANGE_RATE_URL, init, ...retry } = options;
-  const response = await fetchWithRetry(url, init ?? DEFAULT_FETCH_INIT, retry);
+
+  let endpoint: URL;
+  try {
+    endpoint = resolveExchangeRateUrl(url);
+  } catch (error) {
+    console.warn('Falling back to default exchange rate URL:', error);
+    endpoint = resolveExchangeRateUrl(DEFAULT_EXCHANGE_RATE_URL);
+  }
+
+  const response = await fetchWithRetry(endpoint, init ?? DEFAULT_FETCH_INIT, retry);
   return response.json() as Promise<ExchangeRateResponse>;
 }
 

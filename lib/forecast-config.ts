@@ -1,11 +1,31 @@
 const DEFAULT_FORECAST_URL = 'http://localhost:8080';
 
-const rawUrl = process.env.NEXT_PUBLIC_FORECAST_URL;
-const trimmedUrl = typeof rawUrl === 'string' ? rawUrl.trim() : '';
-const candidateUrl =
-  trimmedUrl === '1' ? DEFAULT_FORECAST_URL : trimmedUrl;
+function normalizeForecastUrl(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
 
-export const FORECAST_BASE_URL =
-  candidateUrl.length > 0 ? candidateUrl.replace(/\/+$/, '') : null;
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
 
-export const FORECAST_FEATURE_ENABLED = FORECAST_BASE_URL !== null;
+  const candidate = trimmed === '1' ? DEFAULT_FORECAST_URL : trimmed;
+
+  try {
+    const parsed = new URL(candidate);
+    parsed.search = '';
+    parsed.hash = '';
+    const normalized = parsed.toString().replace(/\/+$/, '');
+    return normalized;
+  } catch (error) {
+    console.warn('Invalid NEXT_PUBLIC_FORECAST_URL value, disabling forecast feature:', error);
+    return null;
+  }
+}
+
+const normalizedForecastUrl = normalizeForecastUrl(process.env.NEXT_PUBLIC_FORECAST_URL);
+
+export const FORECAST_BASE_URL = normalizedForecastUrl;
+
+export const FORECAST_FEATURE_ENABLED = normalizedForecastUrl !== null;
