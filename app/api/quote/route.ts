@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchWithRetry } from '@/lib/http';
-import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
+import { fetchFinnhubStockQuote } from '@/lib/services/finnhub';
 import { getSupabaseClient } from '@/lib/supabase';
-import { StockQuote } from '@/types';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export const dynamic = 'force-dynamic';
@@ -57,18 +55,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url, { cache: 'no-store' });
-    const data: StockQuote = await response.json();
+    const quote = await fetchFinnhubStockQuote(symbol, { token, init: { cache: 'no-store' } });
 
-    if (data.c === 0 || data.c === undefined) {
+    if (!quote) {
       return NextResponse.json(
         { error: 'Invalid symbol or no data available' },
         { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
-    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
+    return NextResponse.json(quote, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Quote API error:', error);
     return NextResponse.json(

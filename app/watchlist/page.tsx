@@ -512,7 +512,10 @@ export default function WatchlistPage() {
           }
         }
 
-        const fetchedAt = Date.now();
+        const fetchedAt =
+          typeof quote?.fetchedAt === 'number' && Number.isFinite(quote.fetchedAt)
+            ? quote.fetchedAt
+            : Date.now();
         writeTickerCache(cacheKey, {
           quote,
           historical,
@@ -524,21 +527,29 @@ export default function WatchlistPage() {
           resolution,
         });
 
-        setTickerStates((prev) => ({
-          ...prev,
-          [key]: {
-            quote,
-            historical,
-            loading: false,
-            error: errorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: fetchedAt,
-          },
-        }));
+        setTickerStates((prev) => {
+          const existing = prev[key];
+          const nextQuote = quote ?? existing?.quote ?? null;
+          const nextHistorical = Array.isArray(historical)
+            ? historical
+            : existing?.historical ?? [];
+          const nextLastUpdated = quote ? fetchedAt : existing?.lastUpdated ?? fetchedAt;
+
+          return {
+            ...prev,
+            [key]: {
+              quote: nextQuote,
+              historical: nextHistorical,
+              loading: false,
+              error: errorMessage,
+              range: targetRange,
+              from,
+              lastUpdated: nextLastUpdated,
+            },
+          };
+        });
       } catch (error) {
         console.error('Failed to load ticker data', error);
-        const failedAt = Date.now();
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -548,7 +559,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: failedAt,
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
       }

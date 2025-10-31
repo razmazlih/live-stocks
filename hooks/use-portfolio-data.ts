@@ -330,8 +330,10 @@ export function usePortfolioData() {
         const trimmedToken = settings.finnhubToken?.trim();
 
         const metricsPromises = mappedPositions.map(async (position) => {
+          let fetchedAt: number | null = null;
+
           try {
-            let quoteData: { c?: number; d?: number; error?: string } | null = null;
+            let quoteData: { c?: number; d?: number; fetchedAt?: number; error?: string } | null = null;
 
             if (trimmedToken) {
               const quoteResponse = await fetch(
@@ -339,9 +341,17 @@ export function usePortfolioData() {
               );
 
               if (quoteResponse.ok) {
-                const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
+                const parsed = (await quoteResponse.json()) as {
+                  c?: number;
+                  d?: number;
+                  fetchedAt?: number;
+                  error?: string;
+                };
                 if (!parsed.error) {
                   quoteData = parsed;
+                  if (typeof parsed.fetchedAt === 'number' && Number.isFinite(parsed.fetchedAt)) {
+                    fetchedAt = parsed.fetchedAt;
+                  }
                 } else {
                   console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
                 }
@@ -353,25 +363,38 @@ export function usePortfolioData() {
             const currentPrice = quoteData?.c ?? position.entryPrice;
             const dailyChange = quoteData?.d;
 
-            return calculatePositionMetrics(
-              position,
-              currentPrice,
-              rate,
-              settings.annualGrowthRate,
-              dailyChange
-            );
+            return {
+              metrics: calculatePositionMetrics(
+                position,
+                currentPrice,
+                rate,
+                settings.annualGrowthRate,
+                dailyChange
+              ),
+              fetchedAt,
+            };
           } catch (error) {
             console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-            return calculatePositionMetrics(
-              position,
-              position.entryPrice,
-              rate,
-              settings.annualGrowthRate
-            );
+            return {
+              metrics: calculatePositionMetrics(
+                position,
+                position.entryPrice,
+                rate,
+                settings.annualGrowthRate
+              ),
+              fetchedAt,
+            };
           }
         });
 
-        const calculatedMetrics = await Promise.all(metricsPromises);
+        const metricsResults = await Promise.all(metricsPromises);
+        const calculatedMetrics = metricsResults.map((result) => result.metrics);
+        const latestQuoteFetchedAt = metricsResults.reduce<number | null>((latest, result) => {
+          if (typeof result.fetchedAt === 'number' && Number.isFinite(result.fetchedAt)) {
+            return latest === null ? result.fetchedAt : Math.max(latest, result.fetchedAt);
+          }
+          return latest;
+        }, null);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
         const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
@@ -528,7 +551,17 @@ export function usePortfolioData() {
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
         setPortfolioTimeline(finalTimeline);
-        setLastUpdate(new Date());
+        setLastUpdate((previous) => {
+          if (typeof latestQuoteFetchedAt === 'number') {
+            return new Date(latestQuoteFetchedAt);
+          }
+
+          if (!trimmedToken) {
+            return new Date();
+          }
+
+          return previous;
+        });
       } catch (error) {
         console.error('Error loading portfolio data:', error);
       } finally {
