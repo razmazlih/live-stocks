@@ -174,7 +174,12 @@ describe('processPendingPlans', () => {
     }));
 
     const quoteTimestamp = Math.floor(new Date('2024-03-10T09:55:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 135, timestamp: quoteTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 135,
+      timestamp: quoteTimestamp,
+      retrievedAt: quoteTimestamp * 1000,
+      raw: { c: 135, t: quoteTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-1' });
 
@@ -268,7 +273,12 @@ describe('processPendingPlans', () => {
   }));
 
     const quoteTimestamp = Math.floor(new Date('2024-05-05T08:30:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 590, timestamp: quoteTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 590,
+      timestamp: quoteTimestamp,
+      retrievedAt: quoteTimestamp * 1000,
+      raw: { c: 590, t: quoteTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-2' });
 
@@ -339,7 +349,11 @@ describe('processPendingPlans', () => {
       }),
     }));
 
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 180 });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 180,
+      retrievedAt: Date.now(),
+      raw: { c: 180 },
+    });
 
     const result = await processPendingPlans({ token: 'token-3' });
 
@@ -406,7 +420,12 @@ describe('processPendingPlans', () => {
   }));
 
     const quoteTimestamp = Math.floor(new Date('2024-08-15T11:50:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 155, timestamp: quoteTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 155,
+      timestamp: quoteTimestamp,
+      retrievedAt: quoteTimestamp * 1000,
+      raw: { c: 155, t: quoteTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-4' });
 
@@ -468,7 +487,12 @@ describe('processPendingPlans', () => {
     }));
 
     const quoteTimestamp = Math.floor(new Date('2024-09-02T11:30:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 335, timestamp: quoteTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 335,
+      timestamp: quoteTimestamp,
+      retrievedAt: quoteTimestamp * 1000,
+      raw: { c: 335, t: quoteTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-5' });
 
@@ -527,7 +551,12 @@ describe('processPendingPlans', () => {
     }));
 
     const recentTimestamp = Math.floor(new Date('2024-09-01T23:30:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 310, timestamp: recentTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 310,
+      timestamp: recentTimestamp,
+      retrievedAt: recentTimestamp * 1000,
+      raw: { c: 310, t: recentTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-5' });
 
@@ -588,7 +617,12 @@ describe('processPendingPlans', () => {
     }));
 
     const staleTimestamp = Math.floor(new Date('2024-08-30T20:00:00Z').getTime() / 1000);
-    fetchFinnhubQuoteMock.mockResolvedValue({ price: 315, timestamp: staleTimestamp });
+    fetchFinnhubQuoteMock.mockResolvedValue({
+      price: 315,
+      timestamp: staleTimestamp,
+      retrievedAt: staleTimestamp * 1000,
+      raw: { c: 315, t: staleTimestamp },
+    });
 
     const result = await processPendingPlans({ token: 'token-5' });
 

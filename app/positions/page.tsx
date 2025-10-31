@@ -137,7 +137,7 @@ async function fetchQuotePrice(symbol: string): Promise<number | null> {
       return null;
     }
 
-    const data: StockQuote = await response.json();
+    const data = (await response.json()) as StockQuote & { retrievedAt?: number };
 
     if (typeof data.c === 'number' && Number.isFinite(data.c) && data.c > 0) {
       return data.c;

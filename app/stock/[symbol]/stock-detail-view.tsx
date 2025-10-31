@@ -211,7 +211,7 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
 }
 
 type CandleResponse = CandleData & { error?: string };
-type QuoteResponse = StockQuote & { error?: string };
+type QuoteResponse = StockQuote & { error?: string; retrievedAt?: number };
 
 function getRangeParams(range: TimeRange, entryDate?: string) {
   const now = Math.floor(Date.now() / 1000);

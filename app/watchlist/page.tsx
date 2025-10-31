@@ -50,6 +50,8 @@ import type {
   WatchlistTicker as WatchlistTickerType,
 } from '@/types';
 
+type QuoteWithMeta = StockQuote & { retrievedAt?: number };
+
 interface GroupFormState {
   id: string | null;
   name: string;
@@ -67,7 +69,7 @@ interface TickerFormState {
 interface TickerState {
   loading: boolean;
   error: string | null;
-  quote: StockQuote | null;
+  quote: QuoteWithMeta | null;
   historical: HistoricalPoint[];
   range: TimeRange;
   from: number | null;
@@ -77,7 +79,7 @@ interface TickerState {
 const TICKER_CACHE_PREFIX = 'watchlist:ticker:';
 
 interface TickerCacheEntry {
-  quote: StockQuote | null;
+  quote: QuoteWithMeta | null;
   historical: HistoricalPoint[];
   error: string | null;
   storedAt: number;
@@ -480,9 +482,9 @@ export default function WatchlistPage() {
           fetch(`/api/candles?${candlesParams.toString()}`),
         ]);
 
-        let quote: StockQuote | null = null;
+        let quote: QuoteWithMeta | null = null;
         if (quoteResponse.ok) {
-          quote = (await quoteResponse.json()) as StockQuote;
+          quote = (await quoteResponse.json()) as QuoteWithMeta;
         } else {
           const payload = (await quoteResponse.json().catch(() => null)) as { error?: string } | null;
           if (payload?.error) {
@@ -512,33 +514,49 @@ export default function WatchlistPage() {
           }
         }
 
-        const fetchedAt = Date.now();
+        let resolvedLastUpdated =
+          typeof quote?.retrievedAt === 'number' && Number.isFinite(quote.retrievedAt)
+            ? quote.retrievedAt
+            : Date.now();
+
+        setTickerStates((prev) => {
+          const previousLastUpdated = prev[key]?.lastUpdated ?? null;
+
+          if (
+            typeof quote?.retrievedAt === 'number' &&
+            Number.isFinite(quote.retrievedAt)
+          ) {
+            resolvedLastUpdated = quote.retrievedAt;
+          } else if (previousLastUpdated !== null) {
+            resolvedLastUpdated = previousLastUpdated;
+          }
+
+          return {
+            ...prev,
+            [key]: {
+              quote,
+              historical,
+              loading: false,
+              error: errorMessage,
+              range: targetRange,
+              from,
+              lastUpdated: resolvedLastUpdated,
+            },
+          };
+        });
+
         writeTickerCache(cacheKey, {
           quote,
           historical,
           error: errorMessage,
-          storedAt: fetchedAt,
-          expiresAt: fetchedAt + getTickerCacheTtlMs(new Date(fetchedAt)),
+          storedAt: resolvedLastUpdated,
+          expiresAt: resolvedLastUpdated + getTickerCacheTtlMs(new Date(resolvedLastUpdated)),
           range: targetRange,
           from,
           resolution,
         });
-
-        setTickerStates((prev) => ({
-          ...prev,
-          [key]: {
-            quote,
-            historical,
-            loading: false,
-            error: errorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: fetchedAt,
-          },
-        }));
       } catch (error) {
         console.error('Failed to load ticker data', error);
-        const failedAt = Date.now();
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -548,7 +566,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: failedAt,
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
       }
