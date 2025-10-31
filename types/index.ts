@@ -75,6 +75,7 @@ export interface StockQuote {
   pc?: number;
   t?: number;
   v?: number;
+  fetchedAt?: number;
 }
 
 export interface WatchlistTicker {

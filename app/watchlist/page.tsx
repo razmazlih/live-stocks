@@ -512,45 +512,59 @@ export default function WatchlistPage() {
           }
         }
 
-        const fetchedAt = Date.now();
-        writeTickerCache(cacheKey, {
-          quote,
-          historical,
-          error: errorMessage,
-          storedAt: fetchedAt,
-          expiresAt: fetchedAt + getTickerCacheTtlMs(new Date(fetchedAt)),
-          range: targetRange,
-          from,
-          resolution,
+        const fetchedAt = typeof quote?.fetchedAt === 'number' ? quote.fetchedAt : null;
+        let resolvedLastUpdated: number | null = fetchedAt;
+
+        setTickerStates((prev) => {
+          const existing = prev[key];
+          const previousLastUpdated = existing?.lastUpdated ?? null;
+          const nextLastUpdated = fetchedAt ?? (quote ? Date.now() : previousLastUpdated);
+          resolvedLastUpdated = nextLastUpdated;
+
+          return {
+            ...prev,
+            [key]: {
+              quote,
+              historical,
+              loading: false,
+              error: errorMessage,
+              range: targetRange,
+              from,
+              lastUpdated: nextLastUpdated,
+            },
+          };
         });
 
-        setTickerStates((prev) => ({
-          ...prev,
-          [key]: {
+        if (resolvedLastUpdated !== null) {
+          writeTickerCache(cacheKey, {
             quote,
             historical,
-            loading: false,
             error: errorMessage,
+            storedAt: resolvedLastUpdated,
+            expiresAt:
+              resolvedLastUpdated + getTickerCacheTtlMs(new Date(resolvedLastUpdated)),
             range: targetRange,
             from,
-            lastUpdated: fetchedAt,
-          },
-        }));
+            resolution,
+          });
+        }
       } catch (error) {
         console.error('Failed to load ticker data', error);
-        const failedAt = Date.now();
-        setTickerStates((prev) => ({
-          ...prev,
-          [key]: {
-            quote: prev[key]?.quote ?? null,
-            historical: prev[key]?.historical ?? [],
-            loading: false,
-            error: chartErrorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: failedAt,
-          },
-        }));
+        setTickerStates((prev) => {
+          const existing = prev[key];
+          return {
+            ...prev,
+            [key]: {
+              quote: existing?.quote ?? null,
+              historical: existing?.historical ?? [],
+              loading: false,
+              error: chartErrorMessage,
+              range: targetRange,
+              from,
+              lastUpdated: existing?.lastUpdated ?? null,
+            },
+          };
+        });
       }
     },
     [chartErrorMessage, effectiveStartDate, finnhubToken, range]

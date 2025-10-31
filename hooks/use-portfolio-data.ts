@@ -331,7 +331,7 @@ export function usePortfolioData() {
 
         const metricsPromises = mappedPositions.map(async (position) => {
           try {
-            let quoteData: { c?: number; d?: number; error?: string } | null = null;
+            let quoteData: { c?: number; d?: number; fetchedAt?: number; error?: string } | null = null;
 
             if (trimmedToken) {
               const quoteResponse = await fetch(
@@ -339,7 +339,12 @@ export function usePortfolioData() {
               );
 
               if (quoteResponse.ok) {
-                const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
+                const parsed = (await quoteResponse.json()) as {
+                  c?: number;
+                  d?: number;
+                  fetchedAt?: number;
+                  error?: string;
+                };
                 if (!parsed.error) {
                   quoteData = parsed;
                 } else {
@@ -352,26 +357,40 @@ export function usePortfolioData() {
 
             const currentPrice = quoteData?.c ?? position.entryPrice;
             const dailyChange = quoteData?.d;
+            const fetchedAt = typeof quoteData?.fetchedAt === 'number' ? quoteData.fetchedAt : null;
 
-            return calculatePositionMetrics(
-              position,
-              currentPrice,
-              rate,
-              settings.annualGrowthRate,
-              dailyChange
-            );
+            return {
+              metric: calculatePositionMetrics(
+                position,
+                currentPrice,
+                rate,
+                settings.annualGrowthRate,
+                dailyChange
+              ),
+              fetchedAt,
+            };
           } catch (error) {
             console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-            return calculatePositionMetrics(
-              position,
-              position.entryPrice,
-              rate,
-              settings.annualGrowthRate
-            );
+            return {
+              metric: calculatePositionMetrics(
+                position,
+                position.entryPrice,
+                rate,
+                settings.annualGrowthRate
+              ),
+              fetchedAt: null,
+            };
           }
         });
 
-        const calculatedMetrics = await Promise.all(metricsPromises);
+        const metricsResults = await Promise.all(metricsPromises);
+        const calculatedMetrics = metricsResults.map((result) => result.metric);
+        const latestQuoteFetchedAt = metricsResults.reduce((latest, result) => {
+          if (typeof result.fetchedAt === 'number' && result.fetchedAt > latest) {
+            return result.fetchedAt;
+          }
+          return latest;
+        }, 0);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
         const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
@@ -528,7 +547,17 @@ export function usePortfolioData() {
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
         setPortfolioTimeline(finalTimeline);
-        setLastUpdate(new Date());
+        setLastUpdate((previous) => {
+          if (latestQuoteFetchedAt > 0) {
+            return new Date(latestQuoteFetchedAt);
+          }
+
+          if (!trimmedToken || metricsResults.length === 0) {
+            return new Date();
+          }
+
+          return previous;
+        });
       } catch (error) {
         console.error('Error loading portfolio data:', error);
       } finally {
