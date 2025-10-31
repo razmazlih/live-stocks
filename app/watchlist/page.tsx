@@ -81,6 +81,7 @@ interface TickerCacheEntry {
   historical: HistoricalPoint[];
   error: string | null;
   storedAt: number;
+  quoteFetchedAt: number | null;
   expiresAt: number;
   range: TimeRange;
   from: number;
@@ -425,8 +426,12 @@ export default function WatchlistPage() {
               error: cached.error ?? null,
               range: targetRange,
               from,
-              lastUpdated:
-                typeof cached.storedAt === 'number' ? cached.storedAt : Date.now(),
+            lastUpdated:
+              typeof cached.quoteFetchedAt === 'number'
+                ? cached.quoteFetchedAt
+                : typeof existing?.lastUpdated === 'number'
+                  ? existing.lastUpdated
+                  : null,
             },
           }));
           return;
@@ -512,33 +517,50 @@ export default function WatchlistPage() {
           }
         }
 
-        const fetchedAt = Date.now();
+        const resolvedQuoteTimestamp = quote
+          ? typeof quote.fetchedAt === 'number'
+            ? quote.fetchedAt
+            : typeof quote.t === 'number' && Number.isFinite(quote.t)
+              ? quote.t * 1000
+              : null
+          : null;
+        let cacheQuoteFetchedAt = resolvedQuoteTimestamp;
+
+        setTickerStates((prev) => {
+          const existingState = prev[key];
+          const lastUpdated =
+            resolvedQuoteTimestamp ??
+            (typeof existingState?.lastUpdated === 'number' ? existingState.lastUpdated : null);
+          cacheQuoteFetchedAt = lastUpdated;
+
+          return {
+            ...prev,
+            [key]: {
+              quote,
+              historical,
+              loading: false,
+              error: errorMessage,
+              range: targetRange,
+              from,
+              lastUpdated,
+            },
+          };
+        });
+
+        const storedAt = Date.now();
         writeTickerCache(cacheKey, {
           quote,
           historical,
           error: errorMessage,
-          storedAt: fetchedAt,
-          expiresAt: fetchedAt + getTickerCacheTtlMs(new Date(fetchedAt)),
+          storedAt,
+          quoteFetchedAt: cacheQuoteFetchedAt ?? null,
+          expiresAt: storedAt + getTickerCacheTtlMs(new Date(storedAt)),
           range: targetRange,
           from,
           resolution,
         });
-
-        setTickerStates((prev) => ({
-          ...prev,
-          [key]: {
-            quote,
-            historical,
-            loading: false,
-            error: errorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: fetchedAt,
-          },
-        }));
       } catch (error) {
         console.error('Failed to load ticker data', error);
-        const failedAt = Date.now();
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -548,7 +570,7 @@ export default function WatchlistPage() {
             error: chartErrorMessage,
             range: targetRange,
             from,
-            lastUpdated: failedAt,
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
       }

@@ -19,6 +19,7 @@ import {
   PortfolioSummary,
   PortfolioTimelinePoint,
   PositionPlan,
+  StockQuote,
 } from '@/types';
 
 interface SparklineResult {
@@ -331,7 +332,8 @@ export function usePortfolioData() {
 
         const metricsPromises = mappedPositions.map(async (position) => {
           try {
-            let quoteData: { c?: number; d?: number; error?: string } | null = null;
+            let quoteData: (StockQuote & { error?: string }) | null = null;
+            let fetchedAt: number | null = null;
 
             if (trimmedToken) {
               const quoteResponse = await fetch(
@@ -339,9 +341,14 @@ export function usePortfolioData() {
               );
 
               if (quoteResponse.ok) {
-                const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
+                const parsed = (await quoteResponse.json()) as StockQuote & { error?: string };
                 if (!parsed.error) {
                   quoteData = parsed;
+                  if (typeof parsed.fetchedAt === 'number') {
+                    fetchedAt = parsed.fetchedAt;
+                  } else if (typeof parsed.t === 'number' && Number.isFinite(parsed.t)) {
+                    fetchedAt = parsed.t * 1000;
+                  }
                 } else {
                   console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
                 }
@@ -353,25 +360,36 @@ export function usePortfolioData() {
             const currentPrice = quoteData?.c ?? position.entryPrice;
             const dailyChange = quoteData?.d;
 
-            return calculatePositionMetrics(
-              position,
-              currentPrice,
-              rate,
-              settings.annualGrowthRate,
-              dailyChange
-            );
+            return {
+              metrics: calculatePositionMetrics(
+                position,
+                currentPrice,
+                rate,
+                settings.annualGrowthRate,
+                dailyChange
+              ),
+              fetchedAt,
+            };
           } catch (error) {
             console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-            return calculatePositionMetrics(
-              position,
-              position.entryPrice,
-              rate,
-              settings.annualGrowthRate
-            );
+            return {
+              metrics: calculatePositionMetrics(
+                position,
+                position.entryPrice,
+                rate,
+                settings.annualGrowthRate
+              ),
+              fetchedAt: null,
+            };
           }
         });
 
-        const calculatedMetrics = await Promise.all(metricsPromises);
+        const metricsResults = await Promise.all(metricsPromises);
+        const calculatedMetrics = metricsResults.map((result) => result.metrics);
+        const fetchedAtValues = metricsResults
+          .map((result) => result.fetchedAt)
+          .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+        const latestQuoteTimestamp = fetchedAtValues.length > 0 ? Math.max(...fetchedAtValues) : null;
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
         const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
@@ -528,7 +546,17 @@ export function usePortfolioData() {
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
         setPortfolioTimeline(finalTimeline);
-        setLastUpdate(new Date());
+        setLastUpdate((previous) => {
+          if (latestQuoteTimestamp) {
+            return new Date(latestQuoteTimestamp);
+          }
+
+          if (!trimmedToken) {
+            return null;
+          }
+
+          return previous ?? null;
+        });
       } catch (error) {
         console.error('Error loading portfolio data:', error);
       } finally {

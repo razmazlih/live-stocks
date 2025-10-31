@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchWithRetry } from '@/lib/http';
-import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
+import { fetchFinnhubQuote, getCachedFinnhubQuote } from '@/lib/services/finnhub';
 import { getSupabaseClient } from '@/lib/supabase';
 import { StockQuote } from '@/types';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
@@ -57,18 +56,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url, { cache: 'no-store' });
-    const data: StockQuote = await response.json();
+    const quoteResult = await fetchFinnhubQuote(symbol, { token, init: { cache: 'no-store' } });
+    const cachedQuote = getCachedFinnhubQuote(symbol, token);
 
-    if (data.c === 0 || data.c === undefined) {
+    if (quoteResult && cachedQuote) {
+      const payload = { ...cachedQuote, source: quoteResult.source ?? 'live' };
+      return NextResponse.json(payload, { headers: NO_STORE_HEADERS });
+    }
+
+    if (!quoteResult) {
+      if (cachedQuote) {
+        return NextResponse.json({ ...cachedQuote, source: 'cache' as const }, { headers: NO_STORE_HEADERS });
+      }
+
       return NextResponse.json(
         { error: 'Invalid symbol or no data available' },
         { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
-    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
+    const fallback = {
+      c: quoteResult.price,
+      d: quoteResult.dailyChange,
+      t: quoteResult.timestamp,
+      fetchedAt: quoteResult.timestamp ? quoteResult.timestamp * 1000 : Date.now(),
+      source: quoteResult.source ?? 'live',
+    } satisfies Partial<StockQuote> & { fetchedAt: number; source: 'live' | 'cache' };
+
+    return NextResponse.json(fallback, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Quote API error:', error);
     return NextResponse.json(
