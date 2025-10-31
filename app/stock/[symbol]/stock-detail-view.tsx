@@ -42,12 +42,13 @@ import {
   formatPercent,
   mapCandleDataToPoints,
 } from '@/lib/calculations';
-import { computeOpenLots, mapPositionRow } from '@/lib/positions';
+import { computeOpenLots, mapPositionRow, summarizeLots } from '@/lib/positions';
 import { cn } from '@/lib/utils';
 import {
   CandleData,
   HistoricalPoint,
   Position,
+  PositionLocation,
   PositionLotType,
   PositionMetrics,
   StockQuote,
@@ -185,6 +186,51 @@ function buildHoldingPeriodLabel(
   );
 }
 
+function mergePositions(positions: Position[]): Position | null {
+  if (!positions.length) {
+    return null;
+  }
+
+  const lots = positions.flatMap((position) => position.lots ?? []);
+  const plans = positions.flatMap((position) => position.plans ?? []);
+  const summary = lots.length ? summarizeLots(lots) : null;
+
+  const totalQuantity = positions.reduce((sum, position) => sum + Math.max(position.quantity, 0), 0);
+  const weightedCost = positions.reduce(
+    (sum, position) => sum + Math.max(position.quantity, 0) * Math.max(position.entryPrice, 0),
+    0
+  );
+
+  const fallbackEntryPrice = totalQuantity > 0 ? weightedCost / totalQuantity : positions[0]?.entryPrice ?? 0;
+
+  const fallbackEntryDate = positions.reduce<string | undefined>((earliest, position) => {
+    const entryDate = position.entryDate;
+    if (!entryDate) {
+      return earliest;
+    }
+
+    if (!earliest) {
+      return entryDate;
+    }
+
+    return new Date(entryDate) < new Date(earliest) ? entryDate : earliest;
+  }, undefined);
+
+  const template = positions[0];
+
+  return {
+    ...template,
+    id: positions.map((position) => position.id).filter(Boolean).join('+') || template.id,
+    quantity: summary?.totalQuantity && summary.totalQuantity > 0 ? summary.totalQuantity : totalQuantity,
+    entryPrice: summary?.averageEntryPrice && summary.averageEntryPrice > 0
+      ? summary.averageEntryPrice
+      : fallbackEntryPrice,
+    entryDate: summary?.earliestEntryDate ?? fallbackEntryDate ?? template.entryDate,
+    lots,
+    plans,
+  };
+}
+
 function StockDetailSkeleton() {
   return (
     <div className="space-y-6">
@@ -257,6 +303,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
+  const [allPositions, setAllPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
@@ -291,29 +338,41 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
-          .maybeSingle();
+          .eq('symbol', normalizedSymbol);
 
         if (positionError) {
           throw positionError;
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
           if (!cancelled) {
             setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
             setPosition(null);
+            setAllPositions([]);
             setMetrics(null);
           }
           return;
         }
 
-        const mappedPosition = mapPositionRow(data);
+        const mappedPositions = Array.isArray(data) ? data.map(mapPositionRow) : [mapPositionRow(data)];
+        const mergedPosition = mergePositions(mappedPositions);
+
+        if (!mergedPosition) {
+          if (!cancelled) {
+            setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
+            setPosition(null);
+            setAllPositions([]);
+            setMetrics(null);
+          }
+          return;
+        }
 
         if (cancelled) {
           return;
         }
 
-        setPosition(mappedPosition);
+        setPosition(mergedPosition);
+        setAllPositions(mappedPositions);
 
         const trimmedToken = settings.finnhubToken?.trim();
         const quoteUrl = trimmedToken
@@ -346,11 +405,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           console.warn(`Exchange rate request failed with status ${rateResponse.status}`);
         }
 
-        const currentPrice = fetchedQuote?.c ?? mappedPosition.entryPrice;
+        const currentPrice = fetchedQuote?.c ?? mergedPosition.entryPrice;
         const dailyChange = fetchedQuote?.d;
 
         const computedMetrics = calculatePositionMetrics(
-          mappedPosition,
+          mergedPosition,
           currentPrice,
           rate,
           settings.annualGrowthRate,
@@ -467,6 +526,38 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     (value?: number) => (value !== undefined ? numberFormatter.format(value) : '--'),
     [numberFormatter]
   );
+
+  const uniqueLocations = useMemo(() => {
+    if (!allPositions.length) {
+      return [] as PositionLocation[];
+    }
+    const locations = new Set<PositionLocation>();
+    for (const item of allPositions) {
+      locations.add(item.location);
+    }
+    return Array.from(locations);
+  }, [allPositions]);
+
+  const locationDisplay = uniqueLocations
+    .map((location) => (location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne))
+    .join(', ');
+
+  const positionsByLocation = useMemo(() => {
+    if (!allPositions.length) {
+      return [] as { location: PositionLocation; position: Position }[];
+    }
+
+    return uniqueLocations
+      .map((location) => {
+        const matching = allPositions.filter((pos) => pos.location === location);
+        const merged = mergePositions(matching);
+        if (!merged) {
+          return null;
+        }
+        return { location, position: merged };
+      })
+      .filter((entry): entry is { location: PositionLocation; position: Position } => entry !== null);
+  }, [allPositions, uniqueLocations]);
 
   const chartData = useMemo(
     () =>
@@ -768,14 +859,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </Badge>
+                      {uniqueLocations.map((location) => (
+                        <Badge
+                          key={location}
+                          variant="secondary"
+                          className="text-sm uppercase bg-indigo-100 text-indigo-700"
+                        >
+                          {location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        </Badge>
+                      ))}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
@@ -793,7 +890,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <span>
                         {t.positions.locationLabel}{' '}
                         <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                          {locationDisplay || '--'}
                         </span>
                       </span>
                       <span>
@@ -803,6 +900,43 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </span>
                       </span>
                     </div>
+                    {positionsByLocation.length > 0 && allPositions.length > 1 && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {positionsByLocation.map(({ location, position: locationPosition }) => (
+                          <div
+                            key={`breakdown-${location}`}
+                            className="rounded-lg border border-slate-200 bg-white/60 p-3 text-xs text-gray-600"
+                          >
+                            <div className="text-xs uppercase tracking-wide text-gray-500">
+                              {t.positions.locationLabel}{' '}
+                              <span className="font-semibold text-gray-900">
+                                {location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                              </span>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                              <span>
+                                {t.dashboard.quantity}{' '}
+                                <span className="font-medium text-gray-900">
+                                  {formatNumber(locationPosition.quantity, locale)}
+                                </span>
+                              </span>
+                              <span>
+                                {t.dashboard.entryPrice}{' '}
+                                <span className="font-medium text-gray-900">
+                                  {formatDualCurrency(locationPosition.entryPrice)}
+                                </span>
+                              </span>
+                              <span>
+                                {t.dashboard.since}{' '}
+                                <span className="font-medium text-gray-900">
+                                  {formatDate(locationPosition.entryDate, locale)}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
