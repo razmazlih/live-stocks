@@ -247,7 +247,7 @@ interface StockDetailViewProps {
 }
 
 export function StockDetailView({ symbol }: StockDetailViewProps) {
-  const normalizedSymbol = symbol.toUpperCase();
+  const normalizedSymbol = symbol.trim().toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
@@ -291,7 +291,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
+          .ilike('symbol', normalizedSymbol)
           .maybeSingle();
 
         if (positionError) {

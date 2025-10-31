@@ -1,11 +1,20 @@
+import { notFound } from 'next/navigation';
+
 import { StockDetailView } from './stock-detail-view';
 
 interface StockPageProps {
-  params: {
+  params: Promise<{
     symbol: string;
-  };
+  }>;
 }
 
-export default function StockPage({ params }: StockPageProps) {
-  return <StockDetailView symbol={params.symbol} />;
+export default async function StockPage({ params }: StockPageProps) {
+  const { symbol: rawSymbol } = await params;
+  const symbol = rawSymbol?.trim();
+
+  if (!symbol) {
+    notFound();
+  }
+
+  return <StockDetailView symbol={symbol} />;
 }

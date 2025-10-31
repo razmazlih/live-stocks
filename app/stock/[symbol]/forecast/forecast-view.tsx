@@ -467,7 +467,7 @@ interface ForecastViewProps {
 
 export function ForecastView({ symbol }: ForecastViewProps) {
   const featureEnabled = FORECAST_FEATURE_ENABLED;
-  const normalizedSymbol = symbol.toUpperCase();
+  const normalizedSymbol = symbol.trim().toUpperCase();
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';

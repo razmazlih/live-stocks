@@ -4,15 +4,22 @@ import { ForecastView } from './forecast-view';
 import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 
 interface ForecastPageProps {
-  params: {
+  params: Promise<{
     symbol: string;
-  };
+  }>;
 }
 
-export default function ForecastPage({ params }: ForecastPageProps) {
+export default async function ForecastPage({ params }: ForecastPageProps) {
+  const { symbol: rawSymbol } = await params;
+  const symbol = rawSymbol?.trim();
+
+  if (!symbol) {
+    notFound();
+  }
+
   if (!FORECAST_FEATURE_ENABLED) {
     notFound();
   }
 
-  return <ForecastView symbol={params.symbol} />;
+  return <ForecastView symbol={symbol} />;
 }

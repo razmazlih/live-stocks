@@ -10,9 +10,9 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const symbol = searchParams.get('symbol');
-    let token = searchParams.get('token');
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get('symbol')?.trim();
+    let token = searchParams.get('token')?.trim() || null;
 
     if (!symbol) {
       return NextResponse.json(
@@ -47,7 +47,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      token = settingsData?.finnhub_token || process.env.FINNHUB_TOKEN || undefined;
+      const settingsToken = settingsData?.finnhub_token?.trim();
+      const envToken = process.env.FINNHUB_TOKEN?.trim();
+      token = settingsToken || envToken || null;
     }
 
     if (!token) {
