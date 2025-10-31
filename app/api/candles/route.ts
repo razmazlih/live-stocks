@@ -44,11 +44,11 @@ interface YahooChartResponse {
 
 export async function GET(request: NextRequest) {
   try {
-    const params = request.nextUrl.searchParams;
-    const symbol = params.get('symbol');
-    const from = params.get('from');
-    const to = params.get('to');
-    const resolution = params.get('resolution') || 'D';
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get('symbol');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const resolution = searchParams.get('resolution') || 'D';
 
     if (!symbol || !from || !to) {
       return NextResponse.json(
