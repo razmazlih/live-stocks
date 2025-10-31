@@ -6,7 +6,7 @@ const sizeStyles = {
   sm: {
     container: 'px-2.5 py-0.5 text-[11px]',
     iconWrapper: 'h-6 w-6',
-    oneZeroLine: 'text-[6px]',
+    oneZeroLine: 'text-[6px] leading-[9px]',
     pepperWord: 'text-[6.5px]',
   },
   md: {
@@ -54,12 +54,12 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
       >
         <span
           className={cn(
-            'flex flex-col items-center justify-center font-black uppercase tracking-[0.18em] leading-[0.65]',
+            'flex flex-col items-center justify-center font-black uppercase tracking-[0.18em] leading-none',
             oneZeroLine
           )}
         >
-          <span>ONE</span>
-          <span>ZERO</span>
+          <span className="block">ONE</span>
+          <span className="block">ZERO</span>
         </span>
       </span>
     );
