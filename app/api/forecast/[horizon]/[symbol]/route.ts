@@ -4,8 +4,8 @@ import { FORECAST_BASE_URL } from '@/lib/forecast-config';
 
 type RouteParams = {
   params: Promise<{
-    horizon: string;
-    symbol: string;
+    horizon?: string;
+    symbol?: string;
   }>;
 };
 
@@ -19,8 +19,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const trimmedSymbol = symbol?.trim();
-  const trimmedHorizon = horizon?.trim();
+  const rawSymbol = typeof symbol === 'string' ? decodeURIComponent(symbol) : '';
+  const rawHorizon = typeof horizon === 'string' ? decodeURIComponent(horizon) : '';
+  const trimmedSymbol = rawSymbol.trim();
+  const trimmedHorizon = rawHorizon.trim();
 
   if (!trimmedSymbol || !trimmedHorizon) {
     return NextResponse.json(

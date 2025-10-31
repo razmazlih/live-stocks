@@ -247,7 +247,8 @@ interface StockDetailViewProps {
 }
 
 export function StockDetailView({ symbol }: StockDetailViewProps) {
-  const normalizedSymbol = symbol.toUpperCase();
+  const sanitizedSymbol = symbol.trim();
+  const normalizedSymbol = sanitizedSymbol.toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
@@ -283,6 +284,17 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     let cancelled = false;
 
     const load = async () => {
+      if (!sanitizedSymbol) {
+        if (!cancelled) {
+          const message = locale === 'he' ? 'סימבול לא תקין' : 'Invalid symbol provided';
+          setError(message);
+          setPosition(null);
+          setMetrics(null);
+          setLoading(false);
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -291,7 +303,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
+          .ilike('symbol', normalizedSymbol)
           .maybeSingle();
 
         if (positionError) {
@@ -381,7 +393,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
+  }, [locale, normalizedSymbol, reloadKey, sanitizedSymbol, settings.annualGrowthRate, settings.finnhubToken]);
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate?: string) => {

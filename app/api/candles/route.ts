@@ -44,13 +44,15 @@ interface YahooChartResponse {
 
 export async function GET(request: NextRequest) {
   try {
-    const params = request.nextUrl.searchParams;
-    const symbol = params.get('symbol');
-    const from = params.get('from');
-    const to = params.get('to');
-    const resolution = params.get('resolution') || 'D';
+    const { searchParams } = new URL(request.url);
+    const rawSymbol = searchParams.get('symbol');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const resolution = searchParams.get('resolution') || 'D';
+    const trimmedSymbol = rawSymbol?.trim();
+    const normalizedSymbol = trimmedSymbol?.toUpperCase();
 
-    if (!symbol || !from || !to) {
+    if (!normalizedSymbol || !from || !to) {
       return NextResponse.json(
         { error: 'Symbol, from, and to parameters are required' },
         { status: 400, headers: NO_STORE_HEADERS }
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     const interval = resolveInterval(resolution);
-    const url = `${YAHOO_BASE_URL}/${encodeURIComponent(symbol)}?period1=${fromSeconds}&period2=${toSeconds}&interval=${interval}&includeAdjustedClose=true`;
+    const url = `${YAHOO_BASE_URL}/${encodeURIComponent(normalizedSymbol)}?period1=${fromSeconds}&period2=${toSeconds}&interval=${interval}&includeAdjustedClose=true`;
 
     const response = await fetchWithRetry(
       url,
