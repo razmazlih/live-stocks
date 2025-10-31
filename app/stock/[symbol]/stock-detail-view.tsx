@@ -19,6 +19,7 @@ import { ArrowLeft, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BankBadge } from '@/components/branding/bank-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -55,7 +56,7 @@ import {
   TimeRange,
 } from '@/types';
 
-const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
+const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'All'];
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
@@ -388,6 +389,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       return bTime - aTime;
     });
   }, [position?.lots]);
+
+  const badgeLocations = useMemo<PositionLocation[]>(() => {
+    if (locationBreakdowns.length > 0) {
+      return locationBreakdowns.map((entry) => entry.location);
+    }
+    return position ? [position.location] : [];
+  }, [locationBreakdowns, position]);
 
   useEffect(() => {
     let cancelled = false;
@@ -890,19 +898,18 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
-                      {locationBreakdowns.map((breakdown) => (
-                        <Badge
-                          key={breakdown.location}
-                          variant="secondary"
-                          className="text-sm uppercase bg-indigo-100 text-indigo-700"
-                        >
-                          {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </Badge>
+                      {badgeLocations.map((bank) => (
+                        <BankBadge
+                          key={`header-${bank}`}
+                          bank={bank}
+                          locale={locale}
+                          size="sm"
+                        />
                       ))}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -918,17 +925,35 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           {formatDualCurrency(position.entryPrice)}
                         </span>
                       </span>
-                      <span>
-                        {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {locationBreakdowns.length
-                            ? locationBreakdowns
-                                .map((breakdown) =>
-                                  breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne
-                                )
-                                .join(' · ')
-                            : '--'}
-                        </span>
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {t.positions.locationLabel}
+                        {badgeLocations.length === 0 && (
+                          <span className="font-medium text-gray-400">--</span>
+                        )}
+                        {badgeLocations.length > 0 && locationBreakdowns.length === 0 && position && (
+                          <span className="inline-flex items-center gap-1">
+                            <BankBadge
+                              bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                              locale={locale}
+                              size="sm"
+                            />
+                            <span className="font-medium text-gray-900">
+                              {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                            </span>
+                          </span>
+                        )}
+                        {locationBreakdowns.length > 0 &&
+                          locationBreakdowns.map((breakdown) => (
+                            <span
+                              key={`${breakdown.location}-label`}
+                              className="inline-flex items-center gap-1"
+                            >
+                              <BankBadge bank={breakdown.location} locale={locale} size="sm" />
+                              <span className="font-medium text-gray-900">
+                                {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                              </span>
+                            </span>
+                          ))}
                       </span>
                       <span>
                         {t.dashboard.since}{' '}
