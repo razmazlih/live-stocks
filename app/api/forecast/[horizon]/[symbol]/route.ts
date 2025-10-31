@@ -19,8 +19,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const trimmedSymbol = symbol?.trim();
-  const trimmedHorizon = horizon?.trim();
+  const decodedSymbol = typeof symbol === 'string' ? decodeURIComponent(symbol) : '';
+  const decodedHorizon = typeof horizon === 'string' ? decodeURIComponent(horizon) : '';
+
+  const trimmedSymbol = decodedSymbol.trim();
+  const trimmedHorizon = decodedHorizon.trim();
 
   if (!trimmedSymbol || !trimmedHorizon) {
     return NextResponse.json(
