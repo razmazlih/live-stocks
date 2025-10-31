@@ -292,6 +292,64 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
   };
 }
 
+export function mergePositions(positions: Position[]): Position | null {
+  if (!positions.length) {
+    return null;
+  }
+
+  if (positions.length === 1) {
+    return positions[0];
+  }
+
+  const base = positions[0];
+  const combinedLots = positions.flatMap((position) => position.lots ?? []);
+  const combinedPlans = positions.flatMap((position) => position.plans ?? []);
+
+  if (combinedLots.length > 0) {
+    const summary = summarizeLots(combinedLots);
+
+    return {
+      ...base,
+      id: positions.map((position) => position.id).filter(Boolean).join(','),
+      lots: combinedLots,
+      plans: combinedPlans,
+      quantity: summary.totalQuantity,
+      entryPrice: summary.averageEntryPrice,
+      entryDate: summary.earliestEntryDate ?? base.entryDate,
+    };
+  }
+
+  const totalQuantity = positions.reduce((sum, position) => sum + position.quantity, 0);
+
+  const weightedEntryPrice = totalQuantity > 0
+    ? positions.reduce((sum, position) => sum + position.entryPrice * position.quantity, 0) / totalQuantity
+    : base.entryPrice;
+
+  const fallbackEntryDate = positions.reduce<string | undefined>((earliest, position) => {
+    const entryDate = new Date(position.entryDate);
+    if (Number.isNaN(entryDate.getTime())) {
+      return earliest;
+    }
+
+    if (!earliest) {
+      return position.entryDate;
+    }
+
+    const earliestDate = new Date(earliest);
+    return entryDate < earliestDate ? position.entryDate : earliest;
+  }, base.entryDate);
+
+  return {
+    ...base,
+    id: positions.map((position) => position.id).filter(Boolean).join(','),
+    lots: combinedLots,
+    plans: combinedPlans,
+    quantity: totalQuantity,
+    entryPrice: weightedEntryPrice,
+    entryDate: fallbackEntryDate ?? base.entryDate,
+  };
+}
+
 export function computeRealizedSales(position: Position): RealizedSale[] {
   const lots = position.lots ?? [];
 

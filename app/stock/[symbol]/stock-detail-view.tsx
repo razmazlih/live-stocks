@@ -42,7 +42,7 @@ import {
   formatPercent,
   mapCandleDataToPoints,
 } from '@/lib/calculations';
-import { computeOpenLots, mapPositionRow } from '@/lib/positions';
+import { computeOpenLots, mapPositionRow, mergePositions } from '@/lib/positions';
 import { cn } from '@/lib/utils';
 import {
   CandleData,
@@ -257,6 +257,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
+  const [positionSources, setPositionSources] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
@@ -292,28 +293,41 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
           .eq('symbol', normalizedSymbol)
-          .maybeSingle();
+          .order('location', { ascending: true });
 
         if (positionError) {
           throw positionError;
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
           if (!cancelled) {
             setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
             setPosition(null);
             setMetrics(null);
+            setPositionSources([]);
           }
           return;
         }
 
-        const mappedPosition = mapPositionRow(data);
+        const mappedPositions = Array.isArray(data) ? data.map(mapPositionRow) : [mapPositionRow(data)];
+        const mergedPosition = mergePositions(mappedPositions);
+
+        if (!mergedPosition) {
+          if (!cancelled) {
+            setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
+            setPosition(null);
+            setMetrics(null);
+            setPositionSources([]);
+          }
+          return;
+        }
 
         if (cancelled) {
           return;
         }
 
-        setPosition(mappedPosition);
+        setPositionSources(mappedPositions);
+        setPosition(mergedPosition);
 
         const trimmedToken = settings.finnhubToken?.trim();
         const quoteUrl = trimmedToken
@@ -346,11 +360,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           console.warn(`Exchange rate request failed with status ${rateResponse.status}`);
         }
 
-        const currentPrice = fetchedQuote?.c ?? mappedPosition.entryPrice;
+        const currentPrice = fetchedQuote?.c ?? mergedPosition.entryPrice;
         const dailyChange = fetchedQuote?.d;
 
         const computedMetrics = calculatePositionMetrics(
-          mappedPosition,
+          mergedPosition,
           currentPrice,
           rate,
           settings.annualGrowthRate,
@@ -367,7 +381,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       } catch (err) {
         console.error('Failed to load stock data:', err);
         if (!cancelled) {
-          setError(locale === 'he' ? 'שגיאה בטעינת הנתונים' : 'Failed to load data');
+          setError(locale === 'he' ? 'שגיאה בטעינת נתוני המניה' : 'Failed to load stock data');
+          setPosition(null);
+          setMetrics(null);
+          setPositionSources([]);
         }
       } finally {
         if (!cancelled) {
@@ -382,6 +399,47 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       cancelled = true;
     };
   }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
+
+  const locationGroups = useMemo(() => {
+    if (!positionSources.length) {
+      return [] as Array<{ location: Position['location']; position: Position }>;
+    }
+
+    const grouped = new Map<Position['location'], Position[]>();
+
+    for (const current of positionSources) {
+      const existing = grouped.get(current.location);
+      if (existing) {
+        existing.push(current);
+      } else {
+        grouped.set(current.location, [current]);
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .map(([location, positionsForLocation]) => {
+        const merged = mergePositions(positionsForLocation);
+        if (!merged) {
+          return null;
+        }
+        return { location, position: merged };
+      })
+      .filter((group): group is { location: Position['location']; position: Position } => group !== null);
+  }, [positionSources]);
+
+  const hasMultipleLocations = locationGroups.length > 1;
+
+  const locationLabel = useMemo(() => {
+    if (locationGroups.length === 0) {
+      return '--';
+    }
+
+    if (locationGroups.length === 1) {
+      return locationGroups[0].location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne;
+    }
+
+    return t.positions.multipleLocations;
+  }, [locationGroups, t.positions.bankOne, t.positions.bankTwo, t.positions.multipleLocations]);
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate?: string) => {
@@ -774,7 +832,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         {position.symbol}
                       </Badge>
                       <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        {locationLabel}
                       </Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -792,9 +850,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </span>
                       <span>
                         {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </span>
+                        <span className="font-medium text-gray-900">{locationLabel}</span>
                       </span>
                       <span>
                         {t.dashboard.since}{' '}
@@ -803,6 +859,31 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </span>
                       </span>
                     </div>
+                    {hasMultipleLocations && (
+                      <div className="mt-3 space-y-2 text-xs text-gray-500">
+                        <div className="font-semibold uppercase tracking-wide text-gray-500">
+                          {t.stock.detailView.accountsBreakdownTitle}
+                        </div>
+                        <p>{t.stock.detailView.accountsBreakdownSubtitle}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {locationGroups.map((group) => {
+                            const label = group.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne;
+                            return (
+                              <span
+                                key={group.location}
+                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-gray-600"
+                              >
+                                <span>{label}</span>
+                                <span className="hidden sm:inline">·</span>
+                                <span>{formatNumber(group.position.quantity, locale)}</span>
+                                <span className="hidden sm:inline">·</span>
+                                <span>{formatDualCurrency(group.position.entryPrice)}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
