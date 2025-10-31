@@ -48,6 +48,7 @@ import {
   CandleData,
   HistoricalPoint,
   Position,
+  PositionLot,
   PositionLotType,
   PositionMetrics,
   StockQuote,
@@ -103,6 +104,57 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
 
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
+
+function combinePositions(positions: Position[]): Position | null {
+  if (!positions.length) {
+    return null;
+  }
+
+  if (positions.length === 1) {
+    const [single] = positions;
+    return {
+      ...single,
+      lots: single.lots ?? [],
+      plans: single.plans ?? [],
+    };
+  }
+
+  const [first] = positions;
+  const combinedLots = positions.flatMap((pos) => pos.lots ?? []);
+  const combinedPlans = positions.flatMap((pos) => pos.plans ?? []);
+  const totalQuantity = positions.reduce((sum, pos) => sum + pos.quantity, 0);
+  const weightedEntryPrice = totalQuantity > 0
+    ? positions.reduce((sum, pos) => sum + pos.entryPrice * pos.quantity, 0) / totalQuantity
+    : first.entryPrice;
+
+  const earliestEntryDate = positions.reduce((earliest: string, pos) => {
+    if (!earliest) {
+      return pos.entryDate;
+    }
+
+    const currentEarliestTime = new Date(earliest).getTime();
+    const candidateTime = new Date(pos.entryDate).getTime();
+
+    if (Number.isNaN(candidateTime)) {
+      return earliest;
+    }
+
+    if (Number.isNaN(currentEarliestTime)) {
+      return pos.entryDate;
+    }
+
+    return candidateTime < currentEarliestTime ? pos.entryDate : earliest;
+  }, first.entryDate);
+
+  return {
+    ...first,
+    quantity: totalQuantity,
+    entryPrice: weightedEntryPrice,
+    entryDate: earliestEntryDate,
+    lots: combinedLots,
+    plans: combinedPlans,
+  };
+}
 
 function getRangeParams(range: TimeRange, entryDate?: string) {
   const now = Math.floor(Date.now() / 1000);
@@ -256,7 +308,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [position, setPosition] = useState<Position | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
@@ -264,12 +316,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [showVolume, setShowVolume] = useState(true);
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
-  const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
+  const combinedPosition = useMemo(() => combinePositions(positions), [positions]);
+  const openLots = useMemo(
+    () => (combinedPosition?.lots ? computeOpenLots(combinedPosition.lots) : []),
+    [combinedPosition?.lots]
+  );
+
   const transactions = useMemo(() => {
-    if (!position?.lots) {
-      return [];
+    if (!positions.length) {
+      return [] as Array<PositionLot & { location: Position['location'] }>;
     }
-    return [...position.lots].sort((a, b) => {
+
+    const lotsWithLocation = positions.flatMap((current) =>
+      (current.lots ?? []).map((lot) => ({ ...lot, location: current.location }))
+    );
+
+    return lotsWithLocation.sort((a, b) => {
       const aTime = new Date(a.executedAt).getTime();
       const bTime = new Date(b.executedAt).getTime();
       if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
@@ -277,7 +339,30 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       }
       return bTime - aTime;
     });
-  }, [position?.lots]);
+  }, [positions]);
+
+  const uniqueLocations = useMemo(() => {
+    const seen = new Set<Position['location']>();
+    const ordered: Position['location'][] = [];
+    positions.forEach((pos) => {
+      if (!seen.has(pos.location)) {
+        seen.add(pos.location);
+        ordered.push(pos.location);
+      }
+    });
+    return ordered;
+  }, [positions]);
+
+  const hasMultiplePositions = positions.length > 1;
+  const locationBadgeLabel = uniqueLocations.length === 1
+    ? uniqueLocations[0] === 'bank_two'
+      ? t.positions.bankTwo
+      : t.positions.bankOne
+    : t.stock.detailView.multipleAccountsBadge;
+
+  const locationDetailLabel = uniqueLocations.length === 1
+    ? locationBadgeLabel
+    : t.stock.detailView.multipleAccountsLabel(uniqueLocations.length);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,29 +376,38 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const { data, error: positionError } = await supabase
           .from('positions')
           .select('*, position_lots(*), position_plans(*)')
-          .eq('symbol', normalizedSymbol)
-          .maybeSingle();
+          .eq('symbol', normalizedSymbol);
 
         if (positionError) {
           throw positionError;
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
           if (!cancelled) {
             setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
-            setPosition(null);
+            setPositions([]);
             setMetrics(null);
           }
           return;
         }
 
-        const mappedPosition = mapPositionRow(data);
+        const mappedPositions = data.map(mapPositionRow);
+        const aggregatedPosition = combinePositions(mappedPositions);
+
+        if (!aggregatedPosition) {
+          if (!cancelled) {
+            setError(locale === 'he' ? 'הפוזיציה לא נמצאה' : 'Position not found');
+            setPositions([]);
+            setMetrics(null);
+          }
+          return;
+        }
 
         if (cancelled) {
           return;
         }
 
-        setPosition(mappedPosition);
+        setPositions(mappedPositions);
 
         const trimmedToken = settings.finnhubToken?.trim();
         const quoteUrl = trimmedToken
@@ -346,11 +440,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           console.warn(`Exchange rate request failed with status ${rateResponse.status}`);
         }
 
-        const currentPrice = fetchedQuote?.c ?? mappedPosition.entryPrice;
+        const currentPrice = fetchedQuote?.c ?? aggregatedPosition.entryPrice;
         const dailyChange = fetchedQuote?.d;
 
         const computedMetrics = calculatePositionMetrics(
-          mappedPosition,
+          aggregatedPosition,
           currentPrice,
           rate,
           settings.annualGrowthRate,
@@ -415,7 +509,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   );
 
   useEffect(() => {
-    if (!position) {
+    if (!combinedPosition) {
       return;
     }
 
@@ -424,7 +518,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     const loadHistorical = async () => {
       setHistoricalLoading(true);
       try {
-        const points = await fetchHistorical(range, position.entryDate);
+        const points = await fetchHistorical(range, combinedPosition.entryDate);
         if (!cancelled) {
           setHistorical(points);
         }
@@ -440,7 +534,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [fetchHistorical, position, range]);
+  }, [combinedPosition, fetchHistorical, range]);
 
   const formatUsdCurrency = useCallback(
     (valueUsd?: number) => (valueUsd !== undefined ? formatCurrency(valueUsd, 'USD', locale) : '--'),
@@ -563,7 +657,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   }, [chartData, tradeMarkers]);
 
   const xAxisDomain = useMemo<[number, number] | undefined>(() => {
-    const { from } = getRangeParams(range, position?.entryDate);
+  const { from } = getRangeParams(range, combinedPosition?.entryDate);
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     if (!Number.isFinite(from) || from >= nowSeconds) {
@@ -571,7 +665,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     }
 
     return [from * 1000, nowSeconds * 1000];
-  }, [position?.entryDate, range]);
+  }, [combinedPosition?.entryDate, range]);
 
   const renderTooltip = useCallback(
     (tooltipProps: TooltipProps<number, string>) => {
@@ -750,7 +844,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </Button>
             </CardContent>
           </Card>
-        ) : !position || !metrics ? (
+        ) : !combinedPosition || !metrics ? (
           <Card className="bg-white/80 border border-white/60">
             <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
               {t.stock.detailView.states.empty}
@@ -762,44 +856,55 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
+                    <AvatarImage src={combinedPosition.imageUrl} alt={combinedPosition.display} />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
+                      {combinedPosition.symbol.slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="flex items-center gap-3">
-                      <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-3xl font-bold text-[#0F172A]">{combinedPosition.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
-                        {position.symbol}
+                        {combinedPosition.symbol}
                       </Badge>
                       <Badge variant="secondary" className="text-sm uppercase bg-indigo-100 text-indigo-700">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        {locationBadgeLabel}
                       </Badge>
                     </div>
+                    {uniqueLocations.length > 1 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        {uniqueLocations.map((location) => (
+                          <Badge
+                            key={location}
+                            variant="outline"
+                            className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                          >
+                            {location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span>
                         {t.dashboard.quantity}{' '}
                         <span className="font-medium text-gray-900">
-                          {formatNumber(position.quantity, locale)}
+                          {formatNumber(combinedPosition.quantity, locale)}
                         </span>
                       </span>
                       <span>
                         {t.dashboard.entryPrice}{' '}
                         <span className="font-medium text-gray-900">
-                          {formatDualCurrency(position.entryPrice)}
+                          {formatDualCurrency(combinedPosition.entryPrice)}
                         </span>
                       </span>
                       <span>
                         {t.positions.locationLabel}{' '}
-                        <span className="font-medium text-gray-900">
-                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                        </span>
+                        <span className="font-medium text-gray-900">{locationDetailLabel}</span>
                       </span>
                       <span>
                         {t.dashboard.since}{' '}
                         <span className="font-medium text-gray-900">
-                          {formatDate(position.entryDate, locale)}
+                          {formatDate(combinedPosition.entryDate, locale)}
                         </span>
                       </span>
                     </div>
@@ -852,6 +957,53 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
+            {hasMultiplePositions && (
+              <Card className="bg-white/85 border border-white/60 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {t.stock.detailView.perAccountTitle}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">{t.stock.detailView.perAccountSubtitle}</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {positions.map((pos, index) => {
+                      const locationLabel = pos.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne;
+                      const key = pos.id ?? `${pos.location}-${index}`;
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-xl border border-slate-100 bg-white/70 p-4 shadow-sm"
+                        >
+                          <div className="text-sm font-semibold text-indigo-700">{locationLabel}</div>
+                          <dl className="mt-3 space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center justify-between">
+                              <dt>{t.stock.detailView.perAccountQuantity}</dt>
+                              <dd className="font-medium text-gray-900">
+                                {formatNumber(pos.quantity, locale)}
+                              </dd>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <dt>{t.stock.detailView.perAccountEntryPrice}</dt>
+                              <dd className="font-medium text-gray-900">
+                                {formatDualCurrency(pos.entryPrice)}
+                              </dd>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <dt>{t.stock.detailView.perAccountEntryDate}</dt>
+                              <dd className="font-medium text-gray-900">
+                                {formatDate(pos.entryDate, locale)}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="bg-white/85 border border-white/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -863,11 +1015,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 sm:grid-cols-3">
                   <div>
                     <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.quantity}</div>
-                    <div className="font-medium text-gray-900">{formatNumber(position.quantity, locale)}</div>
+                    <div className="font-medium text-gray-900">{formatNumber(combinedPosition.quantity, locale)}</div>
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.entryPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDualCurrency(position.entryPrice)}</div>
+                    <div className="font-medium text-gray-900">{formatDualCurrency(combinedPosition.entryPrice)}</div>
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.weightedProjectedPrice}</div>
@@ -910,23 +1062,33 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <TableHeader>
                         <TableRow>
                           <TableHead>{t.positions.transactionType}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
-                    </TableRow>
+                          {uniqueLocations.length > 1 && (
+                            <TableHead className="text-right">{t.positions.transactionLocation}</TableHead>
+                          )}
+                          <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
+                        </TableRow>
                   </TableHeader>
                   <TableBody>
                     {transactions.map((lot) => {
                           const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
                           const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                           return (
-                        <TableRow key={`${lot.id}-${lot.executedAt}`}>
+                        <TableRow key={`${lot.id ?? lot.executedAt}-${lot.location}`}>
                           <TableCell>
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
                               {label}
                             </span>
                           </TableCell>
+                          {uniqueLocations.length > 1 && (
+                            <TableCell className="text-right">
+                              <span className="inline-flex items-center justify-end gap-2 text-xs font-medium text-indigo-700">
+                                {lot.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                              </span>
+                            </TableCell>
+                          )}
                           <TableCell className="text-right font-medium">
                             {formatNumber(lot.quantity, locale)}
                           </TableCell>
