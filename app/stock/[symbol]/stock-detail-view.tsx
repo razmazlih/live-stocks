@@ -60,7 +60,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'Al
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-2xl bg-slate-900/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-black/20 backdrop-blur';
+  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -198,7 +198,7 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
   }
 
   const isBuy = payload.type === 'BUY';
-  const fill = isBuy ? '#059669' : '#DC2626';
+  const fill = isBuy ? 'var(--color-green-300)' : 'var(--color-red-500)';
   const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
 
   return (
@@ -311,7 +311,7 @@ function StockDetailSkeleton() {
           <Skeleton className="ml-auto h-4 w-24" />
         </div>
       </div>
-      <Card className="bg-white/70 border border-white/50 shadow">
+      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -319,7 +319,7 @@ function StockDetailSkeleton() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-white/60 p-4">
+              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--color-neutral-white)]/60 p-4">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-5 w-20" />
                 <Skeleton className="h-3 w-32" />
@@ -328,7 +328,7 @@ function StockDetailSkeleton() {
           </div>
         </CardContent>
       </Card>
-      <Card className="bg-white/70 border border-white/50 shadow">
+      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-4 w-64" />
@@ -337,7 +337,7 @@ function StockDetailSkeleton() {
           <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-white/70 border border-white/50 shadow">
+      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-44" />
         </CardHeader>
@@ -757,7 +757,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-xl bg-slate-800/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
                     >
                       <div className="flex items-center justify-between font-semibold">
                         <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
@@ -851,7 +851,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex items-center justify-between">
           <Link href="/">
@@ -871,24 +871,24 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         {loading ? (
           <StockDetailSkeleton />
         ) : error ? (
-          <Card className="bg-white/80 border border-red-200 text-red-700">
+          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-red-200 text-red-700">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
-              <div className="text-sm text-red-600/80">{error}</div>
+              <div className="text-sm text-[color:var(--color-red-600)]/80">{error}</div>
               <Button variant="outline" onClick={() => setReloadKey((value) => value + 1)}>
                 {t.stock.detailView.states.retry}
               </Button>
             </CardContent>
           </Card>
         ) : !position || !metrics ? (
-          <Card className="bg-white/80 border border-white/60">
+          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-neutral-white)]/60">
             <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
               {t.stock.detailView.states.empty}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-2xl bg-white/80 p-6 shadow-md backdrop-blur">
+            <div className="flex flex-col gap-4 rounded-2xl bg-[color:var(--color-neutral-white)]/80 p-6 shadow-md backdrop-blur">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
@@ -899,7 +899,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </Avatar>
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
+                      <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{position.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
@@ -983,7 +983,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
-                  <div className="text-3xl font-semibold text-[#0F172A]">
+                  <div className="text-3xl font-semibold text-[var(--color-primary-900)]">
                     {formatUsdCurrency(metrics.currentPrice)}
                   </div>
                   <div className={cn('text-sm font-medium', dailyChangeClass)}>
@@ -996,7 +996,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </div>
             </div>
 
-            <Card className="bg-white/85 border border-white/60 shadow-xl">
+            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">
                   {t.stock.detailView.quickFactsTitle}
@@ -1008,7 +1008,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   {quickFacts.map((fact) => (
                     <div
                       key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-white/70 p-4 shadow-sm"
+                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
                     >
                       <div className="text-xs uppercase tracking-wide text-gray-500">
                         {fact.label}
@@ -1028,7 +1028,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85 border border-white/60 shadow-xl">
+            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">
@@ -1061,7 +1061,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       {openLots.map((lot) => (
                         <div
                           key={`${lot.id ?? lot.executedAt}-open`}
-                          className="rounded-md border border-slate-200 bg-slate-50/70 p-3"
+                          className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
                         >
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span className="font-semibold text-emerald-600">{t.positions.buy}</span>
@@ -1127,7 +1127,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85 border border-white/60 shadow-xl">
+            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader className="gap-2">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -1172,11 +1172,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
                         <defs>
                           <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1D4ED8" stopOpacity={0.45} />
-                            <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.05} />
+                            <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.45} />
+                            <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.18)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           type="number"
@@ -1186,7 +1186,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={12}
                           minTickGap={24}
-                          tick={{ fill: '#475569', fontSize: 12 }}
+                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                           tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
                         />
                         <YAxis
@@ -1197,11 +1197,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={8}
                           padding={{ top: 12, bottom: 12 }}
-                          tick={{ fill: '#475569', fontSize: 12 }}
+                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
-                          cursor={{ stroke: 'rgba(37, 99, 235, 0.25)', strokeWidth: 2 }}
+                          cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
                           wrapperStyle={{ outline: 'none' }}
                           content={renderTooltip}
                         />
@@ -1215,16 +1215,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             radius={[6, 6, 0, 0]}
-                            fill="rgba(59, 130, 246, 0.18)"
+                            fill="rgba(var(--color-primary-400-rgb), 0.18)"
                           />
                         )}
                         <Area
                           type="monotone"
                           dataKey="close"
                           yAxisId="price"
-                          stroke="#1D4ED8"
+                          stroke="var(--color-primary-700)"
                           strokeWidth={2.75}
-                          activeDot={{ r: 4, fill: '#2563EB', strokeWidth: 0 }}
+                          activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />

@@ -35,9 +35,9 @@ type GradientStop = {
 };
 
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
-  loss: '#ef4444',
-  under: '#0ea5e9',
-  above: '#22c55e',
+  loss: 'var(--color-red-450)',
+  under: 'var(--color-primary-300)',
+  above: 'var(--color-green-500)',
 };
 
 const resolveTrendState = (
@@ -76,7 +76,7 @@ const ActiveNetLineDot = ({
   const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="#ffffff" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-neutral-white)" />
   );
 };
 
@@ -113,8 +113,8 @@ const resolveForecastGapVisuals = (
   if (value > 0) {
     return {
       text: 'text-emerald-600',
-      badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-emerald-200/70',
-      border: 'border-emerald-100/80',
+      badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-[color:var(--color-emerald-200)]/70',
+      border: 'border-[color:var(--color-emerald-100)]/80',
       background: 'from-emerald-500/10 via-emerald-400/5 to-white',
       icon: <ArrowUpRight className="h-4 w-4" />,
     };
@@ -123,8 +123,8 @@ const resolveForecastGapVisuals = (
   if (value < 0) {
     return {
       text: 'text-rose-600',
-      badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200/70',
-      border: 'border-rose-100/80',
+      badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-[color:var(--color-rose-200)]/70',
+      border: 'border-[color:var(--color-rose-100)]/80',
       background: 'from-rose-500/10 via-rose-400/5 to-white',
       icon: <ArrowDownRight className="h-4 w-4" />,
     };
@@ -132,8 +132,8 @@ const resolveForecastGapVisuals = (
 
   return {
     text: 'text-slate-600',
-    badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/70',
-    border: 'border-slate-200/80',
+    badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-[color:var(--color-slate-200)]/70',
+    border: 'border-[color:var(--color-slate-200)]/80',
     background: 'from-slate-500/5 via-slate-400/5 to-white',
     icon: <Minus className="h-4 w-4" />,
   };
@@ -180,7 +180,7 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-white/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         <span>{labels.at}</span>
         <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
@@ -192,12 +192,12 @@ const ChartTooltip = ({
           <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
           <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
+        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
           <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
           <div className="mt-2 space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-500/80">{labels.projection}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--color-amber-500)]/80">{labels.projection}</p>
             <div className="flex items-center justify-between text-[11px] text-slate-500">
               <span className="font-medium">{labels.usd}</span>
               <span className={`font-semibold ${projectionClass}`}>
@@ -221,7 +221,7 @@ const ChartTooltip = ({
           return (
             <div
               key={row.key}
-              className="rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm"
+              className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 p-3 shadow-sm"
             >
               <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <span>{row.label}</span>
@@ -546,8 +546,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-white/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl backdrop-blur-sm">
-      <CardHeader className="space-y-2 border-b border-white/60 bg-white/70">
+    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl backdrop-blur-sm">
+      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -555,7 +555,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-lg">
+          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
@@ -647,9 +647,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner">
+          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 shadow-inner">
             <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70 backdrop-blur-sm">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-[color:var(--color-neutral-white)]/80 px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>
@@ -663,7 +663,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <span>{t.dashboard.timelineLegendActualAbove}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-amber-500/80" />
+                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-[color:var(--color-amber-500)]/80" />
                   <span>{t.dashboard.timelineLegendForecast}</span>
                 </div>
               </div>
@@ -700,7 +700,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(148, 163, 184, 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.22)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -711,19 +711,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     axisLine={false}
                     tickMargin={16}
                     minTickGap={28}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(99, 102, 241, 0.35)', strokeWidth: 1.25 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,7 +741,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(99, 102, 241, 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
                   <Line
                     type="monotone"
                     dataKey="netValue"
@@ -756,11 +756,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Line
                     type="monotone"
                     dataKey="forecastValueUsd"
-                    stroke="#f59e0b"
+                    stroke="var(--color-amber-500)"
                     strokeWidth={2.5}
                     strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
+                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-neutral-white)' }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}

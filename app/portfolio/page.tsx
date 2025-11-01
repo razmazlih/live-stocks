@@ -427,13 +427,13 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-blue-200/60 blur-3xl" />
+          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
@@ -441,7 +441,7 @@ export default function PortfolioPage() {
                     <LineChart className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.portfolio.title}</h1>
+                    <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{t.portfolio.title}</h1>
                     <p className="mt-2 max-w-xl text-base text-slate-600">{t.portfolio.subtitle}</p>
                   </div>
                 </div>
@@ -450,7 +450,7 @@ export default function PortfolioPage() {
                     <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
                     {t.app.updated} {lastUpdatedDisplay ?? '—'}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
                     <LineChart className="h-4 w-4 text-blue-500" />
                     1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
                   </span>
@@ -460,7 +460,7 @@ export default function PortfolioPage() {
                     >
                       {dailyChangeIcon}
                       {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
-                      <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
+                      <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.dashboard.dailyChange}</span>
                     </span>
                   )}
                 </div>
@@ -470,8 +470,8 @@ export default function PortfolioPage() {
           </header>
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
@@ -487,7 +487,7 @@ export default function PortfolioPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.portfolio.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]">
+                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
                       <Link href="/positions">
                         <ArrowUpRight className="h-4 w-4" />
                         <span>{t.positions.add}</span>
@@ -506,7 +506,7 @@ export default function PortfolioPage() {
                       {portfolioTimeline.length > 0 ? (
                         <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/80 py-14 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/80 py-14 text-center text-slate-500">
                           <LineChart className="h-6 w-6 text-slate-400" />
                           <p>{t.portfolio.timelineEmpty}</p>
                         </div>
@@ -523,7 +523,7 @@ export default function PortfolioPage() {
                             >
                               {dailyChangeIcon}
                               {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
-                              <span className="text-xs font-medium text-slate-600/80">{t.dashboard.dailyChange}</span>
+                              <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.dashboard.dailyChange}</span>
                             </span>
                           )}
                         </div>
@@ -531,9 +531,9 @@ export default function PortfolioPage() {
                           {summaryCards.map((card) => (
                             <div
                               key={card.key}
-                              className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                              className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner"
                             >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
                               <div className="relative z-10 space-y-3">
                                 <div className="flex items-center justify-between">
                                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
@@ -556,7 +556,7 @@ export default function PortfolioPage() {
                                 {card.helper?.map((helper) => (
                                   <div
                                     key={`${card.key}-${helper.label}`}
-                                    className="mt-3 rounded-2xl border border-slate-100 bg-white/70 px-3 py-2 text-xs text-slate-500 shadow-inner"
+                                    className="mt-3 rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 px-3 py-2 text-xs text-slate-500 shadow-inner"
                                   >
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2">
@@ -603,7 +603,7 @@ export default function PortfolioPage() {
                           {generalStats.map((stat) => (
                             <div
                               key={stat.key}
-                              className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                              className="rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner"
                             >
                               <p className="text-sm font-medium text-slate-500">{stat.label}</p>
                               <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
@@ -630,7 +630,7 @@ export default function PortfolioPage() {
                           >
                             {getTrendIcon(closedSummary.performanceDeltaUsd)}
                             {formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD')}
-                            <span className="text-xs font-medium text-slate-600/80">
+                            <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">
                               {t.portfolio.performanceVsExpectedPill}
                             </span>
                           </span>
@@ -639,7 +639,7 @@ export default function PortfolioPage() {
                           {closedStats.map((stat) => (
                             <div
                               key={stat.key}
-                              className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+                              className="rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner"
                             >
                               <p className="text-sm font-medium text-slate-500">{stat.label}</p>
                               <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
@@ -660,7 +660,7 @@ export default function PortfolioPage() {
                     <div className="space-y-4">
                       <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-inner">
+                        <div className="rounded-3xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 p-5 shadow-inner">
                           <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
                           {bestMetric ? (
                             <div className="mt-3 space-y-1 text-sm text-slate-600">
@@ -678,7 +678,7 @@ export default function PortfolioPage() {
                             <p className="mt-3 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
                           )}
                         </div>
-                        <div className="rounded-3xl border border-rose-100 bg-rose-50/70 p-5 shadow-inner">
+                        <div className="rounded-3xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 p-5 shadow-inner">
                           <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
                           {worstMetric ? (
                             <div className="mt-3 space-y-1 text-sm text-slate-600">

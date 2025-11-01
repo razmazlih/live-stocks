@@ -213,7 +213,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineColor = useMemo(() => {
     if (typeof sparklineReferencePrice === 'number' && Number.isFinite(sparklineReferencePrice)) {
       if (sparklineReferencePrice < position.entryPrice) {
-        return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+        return { className: 'text-[var(--color-red-400)]', hex: 'var(--color-red-400)' } as const;
       }
 
       if (
@@ -222,31 +222,31 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         projectedPrice > position.entryPrice &&
         sparklineReferencePrice >= projectedPrice
       ) {
-        return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+        return { className: 'text-[var(--color-green-400)]', hex: 'var(--color-green-400)' } as const;
       }
     }
 
-    return { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+    return { className: 'text-[var(--color-primary-500)]', hex: 'var(--color-primary-500)' } as const;
   }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
   const getTrendStyles = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-[var(--color-green-300)]',
+        badge: 'bg-[var(--color-green-050)] text-[var(--color-green-300)]',
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-[var(--color-red-500)]',
+        badge: 'bg-[var(--color-red-050)] text-[var(--color-red-500)]',
       };
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      text: 'text-[var(--color-slate-600)]',
+      badge: 'bg-[var(--color-slate-100)] text-[var(--color-slate-500)]',
     };
   };
 
@@ -324,8 +324,8 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       className={cn(
         'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
         isHovered
-          ? '-translate-y-1 border-blue-200/80 shadow-2xl'
-          : 'translate-y-0 border-slate-200/70 shadow-lg'
+          ? '-translate-y-1 border-[color:var(--color-blue-200)]/80 shadow-2xl'
+          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -349,7 +349,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
@@ -400,7 +400,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             {closedStats.length > 0 && (
               <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm md:grid-cols-3">
                 {closedStats.map((stat) => (
-                  <div key={stat.key} className="rounded-2xl bg-slate-50/80 p-2.5 shadow-sm sm:p-3">
+                  <div key={stat.key} className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{stat.label}</p>
                     <p className={`mt-1 text-sm font-semibold ${stat.tone?.text ?? 'text-slate-900'} sm:text-base`}>{stat.value}</p>
                   </div>
@@ -409,13 +409,13 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-3 sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -449,7 +449,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex items-start justify-between gap-3 sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-white/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
@@ -492,7 +492,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
                 <Badge
                   variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-white/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                  className={`flex items-center gap-1 rounded-full border-0 bg-[color:var(--color-neutral-white)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
                 >
                   {dailyChangeIcon}
                   <span>{t.dashboard.dailyChange}</span>
@@ -505,18 +505,18 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-600 sm:gap-3 sm:text-sm">
-              <div className="rounded-2xl bg-slate-50/80 p-2.5 shadow-sm sm:p-3">
+              <div className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.quantity}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatNumber(position.quantity, locale)}</p>
               </div>
-              <div className="rounded-2xl bg-slate-50/80 p-2.5 shadow-sm sm:p-3">
+              <div className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
               </div>
             </div>
 
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-slate-100/80 bg-slate-50/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/80 bg-[color:var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.current}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -536,7 +536,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-slate-100/80 bg-white/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/80 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.projected}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -558,13 +558,13 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-slate-100/70 bg-slate-50/70 p-3 sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}

@@ -44,9 +44,9 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
         return (
           <div
             key={card.key}
-            className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner"
+            className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner"
           >
-            <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+            <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
             <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-500">{card.label}</p>

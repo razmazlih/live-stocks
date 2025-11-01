@@ -913,7 +913,7 @@ export default function PositionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]">
       <div className="mx-auto max-w-6xl px-6 py-8 lg:py-12">
         <header className="mb-10 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -975,7 +975,7 @@ export default function PositionsPage() {
                       }
                       className="mt-2 grid gap-2 sm:grid-cols-2"
                     >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_one" id="position-location-one" className="order-[-1]" />
                       <BankBadge
                         bank="bank_one"
@@ -984,7 +984,7 @@ export default function PositionsPage() {
                       />
                       <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
                     </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_two" id="position-location-two" className="order-[-1]" />
                       <BankBadge
                         bank="bank_two"
@@ -996,7 +996,7 @@ export default function PositionsPage() {
                     </RadioGroup>
                   </div>
                   {isEditing && editingPosition ? (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
+                    <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
                       <p className="font-semibold text-slate-700">{t.positions.currentHolding}</p>
                       <p className="mt-2">
                         {formatNumber(editingPosition.quantity, locale)} · {formatCurrency(editingPosition.entryPrice, 'USD', locale)} • {formatDate(editingPosition.entryDate, locale)}
@@ -1014,12 +1014,12 @@ export default function PositionsPage() {
                           onValueChange={(value) => setNewPositionMode(value as NewPositionMode)}
                           className="mt-2 grid gap-2 sm:grid-cols-2"
                         >
-                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                             <RadioGroupItem value="immediate" id="position-mode-immediate" className="order-[-1]" />
                             <span className="font-semibold text-slate-700">{t.positions.planModeImmediate}</span>
                             <span className="text-xs text-slate-500">{t.positions.planModeImmediateDescription}</span>
                           </label>
-                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                          <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                             <RadioGroupItem value="plan" id="position-mode-plan" className="order-[-1]" />
                             <span className="font-semibold text-slate-700">{t.positions.planModePlan}</span>
                             <span className="text-xs text-slate-500">{t.positions.planModePlanDescription}</span>
@@ -1074,7 +1074,7 @@ export default function PositionsPage() {
                               />
                             </div>
                           </div>
-                          <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                          <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div>
                                 <Label htmlFor="initial-commission-toggle" className="text-sm font-medium">
@@ -1168,7 +1168,7 @@ export default function PositionsPage() {
                               />
                             </div>
                           </div>
-                          <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+                          <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div>
                                 <Label htmlFor="plan-commission-toggle-inline" className="text-sm font-medium">
@@ -1228,10 +1228,10 @@ export default function PositionsPage() {
             </Dialog>
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-[#0F172A]">{t.positions.title}</h1>
+            <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{t.positions.title}</h1>
             <p className="max-w-2xl text-sm text-slate-600">{t.positions.subtitle}</p>
           </div>
-          <section className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 p-5 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t.positions.overviewTitle}
@@ -1240,7 +1240,7 @@ export default function PositionsPage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {overviewStats.map(({ key, label, value, icon: Icon }) => (
-                <Card key={key} className="border-none bg-white/90 shadow-inner">
+                <Card key={key} className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner">
                   <CardContent className="flex items-center gap-3 p-4">
                     <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
                       <Icon className="h-5 w-5" />
@@ -1343,7 +1343,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label htmlFor="transaction-commission-toggle" className="text-sm font-medium">
@@ -1411,7 +1411,7 @@ export default function PositionsPage() {
             </DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
               {planContextPosition ? (
-                <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600">
+                <div className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3 text-xs text-slate-600">
                   <p className="font-semibold text-slate-700">{planContextPosition.display}</p>
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                     <Badge variant="secondary" className="bg-slate-200 text-slate-700">
@@ -1435,7 +1435,7 @@ export default function PositionsPage() {
                     }
                     className="mt-2 grid gap-2 sm:grid-cols-2"
                   >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_one" id="plan-location-one" className="order-[-1]" />
                       <BankBadge
                         bank="bank_one"
@@ -1444,7 +1444,7 @@ export default function PositionsPage() {
                       />
                       <span className="text-xs text-slate-500">{t.positions.bankOneHelper}</span>
                     </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem value="bank_two" id="plan-location-two" className="order-[-1]" />
                       <BankBadge
                         bank="bank_two"
@@ -1463,13 +1463,13 @@ export default function PositionsPage() {
                   onValueChange={(value) => setPlanForm({ ...planForm, side: value as PlanFormData['side'] })}
                   className="mt-2 grid gap-2 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                     <RadioGroupItem value="buy" id="plan-side-buy" className="order-[-1]" />
                     <span className="font-semibold text-slate-700">{t.positions.planSideBuy}</span>
                     <span className="text-xs text-slate-500">{t.positions.planSideBuyShort}</span>
                   </label>
                   <label
-                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/70 p-3 text-sm ${
+                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm ${
                       canSelectSell ? 'text-slate-600' : 'text-slate-400'
                     }`}
                   >
@@ -1562,7 +1562,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3">
+              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label htmlFor="plan-commission-toggle" className="text-sm font-medium">
@@ -1658,7 +1658,7 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-3"
+                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
                         >
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
                             {typeLabel}
@@ -1710,13 +1710,13 @@ export default function PositionsPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
           <div className="space-y-4">
             {loading ? (
-              <Card className="border border-white/60 bg-white/80 shadow-sm backdrop-blur">
+              <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 shadow-sm backdrop-blur">
                 <CardContent className="py-16 text-center text-slate-500">
                   {t.common.loading}
                 </CardContent>
               </Card>
             ) : positions.length === 0 ? (
-              <Card className="border border-dashed border-slate-300 bg-white/60 text-center shadow-none backdrop-blur">
+              <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
                 <CardContent className="flex flex-col items-center gap-4 py-12">
                   <p className="text-base font-semibold text-slate-700">{t.dashboard.noPositions}</p>
                   <p className="max-w-sm text-sm text-slate-500">{t.positions.emptyStateDescription}</p>
@@ -1750,7 +1750,7 @@ export default function PositionsPage() {
                   return (
                     <Card
                       key={position.id ?? position.symbol}
-                      className="group rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                      className="group rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                     >
                       <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-center gap-3">
@@ -1854,8 +1854,8 @@ export default function PositionsPage() {
                                   const typeLabel = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                                   const typeBadgeClass =
                                     lot.type === 'BUY'
-                                      ? 'bg-emerald-500/10 text-emerald-600'
-                                      : 'bg-rose-500/10 text-rose-600';
+                                      ? 'bg-[color:var(--color-emerald-500)]/10 text-emerald-600'
+                                      : 'bg-[color:var(--color-rose-500)]/10 text-rose-600';
                                   const commissionApplied = lot.hasCommission && lot.commissionAmount > 0;
                                   const commissionLabel = commissionApplied
                                     ? t.positions.transactionCommissionShort(
@@ -1865,7 +1865,7 @@ export default function PositionsPage() {
                                   return (
                                     <div
                                       key={`${lot.id}-${lot.executedAt}`}
-                                      className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-3 py-1 text-xs text-slate-600 shadow-sm"
+                                      className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-1 text-xs text-slate-600 shadow-sm"
                                     >
                                       <span
                                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${typeBadgeClass}`}
@@ -1912,8 +1912,8 @@ export default function PositionsPage() {
                                   const statusLabel = planStatusLabels[plan.status];
                                   const sideBadgeClass =
                                     plan.side === 'sell'
-                                      ? 'bg-rose-500/10 text-rose-600'
-                                      : 'bg-emerald-500/10 text-emerald-600';
+                                      ? 'bg-[color:var(--color-rose-500)]/10 text-rose-600'
+                                      : 'bg-[color:var(--color-emerald-500)]/10 text-emerald-600';
                                   const sideLabel =
                                     plan.side === 'sell'
                                       ? t.positions.planSideSellShort
@@ -1921,7 +1921,7 @@ export default function PositionsPage() {
                                   return (
                                     <div
                                       key={plan.id ?? `${plan.symbol}-${plan.targetDate}`}
-                                      className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm"
+                                      className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 text-xs text-slate-600 shadow-sm"
                                     >
                                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                                         <span
@@ -1987,7 +1987,7 @@ export default function PositionsPage() {
             )}
           </div>
           <div className="space-y-4">
-            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+            <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
               <CardHeader>
                 <CardTitle>{t.dashboard.quickActions}</CardTitle>
                 <CardDescription>{t.positions.quickActionsDescription}</CardDescription>
@@ -2008,7 +2008,7 @@ export default function PositionsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+            <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
               <CardHeader>
                 <CardTitle>{t.positions.activePlansTitle}</CardTitle>
                 <CardDescription>{t.positions.activePlansDescription}</CardDescription>
@@ -2050,7 +2050,7 @@ export default function PositionsPage() {
                               return (
                                 <div
                                   key={plan.id ?? `${position.id}-${plan.symbol}-${plan.targetDate}`}
-                                  className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                                  className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
                                 >
                                   <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2128,7 +2128,7 @@ export default function PositionsPage() {
                               return (
                                 <div
                                   key={plan.id ?? `detached-${plan.symbol}-${plan.targetDate}`}
-                                  className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                                  className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
                                 >
                                   <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2185,7 +2185,7 @@ export default function PositionsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+            <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
               <CardHeader>
                 <CardTitle>{t.positions.closedPlansTitle}</CardTitle>
                 <CardDescription>{t.positions.closedPlansDescription}</CardDescription>
@@ -2213,7 +2213,7 @@ export default function PositionsPage() {
                         return (
                           <div
                             key={plan.id ?? `closed-${symbol}-${plan.targetDate}`}
-                            className="rounded-lg border border-slate-200 bg-white/70 p-3"
+                            className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
                           >
                             <div className="flex flex-col gap-2">
                               <div className="flex flex-wrap items-center gap-2">
