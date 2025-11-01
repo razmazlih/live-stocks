@@ -33,7 +33,7 @@ export function DashboardEmptyState({
       <Button
         asChild
         size="sm"
-        className={cn('gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]', buttonClassName)}
+        className={cn('gap-2 bg-[var(--color-blue-500)] text-white shadow-sm hover:bg-[var(--color-blue-600)]', buttonClassName)}
       >
         <Link href={actionHref}>
           <Icon className="h-4 w-4" />

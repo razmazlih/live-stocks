@@ -35,9 +35,9 @@ type GradientStop = {
 };
 
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
-  loss: '#ef4444',
-  under: '#0ea5e9',
-  above: '#22c55e',
+  loss: 'var(--color-red-500)',
+  under: 'var(--color-sky-500)',
+  above: 'var(--color-green-500)',
 };
 
 const resolveTrendState = (
@@ -76,7 +76,7 @@ const ActiveNetLineDot = ({
   const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="#ffffff" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-white)" />
   );
 };
 
@@ -700,7 +700,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(148, 163, 184, 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-500-rgb), 0.22)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -711,19 +711,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     axisLine={false}
                     tickMargin={16}
                     minTickGap={28}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(99, 102, 241, 0.35)', strokeWidth: 1.25 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,7 +741,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(99, 102, 241, 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
                   <Line
                     type="monotone"
                     dataKey="netValue"
@@ -756,11 +756,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Line
                     type="monotone"
                     dataKey="forecastValueUsd"
-                    stroke="#f59e0b"
+                    stroke="var(--color-amber-500)"
                     strokeWidth={2.5}
                     strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
+                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-white)' }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}

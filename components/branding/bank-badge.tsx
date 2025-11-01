@@ -28,14 +28,14 @@ type BankBadgeProps = {
 
 const bankVisuals: Record<BankIdentifier, { background: string; ring: string; shadow: string }> = {
   bank_one: {
-    background: 'bg-[#0A0A0A]',
+    background: 'bg-[var(--color-black-800)]',
     ring: 'ring-white/15',
-    shadow: 'shadow-[0_8px_20px_rgba(0,0,0,0.35)]',
+    shadow: 'shadow-[0_8px_20px_rgba(var(--color-black-rgb),0.35)]',
   },
   bank_two: {
-    background: 'bg-gradient-to-br from-[#FF4BA3] via-[#FF2F86] to-[#FF1566]',
-    ring: 'ring-[#FF2F86]/40',
-    shadow: 'shadow-[0_8px_20px_rgba(244,63,94,0.28)]',
+    background: 'bg-gradient-to-br from-[var(--color-pink-800)] via-[var(--color-pink-600)] to-[var(--color-pink-700)]',
+    ring: 'ring-[var(--color-pink-600)] ring-opacity-40',
+    shadow: 'shadow-[0_8px_20px_rgba(var(--color-rose-500-rgb),0.28)]',
   },
 };
 
@@ -49,7 +49,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
         className={cn(
           iconBase,
           iconWrapper,
-          'bg-[#050505] text-white'
+          'bg-[var(--color-black-900)] text-white'
         )}
       >
         <span
@@ -70,7 +70,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
       className={cn(
         iconBase,
         iconWrapper,
-        'bg-[#FF0066] text-white font-black uppercase tracking-[0.14em] leading-tight'
+        'bg-[var(--color-pink-900)] text-white font-black uppercase tracking-[0.14em] leading-tight'
       )}
     >
       {locale === 'he' ? (

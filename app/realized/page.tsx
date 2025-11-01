@@ -201,9 +201,9 @@ export default function RealizedPnLPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-surface-1)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-surface-2)] via-[var(--color-surface-3)] to-[var(--color-surface-4)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
@@ -215,7 +215,7 @@ export default function RealizedPnLPage() {
                     <CircleDollarSign className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.realized.title}</h1>
+                    <h1 className="text-3xl font-bold text-[var(--color-text-primary)] sm:text-4xl">{t.realized.title}</h1>
                     <p className="mt-2 max-w-xl text-base text-slate-600">{t.realized.subtitle}</p>
                   </div>
                 </div>
@@ -264,7 +264,7 @@ export default function RealizedPnLPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.realized.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.realized.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]">
+                    <Button asChild size="sm" className="gap-2 bg-[var(--color-blue-500)] text-white shadow-sm hover:bg-[var(--color-blue-600)]">
                       <Link href="/positions">
                         <Receipt className="h-4 w-4" />
                         <span>{t.realized.goToPositions}</span>

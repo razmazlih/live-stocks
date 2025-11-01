@@ -198,7 +198,7 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
   }
 
   const isBuy = payload.type === 'BUY';
-  const fill = isBuy ? '#059669' : '#DC2626';
+  const fill = isBuy ? 'var(--color-green-700)' : 'var(--color-red-500)';
   const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
 
   return (
@@ -851,7 +851,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-surface-7)] via-[var(--color-surface-6)] to-[var(--color-surface-5)]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex items-center justify-between">
           <Link href="/">
@@ -899,7 +899,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </Avatar>
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-[#0F172A]">{position.display}</h1>
+                      <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">{position.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
@@ -983,7 +983,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
-                  <div className="text-3xl font-semibold text-[#0F172A]">
+                  <div className="text-3xl font-semibold text-[var(--color-text-primary)]">
                     {formatUsdCurrency(metrics.currentPrice)}
                   </div>
                   <div className={cn('text-sm font-medium', dailyChangeClass)}>
@@ -1172,11 +1172,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
                         <defs>
                           <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1D4ED8" stopOpacity={0.45} />
-                            <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.05} />
+                            <stop offset="0%" stopColor="var(--color-blue-600)" stopOpacity={0.45} />
+                            <stop offset="100%" stopColor="var(--color-blue-400)" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.18)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-500-rgb), 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           type="number"
@@ -1186,7 +1186,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={12}
                           minTickGap={24}
-                          tick={{ fill: '#475569', fontSize: 12 }}
+                          tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                           tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
                         />
                         <YAxis
@@ -1197,11 +1197,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={8}
                           padding={{ top: 12, bottom: 12 }}
-                          tick={{ fill: '#475569', fontSize: 12 }}
+                          tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
-                          cursor={{ stroke: 'rgba(37, 99, 235, 0.25)', strokeWidth: 2 }}
+                          cursor={{ stroke: 'rgba(var(--color-blue-500-rgb), 0.25)', strokeWidth: 2 }}
                           wrapperStyle={{ outline: 'none' }}
                           content={renderTooltip}
                         />
@@ -1215,16 +1215,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             radius={[6, 6, 0, 0]}
-                            fill="rgba(59, 130, 246, 0.18)"
+                            fill="rgba(var(--color-blue-400-rgb), 0.18)"
                           />
                         )}
                         <Area
                           type="monotone"
                           dataKey="close"
                           yAxisId="price"
-                          stroke="#1D4ED8"
+                          stroke="var(--color-blue-600)"
                           strokeWidth={2.75}
-                          activeDot={{ r: 4, fill: '#2563EB', strokeWidth: 0 }}
+                          activeDot={{ r: 4, fill: 'var(--color-blue-500)', strokeWidth: 0 }}
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />

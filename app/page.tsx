@@ -305,9 +305,9 @@ export default function HomePage() {
     );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-surface-1)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-surface-2)] via-[var(--color-surface-3)] to-[var(--color-surface-4)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <DashboardHero

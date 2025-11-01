@@ -32,7 +32,15 @@ interface PortfolioVisualizationsProps {
   timeline: PortfolioTimelinePoint[];
 }
 
-const COLORS = ['#2563EB', '#0EA5E9', '#22C55E', '#8B5CF6', '#F97316', '#F59E0B', '#EC4899'];
+const COLORS = [
+  'var(--color-blue-500)',
+  'var(--color-sky-500)',
+  'var(--color-green-500)',
+  'var(--color-violet-500)',
+  'var(--color-orange-500)',
+  'var(--color-amber-500)',
+  'var(--color-pink-500)',
+];
 
 type TooltipValueType = number | string;
 
@@ -65,7 +73,7 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
             <div key={item.dataKey?.toString()} className="flex items-center gap-2 text-slate-600">
               <span
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ background: item.color ?? 'var(--fallback-color, #2563EB)' }}
+                style={{ background: item.color ?? 'var(--fallback-color, var(--color-blue-500))' }}
               />
               <span className="text-xs font-medium sm:text-sm">{item.name}</span>
               <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
@@ -271,15 +279,15 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               <AreaChart data={performanceData} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="performanceActualGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.15} />
+                    <stop offset="5%" stopColor="var(--color-blue-500)" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="var(--color-blue-500)" stopOpacity={0.15} />
                   </linearGradient>
                   <linearGradient id="performanceExpectedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.85} />
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.12} />
+                    <stop offset="5%" stopColor="var(--color-violet-500)" stopOpacity={0.85} />
+                    <stop offset="95%" stopColor="var(--color-violet-500)" stopOpacity={0.12} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-500-rgb), 0.2)" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -287,16 +295,16 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   tickFormatter={(value) => shortDateFormatter.format(new Date(Number(value)))}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                 />
                 <YAxis
                   tickFormatter={(value) => compactNumber.format(value)}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(15, 23, 42, 0.15)', strokeWidth: 1 }}
+                  cursor={{ stroke: 'rgba(var(--color-slate-900-rgb), 0.15)', strokeWidth: 1 }}
                   content={
                     <ChartTooltip
                       valueFormatter={areaTooltipFormatter}
@@ -308,7 +316,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 <Area
                   type="monotone"
                   dataKey="actual"
-                  stroke="#2563EB"
+                  stroke="var(--color-blue-500)"
                   fill="url(#performanceActualGradient)"
                   strokeWidth={2}
                   name={t.dashboard.performanceTrendActual}
@@ -317,7 +325,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 <Area
                   type="monotone"
                   dataKey="expected"
-                  stroke="#8B5CF6"
+                  stroke="var(--color-violet-500)"
                   fill="url(#performanceExpectedGradient)"
                   strokeWidth={2}
                   name={t.dashboard.performanceTrendExpected}
@@ -461,7 +469,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   outerRadius={115}
                   paddingAngle={4}
                   cornerRadius={8}
-                  stroke="#fff"
+                  stroke="var(--color-white)"
                   strokeWidth={2}
                 >
                   {allocationData.map((entry, index) => {
@@ -470,7 +478,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   })}
                 </Pie>
                 <Tooltip
-                  cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }}
+                  cursor={{ fill: 'rgba(var(--color-blue-500-rgb), 0.05)' }}
                   content={
                     <ChartTooltip
                       valueFormatter={pieTooltipFormatter}
@@ -502,29 +510,29 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               <BarChart data={pnlData} barGap={12} barCategoryGap="18%">
                 <defs>
                   <linearGradient id="pnlCurrentGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.95} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.6} />
+                    <stop offset="5%" stopColor="var(--color-blue-500)" stopOpacity={0.95} />
+                    <stop offset="95%" stopColor="var(--color-blue-500)" stopOpacity={0.6} />
                   </linearGradient>
                   <linearGradient id="pnlProjectedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22C55E" stopOpacity={0.95} />
-                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0.6} />
+                    <stop offset="5%" stopColor="var(--color-green-500)" stopOpacity={0.95} />
+                    <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-500-rgb), 0.25)" />
                 <XAxis
                   dataKey="symbol"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 600 }}
                 />
                 <YAxis
                   tickFormatter={(value) => compactNumber.format(value)}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
+                  cursor={{ fill: 'rgba(var(--color-slate-900-rgb), 0.04)' }}
                   content={<ChartTooltip valueFormatter={barTooltipFormatter} />}
                 />
                 <Legend verticalAlign="bottom" align="center" content={renderLegend} />
@@ -565,17 +573,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="20%">
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.95} />
-                        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.55} />
+                        <stop offset="0%" stopColor="var(--color-sky-500)" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="var(--color-blue-500)" stopOpacity={0.55} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-500-rgb), 0.2)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: '#475569', fontSize: 12 }}
+                      tick={{ fill: 'var(--color-slate-700)', fontSize: 12 }}
                     />
                     <YAxis
                       type="category"
@@ -583,10 +591,10 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                       tickLine={false}
                       axisLine={false}
                       width={120}
-                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                      tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 600 }}
                     />
                     <Tooltip
-                      cursor={{ fill: 'rgba(59, 130, 246, 0.08)' }}
+                      cursor={{ fill: 'rgba(var(--color-blue-400-rgb), 0.08)' }}
                       content={
                         <ChartTooltip
                           valueFormatter={barTooltipFormatter}
