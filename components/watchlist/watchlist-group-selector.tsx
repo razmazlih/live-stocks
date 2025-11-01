@@ -54,7 +54,7 @@ export function WatchlistGroupSelector({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 px-6 py-5 dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/40">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-800">{title}</span>
           {description ? (
             <span className="text-xs text-slate-500 dark:text-slate-400">{description}</span>
           ) : null}
@@ -105,7 +105,7 @@ export function WatchlistGroupSelector({
                     onClick={() => group.id && onSelect(group.id)}
                   >
                     <div className="flex flex-1 flex-col">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{group.name}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-800">{group.name}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
                         {group.description || ''}
                       </span>
@@ -119,7 +119,7 @@ export function WatchlistGroupSelector({
                           variant="ghost"
                           size="icon"
                           aria-label={editLabel}
-                          className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                          className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-900"
                           onClick={(event) => {
                             event.stopPropagation();
                             onEdit(group);

@@ -875,7 +875,7 @@ export function Sparkline({
               <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
                 {hoveredPriceText}
               </div>
-              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
+              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 dark:text-slate-900 shadow">
                 {hoveredTimeText}
               </div>
             </div>

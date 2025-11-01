@@ -757,7 +757,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100 dark:text-slate-900"
                     >
                       <div className="flex items-center justify-between font-semibold">
                         <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
