@@ -112,7 +112,7 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{t.settings.title}</h1>
         </header>
 
-        <div className="backdrop-blur-sm bg-[color:var(--color-neutral-white)]/85 rounded-2xl border border-[color:var(--color-neutral-white)]/50 shadow-xl p-6">
+        <div className="glass-blur-sm bg-[color:var(--color-neutral-white)]/85 rounded-2xl border border-[color:var(--color-neutral-white)]/50 shadow-xl p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="growthRate">{t.settings.annualGrowthRate}</Label>

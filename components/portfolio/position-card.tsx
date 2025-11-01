@@ -324,7 +324,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       className={cn(
         'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
         isHovered
-          ? '-translate-y-1 border-[color:var(--color-blue-200)]/80 shadow-2xl'
+          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
           : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
       )}
       onPointerEnter={setHoveredTrue}
@@ -400,7 +400,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             {closedStats.length > 0 && (
               <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm md:grid-cols-3">
                 {closedStats.map((stat) => (
-                  <div key={stat.key} className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
+                  <div key={stat.key} className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{stat.label}</p>
                     <p className={`mt-1 text-sm font-semibold ${stat.tone?.text ?? 'text-slate-900'} sm:text-base`}>{stat.value}</p>
                   </div>
@@ -505,18 +505,18 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-600 sm:gap-3 sm:text-sm">
-              <div className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.quantity}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatNumber(position.quantity, locale)}</p>
               </div>
-              <div className="rounded-2xl bg-[color:var(--color-slate-50)]/80 p-2.5 shadow-sm sm:p-3">
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
               </div>
             </div>
 
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/80 bg-[color:var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.current}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -536,7 +536,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/80 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.projected}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">

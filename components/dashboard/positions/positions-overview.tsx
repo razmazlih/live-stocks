@@ -116,7 +116,7 @@ export function PositionsOverview({
           <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
           <p className="text-sm text-slate-500">{sortNotice}</p>
           {hasFilterApplied && (
-            <Badge className="mt-1 inline-flex rounded-full border-blue-100 bg-[color:var(--color-blue-50)]/80 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+            <Badge className="mt-1 inline-flex rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
               {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
             </Badge>
           )}
@@ -127,7 +127,7 @@ export function PositionsOverview({
               <Button
                 variant="outline"
                 size="sm"
-                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/80 hover:text-blue-600"
+                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
               >
                 <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
                 <span className="text-sm font-medium">

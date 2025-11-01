@@ -1231,7 +1231,7 @@ export default function PositionsPage() {
             <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{t.positions.title}</h1>
             <p className="max-w-2xl text-sm text-slate-600">{t.positions.subtitle}</p>
           </div>
-          <section className="rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white p-5 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t.positions.overviewTitle}
@@ -1710,7 +1710,7 @@ export default function PositionsPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
           <div className="space-y-4">
             {loading ? (
-              <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 shadow-sm backdrop-blur">
+              <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
                 <CardContent className="py-16 text-center text-slate-500">
                   {t.common.loading}
                 </CardContent>
@@ -1865,7 +1865,7 @@ export default function PositionsPage() {
                                   return (
                                     <div
                                       key={`${lot.id}-${lot.executedAt}`}
-                                      className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-1 text-xs text-slate-600 shadow-sm"
+                                      className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-1 text-xs text-slate-600 shadow-sm"
                                     >
                                       <span
                                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${typeBadgeClass}`}
@@ -1921,7 +1921,7 @@ export default function PositionsPage() {
                                   return (
                                     <div
                                       key={plan.id ?? `${plan.symbol}-${plan.targetDate}`}
-                                      className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 text-xs text-slate-600 shadow-sm"
+                                      className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-2 text-xs text-slate-600 shadow-sm"
                                     >
                                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                                         <span

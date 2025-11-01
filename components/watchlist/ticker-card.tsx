@@ -353,7 +353,7 @@ export function TickerCard({
         </header>
 
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-[color:var(--color-slate-50)]/80 p-2.5 sm:col-span-2 sm:p-3">
+          <div className="min-w-0 rounded-xl border border-slate-100 bg-overlay-slate-50 p-2.5 sm:col-span-2 sm:p-3">
             <p className={priceLabelClassName}>{priceLabel}</p>
             <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
               {priceText}
@@ -378,7 +378,7 @@ export function TickerCard({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[color:var(--color-slate-100)]/80 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
+        <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
           {loading ? (
             <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
               {loadingLabel}

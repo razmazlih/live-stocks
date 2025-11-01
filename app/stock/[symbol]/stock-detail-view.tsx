@@ -871,24 +871,24 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         {loading ? (
           <StockDetailSkeleton />
         ) : error ? (
-          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-red-200 text-red-700">
+          <Card className="bg-overlay-neutral-white border border-red-200 text-red-700">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
-              <div className="text-sm text-[color:var(--color-red-600)]/80">{error}</div>
+              <div className="text-sm text-overlay-red-600">{error}</div>
               <Button variant="outline" onClick={() => setReloadKey((value) => value + 1)}>
                 {t.stock.detailView.states.retry}
               </Button>
             </CardContent>
           </Card>
         ) : !position || !metrics ? (
-          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-neutral-white)]/60">
+          <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60">
             <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
               {t.stock.detailView.states.empty}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-2xl bg-[color:var(--color-neutral-white)]/80 p-6 shadow-md backdrop-blur">
+            <div className="flex flex-col gap-4 rounded-2xl bg-overlay-neutral-white p-6 shadow-md backdrop-blur">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">

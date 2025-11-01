@@ -119,6 +119,22 @@
   --color-amber-300: #fcd34d;
   --color-amber-500: #f59e0b;
   --color-amber-600: #d97706;
+  --color-neutral-white-rgb: 255, 255, 255;
+  --color-rose-50-rgb: 255, 241, 242;
+  --color-rose-100-rgb: 255, 228, 230;
+  --color-blue-50-rgb: 239, 246, 255;
+  --color-blue-200-rgb: 191, 219, 254;
+  --color-blue-500-rgb: 59, 130, 246;
+  --color-emerald-100-rgb: 209, 250, 229;
+  --color-amber-500-rgb: 245, 158, 11;
+  --color-red-600-rgb: 220, 38, 38;
+  --color-slate-50-rgb: 248, 250, 252;
+  --color-slate-100-rgb: 241, 245, 249;
+  --color-slate-200-rgb: 226, 232, 240;
+  --color-slate-600-rgb: 71, 85, 105;
+  --color-slate-900-rgb: 15, 23, 42;
+  --color-rose-200-rgb: 254, 205, 211;
+  --color-slate-300-rgb: 203, 213, 225;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -215,6 +231,40 @@
 }
 
 @layer utilities {
+  .glass-blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+
+  .bg-overlay-neutral-white { background-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
+  .bg-overlay-rose-50 { background-color: rgba(var(--color-rose-50-rgb), 0.8) !important; }
+  .bg-overlay-rose-100 { background-color: rgba(var(--color-rose-100-rgb), 0.8) !important; }
+  .bg-overlay-blue-50 { background-color: rgba(var(--color-blue-50-rgb), 0.8) !important; }
+  .bg-overlay-blue-200 { background-color: rgba(var(--color-blue-200-rgb), 0.8) !important; }
+  .bg-overlay-blue-500 { background-color: rgba(var(--color-blue-500-rgb), 0.8) !important; }
+  .bg-overlay-emerald-100 { background-color: rgba(var(--color-emerald-100-rgb), 0.8) !important; }
+  .bg-overlay-amber-500 { background-color: rgba(var(--color-amber-500-rgb), 0.8) !important; }
+  .bg-overlay-red-600 { background-color: rgba(var(--color-red-600-rgb), 0.8) !important; }
+  .bg-overlay-slate-50 { background-color: rgba(var(--color-slate-50-rgb), 0.8) !important; }
+  .bg-overlay-slate-100 { background-color: rgba(var(--color-slate-100-rgb), 0.8) !important; }
+  .bg-overlay-slate-200 { background-color: rgba(var(--color-slate-200-rgb), 0.8) !important; }
+  .bg-overlay-slate-900 { background-color: rgba(var(--color-slate-900-rgb), 0.8) !important; }
+  .hover\:bg-overlay-blue-50:hover { background-color: rgba(var(--color-blue-50-rgb), 0.8) !important; }
+  .hover\:bg-overlay-neutral-white:hover { background-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
+
+  .text-overlay-amber-500 { color: rgba(var(--color-amber-500-rgb), 0.8) !important; }
+  .text-overlay-blue-500 { color: rgba(var(--color-blue-500-rgb), 0.8) !important; }
+  .text-overlay-red-600 { color: rgba(var(--color-red-600-rgb), 0.8) !important; }
+  .text-overlay-slate-600 { color: rgba(var(--color-slate-600-rgb), 0.8) !important; }
+
+  .border-overlay-amber-500 { border-color: rgba(var(--color-amber-500-rgb), 0.8) !important; }
+  .border-overlay-blue-200 { border-color: rgba(var(--color-blue-200-rgb), 0.8) !important; }
+  .border-overlay-emerald-100 { border-color: rgba(var(--color-emerald-100-rgb), 0.8) !important; }
+  .border-overlay-neutral-white { border-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
+  .border-overlay-rose-100 { border-color: rgba(var(--color-rose-100-rgb), 0.8) !important; }
+  .border-overlay-rose-200 { border-color: rgba(var(--color-rose-200-rgb), 0.8) !important; }
+  .border-overlay-slate-100 { border-color: rgba(var(--color-slate-100-rgb), 0.8) !important; }
+  .border-overlay-slate-200 { border-color: rgba(var(--color-slate-200-rgb), 0.8) !important; }
+  .border-overlay-slate-300 { border-color: rgba(var(--color-slate-300-rgb), 0.8) !important; }
+  .hover\:border-overlay-neutral-white:hover { border-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
+
   .text-white { color: var(--color-neutral-white) !important; }
   .bg-white { background-color: var(--color-neutral-white) !important; }
   .border-white { border-color: var(--color-neutral-white) !important; }
@@ -301,7 +351,6 @@
   .ring-rose-200 { --tw-ring-color: var(--color-rose-200) !important; }
   .ring-slate-200 { --tw-ring-color: var(--color-slate-200) !important; }
 }
-
 @layer components {
   .card-surface {
     background: linear-gradient(

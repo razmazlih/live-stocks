@@ -48,7 +48,7 @@ export function WatchlistGroupSelector({
   return (
     <div
       className={cn(
-        'flex w-full flex-col overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 shadow-xl backdrop-blur-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
+        'flex w-full flex-col overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-xl glass-blur-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
         className
       )}
     >
@@ -64,7 +64,7 @@ export function WatchlistGroupSelector({
             variant="outline"
             size="sm"
             onClick={onCreate}
-            className="gap-1 rounded-full border-blue-100 bg-[color:var(--color-neutral-white)]/80 text-blue-600 transition-colors hover:border-blue-200 hover:bg-white"
+            className="gap-1 rounded-full border-blue-100 bg-overlay-neutral-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-white"
           >
             <Plus className="h-4 w-4" />
             <span>{addLabel}</span>
@@ -74,7 +74,7 @@ export function WatchlistGroupSelector({
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-6">
           {isLoading ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
+            <div className="flex items-center gap-2 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>{loadingText}</span>
             </div>
@@ -98,9 +98,9 @@ export function WatchlistGroupSelector({
                     key={group.id ?? group.name}
                     className={cn(
                       'group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-4 py-4 transition-all',
-                      'border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 shadow-sm hover:border-[color:var(--color-blue-200)]/70 hover:shadow-md dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:hover:border-slate-600',
+                      'border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm hover:border-[color:var(--color-blue-200)]/70 hover:shadow-md dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:hover:border-slate-600',
                       isActive &&
-                        'border-[color:var(--color-blue-400)]/70 bg-[color:var(--color-blue-50)]/80 text-blue-700 shadow-md dark:border-[color:var(--color-blue-500)]/60 dark:bg-[color:var(--color-slate-800)]/70 dark:text-blue-100'
+                        'border-[color:var(--color-blue-400)]/70 bg-overlay-blue-50 text-blue-700 shadow-md dark:border-[color:var(--color-blue-500)]/60 dark:bg-[color:var(--color-slate-800)]/70 dark:text-blue-100'
                     )}
                     onClick={() => group.id && onSelect(group.id)}
                   >

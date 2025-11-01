@@ -206,7 +206,7 @@ export default function RealizedPnLPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
             <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
@@ -234,11 +234,11 @@ export default function RealizedPnLPage() {
                     {getTrendIcon(netProfitUsd)}
                     <span className="flex flex-col leading-tight">
                       <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
-                      <span className="text-[11px] text-[color:var(--color-slate-600)]/80">
+                      <span className="text-[11px] text-overlay-slate-600">
                         {formatSignedCurrency(netProfitIls, 'ILS')}
                       </span>
                     </span>
-                    <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.realized.netProfitAfterTax}</span>
+                    <span className="text-xs font-medium text-overlay-slate-600">{t.realized.netProfitAfterTax}</span>
                   </span>
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function RealizedPnLPage() {
           </header>
 
           <main className="mt-10 space-y-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
@@ -282,11 +282,11 @@ export default function RealizedPnLPage() {
                     {getTrendIcon(netProfitUsd)}
                     <span className="flex flex-col leading-tight">
                       <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
-                      <span className="text-[11px] text-[color:var(--color-slate-600)]/80">
+                      <span className="text-[11px] text-overlay-slate-600">
                         {formatSignedCurrency(netProfitIls, 'ILS')}
                       </span>
                     </span>
-                    <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.realized.netProfitAfterTax}</span>
+                    <span className="text-xs font-medium text-overlay-slate-600">{t.realized.netProfitAfterTax}</span>
                   </span>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
