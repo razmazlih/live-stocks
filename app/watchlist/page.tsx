@@ -255,7 +255,7 @@ function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps)
       className={cn(
         'h-full cursor-grab select-none touch-pan-y active:cursor-grabbing',
         isDragging ? 'z-50' : undefined,
-        isActive ? 'ring-2 ring-blue-200' : undefined
+        isActive ? 'ring-2 ring-[hsl(var(--info) / 0.26)]' : undefined
       )}
       {...attributes}
       {...listeners}
@@ -876,14 +876,14 @@ export default function WatchlistPage() {
       key: 'groups',
       icon: Layers,
       label: groupSummary,
-      className: 'bg-blue-50 text-blue-600',
-      iconClassName: 'text-blue-500',
+      className: 'bg-overlay-blue-50 text-info',
+      iconClassName: 'text-info',
     },
     {
       key: 'tickers',
       icon: ListChecks,
       label: tickerSummary,
-      className: 'bg-[color:var(--color-neutral-white)]/70 text-slate-600',
+      className: 'bg-[hsl(var(--card))]/70 text-muted-foreground',
       iconClassName: 'text-overlay-blue-500',
     },
   ] as const;
@@ -907,7 +907,7 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newGroup,
         onClick: openCreateGroupDialog,
-        className: 'bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]',
+        className: 'bg-[hsl(var(--primary))] text-[hsl(var(--card-foreground))] shadow-sm hover:bg-[hsl(var(--primary))]',
       },
       {
         key: 'newTicker',
@@ -939,27 +939,27 @@ export default function WatchlistPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]"
+      className="relative min-h-screen overflow-hidden bg-[hsl(var(--primary) / 0.12)]"
       dir={isRtl ? 'rtl' : 'ltr'}
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary) / 0.08)] via-[hsl(var(--primary) / 0.05)] to-[hsl(var(--primary) / 0.03)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--primary),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+          <header className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[hsl(var(--info) / 0.26)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+                  <div className="rounded-2xl bg-[hsl(var(--info) / 0.18)] p-3 text-info shadow-inner">
                     <Eye className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{t.watchlist.title}</h1>
-                    <p className="mt-2 max-w-xl text-base text-slate-600">{t.watchlist.subtitle}</p>
+                    <h1 className="text-3xl font-bold text-[hsl(var(--primary))] sm:text-4xl">{t.watchlist.title}</h1>
+                    <p className="mt-2 max-w-xl text-base text-muted-foreground">{t.watchlist.subtitle}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
                   {metaBadges.map((badge) => {
                     const Icon = badge.icon;
                     return (
@@ -978,7 +978,7 @@ export default function WatchlistPage() {
                 </div>
               </div>
               <QuickActionsSection title={t.watchlist.actionsTitle} actions={quickActions}>
-                <p className="mt-4 text-xs text-slate-500">
+                <p className="mt-4 text-xs text-muted-foreground">
                   {selectedGroupSummary ?? t.watchlist.status.empty}
                 </p>
               </QuickActionsSection>
@@ -1010,10 +1010,10 @@ export default function WatchlistPage() {
               {watchlistError ? (
                 <Alert
                   variant="destructive"
-                  className="rounded-3xl border border-[color:var(--color-rose-200)]/70 bg-overlay-rose-50 px-6 py-5 text-rose-700 shadow-inner glass-blur-sm"
+                  className="rounded-3xl border border-[var(--color-rose-200)]/70 bg-overlay-rose-50 px-6 py-5 text-destructive shadow-inner glass-blur-sm"
                 >
                   <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
-                  <AlertDescription className="mt-2 flex flex-wrap items-center gap-2 text-rose-600">
+                  <AlertDescription className="mt-2 flex flex-wrap items-center gap-2 text-destructive">
                     <span>{t.watchlist.status.error}</span>
                     <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
                       <RefreshCw className="h-4 w-4" />
@@ -1025,14 +1025,14 @@ export default function WatchlistPage() {
 
               {selectedGroup ? (
                 <div className="space-y-6">
-                  <div className="rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
+                  <div className="rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="space-y-2">
-                        <h2 className="text-2xl font-semibold text-slate-800">{selectedGroup.name}</h2>
+                        <h2 className="text-2xl font-semibold text-foreground">{selectedGroup.name}</h2>
                         {selectedGroup.description ? (
-                          <p className="max-w-xl text-sm text-slate-500">{selectedGroup.description}</p>
+                          <p className="max-w-xl text-sm text-muted-foreground">{selectedGroup.description}</p>
                         ) : null}
-                        <p className="text-xs font-medium text-slate-400">
+                        <p className="text-xs font-medium text-muted-foreground">
                           {renderTickerCount(selectedGroup)}
                         </p>
                       </div>
@@ -1057,26 +1057,26 @@ export default function WatchlistPage() {
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
-                                  hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
+                                  'flex h-auto items-center gap-3 rounded-full border-border bg-[hsl(var(--card))] px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-[hsl(var(--info) / 0.32)] hover:bg-[hsl(var(--info) / 0.12)]/60',
+                                  hasCustomStartDate ? 'ring-2 ring-[hsl(var(--info) / 0.26)]' : undefined
                                 )}
                               >
-                                <CalendarDays className="h-4 w-4 text-blue-500" />
+                                <CalendarDays className="h-4 w-4 text-info" />
                                 <div className="flex min-w-[140px] flex-col leading-tight">
-                                  <span className="text-xs font-medium text-slate-500">
+                                  <span className="text-xs font-medium text-muted-foreground">
                                     {t.watchlist.filters.startDateLabel}
                                   </span>
                                   <span
                                     className={cn(
-                                      'text-sm font-semibold text-slate-700',
-                                      hasCustomStartDate ? 'text-blue-600' : undefined
+                                      'text-sm font-semibold text-foreground',
+                                      hasCustomStartDate ? 'text-info' : undefined
                                     )}
                                   >
                                     {formattedStartDate}
                                   </span>
                                 </div>
                                 {hasCustomStartDate ? (
-                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
+                                  <span className="rounded-full bg-[hsl(var(--info) / 0.18)] px-2 py-0.5 text-[10px] font-semibold text-info">
                                     {t.watchlist.filters.customBadge}
                                   </span>
                                 ) : null}
@@ -1084,10 +1084,10 @@ export default function WatchlistPage() {
                             </PopoverTrigger>
                             <PopoverContent
                               align={isRtl ? 'end' : 'start'}
-                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm"
+                              className="w-auto rounded-3xl border border-border bg-[hsl(var(--card))]/95 p-4 shadow-xl glass-blur-sm"
                             >
                               <div className="flex flex-col gap-3">
-                                <p className="text-sm font-medium text-slate-700">
+                                <p className="text-sm font-medium text-foreground">
                                   {t.watchlist.filters.startDateDescription}
                                 </p>
                                 <Calendar
@@ -1112,7 +1112,7 @@ export default function WatchlistPage() {
                                     handleResetStartDate();
                                     setStartDatePopoverOpen(false);
                                   }}
-                                  className="justify-start text-slate-600 hover:text-blue-600"
+                                  className="justify-start text-muted-foreground hover:text-info"
                                 >
                                   {t.watchlist.filters.resetStartDate}
                                 </Button>
@@ -1122,13 +1122,13 @@ export default function WatchlistPage() {
                           <Button
                             size="sm"
                             onClick={openCreateTickerDialog}
-                            className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                            className="gap-2 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--card-foreground))] shadow-sm hover:bg-[var(--color-primary-700)]"
                           >
                             <Plus className="h-4 w-4" />
                             {t.watchlist.actions.newTicker}
                           </Button>
                         </div>
-                        <p className="text-xs text-slate-500">{startDateSummary}</p>
+                        <p className="text-xs text-muted-foreground">{startDateSummary}</p>
                       </div>
                     </div>
                   </div>
@@ -1222,11 +1222,11 @@ export default function WatchlistPage() {
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-10 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/60 p-10 text-center text-sm text-muted-foreground shadow-inner glass-blur-sm">
                       <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
-                        className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                        className="gap-2 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--card-foreground))] shadow-sm hover:bg-[var(--color-primary-700)]"
                       >
                         <Plus className="h-4 w-4" />
                         {t.watchlist.actions.newTicker}
@@ -1235,11 +1235,11 @@ export default function WatchlistPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-12 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/60 p-12 text-center text-sm text-muted-foreground shadow-inner glass-blur-sm">
                   <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
-                    className="gap-2 rounded-full bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]"
+                    className="gap-2 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--card-foreground))] shadow-sm hover:bg-[hsl(var(--primary))]"
                   >
                     <Plus className="h-4 w-4" />
                     {t.watchlist.actions.newGroup}

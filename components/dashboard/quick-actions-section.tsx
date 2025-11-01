@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '../theme-toggle';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { DashboardQuickActions } from './quick-actions';
@@ -20,13 +21,17 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
   return (
     <div
       className={cn(
-        'w-full max-w-md rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-5 shadow-inner glass-blur-sm',
+        'w-full max-w-md rounded-2xl border border-border bg-[hsl(var(--card))] p-5 shadow-inner glass-panel',
         className
       )}
     >
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      {/* כל הסטיילים כאן נשענים על טוקני הנושא */}
+      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       <DashboardQuickActions actions={actions} />
-      {children}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        {children}
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

@@ -74,14 +74,14 @@ export function Sparkline({
   points,
   width = 320,
   height = 96,
-  color = 'var(--color-primary-500)',
+  color = 'hsl(var(--primary))',
   baseline,
-  baselineColor = 'rgba(var(--color-slate-400-rgb), 0.9)',
+  baselineColor = 'hsl(var(--muted-foreground) / 0.9)',
   projectedPrice,
-  projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
-  belowEntryColor = 'var(--color-red-400)',
-  betweenProjectedColor = 'var(--color-primary-500)',
-  aboveProjectedColor = 'var(--color-green-400)',
+  projectedLineColor = 'hsl(var(--primary) / 0.8)',
+  belowEntryColor = 'hsl(var(--destructive))',
+  betweenProjectedColor = 'hsl(var(--primary))',
+  aboveProjectedColor = 'hsl(var(--success))',
   annualGrowthRate,
   yearsHeld,
   events,
@@ -463,7 +463,7 @@ export function Sparkline({
       }
 
       if (typeof hex !== 'string') {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
+        return `rgba(var(--muted-foreground), ${alpha})`;
       }
 
       let normalized = hex.trim();
@@ -487,7 +487,7 @@ export function Sparkline({
       }
 
       if (normalized.length !== 6) {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
+        return `rgba(var(--muted-foreground), ${alpha})`;
       }
 
       const bigint = Number.parseInt(normalized, 16);
@@ -708,8 +708,8 @@ export function Sparkline({
                 y2={height}
                 gradientUnits="userSpaceOnUse"
               >
-                <stop offset="0%" stopColor="var(--color-neutral-white)" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="var(--color-neutral-white)" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--card))" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="hsl(var(--card))" stopOpacity={0} />
               </linearGradient>
               <mask id={areaMaskId} maskUnits="userSpaceOnUse">
                 <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
@@ -743,7 +743,7 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="rgba(var(--color-slate-400-rgb), 0.35)"
+                    stroke="hsl(var(--muted-foreground) / 0.35)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
@@ -796,7 +796,7 @@ export function Sparkline({
                   y1={0}
                   x2={effectiveHoveredPoint.x}
                   y2={height}
-                  stroke="rgba(var(--color-primary-900-rgb), 0.25)"
+                  stroke="hsl(var(--primary) / 0.25)"
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />
@@ -804,7 +804,7 @@ export function Sparkline({
                   cx={effectiveHoveredPoint.x}
                   cy={effectiveHoveredPoint.y}
                   r={4.2}
-                  fill="var(--color-neutral-white)"
+                  fill="hsl(var(--card))"
                   stroke={color}
                   strokeWidth={1.4}
                 />
@@ -816,7 +816,7 @@ export function Sparkline({
                 cx={lastPoint.x}
                 cy={lastPoint.y}
                 r={2.8}
-                fill="var(--color-neutral-white)"
+                fill="hsl(var(--card))"
                 stroke={lastSegmentColor}
                 strokeWidth={1.2}
               />
@@ -825,8 +825,8 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
               const tone = event.type === 'BUY'
-                ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
-                : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
+                ? { fill: 'hsl(var(--success) / 0.16)', stroke: 'hsl(var(--success))' }
+                : { fill: 'hsl(var(--destructive) / 0.16)', stroke: 'hsl(var(--destructive))' };
               const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
               return (
@@ -872,10 +872,10 @@ export function Sparkline({
                 top: Math.max(effectiveHoveredPoint.y - 56, 8),
               }}
             >
-              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
+              <div className="rounded-lg bg-[hsl(var(--card))]/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-md ring-1 ring-[var(--color-neutral-black)]/5">
                 {hoveredPriceText}
               </div>
-              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
+              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow">
                 {hoveredTimeText}
               </div>
             </div>
@@ -883,20 +883,20 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--color-neutral-white)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[hsl(var(--card))]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[var(--color-neutral-black)]/5"
               style={{
                 left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
                 top: Math.max(activeEvent.y - 12, 12),
               }}
             >
-              <div className="font-semibold text-slate-800">
+              <div className="font-semibold text-foreground">
                 {activeEvent.typeLabel ?? activeEvent.type}
               </div>
-              <div className="text-slate-500">
+              <div className="text-muted-foreground">
                 {new Date(activeEvent.timestamp).toLocaleDateString()}
               </div>
-              <div className="mt-1 text-slate-600">
-                <span className="font-medium text-slate-800">
+              <div className="mt-1 text-muted-foreground">
+                <span className="font-medium text-foreground">
                   {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
                 </span>
                 <span className="ml-2">·</span>

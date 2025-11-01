@@ -33,8 +33,8 @@ export function TimeRangeTabs({
             key={range}
             value={range}
             className={cn(
-              'rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium transition-colors data-[state=active]:border-transparent data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:border-slate-700 dark:bg-slate-800 dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900',
-              'shadow-sm hover:border-slate-300 hover:bg-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-700'
+              'rounded-full border border-border bg-[hsl(var(--card))] px-3 py-1 text-xs font-medium transition-colors data-[state=active]:border-transparent data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-[hsl(var(--primary-foreground))]',
+              'shadow-sm hover:border-border hover:bg-[hsl(var(--muted))]'
             )}
           >
             {labels?.[range] ?? range}

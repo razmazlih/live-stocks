@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 45%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 145 65% 36%;
+    --success-foreground: 144 70% 96%;
+    --warning: 32 95% 53%;
+    --warning-foreground: 26 83% 14%;
+    --info: 199 89% 48%;
+    --info-foreground: 210 100% 97%;
+    --ring: 217.2 91.2% 59.8%;
+    --radius: 0.75rem;
+    --surface-subtle: 210 40% 98%;
+    --surface-elevated: 0 0% 100%;
+    --surface-highlight: 221 83% 96%;
+    --chart-1: 205 92% 41%;
+    --chart-2: 144 71% 36%;
+    --chart-3: 32 95% 53%;
+    --chart-4: 266 85% 58%;
+    --chart-5: 12 96% 62%;
+    --color-card-border: hsl(var(--border));
+    --color-card-surface: hsl(var(--card));
+    --color-emerald-200: hsl(var(--success) / 0.3);
+    --color-emerald-50: hsl(var(--success) / 0.12);
+    --color-neutral-900: hsl(var(--foreground));
+    --color-neutral-950: hsl(var(--foreground));
+    --color-neutral-black: hsl(var(--foreground));
+    --color-overlay-navy-soft: hsl(var(--primary) / 0.18);
+    --color-overlay-primary-soft: hsl(var(--primary) / 0.16);
+    --color-overlay-sky-soft: hsl(var(--info) / 0.18);
+    --color-primary-100: hsl(var(--primary) / 0.2);
+    --color-primary-700: hsl(var(--primary));
+    --color-primary-800: hsl(var(--primary));
+    --color-rose-200: hsl(var(--destructive) / 0.28);
+    --color-rose-50: hsl(var(--destructive) / 0.14);
+    --color-rose-500: hsl(var(--destructive));
+    --color-shadow-hot-pink-28: hsl(var(--destructive) / 0.28);
+    --color-shadow-neutral-35: hsl(var(--foreground) / 0.35);
+    --color-sky-600: hsl(var(--info));
+  }
+
+  .dark {
+    --background: 224 58% 6%;
+    --foreground: 210 33% 96%;
+    --card: 226 45% 11%;
+    --card-foreground: 210 33% 96%;
+    --popover: 226 45% 13%;
+    --popover-foreground: 210 33% 96%;
+    --muted: 228 30% 19%;
+    --muted-foreground: 218 19% 70%;
+    --border: 226 28% 26%;
+    --input: 226 28% 26%;
+    --primary: 217 91% 66%;
+    --primary-foreground: 223 68% 11%;
+    --secondary: 230 24% 28%;
+    --secondary-foreground: 210 33% 96%;
+    --accent: 232 34% 32%;
+    --accent-foreground: 210 33% 96%;
+    --destructive: 356 75% 57%;
+    --destructive-foreground: 210 33% 96%;
+    --success: 152 61% 46%;
+    --success-foreground: 152 76% 94%;
+    --warning: 37 92% 60%;
+    --warning-foreground: 27 100% 14%;
+    --info: 201 89% 68%;
+    --info-foreground: 210 33% 96%;
+    --ring: 217 91% 66%;
+    --surface-subtle: 229 35% 14%;
+    --surface-elevated: 227 32% 18%;
+    --surface-highlight: 225 28% 24%;
+    --chart-1: 201 90% 66%;
+    --chart-2: 154 64% 48%;
+    --chart-3: 37 92% 62%;
+    --chart-4: 268 82% 71%;
+    --chart-5: 12 91% 70%;
+    --color-card-border: hsl(var(--border));
+    --color-card-surface: hsl(var(--card));
+    --color-emerald-200: hsl(var(--success) / 0.28);
+    --color-emerald-50: hsl(var(--success) / 0.14);
+    --color-neutral-900: hsl(var(--foreground));
+    --color-neutral-950: hsl(var(--foreground));
+    --color-neutral-black: hsl(var(--foreground));
+    --color-overlay-navy-soft: hsl(var(--primary) / 0.26);
+    --color-overlay-primary-soft: hsl(var(--primary) / 0.22);
+    --color-overlay-sky-soft: hsl(var(--info) / 0.24);
+    --color-primary-100: hsl(var(--primary) / 0.22);
+    --color-primary-700: hsl(var(--primary));
+    --color-primary-800: hsl(var(--primary));
+    --color-rose-200: hsl(var(--destructive) / 0.32);
+    --color-rose-50: hsl(var(--destructive) / 0.2);
+    --color-rose-500: hsl(var(--destructive));
+    --color-shadow-hot-pink-28: hsl(var(--destructive) / 0.3);
+    --color-shadow-neutral-35: hsl(var(--foreground) / 0.35);
+    --color-sky-600: hsl(var(--info));
+  }
+
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+
+  body {
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased;
+  }
+}
+
+@layer utilities {
+  .surface-shell {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--surface-highlight) / 0.75),
+      transparent 55%
+    );
+  }
+
+  .surface-radial {
+    background-image: radial-gradient(
+      circle at 20% 0%,
+      hsl(var(--primary) / 0.16),
+      transparent 65%
+    );
+  }
+
+  .glass-panel {
+    background-color: hsl(var(--surface-elevated) / 0.85);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border-color: hsl(var(--border) / 0.55);
+  }
+
+  .glass-blur-sm {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .muted-border {
+    border-color: hsl(var(--border) / 0.65);
+  }
+
+  .card-surface {
+    background-color: hsl(var(--card));
+    border-color: hsl(var(--color-card-border));
+    color: hsl(var(--card-foreground));
+  }
+
+  .card-glow {
+    background: radial-gradient(circle, hsl(var(--primary) / 0.2), transparent 65%);
+  }
+
+  .bg-overlay-neutral-white {
+    background-color: hsl(var(--card) / 0.92) !important;
+  }
+
+  .bg-overlay-blue-50 {
+    background-color: hsl(var(--info) / 0.14) !important;
+  }
+
+  .bg-overlay-rose-50 {
+    background-color: hsl(var(--destructive) / 0.16) !important;
+  }
+
+  .bg-overlay-slate-50 {
+    background-color: hsl(var(--muted) / 0.85) !important;
+  }
+
+  .bg-overlay-slate-900 {
+    background-color: hsl(var(--background) / 0.85) !important;
+  }
+
+  .text-overlay-amber-500 {
+    color: hsl(var(--warning)) !important;
+  }
+
+  .text-overlay-blue-500 {
+    color: hsl(var(--info)) !important;
+  }
+
+  .text-overlay-red-600 {
+    color: hsl(var(--destructive)) !important;
+  }
+
+  .text-overlay-slate-600 {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .border-overlay-amber-500 {
+    border-color: hsl(var(--warning)) !important;
+  }
+
+  .border-overlay-blue-200 {
+    border-color: hsl(var(--info)) !important;
+  }
+
+  .border-overlay-emerald-100 {
+    border-color: hsl(var(--success)) !important;
+  }
+
+  .border-overlay-neutral-white {
+    border-color: hsl(var(--card)) !important;
+  }
+
+  .border-overlay-rose-100,
+  .border-overlay-rose-200 {
+    border-color: hsl(var(--destructive)) !important;
+  }
+
+  .border-overlay-slate-100,
+  .border-overlay-slate-200,
+  .border-overlay-slate-300 {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .hover\:bg-overlay-blue-50:hover {
+    background-color: hsl(var(--info) / 0.16) !important;
+  }
+
+  .hover\:bg-overlay-neutral-white:hover {
+    background-color: hsl(var(--card) / 0.92) !important;
+  }
+
+  .hover\:border-overlay-neutral-white:hover {
+    border-color: hsl(var(--card)) !important;
+  }
+}
