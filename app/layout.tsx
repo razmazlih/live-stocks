@@ -1,7 +1,8 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { AppProvider } from '@/lib/context';
-import { Toaster } from '@/components/ui/sonner';
+import "../styles/globals.css";
+import type { Metadata } from "next";
+import Providers from "./providers";
+import { AppProvider } from "@/lib/context";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: 'Stocks Status',
@@ -17,12 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="he" dir="rtl">
-      <body className="font-sans">
-        <AppProvider>
-          {children}
-          <Toaster />
-        </AppProvider>
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <body className="font-sans antialiased">
+        <Providers>
+          <AppProvider>
+            {children}
+            <Toaster />
+          </AppProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -26,6 +26,7 @@ Live Stocks היא אפליקציית לוח מחוונים מתקדמת לני�
 - [סקריפטים שימושיים](#סקריפטים-שימושיים)
 - [עקרונות עיצוב ופיתוח](#עקרונות-עיצוב-ופיתוח)
 - [תחזוקה ושגרת עבודה](#תחזוקה-ושגרת-עבודה)
+- [ניהול Theme וטוקנים](#ניהול-theme-וטוקנים)
 - [נושאים להמשך פיתוח](#נושאים-להמשך-פיתוח)
 
 ## מבוא
@@ -233,6 +234,16 @@ supabase/
    - שגיאות התחברות ל-Supabase → בדקו שהשירות רץ (`npx supabase status`) וה-URL בקובץ `.env.local` תקין.
    - נתונים חיים לא נטענים → ודאו שטוקן Finnhub מוגדר גם במשתנה הסביבה וגם בטבלת `settings`.
    - שגיאות TypeScript → הריצו `npm run typecheck` וקראו את ההודעות המפורטות (חלקן מגיעות מהטייפים ב-`types/`).
+
+## ניהול Theme וטוקנים
+מצב כהה/בהיר מנוהל באמצעות [`next-themes`](https://github.com/pacocoursey/next-themes) ו-`ThemeProvider` המוזרק ב-`app/layout.tsx`. ה-provider מוסיף את המחלקה `class="dark"` ל-`<html>` ומונע FOUC בעזרת `suppressHydrationWarning` ו-`disableTransitionOnChange`. כל הצבעים בפרויקט מבוססים על טוקנים ב-`styles/globals.css` וממופים ל-HSL, כך שניתן לערבב שקיפויות באמצעות `hsl(var(--token) / α)` או `color-mix`. טוקנים קיימים מספקים בסיס למשטחים (`--background`, `--card`), טיפוגרפיה (`--foreground`, `--muted-foreground`), מצבים (`--success`, `--danger`, `--info`) וצבעי צד ג'.
+
+כדי להוסיף טוקן חדש:
+1. הוסיפו משתנה תחת `:root` וגרסת `.dark` עם ערך HSL.
+2. אם הטוקן מיועד למחלקות Tailwind קיימות (למשל `text-blue-600`), ודאו שה-utility המתאים ב-`@layer utilities` מחזיר את אותו משתנה.
+3. השתמשו ברכיבים ייעודיים באמצעות `hsl(var(--token))` או `color-mix` במקום HEX.
+
+בדיקה אוטומטית זמינה דרך `npm run scan:colors`, שמוודא שלא נשארו ערכי HEX ישירים בקבצי `app/`, `components/` ו-`styles/`.
 
 ## נושאים להמשך פיתוח
 - השלמת seed נתונים לדוגמה עבור onboarding מהיר.

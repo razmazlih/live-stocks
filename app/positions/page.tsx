@@ -339,7 +339,7 @@ export default function PositionsPage() {
       key: "pending-plans",
       icon: CalendarClock,
       label: `${t.positions.planStatusPending}: ${formatNumber(pendingPlansCount, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      className: "bg-[var(--color-neutral-white)]/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
     {
@@ -353,7 +353,7 @@ export default function PositionsPage() {
       key: "detached-plans",
       icon: GitBranch,
       label: `${t.positions.overviewDetachedPlans}: ${formatNumber(activeDetachedPlans.length, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      className: "bg-[var(--color-neutral-white)]/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
   ];
@@ -1076,7 +1076,7 @@ export default function PositionsPage() {
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[var(--color-blue-200)]/60 blur-3xl" />
           <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-6">
               <div className="flex items-start gap-3">
@@ -1181,7 +1181,7 @@ export default function PositionsPage() {
                   }
                   className="mt-2 grid gap-2 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                     <RadioGroupItem
                       value="bank_one"
                       id="position-location-one"
@@ -1196,7 +1196,7 @@ export default function PositionsPage() {
                       {t.positions.bankOneHelper}
                     </span>
                   </label>
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                     <RadioGroupItem
                       value="bank_two"
                       id="position-location-two"
@@ -1214,7 +1214,7 @@ export default function PositionsPage() {
                 </RadioGroup>
               </div>
               {isEditing && editingPosition ? (
-                <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
+                <div className="rounded-lg border border-slate-200 bg-[var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
                   <p className="font-semibold text-slate-700">
                     {t.positions.currentHolding}
                   </p>
@@ -1239,7 +1239,7 @@ export default function PositionsPage() {
                       }
                       className="mt-2 grid gap-2 sm:grid-cols-2"
                     >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                         <RadioGroupItem
                           value="immediate"
                           id="position-mode-immediate"
@@ -1252,7 +1252,7 @@ export default function PositionsPage() {
                           {t.positions.planModeImmediateDescription}
                         </span>
                       </label>
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                         <RadioGroupItem
                           value="plan"
                           id="position-mode-plan"
@@ -1336,7 +1336,7 @@ export default function PositionsPage() {
                           />
                         </div>
                       </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[var(--color-slate-50)]/70 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <Label
@@ -1457,7 +1457,7 @@ export default function PositionsPage() {
                           />
                         </div>
                       </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[var(--color-slate-50)]/70 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <Label
@@ -1630,7 +1630,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[var(--color-slate-50)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label
@@ -1708,7 +1708,7 @@ export default function PositionsPage() {
             </DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
               {planContextPosition ? (
-                <div className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3 text-xs text-slate-600">
+                <div className="rounded-md border border-slate-200 bg-[var(--color-slate-50)]/70 p-3 text-xs text-slate-600">
                   <p className="font-semibold text-slate-700">
                     {planContextPosition.display}
                   </p>
@@ -1744,7 +1744,7 @@ export default function PositionsPage() {
                     }
                     className="mt-2 grid gap-2 sm:grid-cols-2"
                   >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem
                         value="bank_one"
                         id="plan-location-one"
@@ -1759,7 +1759,7 @@ export default function PositionsPage() {
                         {t.positions.bankOneHelper}
                       </span>
                     </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                       <RadioGroupItem
                         value="bank_two"
                         id="plan-location-two"
@@ -1789,7 +1789,7 @@ export default function PositionsPage() {
                   }
                   className="mt-2 grid gap-2 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
                     <RadioGroupItem
                       value="buy"
                       id="plan-side-buy"
@@ -1803,7 +1803,7 @@ export default function PositionsPage() {
                     </span>
                   </label>
                   <label
-                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm ${
+                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3 text-sm ${
                       canSelectSell ? "text-slate-600" : "text-slate-400"
                     }`}
                   >
@@ -1932,7 +1932,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[var(--color-slate-50)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label
@@ -2044,7 +2044,7 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
+                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[var(--color-slate-50)]/70 p-3"
                         >
                           <span
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}
@@ -2110,7 +2110,7 @@ export default function PositionsPage() {
 
         <main className="mt-10 space-y-10">
           <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[var(--color-blue-100)]/50 blur-3xl" />
             <div className="relative z-10">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -2124,7 +2124,7 @@ export default function PositionsPage() {
                 {overviewStats.map(({ key, label, value, icon: Icon }) => (
                   <Card
                     key={key}
-                    className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner"
+                    className="border-none bg-[var(--color-neutral-white)]/90 shadow-inner"
                   >
                     <CardContent className="flex items-center gap-3 p-4">
                       <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
@@ -2146,7 +2146,7 @@ export default function PositionsPage() {
           </section>
 
           <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[var(--color-blue-100)]/40 blur-3xl" />
             <div className="relative z-10">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
                 <div className="space-y-4">
@@ -2157,7 +2157,7 @@ export default function PositionsPage() {
                       </CardContent>
                     </Card>
                   ) : positions.length === 0 ? (
-                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                    <Card className="border border-dashed border-slate-300 bg-[var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
                       <CardContent className="flex flex-col items-center gap-4 py-12">
                         <p className="text-base font-semibold text-slate-700">
                           {t.dashboard.noPositions}
@@ -2203,7 +2203,7 @@ export default function PositionsPage() {
                         return (
                           <Card
                             key={position.id ?? position.symbol}
-                            className="group rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                            className="group rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[var(--color-neutral-white)]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                           >
                             <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-center gap-3">
@@ -2328,8 +2328,8 @@ export default function PositionsPage() {
                                             : t.positions.sell;
                                         const typeBadgeClass =
                                           lot.type === "BUY"
-                                            ? "bg-[color:var(--color-emerald-500)]/10 text-emerald-600"
-                                            : "bg-[color:var(--color-rose-500)]/10 text-rose-600";
+                                            ? "bg-[var(--color-emerald-500)]/10 text-emerald-600"
+                                            : "bg-[var(--color-rose-500)]/10 text-rose-600";
                                         const commissionApplied =
                                           lot.hasCommission &&
                                           lot.commissionAmount > 0;
@@ -2422,8 +2422,8 @@ export default function PositionsPage() {
                                           planStatusLabels[plan.status];
                                         const sideBadgeClass =
                                           plan.side === "sell"
-                                            ? "bg-[color:var(--color-rose-500)]/10 text-rose-600"
-                                            : "bg-[color:var(--color-emerald-500)]/10 text-emerald-600";
+                                            ? "bg-[var(--color-rose-500)]/10 text-rose-600"
+                                            : "bg-[var(--color-emerald-500)]/10 text-emerald-600";
                                         const sideLabel =
                                           plan.side === "sell"
                                             ? t.positions.planSideSellShort
@@ -2537,7 +2537,7 @@ export default function PositionsPage() {
                   )}
                 </div>
                 <div className="space-y-4">
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
+                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
                     <CardHeader>
                       <CardTitle>{t.positions.activePlansTitle}</CardTitle>
                       <CardDescription>
@@ -2591,7 +2591,7 @@ export default function PositionsPage() {
                                             plan.id ??
                                             `${position.id}-${plan.symbol}-${plan.targetDate}`
                                           }
-                                          className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                          className="rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3"
                                         >
                                           <div className="flex flex-col gap-2">
                                             <div className="flex flex-wrap items-center gap-2">
@@ -2728,7 +2728,7 @@ export default function PositionsPage() {
                                           plan.id ??
                                           `detached-${plan.symbol}-${plan.targetDate}`
                                         }
-                                        className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                        className="rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3"
                                       >
                                         <div className="flex flex-col gap-2">
                                           <div className="flex flex-wrap items-center gap-2">
@@ -2822,7 +2822,7 @@ export default function PositionsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
+                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
                     <CardHeader>
                       <CardTitle>{t.positions.closedPlansTitle}</CardTitle>
                       <CardDescription>
@@ -2862,7 +2862,7 @@ export default function PositionsPage() {
                                     plan.id ??
                                     `closed-${symbol}-${plan.targetDate}`
                                   }
-                                  className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                  className="rounded-lg border border-slate-200 bg-[var(--color-neutral-white)]/70 p-3"
                                 >
                                   <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">

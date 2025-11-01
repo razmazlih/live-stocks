@@ -60,7 +60,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'Al
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
+  'min-w-[220px] space-y-3 rounded-2xl bg-[var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -311,7 +311,7 @@ function StockDetailSkeleton() {
           <Skeleton className="ml-auto h-4 w-24" />
         </div>
       </div>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -319,7 +319,7 @@ function StockDetailSkeleton() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--color-neutral-white)]/60 p-4">
+              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[var(--color-neutral-white)]/60 p-4">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-5 w-20" />
                 <Skeleton className="h-3 w-32" />
@@ -328,7 +328,7 @@ function StockDetailSkeleton() {
           </div>
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-4 w-64" />
@@ -337,7 +337,7 @@ function StockDetailSkeleton() {
           <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-44" />
         </CardHeader>
@@ -757,7 +757,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                      className="rounded-xl bg-[var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
                     >
                       <div className="flex items-center justify-between font-semibold">
                         <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
@@ -996,7 +996,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </div>
             </div>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">
                   {t.stock.detailView.quickFactsTitle}
@@ -1008,7 +1008,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   {quickFacts.map((fact) => (
                     <div
                       key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
+                      className="rounded-xl border border-slate-100 bg-[var(--color-neutral-white)]/70 p-4 shadow-sm"
                     >
                       <div className="text-xs uppercase tracking-wide text-gray-500">
                         {fact.label}
@@ -1028,7 +1028,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">
@@ -1061,7 +1061,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       {openLots.map((lot) => (
                         <div
                           key={`${lot.id ?? lot.executedAt}-open`}
-                          className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
+                          className="rounded-md border border-slate-200 bg-[var(--color-slate-50)]/70 p-3"
                         >
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span className="font-semibold text-emerald-600">{t.positions.buy}</span>
@@ -1127,7 +1127,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
               <CardHeader className="gap-2">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -1176,7 +1176,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground) / 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           type="number"
@@ -1201,7 +1201,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
-                          cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
+                          cursor={{
+                            stroke: 'color-mix(in srgb, var(--color-primary-500) 25%, transparent)',
+                            strokeWidth: 2,
+                          }}
                           wrapperStyle={{ outline: 'none' }}
                           content={renderTooltip}
                         />
@@ -1215,7 +1218,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             radius={[6, 6, 0, 0]}
-                            fill="rgba(var(--color-primary-400-rgb), 0.18)"
+                            fill="color-mix(in srgb, var(--color-primary-400) 18%, transparent)"
                           />
                         )}
                         <Area

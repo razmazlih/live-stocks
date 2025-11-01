@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import {
   ResponsiveContainer,
   PieChart,
@@ -24,6 +25,7 @@ import { useTranslation } from '@/lib/translations';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
 import { buildPortfolioAllocation, buildPortfolioPnL, formatCurrency, formatPercent } from '@/lib/calculations';
+import { getChartPalette } from '@/lib/theme';
 import { PositionMetrics, PortfolioSummary, PortfolioTimelinePoint } from '@/types';
 
 interface PortfolioVisualizationsProps {
@@ -31,16 +33,6 @@ interface PortfolioVisualizationsProps {
   summary: PortfolioSummary | null;
   timeline: PortfolioTimelinePoint[];
 }
-
-const COLORS = [
-  'var(--color-primary-500)',
-  'var(--color-primary-300)',
-  'var(--color-green-500)',
-  'var(--color-purple-500)',
-  'var(--color-orange-500)',
-  'var(--color-amber-500)',
-  'var(--color-pink-500)',
-];
 
 type TooltipValueType = number | string;
 
@@ -57,7 +49,7 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
   const resolvedLabel = labelFormatter ? labelFormatter(label ?? '') : label;
 
   return (
-    <div className="rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-card-surface)] px-4 py-3 text-sm shadow-xl">
+    <div className="rounded-2xl border border-[color:var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm shadow-xl">
       {resolvedLabel && (
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{resolvedLabel}</p>
       )}
@@ -98,7 +90,7 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
         return (
           <span
             key={legendKey}
-            className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-slate-100)]/70 px-3 py-1"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--color-slate-100)]/70 px-3 py-1"
           >
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
             <span>{entry.value}</span>
@@ -112,6 +104,14 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
 export function PortfolioVisualizations({ metrics, summary, timeline }: PortfolioVisualizationsProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
+  const { resolvedTheme } = useTheme();
+
+  const colors = useMemo(() => {
+    const themeKey = resolvedTheme ?? 'system';
+    void themeKey;
+    return getChartPalette(7);
+  }, [resolvedTheme]);
+  const pickColor = (index: number) => colors[index % colors.length] ?? 'hsl(var(--chart-1))';
 
   const allocationData = useMemo(() => {
     if (!summary) {
@@ -266,7 +266,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
       <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.performanceTrendTitle}
           </CardTitle>
@@ -290,7 +290,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-purple-500)" stopOpacity={0.12} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground) / 0.2)" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -307,7 +307,10 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(var(--color-primary-900-rgb), 0.15)', strokeWidth: 1 }}
+                  cursor={{
+                    stroke: 'color-mix(in srgb, var(--color-primary-900) 15%, transparent)',
+                    strokeWidth: 1,
+                  }}
                   content={
                     <ChartTooltip
                       valueFormatter={areaTooltipFormatter}
@@ -341,7 +344,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
       </Card>
 
       <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
           </CardTitle>
@@ -349,7 +352,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 py-12 text-center text-sm text-[var(--color-slate-500)]">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[var(--color-neutral-white)]/60 py-12 text-center text-sm text-[var(--color-slate-500)]">
               <ArrowUpRight className="h-5 w-5 text-[var(--color-slate-400)]" />
               <p>{t.dashboard.topMoversEmpty}</p>
             </div>
@@ -365,7 +368,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.gainers.map((item, index) => (
                   <div
                     key={`gainer-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[var(--color-neutral-white)]/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                       <ArrowUpRight className="h-5 w-5" />
@@ -385,7 +388,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -401,7 +404,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.losers.map((item, index) => (
                   <div
                     key={`loser-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[var(--color-neutral-white)]/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                       <ArrowDownRight className="h-5 w-5" />
@@ -421,7 +424,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -432,7 +435,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
       </Card>
 
       <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
           </CardTitle>
@@ -458,8 +461,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                       x2="100%"
                       y2="100%"
                     >
-                      <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.95} />
-                      <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.6} />
+                      <stop offset="0%" stopColor={pickColor(index)} stopOpacity={0.95} />
+                      <stop offset="100%" stopColor={pickColor(index)} stopOpacity={0.6} />
                     </linearGradient>
                     );
                   })}
@@ -497,7 +500,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
       </Card>
 
       <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.pnlChart}
           </CardTitle>
@@ -521,7 +524,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.25)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground) / 0.25)" />
                 <XAxis
                   dataKey="symbol"
                   tickLine={false}
@@ -558,7 +561,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
       </Card>
 
       <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.holdingPeriodTitle}
           </CardTitle>
@@ -566,7 +569,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasHoldingData ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 text-sm text-[var(--color-slate-500)]">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[var(--color-neutral-white)]/60 text-sm text-[var(--color-slate-500)]">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -580,7 +583,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                         <stop offset="100%" stopColor="var(--color-primary-500)" stopOpacity={0.55} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground) / 0.2)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}
@@ -614,7 +617,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {holdingPeriodData.map((bucket) => (
                   <div
                     key={bucket.key}
-                    className="rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner"
+                    className="rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[var(--color-neutral-white)]/70 p-4 shadow-inner"
                   >
                     <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-slate-500)]">{bucket.label}</p>
                     <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">

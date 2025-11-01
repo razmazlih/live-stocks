@@ -378,7 +378,7 @@ export function TickerCard({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
+        <div className="rounded-2xl border border-overlay-slate-100 bg-[var(--color-slate-50)]/70 p-2.5 sm:p-3">
           {loading ? (
             <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
               {loadingLabel}
@@ -416,7 +416,7 @@ export function TickerCard({
         </div>
 
         {ticker.note ? (
-          <div className="rounded-xl border border-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
+          <div className="rounded-xl border border-slate-100 bg-[var(--color-slate-50)]/70 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
             <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>

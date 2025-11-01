@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scan:colors": "grep -RInE \"#[0-9a-fA-F]{3,6}\\b\" app components styles || true"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

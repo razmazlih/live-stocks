@@ -180,7 +180,7 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+    <div className="w-72 rounded-2xl border border-slate-200 bg-[var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         <span>{labels.at}</span>
         <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
@@ -547,7 +547,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
   return (
     <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
+      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[var(--color-neutral-white)]/70">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -555,7 +555,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+          <div className="rounded-3xl border border-overlay-slate-200 bg-[var(--color-neutral-white)]/85 p-6 shadow-lg">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
@@ -700,7 +700,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--muted-foreground) / 0.22)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -723,7 +723,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
+                    cursor={{
+                      strokeDasharray: '4 6',
+                      stroke: 'color-mix(in srgb, var(--color-indigo-600) 35%, transparent)',
+                      strokeWidth: 1.25,
+                    }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,7 +745,12 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine
+                    y={0}
+                    stroke="color-mix(in srgb, var(--color-indigo-600) 45%, transparent)"
+                    strokeDasharray="1 6"
+                    strokeWidth={2}
+                  />
                   <Line
                     type="monotone"
                     dataKey="netValue"

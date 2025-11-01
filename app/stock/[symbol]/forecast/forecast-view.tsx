@@ -320,7 +320,7 @@ function getQuantileValue(model: NormalizedForecastModel | null | undefined, key
 function ForecastSkeleton() {
   return (
     <div className="space-y-6">
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -329,7 +329,7 @@ function ForecastSkeleton() {
           <Skeleton className="h-72 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-72" />
@@ -435,7 +435,7 @@ function ForecastChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 p-3 shadow-xl backdrop-blur">
+    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[var(--color-neutral-white)]/95 p-3 shadow-xl backdrop-blur">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
       <div className="mt-2 space-y-1">
         {items.map((item) => (
@@ -1041,7 +1041,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.pricePoint}</p>
                       <p className="mt-2 text-2xl font-semibold text-slate-900">
                         {typeof summaryPricePoint === 'number'
@@ -1049,7 +1049,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP10}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryPriceP10 === 'number'
@@ -1057,7 +1057,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP90}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryPriceP90 === 'number'
@@ -1065,7 +1065,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.probabilityUp}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryProbabilityUp === 'number'
@@ -1073,7 +1073,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.quality}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryQuality === 'number' ? qualityFormatter.format(summaryQuality) : '—'}
@@ -1105,7 +1105,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                               <stop offset="100%" stopColor="var(--color-primary-800)" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(var(--color-slate-400-rgb), 0.35)" />
+                          <CartesianGrid strokeDasharray="6 8" stroke="hsl(var(--muted-foreground) / 0.35)" />
                           <XAxis
                             dataKey="timestamp"
                             type="number"
@@ -1141,7 +1141,10 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           ) : null}
                           <Tooltip
                             content={renderTooltip}
-                            cursor={{ stroke: 'rgba(var(--color-slate-400-rgb), 0.45)', strokeDasharray: '4 4' }}
+                            cursor={{
+                              stroke: 'hsl(var(--muted-foreground) / 0.45)',
+                              strokeDasharray: '4 4',
+                            }}
                           />
                           <Legend wrapperStyle={{ paddingTop: 12 }} />
                           {hasHistorical ? (
@@ -1260,7 +1263,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                     {groupedRows.map((group) => (
                       <div
                         key={group.horizon}
-                        className="space-y-4 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
+                        className="space-y-4 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[var(--color-neutral-white)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>

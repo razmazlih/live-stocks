@@ -409,13 +409,13 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[var(--color-slate-50)]/70 p-3 sm:p-4">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  baselineColor="hsl(var(--muted-foreground) / 0.4)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -492,7 +492,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
                 <Badge
                   variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-[color:var(--color-neutral-white)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                  className={`flex items-center gap-1 rounded-full border-0 bg-[var(--color-neutral-white)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
                 >
                   {dailyChangeIcon}
                   <span>{t.dashboard.dailyChange}</span>
@@ -516,7 +516,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-overlay-slate-100 bg-[var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.current}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -536,7 +536,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-overlay-slate-100 bg-[var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.projected}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -558,13 +558,13 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
+              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[var(--color-slate-50)]/70 p-3 sm:p-4">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  baselineColor="hsl(var(--muted-foreground) / 0.4)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
