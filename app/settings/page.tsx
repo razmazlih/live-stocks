@@ -42,15 +42,15 @@ export default function SettingsPage() {
       key: "currency",
       icon: CircleDollarSign,
       label: `${t.settings.currency}: ${formData.currency}`,
-      className: "bg-blue-50 text-blue-600",
-      iconClassName: "text-blue-500",
+      className: "bg-overlay-blue-50 text-info",
+      iconClassName: "text-info",
     },
     {
       key: "refresh",
       icon: RefreshCw,
       label: `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
-      iconClassName: "text-slate-500",
+      className: "bg-[hsl(var(--card))]/70 text-muted-foreground",
+      iconClassName: "text-muted-foreground",
     },
     {
       key: "market",
@@ -59,9 +59,9 @@ export default function SettingsPage() {
         ? t.settings.refreshIntervalActive
         : t.settings.refreshIntervalInactive,
       className: marketOpen
-        ? "bg-emerald-50 text-emerald-600"
-        : "bg-slate-100 text-slate-600",
-      iconClassName: marketOpen ? "text-emerald-500" : "text-slate-500",
+        ? "bg-success/15 text-success"
+        : "bg-[hsl(var(--muted))] text-muted-foreground",
+      iconClassName: marketOpen ? "text-success" : "text-muted-foreground",
     },
     {
       key: "token",
@@ -74,9 +74,9 @@ export default function SettingsPage() {
           ? "אין מפתח Finnhub"
           : "Finnhub token missing",
       className: tokenConfigured
-        ? "bg-emerald-50 text-emerald-600"
-        : "bg-rose-50 text-rose-600",
-      iconClassName: tokenConfigured ? "text-emerald-500" : "text-rose-500",
+        ? "bg-success/15 text-success"
+        : "bg-overlay-rose-50 text-destructive",
+      iconClassName: tokenConfigured ? "text-success" : "text-destructive",
     },
   ];
 
@@ -169,33 +169,33 @@ export default function SettingsPage() {
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-          <div className="pointer-events-none absolute -right-10 top-0 h-44 w-44 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+        <header className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+          <div className="pointer-events-none absolute -right-10 top-0 h-44 w-44 rounded-full bg-[hsl(var(--info) / 0.26)]/60 blur-3xl" />
           <div className="relative z-10 space-y-6">
             <Link href="/" className="inline-flex">
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 rounded-full bg-[color:var(--color-neutral-white)]/80 px-3 text-slate-600 shadow-sm hover:text-slate-800"
+                className="gap-2 rounded-full bg-[hsl(var(--card))]/80 px-3 text-muted-foreground shadow-sm hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {locale === "he" ? "חזרה" : "Back"}
               </Button>
             </Link>
             <div className="flex items-start gap-3">
-              <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+              <div className="rounded-2xl bg-[hsl(var(--info) / 0.18)] p-3 text-info shadow-inner">
                 <SettingsIcon className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">
+                <h1 className="text-3xl font-bold text-[hsl(var(--primary))] sm:text-4xl">
                   {t.settings.title}
                 </h1>
-                <p className="mt-2 max-w-xl text-base text-slate-600">
+                <p className="mt-2 max-w-xl text-base text-muted-foreground">
                   {t.app.subtitle}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
               {headerMetaBadges.map((badge) => {
                 const Icon = badge.icon;
                 return (
@@ -216,8 +216,8 @@ export default function SettingsPage() {
         </header>
 
         <main className="mt-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-52 w-52 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+          <section className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -left-16 top-0 h-52 w-52 rounded-full bg-[hsl(var(--info) / 0.18)]/50 blur-3xl" />
             <div className="relative z-10">
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid gap-6 md:grid-cols-2">
@@ -239,7 +239,7 @@ export default function SettingsPage() {
                         })
                       }
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {locale === "he"
                         ? "ערך בין 0 ל-1 (לדוגמה: 0.05 = 5%)"
                         : "Value between 0 and 1 (e.g., 0.05 = 5%)"}
@@ -278,10 +278,10 @@ export default function SettingsPage() {
                     readOnly
                     disabled
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {t.settings.refreshIntervalDescription}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {marketOpen
                       ? t.settings.refreshIntervalActive
                       : t.settings.refreshIntervalInactive}
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                     }
                     placeholder="Enter your Finnhub API token"
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {locale === "he"
                       ? "ניתן להשיג מפתח בחינם מ-"
                       : "Get a free token from "}
@@ -309,7 +309,7 @@ export default function SettingsPage() {
                       href="https://finnhub.io"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[var(--color-primary-400)] hover:underline"
+                      className="text-[hsl(var(--primary))] hover:underline"
                     >
                       finnhub.io
                     </a>

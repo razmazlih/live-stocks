@@ -60,7 +60,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'Al
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
+  'min-w-[220px] space-y-3 rounded-2xl bg-[hsl(var(--foreground))]/95 p-4 text-sm text-muted-foreground shadow-xl ring-1 ring-[var(--color-neutral-black)]/20 backdrop-blur';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -198,7 +198,7 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
   }
 
   const isBuy = payload.type === 'BUY';
-  const fill = isBuy ? 'var(--color-green-300)' : 'var(--color-red-500)';
+  const fill = isBuy ? 'hsl(var(--success))' : 'hsl(var(--destructive))';
   const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
 
   return (
@@ -311,7 +311,7 @@ function StockDetailSkeleton() {
           <Skeleton className="ml-auto h-4 w-24" />
         </div>
       </div>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[hsl(var(--card))]/70 border border-[hsl(var(--card))]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -319,7 +319,7 @@ function StockDetailSkeleton() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--color-neutral-white)]/60 p-4">
+              <div key={index} className="space-y-2 rounded-lg border border-border bg-[hsl(var(--card))]/60 p-4">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-5 w-20" />
                 <Skeleton className="h-3 w-32" />
@@ -328,7 +328,7 @@ function StockDetailSkeleton() {
           </div>
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[hsl(var(--card))]/70 border border-[hsl(var(--card))]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-4 w-64" />
@@ -337,7 +337,7 @@ function StockDetailSkeleton() {
           <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[hsl(var(--card))]/70 border border-[hsl(var(--card))]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-44" />
         </CardHeader>
@@ -719,27 +719,27 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
       return (
         <div className={TOOLTIP_CONTAINER_CLASS}>
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{dateLabel}</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{dateLabel}</div>
           {priceEntry && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t.stock.detailView.chartPriceLabel}</span>
-              <span className="font-semibold text-slate-50">
+              <span className="text-muted-foreground">{t.stock.detailView.chartPriceLabel}</span>
+              <span className="font-semibold text-[hsl(var(--card-foreground))]">
                 {formatDualCurrency(priceEntry.value as number)}
               </span>
             </div>
           )}
           {showVolume && volumeEntry && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t.stock.detailView.tooltip.volume}</span>
-              <span className="font-semibold text-slate-50">{formatVolume(volumeEntry.value as number)}</span>
+              <span className="text-muted-foreground">{t.stock.detailView.tooltip.volume}</span>
+              <span className="font-semibold text-[hsl(var(--card-foreground))]">{formatVolume(volumeEntry.value as number)}</span>
             </div>
           )}
           <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t.stock.detailView.tooltip.tradesHeading}
             </div>
             {tradesForDay.length === 0 ? (
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {t.stock.detailView.tooltip.noTrades}
               </div>
             ) : (
@@ -757,13 +757,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                      className="rounded-xl bg-[hsl(var(--foreground))]/60 px-3 py-2 text-xs leading-5 text-muted-foreground"
                     >
                       <div className="flex items-center justify-between font-semibold">
-                        <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
-                        <span className="text-slate-300">{timeLabel}</span>
+                        <span className={isBuy ? 'text-success' : 'text-destructive'}>{tradeLabel}</span>
+                        <span className="text-muted-foreground">{timeLabel}</span>
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-200">
+                      <div className="mt-1 text-[11px] text-muted-foreground">
                         {`${formatDualCurrency(trade.tradePrice)} · ${quantityLabel}: ${formatNumber(
                           trade.quantity,
                           locale
@@ -794,9 +794,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const totalGainClass =
     metrics && totalGainUsd !== 0
       ? totalGainUsd > 0
-        ? 'text-emerald-600'
-        : 'text-rose-600'
-      : 'text-slate-600';
+        ? 'text-success'
+        : 'text-destructive'
+      : 'text-muted-foreground';
   const holdingPeriodLabel = metrics ? buildHoldingPeriodLabel(metrics.yearsHeld, t, locale) : '--';
   const dailyChangeDisplay =
     dailyChangeValue !== undefined ? formatDualCurrency(dailyChangeValue) : '--';
@@ -804,10 +804,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     dailyChangePercent !== undefined ? formatPercent(dailyChangePercent, locale) : '--';
   const dailyChangeClass =
     dailyChangeValue === undefined
-      ? 'text-slate-500'
+      ? 'text-muted-foreground'
       : dailyChangeValue >= 0
-        ? 'text-emerald-600'
-        : 'text-rose-600';
+        ? 'text-success'
+        : 'text-destructive';
 
   const quickFacts = metrics
     ? [
@@ -851,7 +851,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[hsl(var(--primary) / 0.18)] to-[hsl(var(--primary) / 0.02)]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex items-center justify-between">
           <Link href="/">
@@ -861,7 +861,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </Button>
           </Link>
           {historicalLoading && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RefreshCcw className="h-4 w-4 animate-spin" />
               {t.common.loading}
             </div>
@@ -871,7 +871,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         {loading ? (
           <StockDetailSkeleton />
         ) : error ? (
-          <Card className="bg-overlay-neutral-white border border-red-200 text-red-700">
+          <Card className="bg-overlay-neutral-white border border-[hsl(var(--destructive) / 0.3)] text-destructive">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
               <div className="text-sm text-overlay-red-600">{error}</div>
@@ -881,8 +881,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </CardContent>
           </Card>
         ) : !position || !metrics ? (
-          <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60">
-            <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
+          <Card className="bg-overlay-neutral-white border border-[hsl(var(--card))]/60">
+            <CardContent className="flex items-center justify-center py-20 text-sm text-muted-foreground">
               {t.stock.detailView.states.empty}
             </CardContent>
           </Card>
@@ -891,15 +891,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             <div className="flex flex-col gap-4 rounded-2xl bg-overlay-neutral-white p-6 shadow-md backdrop-blur">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
+                  <Avatar className="h-16 w-16 rounded-full border-2 border-[hsl(var(--card))] shadow-sm">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    <AvatarFallback className="bg-[hsl(var(--info) / 0.18)] text-info font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{position.display}</h1>
+                      <h1 className="text-3xl font-bold text-[hsl(var(--primary))]">{position.display}</h1>
                       <Badge variant="secondary" className="text-sm uppercase">
                         {position.symbol}
                       </Badge>
@@ -912,23 +912,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         />
                       ))}
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                       <span>
                         {t.dashboard.quantity}{' '}
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-foreground">
                           {formatNumber(position.quantity, locale)}
                         </span>
                       </span>
                       <span>
                         {t.dashboard.entryPrice}{' '}
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-foreground">
                           {formatDualCurrency(position.entryPrice)}
                         </span>
                       </span>
                       <span className="inline-flex flex-wrap items-center gap-2">
                         {t.positions.locationLabel}
                         {badgeLocations.length === 0 && (
-                          <span className="font-medium text-gray-400">--</span>
+                          <span className="font-medium text-muted-foreground">--</span>
                         )}
                         {badgeLocations.length > 0 && locationBreakdowns.length === 0 && position && (
                           <span className="inline-flex items-center gap-1">
@@ -937,7 +937,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               locale={locale}
                               size="sm"
                             />
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-foreground">
                               {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                             </span>
                           </span>
@@ -949,7 +949,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               className="inline-flex items-center gap-1"
                             >
                               <BankBadge bank={breakdown.location} locale={locale} size="sm" />
-                              <span className="font-medium text-gray-900">
+                              <span className="font-medium text-foreground">
                                 {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                               </span>
                             </span>
@@ -957,19 +957,19 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </span>
                       <span>
                         {t.dashboard.since}{' '}
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-foreground">
                           {formatDate(position.entryDate, locale)}
                         </span>
                       </span>
                     </div>
                     {locationBreakdowns.length > 1 && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                         {locationBreakdowns.map((breakdown) => (
                           <div
                             key={`${breakdown.location}-breakdown`}
-                            className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
+                            className="flex items-center gap-2 rounded-full bg-[hsl(var(--muted))] px-3 py-1"
                           >
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-foreground">
                               {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                             </span>
                             <span>
@@ -982,8 +982,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
-                  <div className="text-3xl font-semibold text-[var(--color-primary-900)]">
+                  <div className="text-sm text-muted-foreground">{t.stock.priceToday}</div>
+                  <div className="text-3xl font-semibold text-[hsl(var(--primary))]">
                     {formatUsdCurrency(metrics.currentPrice)}
                   </div>
                   <div className={cn('text-sm font-medium', dailyChangeClass)}>
@@ -996,24 +996,24 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </div>
             </div>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[hsl(var(--card))]/85 border border-[hsl(var(--card))]/60 shadow-xl">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">
+                <CardTitle className="text-lg font-semibold text-foreground">
                   {t.stock.detailView.quickFactsTitle}
                 </CardTitle>
-                <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
+                <p className="text-sm text-muted-foreground">{t.stock.detailView.quickFactsSubtitle}</p>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {quickFacts.map((fact) => (
                     <div
                       key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
+                      className="rounded-xl border border-border bg-[hsl(var(--card))]/70 p-4 shadow-sm"
                     >
-                      <div className="text-xs uppercase tracking-wide text-gray-500">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
                         {fact.label}
                       </div>
-                      <div className={cn('mt-2 text-lg font-semibold text-slate-900', fact.accentClass)}>
+                      <div className={cn('mt-2 text-lg font-semibold text-foreground', fact.accentClass)}>
                         {fact.value}
                       </div>
                       {fact.secondary && (
@@ -1021,53 +1021,53 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           {fact.secondary}
                         </div>
                       )}
-                      <p className="mt-2 text-xs text-gray-500">{fact.helper}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{fact.helper}</p>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[hsl(var(--card))]/85 border border-[hsl(var(--card))]/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
+                  <CardTitle className="text-lg font-semibold text-foreground">
                     {t.positions.transactionsTitle}
                   </CardTitle>
-                  <p className="text-sm text-gray-500">{t.stock.detailView.transactionsHelper}</p>
+                  <p className="text-sm text-muted-foreground">{t.stock.detailView.transactionsHelper}</p>
                 </div>
-                <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-3">
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.quantity}</div>
-                    <div className="font-medium text-gray-900">{formatNumber(position.quantity, locale)}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{t.dashboard.quantity}</div>
+                    <div className="font-medium text-foreground">{formatNumber(position.quantity, locale)}</div>
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.entryPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDualCurrency(position.entryPrice)}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{t.dashboard.entryPrice}</div>
+                    <div className="font-medium text-foreground">{formatDualCurrency(position.entryPrice)}</div>
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.weightedProjectedPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDualCurrency(metrics.projectedPrice)}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{t.dashboard.weightedProjectedPrice}</div>
+                    <div className="font-medium text-foreground">{formatDualCurrency(metrics.projectedPrice)}</div>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm text-gray-600">
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
                 {openLots.length > 0 ? (
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {t.positions.currentHolding}
                     </div>
                     <div className="mt-2 grid gap-3 md:grid-cols-2">
                       {openLots.map((lot) => (
                         <div
                           key={`${lot.id ?? lot.executedAt}-open`}
-                          className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
+                          className="rounded-md border border-border bg-[hsl(var(--muted) / 0.85)]/70 p-3"
                         >
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <span className="font-semibold text-emerald-600">{t.positions.buy}</span>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="font-semibold text-success">{t.positions.buy}</span>
                             <span>{formatDate(lot.executedAt, locale)}</span>
                           </div>
-                          <div className="mt-2 text-sm font-medium text-gray-900">
+                          <div className="mt-2 text-sm font-medium text-foreground">
                             {formatNumber(lot.quantity, locale)} · {formatDualCurrency(lot.price)}
                           </div>
                         </div>
@@ -1075,7 +1075,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-gray-500">
+                  <div className="rounded-md border border-dashed border-border bg-[hsl(var(--muted))] p-4 text-xs text-muted-foreground">
                     {t.positions.noTransactions}
                   </div>
                 )}
@@ -1094,7 +1094,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </TableHeader>
                   <TableBody>
                     {transactions.map((lot) => {
-                          const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+                          const badgeTone = lot.type === 'BUY' ? 'bg-success/20 text-success' : 'bg-overlay-rose-50 text-destructive';
                           const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
                           return (
                         <TableRow key={`${lot.id}-${lot.executedAt}`}>
@@ -1107,14 +1107,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             {formatNumber(lot.quantity, locale)}
                           </TableCell>
                           <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
-                          <TableCell className="text-right text-xs text-gray-500">
+                          <TableCell className="text-right text-xs text-muted-foreground">
                             {lot.hasCommission && lot.commissionAmount > 0
                               ? t.positions.transactionCommissionShort(
                                   formatDualCurrency(lot.commissionAmount),
                                 )
                               : t.positions.transactionCommissionWaived}
                           </TableCell>
-                          <TableCell className="text-right text-xs text-gray-500">
+                          <TableCell className="text-right text-xs text-muted-foreground">
                             {formatDate(lot.executedAt, locale)}
                           </TableCell>
                         </TableRow>
@@ -1127,14 +1127,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[hsl(var(--card))]/85 border border-[hsl(var(--card))]/60 shadow-xl">
               <CardHeader className="gap-2">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
+                    <CardTitle className="text-lg font-semibold text-foreground">
                       {t.stock.detailView.chartTitle}
                     </CardTitle>
-                    <p className="text-sm text-gray-500">{t.stock.detailView.chartSubtitle}</p>
+                    <p className="text-sm text-muted-foreground">{t.stock.detailView.chartSubtitle}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap gap-2">
@@ -1150,7 +1150,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </Button>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Switch checked={showVolume} onCheckedChange={setShowVolume} id="volume-toggle" />
                       <label htmlFor="volume-toggle" className="cursor-pointer">
                         {t.stock.detailView.showVolume}
@@ -1163,7 +1163,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 {historicalLoading ? (
                   <Skeleton className="h-80 w-full" />
                 ) : chartData.length === 0 ? (
-                  <div className="flex h-80 items-center justify-center text-sm text-gray-500">
+                  <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
                     {t.stock.historyUnavailable}
                   </div>
                 ) : (
@@ -1173,10 +1173,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         <defs>
                           <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.45} />
-                            <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
+                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground) / 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           type="number"
@@ -1186,7 +1186,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={12}
                           minTickGap={24}
-                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                           tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
                         />
                         <YAxis
@@ -1197,11 +1197,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           axisLine={false}
                           tickMargin={8}
                           padding={{ top: 12, bottom: 12 }}
-                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
-                          cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
+                          cursor={{ stroke: 'hsl(var(--primary) / 0.25)', strokeWidth: 2 }}
                           wrapperStyle={{ outline: 'none' }}
                           content={renderTooltip}
                         />
@@ -1215,7 +1215,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             radius={[6, 6, 0, 0]}
-                            fill="rgba(var(--color-primary-400-rgb), 0.18)"
+                            fill="hsl(var(--primary) / 0.18)"
                           />
                         )}
                         <Area
@@ -1224,7 +1224,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           yAxisId="price"
                           stroke="var(--color-primary-700)"
                           strokeWidth={2.75}
-                          activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
+                          activeDot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
                           fill="url(#priceGradient)"
                           name={t.stock.detailView.chartPriceLabel}
                         />
@@ -1241,7 +1241,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </ResponsiveContainer>
                   </div>
                 )}
-                <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
+                <p className="mt-4 text-xs text-muted-foreground">{t.stock.detailView.chartHelper}</p>
               </CardContent>
             </Card>
 

@@ -35,9 +35,9 @@ type GradientStop = {
 };
 
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
-  loss: 'var(--color-red-450)',
-  under: 'var(--color-primary-300)',
-  above: 'var(--color-green-500)',
+  loss: 'hsl(var(--destructive))',
+  under: 'hsl(var(--primary) / 0.24)',
+  above: 'hsl(var(--success))',
 };
 
 const resolveTrendState = (
@@ -76,7 +76,7 @@ const ActiveNetLineDot = ({
   const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-neutral-white)" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="hsl(var(--card))" />
   );
 };
 
@@ -112,29 +112,29 @@ const resolveForecastGapVisuals = (
 ): { text: string; badge: string; border: string; background: string; icon: JSX.Element } => {
   if (value > 0) {
     return {
-      text: 'text-emerald-600',
-      badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-[color:var(--color-emerald-200)]/70',
+      text: 'text-success',
+      badge: 'bg-success/20 text-success ring-1 ring-inset ring-[var(--color-emerald-200)]/70',
       border: 'border-overlay-emerald-100',
-      background: 'from-emerald-500/10 via-emerald-400/5 to-white',
+      background: 'from-[hsl(var(--success))]/10 via-[hsl(var(--success))]/5 to-[color:hsl(var(--card))]',
       icon: <ArrowUpRight className="h-4 w-4" />,
     };
   }
 
   if (value < 0) {
     return {
-      text: 'text-rose-600',
-      badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-[color:var(--color-rose-200)]/70',
+      text: 'text-destructive',
+      badge: 'bg-overlay-rose-50 text-destructive ring-1 ring-inset ring-[var(--color-rose-200)]/70',
       border: 'border-overlay-rose-100',
-      background: 'from-rose-500/10 via-rose-400/5 to-white',
+      background: 'from-[hsl(var(--destructive))]/10 via-[hsl(var(--destructive))]/5 to-[color:hsl(var(--card))]',
       icon: <ArrowDownRight className="h-4 w-4" />,
     };
   }
 
   return {
-    text: 'text-slate-600',
-    badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-[color:var(--color-slate-200)]/70',
+    text: 'text-muted-foreground',
+    badge: 'bg-[hsl(var(--muted))] text-muted-foreground ring-1 ring-inset ring-[hsl(var(--border))]/70',
     border: 'border-overlay-slate-200',
-    background: 'from-slate-500/5 via-slate-400/5 to-white',
+    background: 'from-slate-500/5 via-slate-400/5 to-[color:hsl(var(--card))]',
     icon: <Minus className="h-4 w-4" />,
   };
 };
@@ -165,7 +165,7 @@ const ChartTooltip = ({
   const forecastUsd = point.forecastValueUsd ?? point.expectedValueUsd;
   const forecastIls = point.forecastValueIls ?? point.expectedValueIls;
 
-  const projectionClass = projectionGapUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+  const projectionClass = projectionGapUsd >= 0 ? 'text-success' : 'text-destructive';
 
   const netUsd = point.netValue;
   const netIls = point.netValueIls;
@@ -180,31 +180,31 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+    <div className="w-72 rounded-2xl border border-border bg-[hsl(var(--card))]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <span>{labels.at}</span>
-        <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
+        <span className="text-muted-foreground">{labelFormatter(label ?? '')}</span>
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{labels.net}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
+        <div className="rounded-xl bg-gradient-to-br from-[hsl(var(--destructive))]/10 via-[hsl(var(--primary))]/10 to-[hsl(var(--success))]/15 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--primary))]">{labels.net}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{formatUsd(netUsd)}</p>
+          <p className="text-[11px] text-muted-foreground">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
+        <div className="rounded-xl border border-[hsl(var(--warning) / 0.28)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-[color:hsl(var(--card))]/85 p-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-warning">{labels.forecast}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{formatUsd(forecastUsd)}</p>
+          <p className="text-[11px] text-muted-foreground">{formatIls(forecastIls)}</p>
           <div className="mt-2 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-overlay-amber-500">{labels.projection}</p>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="font-medium">{labels.usd}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapUsd, formatUsd)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="font-medium">{labels.ils}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapIls, formatIls)}
@@ -216,20 +216,20 @@ const ChartTooltip = ({
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {changeRows.map((row) => {
-          const changeClass = row.usd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+          const changeClass = row.usd >= 0 ? 'text-success' : 'text-destructive';
 
           return (
             <div
               key={row.key}
-              className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm"
+              className="rounded-xl border border-[hsl(var(--border))]/70 bg-overlay-neutral-white p-3 shadow-sm"
             >
-              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>{row.label}</span>
                 <span className={`text-xs font-semibold ${changeClass}`}>
                   {formatSignedCurrency(row.usd, formatUsd)}
                 </span>
               </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="font-medium">{labels.ils}</span>
                 <span className={`font-semibold ${changeClass}`}>
                   {formatSignedCurrency(row.ils, formatIls)}
@@ -529,13 +529,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   }, [chartPoints]);
 
   const trendTone = trendPoint?.netValue ?? netPnLUsd;
-  const toneClass = trendTone > 0 ? 'text-emerald-600' : trendTone < 0 ? 'text-rose-600' : 'text-slate-600';
+  const toneClass = trendTone > 0 ? 'text-success' : trendTone < 0 ? 'text-destructive' : 'text-muted-foreground';
   const badgeClass =
     trendTone > 0
-      ? 'bg-emerald-50 text-emerald-600'
+      ? 'bg-success/15 text-success'
       : trendTone < 0
-      ? 'bg-rose-50 text-rose-600'
-      : 'bg-slate-100 text-slate-600';
+      ? 'bg-overlay-rose-50 text-destructive'
+      : 'bg-[hsl(var(--muted))] text-muted-foreground';
 
   const formattedBestDate = bestPoint ? dateFormatter.format(new Date(bestPoint.timestamp)) : '—';
   const formattedWorstDate = worstPoint ? dateFormatter.format(new Date(worstPoint.timestamp)) : '—';
@@ -546,31 +546,31 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
-        <CardTitle className="text-lg font-semibold text-slate-900">
+    <Card className="relative z-[11] border-[hsl(var(--card))]/50 bg-gradient-to-br from-[color:hsl(var(--card))]/98 via-[color:hsl(var(--card))]/92 to-slate-100/70 shadow-xl glass-blur-sm">
+      <CardHeader className="space-y-2 border-b border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/70">
+        <CardTitle className="text-lg font-semibold text-foreground">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
-        <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
+        <p className="text-sm text-muted-foreground">{t.dashboard.portfolioOverviewDescription}</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+          <div className="rounded-3xl border border-overlay-slate-200 bg-[hsl(var(--card))]/85 p-6 shadow-lg">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
                   <span className="h-2.5 w-2.5 rounded-full bg-current" />
-                  {toneClass === 'text-emerald-600'
+                  {toneClass === 'text-success'
                     ? t.dashboard.positiveTrend
-                    : toneClass === 'text-rose-600'
+                    : toneClass === 'text-destructive'
                     ? t.dashboard.negativeTrend
                     : t.dashboard.neutralTrend}
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
+                  <p className="text-sm font-medium text-muted-foreground">{t.dashboard.netPnL}</p>
                   <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-                  <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+                  <p className="text-xs text-muted-foreground">{ilsFormatter(netPnLIls)}</p>
                   <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}>
                     <div className="flex items-center gap-3">
                       <span
@@ -580,7 +580,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         {forecastGapVisuals.icon}
                       </span>
                       <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           {t.dashboard.forecastGap}
                         </p>
                         <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
@@ -588,7 +588,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         </p>
                       </div>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
                     </p>
                   </div>
@@ -597,42 +597,42 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))]/10 via-[hsl(var(--primary))]/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--primary))]">{t.dashboard.currentPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{usdFormatter(openPnLUsd)}</p>
+                    <p className="text-xs text-muted-foreground">{ilsFormatter(openPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-[hsl(var(--success))]/10 via-[hsl(var(--success))]/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-success">{t.dashboard.realizedPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{usdFormatter(realizedPnLUsd)}</p>
+                    <p className="text-xs text-muted-foreground">{ilsFormatter(realizedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
-                    <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
-                    <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
+                  <div className="rounded-2xl border border-[hsl(var(--destructive) / 0.28)] bg-gradient-to-br from-[hsl(var(--destructive))]/10 via-[hsl(var(--destructive))]/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-destructive">{t.dashboard.taxesPaid}</p>
+                    <p className="mt-2 text-lg font-semibold text-destructive">{usdFormatter(taxesUsd * -1)}</p>
+                    <p className="text-xs text-destructive">{ilsFormatter(taxesIls * -1)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-info">{t.dashboard.projectedPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{usdFormatter(projectedPnLUsd)}</p>
+                    <p className="text-xs text-muted-foreground">{ilsFormatter(projectedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
-                    <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedBestDate}</p>
+                  <div className="rounded-2xl border border-[hsl(var(--success) / 0.28)] bg-gradient-to-br from-[hsl(var(--success))]/10 via-[hsl(var(--success))]/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-success">{t.dashboard.bestPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{formattedBestValueUsd}</p>
+                    <p className="text-xs text-muted-foreground">{formattedBestValueIls}</p>
+                    <p className="text-xs text-muted-foreground">{formattedBestDate}</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
-                    <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedWorstDate}</p>
+                  <div className="rounded-2xl border border-[hsl(var(--destructive) / 0.28)] bg-gradient-to-br from-[hsl(var(--destructive))]/10 via-[hsl(var(--destructive))]/5 to-[color:hsl(var(--card))] p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-destructive">{t.dashboard.worstPnL}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">{formattedWorstValueUsd}</p>
+                    <p className="text-xs text-muted-foreground">{formattedWorstValueIls}</p>
+                    <p className="text-xs text-muted-foreground">{formattedWorstDate}</p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="rounded-2xl bg-gradient-to-r from-[hsl(var(--primary))]/10 via-[color:hsl(var(--card))] to-[hsl(var(--success))]/10 p-4 text-sm text-muted-foreground shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {t.dashboard.portfolioOverviewFootnote}
                   </p>
                   <p className="mt-2 leading-relaxed">
@@ -647,19 +647,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
+          <div className="rounded-3xl border border-[hsl(var(--border))]/70 bg-overlay-neutral-white shadow-inner">
             <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-muted-foreground shadow-sm ring-1 ring-[hsl(var(--border))]/70 glass-blur-sm">
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-[hsl(var(--destructive))]" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-[hsl(var(--info))]" />
                   <span>{t.dashboard.timelineLegendActualUnder}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-success/15" />
                   <span>{t.dashboard.timelineLegendActualAbove}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -700,7 +700,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--muted-foreground), 0.22)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -711,19 +711,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     axisLine={false}
                     tickMargin={16}
                     minTickGap={28}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'hsl(var(--info) / 0.35)', strokeWidth: 1.25 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,7 +741,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine y={0} stroke="hsl(var(--info) / 0.45)" strokeDasharray="1 6" strokeWidth={2} />
                   <Line
                     type="monotone"
                     dataKey="netValue"
@@ -756,11 +756,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Line
                     type="monotone"
                     dataKey="forecastValueUsd"
-                    stroke="var(--color-amber-500)"
+                    stroke="hsl(var(--warning))"
                     strokeWidth={2.5}
                     strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-neutral-white)' }}
+                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'hsl(var(--warning))', fill: 'hsl(var(--card))' }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}

@@ -21,7 +21,7 @@ export function DailyChangeBadge({ toneClass, icon, value, label, className }: D
     >
       {icon}
       {value}
-      <span className="text-xs font-medium text-overlay-slate-600">{label}</span>
+      <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">{label}</span>
     </span>
   );
 }
