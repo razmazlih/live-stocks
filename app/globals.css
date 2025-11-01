@@ -24,8 +24,8 @@
   --color-primary-010: #f8fbff;
   --color-primary-005: #e3eeff;
   --color-primary-002: #d9e9ff;
-  --color-card-surface: #f8fbff;
-  --color-card-border: #dbeafe;
+  --color-card-surface: rgba(248, 251, 255, 0.8);
+  --color-card-border: rgba(219, 234, 254, 0.9);
   --color-card-highlight: rgba(59, 130, 246, 0.12);
   --color-card-shadow: rgba(15, 23, 42, 0.06);
   --color-green-600: #047857;
@@ -307,6 +307,8 @@
     background-color: var(--color-card-surface);
     border-color: var(--color-card-border);
     box-shadow: 0 16px 32px var(--color-card-shadow);
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
   }
 
   .card-glow {
