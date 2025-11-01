@@ -304,9 +304,24 @@
 
 @layer components {
   .card-surface {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(236, 244, 255, 0.66)
+    );
     background-color: var(--color-card-surface);
     border-color: var(--color-card-border);
     box-shadow: 0 16px 32px var(--color-card-shadow);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .dark .card-surface {
+    background: linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.88),
+      rgba(15, 23, 42, 0.64)
+    );
   }
 
   .card-glow {
