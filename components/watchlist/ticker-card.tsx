@@ -43,9 +43,9 @@ interface TickerCardProps {
 
 function resolveTone(value?: number | null) {
   if (typeof value !== 'number' || Number.isNaN(value) || value === 0) {
-    return 'text-slate-500';
+    return 'text-muted-foreground';
   }
-  return value > 0 ? 'text-emerald-600' : 'text-rose-600';
+  return value > 0 ? 'text-success' : 'text-destructive';
 }
 
 export function TickerCard({
@@ -256,22 +256,22 @@ export function TickerCard({
 
   const trendColor = useMemo(() => {
     if (!historical || historical.length < 2) {
-      return 'var(--color-primary-500)';
+      return 'hsl(var(--primary))';
     }
 
     const first = historical[0]?.close ?? 0;
     const last = historical[historical.length - 1]?.close ?? 0;
     if (last > first) {
-      return 'var(--color-green-600)';
+      return 'hsl(var(--success))';
     }
     if (last < first) {
-      return 'var(--color-red-600)';
+      return 'hsl(var(--destructive))';
     }
-    return 'var(--color-primary-500)';
+    return 'hsl(var(--primary))';
   }, [historical]);
 
   const accentGradient = useMemo(() => {
-    const base = trendColor ?? 'var(--color-primary-500)';
+    const base = trendColor ?? 'hsl(var(--primary))';
     return `linear-gradient(90deg, ${base} 0%, ${base}CC 45%, ${base}66 100%)`;
   }, [trendColor]);
 
@@ -279,10 +279,10 @@ export function TickerCard({
     effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number'
       ? `${hoverLabel} ${formatTooltipTimestamp(effectiveHoveredPoint.timestamp)}`
       : null;
-  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500';
+  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground';
   const basePriceLabelText = hoverMeta ?? basePriceLabel;
   const basePriceLabelClassName = cn(
-    'text-[0.65rem] font-semibold text-slate-500',
+    'text-[0.65rem] font-semibold text-muted-foreground',
     hoverMeta ? null : 'uppercase tracking-wide'
   );
 
@@ -299,7 +299,7 @@ export function TickerCard({
   return (
     <Card
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border card-surface ring-1 ring-[color:var(--color-slate-200)]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl',
+        'relative flex h-full flex-col overflow-hidden border card-surface ring-1 ring-[hsl(var(--border))]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl',
         className
       )}
     >
@@ -308,15 +308,15 @@ export function TickerCard({
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold tracking-tight text-slate-900">
+              <span className="text-base font-semibold tracking-tight text-foreground">
                 {ticker.symbol.toUpperCase()}
               </span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
+              <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
                 {range}
               </span>
             </div>
             {ticker.display ? (
-              <p className="text-xs text-slate-500">{ticker.display}</p>
+              <p className="text-xs text-muted-foreground">{ticker.display}</p>
             ) : null}
           </div>
           <div className="flex items-center gap-1">
@@ -342,7 +342,7 @@ export function TickerCard({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 text-rose-500 hover:text-rose-600"
+                className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => onDelete(ticker)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -353,39 +353,39 @@ export function TickerCard({
         </header>
 
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-overlay-slate-50 p-2.5 sm:col-span-2 sm:p-3">
+          <div className="min-w-0 rounded-xl border border-border bg-overlay-slate-50 p-2.5 sm:col-span-2 sm:p-3">
             <p className={priceLabelClassName}>{priceLabel}</p>
-            <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
+            <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-foreground tabular-nums">
               {priceText}
             </p>
           </div>
           <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{changeLabel}</p>
             <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>
           <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
             <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
-            <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
+            <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-foreground tabular-nums">
               {basePriceText}
             </p>
             {hoverMeta ? null : baseDateText ? (
-              <p className="mt-1 text-[0.68rem] text-slate-400">
+              <p className="mt-1 text-[0.68rem] text-muted-foreground">
                 {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
+        <div className="rounded-2xl border border-overlay-slate-100 bg-[hsl(var(--muted) / 0.85)]/70 p-2.5 sm:p-3">
           {loading ? (
-            <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
+            <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: chartHeight }}>
               {loadingLabel}
             </div>
           ) : error ? (
             <div
-              className="flex items-center justify-center text-center text-xs text-rose-500"
+              className="flex items-center justify-center text-center text-xs text-destructive"
               style={{ height: chartHeight }}
             >
               {error || errorLabel}
@@ -407,7 +407,7 @@ export function TickerCard({
             </div>
           ) : (
             <div
-              className="flex items-center justify-center text-center text-xs text-slate-500"
+              className="flex items-center justify-center text-center text-xs text-muted-foreground"
               style={{ height: chartHeight }}
             >
               {emptySeriesLabel}
@@ -416,8 +416,8 @@ export function TickerCard({
         </div>
 
         {ticker.note ? (
-          <div className="rounded-xl border border-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
+          <div className="rounded-xl border border-border bg-[hsl(var(--muted) / 0.85)]/70 p-2.5 text-[0.8rem] text-muted-foreground sm:p-3">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{noteLabel}</p>
             <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>
         ) : null}

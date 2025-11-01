@@ -21,13 +21,14 @@ export const DashboardPageShell = React.forwardRef<
         ref={ref}
         dir={direction}
         className={cn(
-          "relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]",
+          "relative min-h-screen overflow-hidden bg-[hsl(var(--background))]",
           className,
         )}
         {...props}
       >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+        {/* משתמש בטוקני נושא במקום צבעים קשיחים לרקעים */}
+        <div className="pointer-events-none absolute inset-0 surface-shell opacity-80" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 surface-radial opacity-70" aria-hidden />
         <div className={cn("relative", contentClassName)}>{children}</div>
       </div>
     );

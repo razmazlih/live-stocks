@@ -29,12 +29,12 @@ type BankBadgeProps = {
 const bankVisuals: Record<BankIdentifier, { background: string; ring: string; shadow: string }> = {
   bank_one: {
     background: 'bg-[var(--color-neutral-950)]',
-    ring: 'ring-[color:var(--color-neutral-white)]/15',
+    ring: 'ring-[hsl(var(--card))]/15',
     shadow: 'shadow-[0_8px_20px_var(--color-shadow-neutral-35)]',
   },
   bank_two: {
-    background: 'bg-gradient-to-br from-[var(--color-hot-pink-400)] via-[var(--color-hot-pink-500)] to-[var(--color-hot-pink-600)]',
-    ring: 'ring-[color:var(--color-hot-pink-500)]/40',
+    background: 'bg-gradient-to-br from-[hsl(var(--destructive))] via-[hsl(var(--destructive))] to-[hsl(var(--destructive))]',
+    ring: 'ring-[hsl(var(--destructive))]/40',
     shadow: 'shadow-[0_8px_20px_var(--color-shadow-hot-pink-28)]',
   },
 };
@@ -49,7 +49,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
         className={cn(
           iconBase,
           iconWrapper,
-          'bg-[var(--color-neutral-900)] text-[var(--color-neutral-white)]'
+          'bg-[var(--color-neutral-900)] text-[hsl(var(--card))]'
         )}
       >
         <span
@@ -70,7 +70,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
       className={cn(
         iconBase,
         iconWrapper,
-        'bg-[var(--color-hot-pink-300)] text-[var(--color-neutral-white)] font-black uppercase tracking-[0.14em] leading-tight'
+        'bg-[hsl(var(--destructive))] text-[hsl(var(--card))] font-black uppercase tracking-[0.14em] leading-tight'
       )}
     >
       {locale === 'he' ? (
@@ -92,7 +92,7 @@ export function BankBadge({ bank, locale = 'he', size = 'md', className }: BankB
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-2 rounded-full font-semibold text-[var(--color-neutral-white)] transition-transform duration-200 ease-out',
+        'inline-flex items-center gap-2 rounded-full font-semibold text-[hsl(var(--card))] transition-transform duration-200 ease-out',
         'ring-1 ring-inset',
         visuals.background,
         visuals.ring,

@@ -225,10 +225,10 @@ export default function PositionsPage() {
     cancelled: t.positions.planStatusCancelled,
   };
   const planStatusClasses: Record<PositionPlan["status"], string> = {
-    pending: "bg-sky-100 text-sky-700",
-    triggered: "bg-emerald-100 text-emerald-700",
-    expired: "bg-slate-200 text-slate-600",
-    cancelled: "bg-rose-100 text-rose-700",
+    pending: "bg-[hsl(var(--info) / 0.18)] text-info",
+    triggered: "bg-success/20 text-success",
+    expired: "bg-[hsl(var(--muted))] text-muted-foreground",
+    cancelled: "bg-overlay-rose-50 text-destructive",
   };
   const canSelectSell = Boolean(planContextPosition?.id ?? planForm.positionId);
 
@@ -332,29 +332,29 @@ export default function PositionsPage() {
       key: "positions",
       icon: Layers,
       label: `${t.positions.overviewActivePositions}: ${formatNumber(positions.length, locale)}`,
-      className: "bg-blue-50 text-blue-600",
-      iconClassName: "text-blue-500",
+      className: "bg-overlay-blue-50 text-info",
+      iconClassName: "text-info",
     },
     {
       key: "pending-plans",
       icon: CalendarClock,
       label: `${t.positions.planStatusPending}: ${formatNumber(pendingPlansCount, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
-      iconClassName: "text-slate-500",
+      className: "bg-[hsl(var(--card))]/70 text-muted-foreground",
+      iconClassName: "text-muted-foreground",
     },
     {
       key: "triggered-plans",
       icon: RefreshCw,
       label: `${t.positions.planStatusTriggered}: ${formatNumber(triggeredPlansCount, locale)}`,
-      className: "bg-emerald-50 text-emerald-600",
-      iconClassName: "text-emerald-500",
+      className: "bg-success/15 text-success",
+      iconClassName: "text-success",
     },
     {
       key: "detached-plans",
       icon: GitBranch,
       label: `${t.positions.overviewDetachedPlans}: ${formatNumber(activeDetachedPlans.length, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
-      iconClassName: "text-slate-500",
+      className: "bg-[hsl(var(--card))]/70 text-muted-foreground",
+      iconClassName: "text-muted-foreground",
     },
   ];
 
@@ -546,7 +546,7 @@ export default function PositionsPage() {
         label: t.positions.add,
         onClick: openAddDialog,
         className:
-          "bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]",
+          "bg-[hsl(var(--primary))] text-[hsl(var(--card))] shadow-sm hover:bg-[hsl(var(--primary))]",
       },
       {
         key: "new-plan",
@@ -1075,24 +1075,24 @@ export default function PositionsPage() {
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+        <header className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[hsl(var(--info) / 0.26)]/60 blur-3xl" />
           <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-6">
               <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+                <div className="rounded-2xl bg-[hsl(var(--info) / 0.18)] p-3 text-info shadow-inner">
                   <Layers className="h-6 w-6" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">
+                  <h1 className="text-3xl font-bold text-[hsl(var(--primary))] sm:text-4xl">
                     {t.positions.title}
                   </h1>
-                  <p className="mt-2 max-w-2xl text-base text-slate-600">
+                  <p className="mt-2 max-w-2xl text-base text-muted-foreground">
                     {t.positions.subtitle}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
                 {headerMetaBadges.map((badge) => {
                   const Icon = badge.icon;
                   return (
@@ -1114,7 +1114,7 @@ export default function PositionsPage() {
               title={t.dashboard.quickActions}
               actions={quickActions}
             >
-              <p className="mt-4 text-xs text-slate-500">
+              <p className="mt-4 text-xs text-muted-foreground">
                 {t.positions.quickActionsDescription}
               </p>
             </QuickActionsSection>
@@ -1181,7 +1181,7 @@ export default function PositionsPage() {
                   }
                   className="mt-2 grid gap-2 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                     <RadioGroupItem
                       value="bank_one"
                       id="position-location-one"
@@ -1192,11 +1192,11 @@ export default function PositionsPage() {
                       locale={locale}
                       className="mt-1 self-start"
                     />
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       {t.positions.bankOneHelper}
                     </span>
                   </label>
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                     <RadioGroupItem
                       value="bank_two"
                       id="position-location-two"
@@ -1207,15 +1207,15 @@ export default function PositionsPage() {
                       locale={locale}
                       className="mt-1 self-start"
                     />
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       {t.positions.bankTwoHelper}
                     </span>
                   </label>
                 </RadioGroup>
               </div>
               {isEditing && editingPosition ? (
-                <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
-                  <p className="font-semibold text-slate-700">
+                <div className="rounded-lg border border-border bg-[hsl(var(--muted) / 0.85)]/70 p-4 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">
                     {t.positions.currentHolding}
                   </p>
                   <p className="mt-2">
@@ -1223,7 +1223,7 @@ export default function PositionsPage() {
                     {formatCurrency(editingPosition.entryPrice, "USD", locale)}{" "}
                     • {formatDate(editingPosition.entryDate, locale)}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {t.positions.since}{" "}
                     {formatDate(editingPosition.entryDate, locale)}
                   </p>
@@ -1239,29 +1239,29 @@ export default function PositionsPage() {
                       }
                       className="mt-2 grid gap-2 sm:grid-cols-2"
                     >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                         <RadioGroupItem
                           value="immediate"
                           id="position-mode-immediate"
                           className="order-[-1]"
                         />
-                        <span className="font-semibold text-slate-700">
+                        <span className="font-semibold text-foreground">
                           {t.positions.planModeImmediate}
                         </span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           {t.positions.planModeImmediateDescription}
                         </span>
                       </label>
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                      <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                         <RadioGroupItem
                           value="plan"
                           id="position-mode-plan"
                           className="order-[-1]"
                         />
-                        <span className="font-semibold text-slate-700">
+                        <span className="font-semibold text-foreground">
                           {t.positions.planModePlan}
                         </span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           {t.positions.planModePlanDescription}
                         </span>
                       </label>
@@ -1336,7 +1336,7 @@ export default function PositionsPage() {
                           />
                         </div>
                       </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                      <div className="rounded-lg border border-[hsl(var(--border))]/70 bg-[hsl(var(--muted) / 0.85)]/70 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <Label
@@ -1345,7 +1345,7 @@ export default function PositionsPage() {
                             >
                               {t.positions.transactionCommissionToggle}
                             </Label>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               {t.positions.transactionCommissionHelper}
                             </p>
                           </div>
@@ -1457,7 +1457,7 @@ export default function PositionsPage() {
                           />
                         </div>
                       </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                      <div className="rounded-lg border border-[hsl(var(--border))]/70 bg-[hsl(var(--muted) / 0.85)]/70 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <Label
@@ -1466,7 +1466,7 @@ export default function PositionsPage() {
                             >
                               {t.positions.transactionCommissionToggle}
                             </Label>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               {t.positions.transactionCommissionHelper}
                             </p>
                           </div>
@@ -1557,11 +1557,11 @@ export default function PositionsPage() {
                   }
                   className="mt-2 flex gap-4"
                 >
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <RadioGroupItem value="BUY" id="transaction-buy" />
                     {t.positions.buy}
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <RadioGroupItem value="SELL" id="transaction-sell" />
                     {t.positions.sell}
                   </label>
@@ -1606,7 +1606,7 @@ export default function PositionsPage() {
                     required
                   />
                   {transactionForm.type === "SELL" && transactionTarget && (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {t.positions.availableQuantity}:{" "}
                       {formatNumber(transactionTarget.quantity, locale)}
                     </p>
@@ -1630,7 +1630,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+              <div className="rounded-lg border border-[hsl(var(--border))]/70 bg-[hsl(var(--muted) / 0.85)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label
@@ -1639,7 +1639,7 @@ export default function PositionsPage() {
                     >
                       {t.positions.transactionCommissionToggle}
                     </Label>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {t.positions.transactionCommissionHelper}
                     </p>
                   </div>
@@ -1708,14 +1708,14 @@ export default function PositionsPage() {
             </DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
               {planContextPosition ? (
-                <div className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3 text-xs text-slate-600">
-                  <p className="font-semibold text-slate-700">
+                <div className="rounded-md border border-border bg-[hsl(var(--muted) / 0.85)]/70 p-3 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">
                     {planContextPosition.display}
                   </p>
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                     <Badge
                       variant="secondary"
-                      className="bg-slate-200 text-slate-700"
+                      className="bg-[hsl(var(--muted))] text-foreground"
                     >
                       {planContextPosition.symbol}
                     </Badge>
@@ -1744,7 +1744,7 @@ export default function PositionsPage() {
                     }
                     className="mt-2 grid gap-2 sm:grid-cols-2"
                   >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                       <RadioGroupItem
                         value="bank_one"
                         id="plan-location-one"
@@ -1755,11 +1755,11 @@ export default function PositionsPage() {
                         locale={locale}
                         className="mt-1 self-start"
                       />
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {t.positions.bankOneHelper}
                       </span>
                     </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                       <RadioGroupItem
                         value="bank_two"
                         id="plan-location-two"
@@ -1770,7 +1770,7 @@ export default function PositionsPage() {
                         locale={locale}
                         className="mt-1 self-start"
                       />
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {t.positions.bankTwoHelper}
                       </span>
                     </label>
@@ -1789,22 +1789,22 @@ export default function PositionsPage() {
                   }
                   className="mt-2 grid gap-2 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className="flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm text-muted-foreground">
                     <RadioGroupItem
                       value="buy"
                       id="plan-side-buy"
                       className="order-[-1]"
                     />
-                    <span className="font-semibold text-slate-700">
+                    <span className="font-semibold text-foreground">
                       {t.positions.planSideBuy}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       {t.positions.planSideBuyShort}
                     </span>
                   </label>
                   <label
-                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm ${
-                      canSelectSell ? "text-slate-600" : "text-slate-400"
+                    className={`flex flex-col gap-1 rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3 text-sm ${
+                      canSelectSell ? "text-muted-foreground" : "text-muted-foreground"
                     }`}
                   >
                     <RadioGroupItem
@@ -1813,16 +1813,16 @@ export default function PositionsPage() {
                       className="order-[-1]"
                       disabled={!canSelectSell}
                     />
-                    <span className="font-semibold text-slate-700">
+                    <span className="font-semibold text-foreground">
                       {t.positions.planSideSell}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       {t.positions.planSideSellShort}
                     </span>
                   </label>
                 </RadioGroup>
                 {!canSelectSell && (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {t.positions.planSellDetachedHelper}
                   </p>
                 )}
@@ -1932,7 +1932,7 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+              <div className="rounded-lg border border-[hsl(var(--border))]/70 bg-[hsl(var(--muted) / 0.85)]/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label
@@ -1941,7 +1941,7 @@ export default function PositionsPage() {
                     >
                       {t.positions.transactionCommissionToggle}
                     </Label>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {t.positions.transactionCommissionHelper}
                     </p>
                   </div>
@@ -2010,7 +2010,7 @@ export default function PositionsPage() {
             <DialogHeader>
               <DialogTitle>{t.positions.manageHistory}</DialogTitle>
               {historyTarget && (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   {historyTarget.display} · {historyTarget.symbol}
                 </p>
               )}
@@ -2031,8 +2031,8 @@ export default function PositionsPage() {
                         lot.type === "BUY" ? t.positions.buy : t.positions.sell;
                       const badgeTone =
                         lot.type === "BUY"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-rose-100 text-rose-700";
+                          ? "bg-success/20 text-success"
+                          : "bg-overlay-rose-50 text-destructive";
                       const commissionApplied =
                         lot.hasCommission && lot.commissionAmount > 0;
                       const commissionLabel = commissionApplied
@@ -2044,22 +2044,22 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
+                          className="flex items-center gap-3 rounded-md border border-border bg-[hsl(var(--muted) / 0.85)]/70 p-3"
                         >
                           <span
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}
                           >
                             {typeLabel}
                           </span>
-                          <div className="flex flex-col text-sm text-slate-600">
+                          <div className="flex flex-col text-sm text-muted-foreground">
                             <span>
                               {formatNumber(lot.quantity, locale)} ·{" "}
                               {formatCurrency(lot.price, "USD", locale)}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-muted-foreground">
                               {formatDate(lot.executedAt, locale)}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-muted-foreground">
                               {commissionLabel}
                             </span>
                           </div>
@@ -2081,7 +2081,7 @@ export default function PositionsPage() {
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
                             >
-                              <Trash2 className="h-4 w-4 text-red-500" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </div>
@@ -2089,12 +2089,12 @@ export default function PositionsPage() {
                     })}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   {t.positions.noTransactions}
                 </p>
               )
             ) : (
-              <p className="text-sm text-slate-500">{t.common.loading}</p>
+              <p className="text-sm text-muted-foreground">{t.common.loading}</p>
             )}
             {historyTarget && (
               <Button
@@ -2109,14 +2109,14 @@ export default function PositionsPage() {
         </Dialog>
 
         <main className="mt-10 space-y-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+          <section className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[hsl(var(--info) / 0.18)]/50 blur-3xl" />
             <div className="relative z-10">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t.positions.overviewTitle}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {t.positions.overviewDescription}
                 </p>
               </div>
@@ -2124,17 +2124,17 @@ export default function PositionsPage() {
                 {overviewStats.map(({ key, label, value, icon: Icon }) => (
                   <Card
                     key={key}
-                    className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner"
+                    className="border-none bg-[hsl(var(--card))]/90 shadow-inner"
                   >
                     <CardContent className="flex items-center gap-3 p-4">
-                      <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                      <div className="rounded-lg bg-[hsl(var(--muted))] p-2 text-muted-foreground">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
                           {label}
                         </p>
-                        <p className="text-lg font-semibold text-slate-900">
+                        <p className="text-lg font-semibold text-foreground">
                           {value}
                         </p>
                       </div>
@@ -2145,24 +2145,24 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+          <section className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[hsl(var(--info) / 0.18)]/40 blur-3xl" />
             <div className="relative z-10">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
                 <div className="space-y-4">
                   {loading ? (
-                    <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
-                      <CardContent className="py-16 text-center text-slate-500">
+                    <Card className="border border-[hsl(var(--card))]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                      <CardContent className="py-16 text-center text-muted-foreground">
                         {t.common.loading}
                       </CardContent>
                     </Card>
                   ) : positions.length === 0 ? (
-                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                    <Card className="border border-dashed border-border bg-[hsl(var(--card))]/60 text-center shadow-none backdrop-blur">
                       <CardContent className="flex flex-col items-center gap-4 py-12">
-                        <p className="text-base font-semibold text-slate-700">
+                        <p className="text-base font-semibold text-foreground">
                           {t.dashboard.noPositions}
                         </p>
-                        <p className="max-w-sm text-sm text-slate-500">
+                        <p className="max-w-sm text-sm text-muted-foreground">
                           {t.positions.emptyStateDescription}
                         </p>
                         <Button onClick={openAddDialog} className="gap-2">
@@ -2203,27 +2203,27 @@ export default function PositionsPage() {
                         return (
                           <Card
                             key={position.id ?? position.symbol}
-                            className="group rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                            className="group rounded-2xl border border-[hsl(var(--border))]/70 bg-[hsl(var(--card))]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                           >
                             <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-12 w-12 border border-slate-200 bg-slate-50">
+                                <Avatar className="h-12 w-12 border border-border bg-[hsl(var(--muted))]">
                                   {position.imageUrl ? (
                                     <AvatarImage
                                       src={position.imageUrl}
                                       alt={`${position.display} logo`}
                                     />
                                   ) : null}
-                                  <AvatarFallback className="text-sm font-medium text-slate-600">
+                                  <AvatarFallback className="text-sm font-medium text-muted-foreground">
                                     {fallbackInitials}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0 space-y-1">
-                                  <CardTitle className="truncate text-base font-semibold text-slate-900">
+                                  <CardTitle className="truncate text-base font-semibold text-foreground">
                                     {position.display}
                                   </CardTitle>
-                                  <CardDescription className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                    <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                                  <CardDescription className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <Badge className="rounded-full border border-border bg-[hsl(var(--card))] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                       {position.symbol}
                                     </Badge>
                                     <BankBadge
@@ -2236,11 +2236,11 @@ export default function PositionsPage() {
                                       size="sm"
                                     />
                                     <span className="flex items-center gap-1">
-                                      <Package className="h-3.5 w-3.5 text-slate-400" />
+                                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                       {formatNumber(position.quantity, locale)}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <CircleDollarSign className="h-3.5 w-3.5 text-slate-400" />
+                                      <CircleDollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                                       {formatCurrency(
                                         position.entryPrice,
                                         "USD",
@@ -2248,7 +2248,7 @@ export default function PositionsPage() {
                                       )}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
+                                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
                                       {formatDate(position.entryDate, locale)}
                                     </span>
                                   </CardDescription>
@@ -2263,7 +2263,7 @@ export default function PositionsPage() {
                                     variant="ghost"
                                     size="icon"
                                     aria-label={t.dashboard.viewDetails}
-                                    className="rounded-full text-slate-500 hover:text-slate-800"
+                                    className="rounded-full text-muted-foreground hover:text-foreground"
                                   >
                                     <BarChart3 className="h-4 w-4" />
                                   </Button>
@@ -2273,7 +2273,7 @@ export default function PositionsPage() {
                                   size="icon"
                                   onClick={() => openHistoryDialog(position)}
                                   aria-label={t.positions.manageHistory}
-                                  className="rounded-full text-slate-500 hover:text-slate-800"
+                                  className="rounded-full text-muted-foreground hover:text-foreground"
                                 >
                                   <History className="h-4 w-4" />
                                 </Button>
@@ -2282,7 +2282,7 @@ export default function PositionsPage() {
                                   size="icon"
                                   onClick={() => openEditDialog(position)}
                                   aria-label={t.positions.edit}
-                                  className="rounded-full text-slate-500 hover:text-slate-800"
+                                  className="rounded-full text-muted-foreground hover:text-foreground"
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -2294,23 +2294,23 @@ export default function PositionsPage() {
                                   }
                                   aria-label={t.positions.delete}
                                   disabled={!position.id}
-                                  className="rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
+                                  className="rounded-full text-destructive hover:text-destructive disabled:text-muted-foreground"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </CardHeader>
-                            <CardContent className="space-y-4 pt-0 text-sm text-slate-600">
+                            <CardContent className="space-y-4 pt-0 text-sm text-muted-foreground">
                               <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                       {t.positions.transactionsTitle}
                                     </p>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-8 gap-1 rounded-full px-3 text-xs text-slate-500 hover:text-slate-700"
+                                      className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
                                       onClick={() =>
                                         openTransactionDialog(position)
                                       }
@@ -2328,8 +2328,8 @@ export default function PositionsPage() {
                                             : t.positions.sell;
                                         const typeBadgeClass =
                                           lot.type === "BUY"
-                                            ? "bg-[color:var(--color-emerald-500)]/10 text-emerald-600"
-                                            : "bg-[color:var(--color-rose-500)]/10 text-rose-600";
+                                            ? "bg-[hsl(var(--success))]/10 text-success"
+                                            : "bg-[var(--color-rose-500)]/10 text-destructive";
                                         const commissionApplied =
                                           lot.hasCommission &&
                                           lot.commissionAmount > 0;
@@ -2347,20 +2347,20 @@ export default function PositionsPage() {
                                         return (
                                           <div
                                             key={`${lot.id}-${lot.executedAt}`}
-                                            className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-1 text-xs text-slate-600 shadow-sm"
+                                            className="flex flex-wrap items-center gap-2 rounded-full border border-[hsl(var(--border))]/70 bg-overlay-neutral-white px-3 py-1 text-xs text-muted-foreground shadow-sm"
                                           >
                                             <span
                                               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${typeBadgeClass}`}
                                             >
                                               {typeLabel}
                                             </span>
-                                            <span className="font-medium text-slate-700">
+                                            <span className="font-medium text-foreground">
                                               {formatNumber(
                                                 lot.quantity,
                                                 locale,
                                               )}
                                             </span>
-                                            <span className="text-slate-400">
+                                            <span className="text-muted-foreground">
                                               ·
                                             </span>
                                             <span>
@@ -2370,7 +2370,7 @@ export default function PositionsPage() {
                                                 locale,
                                               )}
                                             </span>
-                                            <span className="text-slate-400">
+                                            <span className="text-muted-foreground">
                                               ·
                                             </span>
                                             <span>
@@ -2379,10 +2379,10 @@ export default function PositionsPage() {
                                                 locale,
                                               )}
                                             </span>
-                                            <span className="text-slate-400">
+                                            <span className="text-muted-foreground">
                                               ·
                                             </span>
-                                            <span className="text-slate-500">
+                                            <span className="text-muted-foreground">
                                               {commissionLabel}
                                             </span>
                                           </div>
@@ -2390,20 +2390,20 @@ export default function PositionsPage() {
                                       })}
                                     </div>
                                   ) : (
-                                    <p className="mt-3 text-xs text-slate-400">
+                                    <p className="mt-3 text-xs text-muted-foreground">
                                       {t.positions.noTransactions}
                                     </p>
                                   )}
                                 </div>
                                 <div>
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                       {t.positions.activePlansTitle}
                                     </p>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-8 gap-1 rounded-full px-3 text-xs text-slate-500 hover:text-slate-700 disabled:text-slate-300"
+                                      className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground disabled:text-muted-foreground"
                                       onClick={() =>
                                         openPlanDialogForPosition(position)
                                       }
@@ -2422,8 +2422,8 @@ export default function PositionsPage() {
                                           planStatusLabels[plan.status];
                                         const sideBadgeClass =
                                           plan.side === "sell"
-                                            ? "bg-[color:var(--color-rose-500)]/10 text-rose-600"
-                                            : "bg-[color:var(--color-emerald-500)]/10 text-emerald-600";
+                                            ? "bg-[var(--color-rose-500)]/10 text-destructive"
+                                            : "bg-[hsl(var(--success))]/10 text-success";
                                         const sideLabel =
                                           plan.side === "sell"
                                             ? t.positions.planSideSellShort
@@ -2434,7 +2434,7 @@ export default function PositionsPage() {
                                               plan.id ??
                                               `${plan.symbol}-${plan.targetDate}`
                                             }
-                                            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-2 text-xs text-slate-600 shadow-sm"
+                                            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[hsl(var(--border))]/70 bg-overlay-neutral-white px-3 py-2 text-xs text-muted-foreground shadow-sm"
                                           >
                                             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                                               <span
@@ -2447,10 +2447,10 @@ export default function PositionsPage() {
                                               >
                                                 {statusLabel}
                                               </span>
-                                              <span className="font-semibold text-slate-700">
+                                              <span className="font-semibold text-foreground">
                                                 {plan.symbol}
                                               </span>
-                                              <span className="text-slate-500">
+                                              <span className="text-muted-foreground">
                                                 {formatNumber(
                                                   plan.targetQuantity,
                                                   locale,
@@ -2462,7 +2462,7 @@ export default function PositionsPage() {
                                                   locale,
                                                 )}
                                               </span>
-                                              <span className="text-slate-400">
+                                              <span className="text-muted-foreground">
                                                 •{" "}
                                                 {formatDate(
                                                   plan.targetDate,
@@ -2471,7 +2471,7 @@ export default function PositionsPage() {
                                               </span>
                                               {plan.status === "triggered" &&
                                                 plan.triggeredAt && (
-                                                  <span className="text-[11px] text-emerald-600">
+                                                  <span className="text-[11px] text-success">
                                                     {t.positions.planTriggeredDetail(
                                                       formatDate(
                                                         plan.triggeredAt,
@@ -2492,7 +2492,7 @@ export default function PositionsPage() {
                                                 <Button
                                                   variant="ghost"
                                                   size="icon"
-                                                  className="h-7 w-7 rounded-full text-slate-500 hover:text-slate-800"
+                                                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
                                                   onClick={() =>
                                                     openEditPlanDialog(
                                                       plan,
@@ -2506,7 +2506,7 @@ export default function PositionsPage() {
                                                 <Button
                                                   variant="ghost"
                                                   size="icon"
-                                                  className="h-7 w-7 rounded-full text-rose-500 hover:text-rose-600"
+                                                  className="h-7 w-7 rounded-full text-destructive hover:text-destructive"
                                                   onClick={() =>
                                                     handlePlanCancel(plan)
                                                   }
@@ -2523,7 +2523,7 @@ export default function PositionsPage() {
                                       })}
                                     </div>
                                   ) : (
-                                    <p className="mt-3 text-xs text-slate-400">
+                                    <p className="mt-3 text-xs text-muted-foreground">
                                       {t.positions.noActivePlans}
                                     </p>
                                   )}
@@ -2537,13 +2537,13 @@ export default function PositionsPage() {
                   )}
                 </div>
                 <div className="space-y-4">
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
+                  <Card className="border border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/90 shadow-sm backdrop-blur">
                     <CardHeader>
                       <CardTitle>{t.positions.activePlansTitle}</CardTitle>
                       <CardDescription>
                         {t.positions.activePlansDescription}
                       </CardDescription>
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                         <span>
                           {t.positions.planStatusPending}:{" "}
                           {formatNumber(pendingPlansCount, locale)}
@@ -2556,7 +2556,7 @@ export default function PositionsPage() {
                     </CardHeader>
                     <CardContent>
                       {activePlans.length === 0 ? (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-muted-foreground">
                           {t.positions.noActivePlans}
                         </p>
                       ) : (
@@ -2564,7 +2564,7 @@ export default function PositionsPage() {
                           <div className="space-y-4">
                             {activeLinkedPlans.length > 0 && (
                               <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   {t.positions.activePlansLinked}
                                 </p>
                                 <div className="mt-2 space-y-3">
@@ -2579,8 +2579,8 @@ export default function PositionsPage() {
                                         planStatusLabels[plan.status];
                                       const sideClass =
                                         plan.side === "sell"
-                                          ? "bg-rose-100 text-rose-700"
-                                          : "bg-emerald-100 text-emerald-700";
+                                          ? "bg-overlay-rose-50 text-destructive"
+                                          : "bg-success/20 text-success";
                                       const sideLabel =
                                         plan.side === "sell"
                                           ? t.positions.planSideSellShort
@@ -2591,16 +2591,16 @@ export default function PositionsPage() {
                                             plan.id ??
                                             `${position.id}-${plan.symbol}-${plan.targetDate}`
                                           }
-                                          className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                          className="rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3"
                                         >
                                           <div className="flex flex-col gap-2">
                                             <div className="flex flex-wrap items-center gap-2">
-                                              <span className="text-sm font-semibold text-slate-800">
+                                              <span className="text-sm font-semibold text-foreground">
                                                 {position.display}
                                               </span>
                                               <Badge
                                                 variant="secondary"
-                                                className="bg-slate-100 text-slate-700"
+                                                className="bg-[hsl(var(--muted))] text-foreground"
                                               >
                                                 {position.symbol}
                                               </Badge>
@@ -2625,7 +2625,7 @@ export default function PositionsPage() {
                                                 {statusLabel}
                                               </Badge>
                                             </div>
-                                            <p className="text-sm text-slate-600">
+                                            <p className="text-sm text-muted-foreground">
                                               {formatNumber(
                                                 plan.targetQuantity,
                                                 locale,
@@ -2642,14 +2642,14 @@ export default function PositionsPage() {
                                                 locale,
                                               )}
                                             </p>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-muted-foreground">
                                               {t.positions.planLinkedTo(
                                                 position.display,
                                               )}
                                             </p>
                                             {plan.status === "triggered" &&
                                               plan.triggeredAt && (
-                                                <p className="text-xs text-emerald-600">
+                                                <p className="text-xs text-success">
                                                   {t.positions.planTriggeredDetail(
                                                     formatDate(
                                                       plan.triggeredAt,
@@ -2703,7 +2703,7 @@ export default function PositionsPage() {
                             )}
                             {activeDetachedPlans.length > 0 && (
                               <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   {t.positions.activePlansDetached}
                                 </p>
                                 <div className="mt-2 space-y-3">
@@ -2716,8 +2716,8 @@ export default function PositionsPage() {
                                       planStatusLabels[plan.status];
                                     const sideClass =
                                       plan.side === "sell"
-                                        ? "bg-rose-100 text-rose-700"
-                                        : "bg-emerald-100 text-emerald-700";
+                                        ? "bg-overlay-rose-50 text-destructive"
+                                        : "bg-success/20 text-success";
                                     const sideLabel =
                                       plan.side === "sell"
                                         ? t.positions.planSideSellShort
@@ -2728,16 +2728,16 @@ export default function PositionsPage() {
                                           plan.id ??
                                           `detached-${plan.symbol}-${plan.targetDate}`
                                         }
-                                        className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                        className="rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3"
                                       >
                                         <div className="flex flex-col gap-2">
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-sm font-semibold text-slate-800">
+                                            <span className="text-sm font-semibold text-foreground">
                                               {displayName}
                                             </span>
                                             <Badge
                                               variant="secondary"
-                                              className="bg-slate-100 text-slate-700"
+                                              className="bg-[hsl(var(--muted))] text-foreground"
                                             >
                                               {plan.symbol}
                                             </Badge>
@@ -2763,7 +2763,7 @@ export default function PositionsPage() {
                                               {statusLabel}
                                             </Badge>
                                           </div>
-                                          <p className="text-sm text-slate-600">
+                                          <p className="text-sm text-muted-foreground">
                                             {formatNumber(
                                               plan.targetQuantity,
                                               locale,
@@ -2780,7 +2780,7 @@ export default function PositionsPage() {
                                               locale,
                                             )}
                                           </p>
-                                          <p className="text-xs text-slate-500">
+                                          <p className="text-xs text-muted-foreground">
                                             {t.positions.planForNewPosition}
                                           </p>
                                           {plan.status === "pending" && (
@@ -2822,7 +2822,7 @@ export default function PositionsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
+                  <Card className="border border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/90 shadow-sm backdrop-blur">
                     <CardHeader>
                       <CardTitle>{t.positions.closedPlansTitle}</CardTitle>
                       <CardDescription>
@@ -2831,7 +2831,7 @@ export default function PositionsPage() {
                     </CardHeader>
                     <CardContent>
                       {closedPlans.length === 0 ? (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-muted-foreground">
                           {t.positions.noClosedPlans}
                         </p>
                       ) : (
@@ -2850,8 +2850,8 @@ export default function PositionsPage() {
                               const statusLabel = planStatusLabels[plan.status];
                               const sideClass =
                                 plan.side === "sell"
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-emerald-100 text-emerald-700";
+                                  ? "bg-overlay-rose-50 text-destructive"
+                                  : "bg-success/20 text-success";
                               const sideLabel =
                                 plan.side === "sell"
                                   ? t.positions.planSideSellShort
@@ -2862,16 +2862,16 @@ export default function PositionsPage() {
                                     plan.id ??
                                     `closed-${symbol}-${plan.targetDate}`
                                   }
-                                  className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                  className="rounded-lg border border-border bg-[hsl(var(--card))]/70 p-3"
                                 >
                                   <div className="flex flex-col gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <span className="text-sm font-semibold text-slate-800">
+                                      <span className="text-sm font-semibold text-foreground">
                                         {displayName}
                                       </span>
                                       <Badge
                                         variant="secondary"
-                                        className="bg-slate-100 text-slate-700"
+                                        className="bg-[hsl(var(--muted))] text-foreground"
                                       >
                                         {symbol}
                                       </Badge>
@@ -2897,7 +2897,7 @@ export default function PositionsPage() {
                                         {statusLabel}
                                       </Badge>
                                     </div>
-                                    <p className="text-sm text-slate-600">
+                                    <p className="text-sm text-muted-foreground">
                                       {formatNumber(
                                         plan.targetQuantity,
                                         locale,
@@ -2912,7 +2912,7 @@ export default function PositionsPage() {
                                     </p>
                                     {plan.status === "expired" &&
                                       plan.expiredAt && (
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-xs text-muted-foreground">
                                           {t.positions.planExpiredDetail(
                                             formatDate(plan.expiredAt, locale),
                                           )}
@@ -2920,7 +2920,7 @@ export default function PositionsPage() {
                                       )}
                                     {plan.status === "cancelled" &&
                                       plan.expiredAt && (
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-xs text-muted-foreground">
                                           {t.positions.planCancelledDetail(
                                             formatDate(plan.expiredAt, locale),
                                           )}
@@ -2933,7 +2933,7 @@ export default function PositionsPage() {
                                         className="h-8 gap-1 px-2"
                                         onClick={() => handlePlanDelete(plan)}
                                       >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                        <Trash2 className="h-4 w-4 text-destructive" />
                                         {t.positions.planDelete}
                                       </Button>
                                     </div>
