@@ -6,6 +6,119 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+
+  /* Project color palette */
+  --color-primary-900: #0f172a;
+  --color-primary-800: #1e293b;
+  --color-primary-700: #1d4ed8;
+  --color-primary-650: #1e40af;
+  --color-primary-600: #1e3a8a;
+  --color-primary-500: #2563eb;
+  --color-primary-400: #3b82f6;
+  --color-primary-300: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-primary-200: #e6f2ff;
+  --color-primary-100: #f5faff;
+  --color-primary-050: #eef5ff;
+  --color-primary-025: #e4f1ff;
+  --color-primary-010: #f8fbff;
+  --color-primary-005: #e3eeff;
+  --color-primary-002: #d9e9ff;
+  --color-card-surface: #f8fbff;
+  --color-card-border: #dbeafe;
+  --color-card-highlight: rgba(59, 130, 246, 0.12);
+  --color-card-shadow: rgba(15, 23, 42, 0.06);
+  --color-green-600: #047857;
+  --color-green-500: #22c55e;
+  --color-green-400: #4aa956;
+  --color-green-300: #059669;
+  --color-green-050: #dcfce7;
+  --color-red-600: #b91c1c;
+  --color-red-500: #dc2626;
+  --color-red-400: #d22e2e;
+  --color-red-450: #ef4444;
+  --color-red-050: #fee2e2;
+  --color-orange-500: #f97316;
+  --color-amber-500: #f59e0b;
+  --color-purple-500: #8b5cf6;
+  --color-purple-400: #6366f1;
+  --color-purple-300: #a855f7;
+  --color-pink-500: #ec4899;
+  --color-hot-pink-600: #ff1566;
+  --color-hot-pink-500: #ff2f86;
+  --color-hot-pink-400: #ff4ba3;
+  --color-hot-pink-300: #ff0066;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #f1f5f9;
+  --color-slate-300: #cbd5e1;
+  --color-slate-50: #f8fafc;
+  --color-neutral-950: #0a0a0a;
+  --color-neutral-900: #050505;
+  --color-neutral-black: #000000;
+  --color-neutral-white: #ffffff;
+  --color-primary-500-rgb: 37, 99, 235;
+  --color-primary-400-rgb: 59, 130, 246;
+  --color-primary-900-rgb: 15, 23, 42;
+  --color-indigo-500-rgb: 99, 102, 241;
+  --color-slate-400-rgb: 148, 163, 184;
+  --color-red-400-rgb: 248, 113, 113;
+  --color-green-400-rgb: 74, 169, 86;
+  --color-chart-fallback: #2563eb;
+  --color-border-default: #cccccc;
+  --color-warning-500: #facc15;
+  --color-overlay-primary-soft: rgba(37, 99, 235, 0.05);
+  --color-overlay-navy-soft: rgba(15, 23, 42, 0.04);
+  --color-overlay-sky-soft: rgba(59, 130, 246, 0.08);
+  --color-shadow-neutral-35: rgba(0, 0, 0, 0.35);
+  --color-shadow-hot-pink-28: rgba(244, 63, 94, 0.28);
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-900: #111827;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-red-50: #fef2f2;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-sky-100: #e0f2fe;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-sky-700: #0369a1;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,6 +198,10 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --color-card-surface: rgba(15, 23, 42, 0.82);
+    --color-card-border: rgba(148, 163, 184, 0.35);
+    --color-card-highlight: rgba(59, 130, 246, 0.18);
+    --color-card-shadow: rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -94,5 +211,105 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer utilities {
+  .text-white { color: var(--color-neutral-white) !important; }
+  .bg-white { background-color: var(--color-neutral-white) !important; }
+  .border-white { border-color: var(--color-neutral-white) !important; }
+  .ring-white { --tw-ring-color: var(--color-neutral-white) !important; }
+  .text-amber-500 { color: var(--color-amber-500) !important; }
+  .text-amber-600 { color: var(--color-amber-600) !important; }
+  .text-blue-100 { color: var(--color-blue-100) !important; }
+  .text-blue-400 { color: var(--color-blue-400) !important; }
+  .text-blue-500 { color: var(--color-blue-500) !important; }
+  .text-blue-600 { color: var(--color-blue-600) !important; }
+  .text-blue-700 { color: var(--color-blue-700) !important; }
+  .text-emerald-400 { color: var(--color-emerald-400) !important; }
+  .text-emerald-500 { color: var(--color-emerald-500) !important; }
+  .text-emerald-600 { color: var(--color-emerald-600) !important; }
+  .text-emerald-700 { color: var(--color-emerald-700) !important; }
+  .text-gray-400 { color: var(--color-gray-400) !important; }
+  .text-gray-500 { color: var(--color-gray-500) !important; }
+  .text-gray-600 { color: var(--color-gray-600) !important; }
+  .text-gray-700 { color: var(--color-gray-700) !important; }
+  .text-gray-900 { color: var(--color-gray-900) !important; }
+  .text-indigo-600 { color: var(--color-indigo-600) !important; }
+  .text-indigo-700 { color: var(--color-indigo-700) !important; }
+  .text-red-300 { color: var(--color-red-300) !important; }
+  .text-red-50 { color: var(--color-red-50) !important; }
+  .text-red-500 { color: var(--color-red-500) !important; }
+  .text-red-600 { color: var(--color-red-600) !important; }
+  .text-red-700 { color: var(--color-red-700) !important; }
+  .text-rose-400 { color: var(--color-rose-400) !important; }
+  .text-rose-500 { color: var(--color-rose-500) !important; }
+  .text-rose-600 { color: var(--color-rose-600) !important; }
+  .text-rose-700 { color: var(--color-rose-700) !important; }
+  .text-sky-600 { color: var(--color-sky-600) !important; }
+  .text-sky-700 { color: var(--color-sky-700) !important; }
+  .text-slate-100 { color: var(--color-slate-100) !important; }
+  .text-slate-200 { color: var(--color-slate-200) !important; }
+  .text-slate-300 { color: var(--color-slate-300) !important; }
+  .text-slate-400 { color: var(--color-slate-400) !important; }
+  .text-slate-50 { color: var(--color-slate-50) !important; }
+  .text-slate-500 { color: var(--color-slate-500) !important; }
+  .text-slate-600 { color: var(--color-slate-600) !important; }
+  .text-slate-700 { color: var(--color-slate-700) !important; }
+  .text-slate-800 { color: var(--color-slate-800) !important; }
+  .text-slate-900 { color: var(--color-slate-900) !important; }
+  .bg-blue-100 { background-color: var(--color-blue-100) !important; }
+  .bg-blue-200 { background-color: var(--color-blue-200) !important; }
+  .bg-blue-400 { background-color: var(--color-blue-400) !important; }
+  .bg-blue-50 { background-color: var(--color-blue-50) !important; }
+  .bg-blue-500 { background-color: var(--color-blue-500) !important; }
+  .bg-emerald-100 { background-color: var(--color-emerald-100) !important; }
+  .bg-emerald-50 { background-color: var(--color-emerald-50) !important; }
+  .bg-emerald-500 { background-color: var(--color-emerald-500) !important; }
+  .bg-rose-100 { background-color: var(--color-rose-100) !important; }
+  .bg-rose-50 { background-color: var(--color-rose-50) !important; }
+  .bg-rose-500 { background-color: var(--color-rose-500) !important; }
+  .bg-sky-100 { background-color: var(--color-sky-100) !important; }
+  .bg-sky-500 { background-color: var(--color-sky-500) !important; }
+  .bg-slate-100 { background-color: var(--color-slate-100) !important; }
+  .bg-slate-200 { background-color: var(--color-slate-200) !important; }
+  .bg-slate-50 { background-color: var(--color-slate-50) !important; }
+  .bg-slate-700 { background-color: var(--color-slate-700) !important; }
+  .bg-slate-800 { background-color: var(--color-slate-800) !important; }
+  .bg-slate-900 { background-color: var(--color-slate-900) !important; }
+  .border-amber-200 { border-color: var(--color-amber-200) !important; }
+  .border-amber-300 { border-color: var(--color-amber-300) !important; }
+  .border-amber-500 { border-color: var(--color-amber-500) !important; }
+  .border-blue-100 { border-color: var(--color-blue-100) !important; }
+  .border-blue-200 { border-color: var(--color-blue-200) !important; }
+  .border-blue-300 { border-color: var(--color-blue-300) !important; }
+  .border-blue-400 { border-color: var(--color-blue-400) !important; }
+  .border-blue-500 { border-color: var(--color-blue-500) !important; }
+  .border-emerald-100 { border-color: var(--color-emerald-100) !important; }
+  .border-red-200 { border-color: var(--color-red-200) !important; }
+  .border-rose-100 { border-color: var(--color-rose-100) !important; }
+  .border-rose-200 { border-color: var(--color-rose-200) !important; }
+  .border-slate-100 { border-color: var(--color-slate-100) !important; }
+  .border-slate-200 { border-color: var(--color-slate-200) !important; }
+  .border-slate-300 { border-color: var(--color-slate-300) !important; }
+  .border-slate-600 { border-color: var(--color-slate-600) !important; }
+  .border-slate-700 { border-color: var(--color-slate-700) !important; }
+  .ring-blue-100 { --tw-ring-color: var(--color-blue-100) !important; }
+  .ring-blue-200 { --tw-ring-color: var(--color-blue-200) !important; }
+  .ring-emerald-200 { --tw-ring-color: var(--color-emerald-200) !important; }
+  .ring-red-400 { --tw-ring-color: var(--color-red-400) !important; }
+  .ring-rose-200 { --tw-ring-color: var(--color-rose-200) !important; }
+  .ring-slate-200 { --tw-ring-color: var(--color-slate-200) !important; }
+}
+
+@layer components {
+  .card-surface {
+    background-color: var(--color-card-surface);
+    border-color: var(--color-card-border);
+    box-shadow: 0 16px 32px var(--color-card-shadow);
+  }
+
+  .card-glow {
+    background: radial-gradient(circle at top right, var(--color-card-highlight), transparent 65%);
   }
 }

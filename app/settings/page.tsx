@@ -100,7 +100,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]">
       <div className="max-w-3xl mx-auto p-6">
         <header className="mb-8">
           <Link href="/">
@@ -109,10 +109,10 @@ export default function SettingsPage() {
               {locale === 'he' ? 'חזרה' : 'Back'}
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold text-[#0F172A]">{t.settings.title}</h1>
+          <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{t.settings.title}</h1>
         </header>
 
-        <div className="backdrop-blur-sm bg-white/85 rounded-2xl border border-white/50 shadow-xl p-6">
+        <div className="backdrop-blur-sm bg-[color:var(--color-neutral-white)]/85 rounded-2xl border border-[color:var(--color-neutral-white)]/50 shadow-xl p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="growthRate">{t.settings.annualGrowthRate}</Label>
@@ -172,7 +172,7 @@ export default function SettingsPage() {
               />
               <p className="text-sm text-gray-500">
                 {locale === 'he' ? 'ניתן להשיג מפתח בחינם מ-' : 'Get a free token from '}
-                <a href="https://finnhub.io" target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] hover:underline">
+                <a href="https://finnhub.io" target="_blank" rel="noopener noreferrer" className="text-[var(--color-primary-400)] hover:underline">
                   finnhub.io
                 </a>
               </p>

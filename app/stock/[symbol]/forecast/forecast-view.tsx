@@ -32,7 +32,7 @@ type QuantileDefinition = {
   label: string;
 };
 
-const QUANTILE_COLORS = ['#2563EB', '#0EA5E9', '#6366F1', '#22C55E', '#F97316', '#EC4899', '#A855F7'];
+const QUANTILE_COLORS = ['var(--color-primary-500)', 'var(--color-primary-300)', 'var(--color-purple-400)', 'var(--color-green-500)', 'var(--color-orange-500)', 'var(--color-pink-500)', 'var(--color-purple-300)'];
 
 const CONFIDENCE_BASE_KEY = '__confidenceBase';
 const CONFIDENCE_RANGE_KEY = '__confidenceRange';
@@ -320,7 +320,7 @@ function getQuantileValue(model: NormalizedForecastModel | null | undefined, key
 function ForecastSkeleton() {
   return (
     <div className="space-y-6">
-      <Card className="bg-white/70 border border-white/50 shadow">
+      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -329,7 +329,7 @@ function ForecastSkeleton() {
           <Skeleton className="h-72 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-white/70 border border-white/50 shadow">
+      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-72" />
@@ -396,7 +396,7 @@ function ForecastChartTooltip({
       key: 'historical',
       label: labels.historical,
       value: formatPrice(source[HISTORICAL_PRICE_KEY] as number),
-      color: '#1E293B',
+      color: 'var(--color-primary-800)',
     });
   }
 
@@ -405,7 +405,7 @@ function ForecastChartTooltip({
       key: 'confidence',
       label: labels.confidence,
       value: `${formatPrice(lower)} – ${formatPrice(upper)}`,
-      color: '#2563EB',
+      color: 'var(--color-primary-500)',
     });
   }
 
@@ -414,7 +414,7 @@ function ForecastChartTooltip({
       key: 'median',
       label: labels.median,
       value: formatPrice(source[medianKey] as number),
-      color: '#1D4ED8',
+      color: 'var(--color-primary-700)',
     });
   }
 
@@ -423,7 +423,7 @@ function ForecastChartTooltip({
       key: 'pricePoint',
       label: labels.pricePoint,
       value: formatPrice(source[pricePointKey] as number),
-      color: '#0EA5E9',
+      color: 'var(--color-primary-300)',
     });
   }
 
@@ -435,7 +435,7 @@ function ForecastChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/70 bg-white/95 p-3 shadow-xl backdrop-blur">
+    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 p-3 shadow-xl backdrop-blur">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
       <div className="mt-2 space-y-1">
         {items.map((item) => (
@@ -450,7 +450,7 @@ function ForecastChartTooltip({
         {probabilityValue ? (
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 text-slate-500">
-              <span className="h-2 w-2 rounded-full bg-[#F97316]" />
+              <span className="h-2 w-2 rounded-full bg-[var(--color-orange-500)]" />
               {labels.probability}
             </span>
             <span className="font-semibold text-slate-900">{probabilityValue}</span>
@@ -967,7 +967,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link href={`/`}>
@@ -993,17 +993,17 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         {showSkeleton ? (
           <ForecastSkeleton />
         ) : error ? (
-          <Card className="bg-white/80 border border-red-200 text-red-700">
+          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-red-200 text-red-700">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.forecastView.states.error}</div>
-              <div className="text-sm text-red-600/80">{error}</div>
+              <div className="text-sm text-[color:var(--color-red-600)]/80">{error}</div>
               <Button variant="outline" onClick={handleRefresh}>
                 {t.stock.forecastView.states.retry}
               </Button>
             </CardContent>
           </Card>
         ) : !hasForecasts ? (
-          <Card className="bg-white/80 border border-slate-200/60 text-center text-slate-600">
+          <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-slate-200)]/60 text-center text-slate-600">
             <CardContent className="py-10 text-lg font-semibold">
               {t.stock.forecastView.states.empty}
             </CardContent>
@@ -1011,7 +1011,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         ) : (
           <div className="space-y-6">
             {summaryForecast && summaryMetadata && (
-              <Card className="bg-white/80 border border-white/60 shadow-lg backdrop-blur">
+              <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-neutral-white)]/60 shadow-lg backdrop-blur">
                 <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle>{t.stock.forecastView.summaryCardTitle}</CardTitle>
@@ -1041,7 +1041,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    <div className="rounded-lg bg-slate-50/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.pricePoint}</p>
                       <p className="mt-2 text-2xl font-semibold text-slate-900">
                         {typeof summaryPricePoint === 'number'
@@ -1049,7 +1049,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP10}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryPriceP10 === 'number'
@@ -1057,7 +1057,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP90}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryPriceP90 === 'number'
@@ -1065,7 +1065,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.probabilityUp}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryProbabilityUp === 'number'
@@ -1073,7 +1073,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50/70 p-4 shadow-sm">
+                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
                       <p className="text-sm text-slate-500">{t.stock.forecastView.summary.quality}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
                         {typeof summaryQuality === 'number' ? qualityFormatter.format(summaryQuality) : '—'}
@@ -1084,7 +1084,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </Card>
             )}
 
-            <Card className="bg-white/80 border border-white/60 shadow">
+            <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-neutral-white)]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.quantilesCardTitle}</CardTitle>
                 <CardDescription>{t.stock.forecastView.quantilesCardDescription}</CardDescription>
@@ -1097,22 +1097,22 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                         <ComposedChart data={timelineChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
                           <defs>
                             <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
-                              <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.05} />
+                              <stop offset="0%" stopColor="var(--color-primary-500)" stopOpacity={0.28} />
+                              <stop offset="100%" stopColor="var(--color-primary-300)" stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="historicalGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#1E293B" stopOpacity={0.18} />
-                              <stop offset="100%" stopColor="#1E293B" stopOpacity={0.02} />
+                              <stop offset="0%" stopColor="var(--color-primary-800)" stopOpacity={0.18} />
+                              <stop offset="100%" stopColor="var(--color-primary-800)" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(148, 163, 184, 0.35)" />
+                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(var(--color-slate-400-rgb), 0.35)" />
                           <XAxis
                             dataKey="timestamp"
                             type="number"
                             scale="time"
                             domain={['dataMin', 'dataMax']}
                             tickFormatter={(value: number) => chartDateFormatter(value)}
-                            tick={{ fill: '#475569' }}
+                            tick={{ fill: 'var(--color-slate-600)' }}
                             tickLine={false}
                             axisLine={false}
                             minTickGap={24}
@@ -1120,7 +1120,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           <YAxis
                             yAxisId="price"
                             tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
-                            tick={{ fill: '#475569' }}
+                            tick={{ fill: 'var(--color-slate-600)' }}
                             width={90}
                             axisLine={false}
                             tickLine={false}
@@ -1132,7 +1132,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                               yAxisId="probability"
                               orientation={isRtl ? 'left' : 'right'}
                               tickFormatter={(value: number) => percentageFormatter.format(value)}
-                              tick={{ fill: '#475569' }}
+                              tick={{ fill: 'var(--color-slate-600)' }}
                               width={70}
                               axisLine={false}
                               tickLine={false}
@@ -1141,14 +1141,14 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           ) : null}
                           <Tooltip
                             content={renderTooltip}
-                            cursor={{ stroke: 'rgba(148, 163, 184, 0.45)', strokeDasharray: '4 4' }}
+                            cursor={{ stroke: 'rgba(var(--color-slate-400-rgb), 0.45)', strokeDasharray: '4 4' }}
                           />
                           <Legend wrapperStyle={{ paddingTop: 12 }} />
                           {hasHistorical ? (
                             <Area
                               type="monotone"
                               dataKey={HISTORICAL_PRICE_KEY}
-                              stroke="#1E293B"
+                              stroke="var(--color-primary-800)"
                               strokeWidth={2.5}
                               fill="url(#historicalGradient)"
                               yAxisId="price"
@@ -1186,7 +1186,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={medianChartKey}
                             yAxisId="price"
-                            stroke="#2563EB"
+                            stroke="var(--color-primary-500)"
                             strokeWidth={3}
                             dot={{ r: 3, strokeWidth: 0 }}
                             activeDot={{ r: 5 }}
@@ -1198,7 +1198,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={pricePointChartKey}
                             yAxisId="price"
-                            stroke="#0EA5E9"
+                            stroke="var(--color-primary-300)"
                             strokeWidth={2}
                             strokeDasharray="6 4"
                             dot={{ r: 2, strokeWidth: 0 }}
@@ -1229,7 +1229,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey="probability"
                             yAxisId="probability"
-                            stroke="#F97316"
+                            stroke="var(--color-orange-500)"
                             strokeWidth={2}
                             dot={{ r: 3 }}
                             activeDot={{ r: 5 }}
@@ -1249,7 +1249,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/80 border border-white/60 shadow">
+            <Card className="bg-[color:var(--color-neutral-white)]/80 border border-[color:var(--color-neutral-white)]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.table.title}</CardTitle>
                 <CardDescription>{t.stock.forecastView.table.subtitle}</CardDescription>
@@ -1260,7 +1260,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                     {groupedRows.map((group) => (
                       <div
                         key={group.horizon}
-                        className="space-y-4 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/5"
+                        className="space-y-4 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
@@ -1314,7 +1314,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             return (
                               <div
                                 key={row.id}
-                                className="flex h-full flex-col justify-between rounded-xl border border-white/70 bg-white/80 p-4 shadow-sm"
+                                className="flex h-full flex-col justify-between rounded-xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/80 p-4 shadow-sm"
                               >
                                 <div className="space-y-4">
                                   <div className="flex items-start justify-between gap-3">

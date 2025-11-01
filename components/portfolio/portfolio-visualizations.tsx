@@ -32,7 +32,15 @@ interface PortfolioVisualizationsProps {
   timeline: PortfolioTimelinePoint[];
 }
 
-const COLORS = ['#2563EB', '#0EA5E9', '#22C55E', '#8B5CF6', '#F97316', '#F59E0B', '#EC4899'];
+const COLORS = [
+  'var(--color-primary-500)',
+  'var(--color-primary-300)',
+  'var(--color-green-500)',
+  'var(--color-purple-500)',
+  'var(--color-orange-500)',
+  'var(--color-amber-500)',
+  'var(--color-pink-500)',
+];
 
 type TooltipValueType = number | string;
 
@@ -49,9 +57,9 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
   const resolvedLabel = labelFormatter ? labelFormatter(label ?? '') : label;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm shadow-xl backdrop-blur-lg">
+    <div className="rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-card-surface)] px-4 py-3 text-sm shadow-xl">
       {resolvedLabel && (
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{resolvedLabel}</p>
       )}
       <div className="mt-2 space-y-1">
         {payload.map((item) => {
@@ -62,13 +70,13 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
           const numericValue = typeof item.value === 'number' ? item.value : Number(item.value);
 
           return (
-            <div key={item.dataKey?.toString()} className="flex items-center gap-2 text-slate-600">
+            <div key={item.dataKey?.toString()} className="flex items-center gap-2 text-[var(--color-slate-600)]">
               <span
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ background: item.color ?? 'var(--fallback-color, #2563EB)' }}
+                style={{ background: item.color ?? 'var(--fallback-color, var(--color-primary-500))' }}
               />
               <span className="text-xs font-medium sm:text-sm">{item.name}</span>
-              <span className="ml-auto font-semibold text-slate-900">{valueFormatter(numericValue)}</span>
+              <span className="ml-auto font-semibold text-[var(--color-primary-800)]">{valueFormatter(numericValue)}</span>
             </div>
           );
         })}
@@ -83,12 +91,15 @@ const renderLegend = ({ payload }: DefaultLegendContentProps) => {
   }
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 sm:text-sm">
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium text-[var(--color-slate-500)] sm:text-sm">
       {payload.map((entry, index) => {
         const payloadInfo = entry.payload as { symbol?: string } | undefined;
         const legendKey = `${entry.dataKey ?? 'legend'}-${payloadInfo?.symbol ?? entry.value}-${index}`;
         return (
-          <span key={legendKey} className="inline-flex items-center gap-2 rounded-full bg-slate-100/70 px-3 py-1">
+          <span
+            key={legendKey}
+            className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-slate-100)]/70 px-3 py-1"
+          >
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
             <span>{entry.value}</span>
           </span>
@@ -254,12 +265,12 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.performanceTrendTitle}
           </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.performanceTrendDescription}</p>
+          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.performanceTrendDescription}</p>
         </CardHeader>
         <CardContent className="h-80">
           {!hasPerformanceData ? (
@@ -271,15 +282,15 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               <AreaChart data={performanceData} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="performanceActualGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.15} />
+                    <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0.15} />
                   </linearGradient>
                   <linearGradient id="performanceExpectedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.85} />
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.12} />
+                    <stop offset="5%" stopColor="var(--color-purple-500)" stopOpacity={0.85} />
+                    <stop offset="95%" stopColor="var(--color-purple-500)" stopOpacity={0.12} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -287,16 +298,16 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   tickFormatter={(value) => shortDateFormatter.format(new Date(Number(value)))}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <YAxis
                   tickFormatter={(value) => compactNumber.format(value)}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(15, 23, 42, 0.15)', strokeWidth: 1 }}
+                  cursor={{ stroke: 'rgba(var(--color-primary-900-rgb), 0.15)', strokeWidth: 1 }}
                   content={
                     <ChartTooltip
                       valueFormatter={areaTooltipFormatter}
@@ -308,7 +319,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 <Area
                   type="monotone"
                   dataKey="actual"
-                  stroke="#2563EB"
+                  stroke="var(--color-primary-500)"
                   fill="url(#performanceActualGradient)"
                   strokeWidth={2}
                   name={t.dashboard.performanceTrendActual}
@@ -317,7 +328,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 <Area
                   type="monotone"
                   dataKey="expected"
-                  stroke="#8B5CF6"
+                  stroke="var(--color-purple-500)"
                   fill="url(#performanceExpectedGradient)"
                   strokeWidth={2}
                   name={t.dashboard.performanceTrendExpected}
@@ -329,24 +340,24 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
           </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.topMoversDescription}</p>
+          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.topMoversDescription}</p>
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/60 py-12 text-center text-sm text-slate-500">
-              <ArrowUpRight className="h-5 w-5 text-slate-400" />
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 py-12 text-center text-sm text-[var(--color-slate-500)]">
+              <ArrowUpRight className="h-5 w-5 text-[var(--color-slate-400)]" />
               <p>{t.dashboard.topMoversEmpty}</p>
             </div>
           ) : (
             <div className="grid gap-6">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversGainers}</h4>
+                  <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversGainers}</h4>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
                     {t.dashboard.topMoversPositiveLabel}
                   </span>
@@ -354,14 +365,14 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.gainers.map((item, index) => (
                   <div
                     key={`gainer-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                       <ArrowUpRight className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
-                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                      <p className="text-sm font-semibold text-[var(--color-primary-900)]">{item.display}</p>
+                      <p className="text-xs text-[var(--color-slate-500)]">{item.symbol}</p>
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-sm font-semibold text-emerald-600">{formatValue(item.changeValue)}</p>
@@ -374,7 +385,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -382,7 +393,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-slate-700">{t.dashboard.topMoversLosers}</h4>
+                  <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversLosers}</h4>
                   <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-600">
                     {t.dashboard.topMoversNegativeLabel}
                   </span>
@@ -390,14 +401,14 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.losers.map((item, index) => (
                   <div
                     key={`loser-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100/70 bg-white/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                       <ArrowDownRight className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{item.display}</p>
-                      <p className="text-xs text-slate-500">{item.symbol}</p>
+                      <p className="text-sm font-semibold text-[var(--color-primary-900)]">{item.display}</p>
+                      <p className="text-xs text-[var(--color-slate-500)]">{item.symbol}</p>
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-sm font-semibold text-rose-600">{formatValue(item.changeValue)}</p>
@@ -410,7 +421,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-3 text-sm text-slate-500">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -420,12 +431,12 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
           </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.allocationDescription}</p>
+          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.allocationDescription}</p>
         </CardHeader>
         <CardContent className="h-80">
           {allocationData.length === 0 ? (
@@ -461,7 +472,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   outerRadius={115}
                   paddingAngle={4}
                   cornerRadius={8}
-                  stroke="#fff"
+                  stroke="var(--color-neutral-white)"
                   strokeWidth={2}
                 >
                   {allocationData.map((entry, index) => {
@@ -470,7 +481,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   })}
                 </Pie>
                 <Tooltip
-                  cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }}
+                  cursor={{ fill: 'var(--color-overlay-primary-soft)' }}
                   content={
                     <ChartTooltip
                       valueFormatter={pieTooltipFormatter}
@@ -485,12 +496,12 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.pnlChart}
           </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.pnlDescription}</p>
+          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.pnlDescription}</p>
         </CardHeader>
         <CardContent className="h-80">
           {pnlData.length === 0 ? (
@@ -502,29 +513,29 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
               <BarChart data={pnlData} barGap={12} barCategoryGap="18%">
                 <defs>
                   <linearGradient id="pnlCurrentGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.95} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.6} />
+                    <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.95} />
+                    <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0.6} />
                   </linearGradient>
                   <linearGradient id="pnlProjectedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22C55E" stopOpacity={0.95} />
-                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0.6} />
+                    <stop offset="5%" stopColor="var(--color-green-500)" stopOpacity={0.95} />
+                    <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.25)" />
                 <XAxis
                   dataKey="symbol"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                 />
                 <YAxis
                   tickFormatter={(value) => compactNumber.format(value)}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: '#475569', fontSize: 12 }}
+                  tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
+                  cursor={{ fill: 'var(--color-overlay-navy-soft)' }}
                   content={<ChartTooltip valueFormatter={barTooltipFormatter} />}
                 />
                 <Legend verticalAlign="bottom" align="center" content={renderLegend} />
@@ -546,16 +557,16 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-white/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
-        <CardHeader className="space-y-2 border-b border-slate-100/60 bg-white/50">
-          <CardTitle className="text-lg font-semibold text-slate-900">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.holdingPeriodTitle}
           </CardTitle>
-          <p className="text-sm text-slate-500">{t.dashboard.holdingPeriodDescription}</p>
+          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.holdingPeriodDescription}</p>
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasHoldingData ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 text-sm text-[var(--color-slate-500)]">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -565,17 +576,17 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="20%">
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.95} />
-                        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.55} />
+                        <stop offset="0%" stopColor="var(--color-primary-300)" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="var(--color-primary-500)" stopOpacity={0.55} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.2)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: '#475569', fontSize: 12 }}
+                      tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                     />
                     <YAxis
                       type="category"
@@ -583,10 +594,10 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                       tickLine={false}
                       axisLine={false}
                       width={120}
-                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                      tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                     />
                     <Tooltip
-                      cursor={{ fill: 'rgba(59, 130, 246, 0.08)' }}
+                      cursor={{ fill: 'var(--color-overlay-sky-soft)' }}
                       content={
                         <ChartTooltip
                           valueFormatter={barTooltipFormatter}
@@ -603,13 +614,13 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {holdingPeriodData.map((bucket) => (
                   <div
                     key={bucket.key}
-                    className="rounded-2xl border border-slate-100/70 bg-white/70 p-4 shadow-inner"
+                    className="rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner"
                   >
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{bucket.label}</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                    <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-slate-500)]">{bucket.label}</p>
+                    <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">
                       {formatValue(bucket.value)}
                     </p>
-                    <p className="text-xs text-slate-500">{formatPercent(bucket.percentage, locale)}</p>
+                    <p className="text-xs text-[var(--color-slate-500)]">{formatPercent(bucket.percentage, locale)}</p>
                   </div>
                 ))}
               </div>

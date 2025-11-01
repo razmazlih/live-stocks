@@ -201,13 +201,13 @@ export default function RealizedPnLPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#EEF5FF]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-xl backdrop-blur-sm">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-blue-200/60 blur-3xl" />
+          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-6 py-8 shadow-xl backdrop-blur-sm">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
@@ -215,7 +215,7 @@ export default function RealizedPnLPage() {
                     <CircleDollarSign className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.realized.title}</h1>
+                    <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{t.realized.title}</h1>
                     <p className="mt-2 max-w-xl text-base text-slate-600">{t.realized.subtitle}</p>
                   </div>
                 </div>
@@ -224,7 +224,7 @@ export default function RealizedPnLPage() {
                     <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
                     {t.app.updated} {lastUpdatedDisplay ?? '—'}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-slate-600 shadow-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
                     <TrendingUp className="h-4 w-4 text-blue-500" />
                     1 USD ≈ {formatCurrency(rate, 'ILS', locale)}
                   </span>
@@ -234,11 +234,11 @@ export default function RealizedPnLPage() {
                     {getTrendIcon(netProfitUsd)}
                     <span className="flex flex-col leading-tight">
                       <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
-                      <span className="text-[11px] text-slate-600/80">
+                      <span className="text-[11px] text-[color:var(--color-slate-600)]/80">
                         {formatSignedCurrency(netProfitIls, 'ILS')}
                       </span>
                     </span>
-                    <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
+                    <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.realized.netProfitAfterTax}</span>
                   </span>
                 </div>
               </div>
@@ -247,8 +247,8 @@ export default function RealizedPnLPage() {
           </header>
 
           <main className="mt-10 space-y-10">
-            <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-blue-100/50 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/80 px-4 py-8 shadow-xl backdrop-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
@@ -264,7 +264,7 @@ export default function RealizedPnLPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.realized.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.realized.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]">
+                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
                       <Link href="/positions">
                         <Receipt className="h-4 w-4" />
                         <span>{t.realized.goToPositions}</span>
@@ -282,16 +282,16 @@ export default function RealizedPnLPage() {
                     {getTrendIcon(netProfitUsd)}
                     <span className="flex flex-col leading-tight">
                       <span>{formatSignedCurrency(netProfitUsd, 'USD')}</span>
-                      <span className="text-[11px] text-slate-600/80">
+                      <span className="text-[11px] text-[color:var(--color-slate-600)]/80">
                         {formatSignedCurrency(netProfitIls, 'ILS')}
                       </span>
                     </span>
-                    <span className="text-xs font-medium text-slate-600/80">{t.realized.netProfitAfterTax}</span>
+                    <span className="text-xs font-medium text-[color:var(--color-slate-600)]/80">{t.realized.netProfitAfterTax}</span>
                   </span>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
+                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalProceeds}</p>
                             <p className="text-3xl font-semibold text-slate-900">
@@ -302,8 +302,8 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
+                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalCost}</p>
                             <p className="text-3xl font-semibold text-slate-900">
@@ -314,8 +314,8 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
+                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalProfit}</p>
                             <p className={`text-3xl font-semibold ${getTrendTone(totals.profitUsd).text}`}>
@@ -326,8 +326,8 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/40 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
+                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.taxesTitle}</p>
                             <div className="space-y-1">
@@ -359,7 +359,7 @@ export default function RealizedPnLPage() {
                             return (
                               <div
                                 key={item.symbol}
-                                className={`rounded-3xl border ${tone.border} bg-white/90 p-5 shadow-inner`}
+                                className={`rounded-3xl border ${tone.border} bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner`}
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -436,9 +436,9 @@ export default function RealizedPnLPage() {
                           return (
                             <div
                               key={`${sale.id ?? sale.symbol}-${sale.sellDate}`}
-                              className={`relative overflow-hidden rounded-3xl border ${tone.border} bg-white/90 p-5 shadow-inner`}
+                              className={`relative overflow-hidden rounded-3xl border ${tone.border} bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner`}
                             >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-blue-100/30 blur-3xl" />
+                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/30 blur-3xl" />
                               <div className="relative z-10 space-y-3">
                                 <div className="flex items-center justify-between">
                                   <div>

@@ -74,14 +74,14 @@ export function Sparkline({
   points,
   width = 320,
   height = 96,
-  color = '#2563EB',
+  color = 'var(--color-primary-500)',
   baseline,
-  baselineColor = 'rgba(148, 163, 184, 0.9)',
+  baselineColor = 'rgba(var(--color-slate-400-rgb), 0.9)',
   projectedPrice,
-  projectedLineColor = 'rgba(37, 99, 235, 0.8)',
-  belowEntryColor = '#D22E2E',
-  betweenProjectedColor = '#2563EB',
-  aboveProjectedColor = '#4AA956',
+  projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
+  belowEntryColor = 'var(--color-red-400)',
+  betweenProjectedColor = 'var(--color-primary-500)',
+  aboveProjectedColor = 'var(--color-green-400)',
   annualGrowthRate,
   yearsHeld,
   events,
@@ -463,10 +463,18 @@ export function Sparkline({
       }
 
       if (typeof hex !== 'string') {
-        return `rgba(148, 163, 184, ${alpha})`;
+        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
       }
 
       let normalized = hex.trim();
+      if (normalized.startsWith('var(')) {
+        const inner = normalized.slice(4, -1).trim();
+        const rgbReference = inner.endsWith('-rgb') ? inner : `${inner}-rgb`;
+        const value = `rgba(var(${rgbReference}), ${alpha})`;
+        cache.set(cacheKey, value);
+        return value;
+      }
+
       if (normalized.startsWith('#')) {
         normalized = normalized.slice(1);
       }
@@ -479,7 +487,7 @@ export function Sparkline({
       }
 
       if (normalized.length !== 6) {
-        return `rgba(148, 163, 184, ${alpha})`;
+        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
       }
 
       const bigint = Number.parseInt(normalized, 16);
@@ -700,8 +708,8 @@ export function Sparkline({
                 y2={height}
                 gradientUnits="userSpaceOnUse"
               >
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--color-neutral-white)" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="var(--color-neutral-white)" stopOpacity={0} />
               </linearGradient>
               <mask id={areaMaskId} maskUnits="userSpaceOnUse">
                 <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
@@ -735,7 +743,7 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="rgba(148, 163, 184, 0.35)"
+                    stroke="rgba(var(--color-slate-400-rgb), 0.35)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
@@ -788,7 +796,7 @@ export function Sparkline({
                   y1={0}
                   x2={effectiveHoveredPoint.x}
                   y2={height}
-                  stroke="rgba(15, 23, 42, 0.25)"
+                  stroke="rgba(var(--color-primary-900-rgb), 0.25)"
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />
@@ -796,7 +804,7 @@ export function Sparkline({
                   cx={effectiveHoveredPoint.x}
                   cy={effectiveHoveredPoint.y}
                   r={4.2}
-                  fill="#ffffff"
+                  fill="var(--color-neutral-white)"
                   stroke={color}
                   strokeWidth={1.4}
                 />
@@ -808,7 +816,7 @@ export function Sparkline({
                 cx={lastPoint.x}
                 cy={lastPoint.y}
                 r={2.8}
-                fill="#ffffff"
+                fill="var(--color-neutral-white)"
                 stroke={lastSegmentColor}
                 strokeWidth={1.2}
               />
@@ -817,8 +825,8 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
               const tone = event.type === 'BUY'
-                ? { fill: '#dcfce7', stroke: '#047857' }
-                : { fill: '#fee2e2', stroke: '#b91c1c' };
+                ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
+                : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
               const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
               return (
@@ -864,10 +872,10 @@ export function Sparkline({
                 top: Math.max(effectiveHoveredPoint.y - 56, 8),
               }}
             >
-              <div className="rounded-lg bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-black/5">
+              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
                 {hoveredPriceText}
               </div>
-              <div className="rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
+              <div className="rounded-md bg-[color:var(--color-slate-900)]/80 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
                 {hoveredTimeText}
               </div>
             </div>
@@ -875,7 +883,7 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-white/95 px-3 py-2 text-xs shadow-lg ring-1 ring-black/5"
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--color-neutral-white)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
               style={{
                 left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
                 top: Math.max(activeEvent.y - 12, 12),
