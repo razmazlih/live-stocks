@@ -290,7 +290,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-purple-500)" stopOpacity={0.12} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground)/0.2)" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -307,7 +307,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(var(--color-primary-900-rgb), 0.15)', strokeWidth: 1 }}
+                  cursor={{ stroke: 'hsl(var(--foreground)/0.15)', strokeWidth: 1 }}
                   content={
                     <ChartTooltip
                       valueFormatter={areaTooltipFormatter}
@@ -521,7 +521,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.25)" />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground)/0.25)" />
                 <XAxis
                   dataKey="symbol"
                   tickLine={false}
@@ -580,7 +580,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                         <stop offset="100%" stopColor="var(--color-primary-500)" stopOpacity={0.55} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--muted-foreground)/0.2)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}

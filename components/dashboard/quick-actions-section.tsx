@@ -20,11 +20,11 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
   return (
     <div
       className={cn(
-        'w-full max-w-md rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-5 shadow-inner glass-blur-sm',
-        className
+        'w-full max-w-md rounded-2xl border border-border/60 bg-card/80 p-5 shadow-inner glass-surface backdrop-saturate-150',
+        className,
       )}
     >
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       <DashboardQuickActions actions={actions} />
       {children}
     </div>

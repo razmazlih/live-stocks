@@ -2,8 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from 'react';
+import { useTheme } from 'next-themes';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
+import { readChartPalette, readCssVariable } from '@/lib/theme-tokens';
 
 export interface SparklineEvent {
   id: string;
@@ -74,14 +76,14 @@ export function Sparkline({
   points,
   width = 320,
   height = 96,
-  color = 'var(--color-primary-500)',
+  color: colorProp,
   baseline,
-  baselineColor = 'rgba(var(--color-slate-400-rgb), 0.9)',
+  baselineColor: baselineColorProp,
   projectedPrice,
-  projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
-  belowEntryColor = 'var(--color-red-400)',
-  betweenProjectedColor = 'var(--color-primary-500)',
-  aboveProjectedColor = 'var(--color-green-400)',
+  projectedLineColor: projectedLineColorProp,
+  belowEntryColor: belowEntryColorProp,
+  betweenProjectedColor: betweenProjectedColorProp,
+  aboveProjectedColor: aboveProjectedColorProp,
   annualGrowthRate,
   yearsHeld,
   events,
@@ -102,6 +104,28 @@ export function Sparkline({
   interactive = false,
   onHoverPoint,
 }: SparklineProps) {
+  const { resolvedTheme } = useTheme();
+  const chartPalette = useMemo(() => {
+    void resolvedTheme;
+    return readChartPalette();
+  }, [resolvedTheme]);
+  const resolvedColor =
+    colorProp ?? chartPalette[0] ?? readCssVariable('--primary', 'hsl(221.2 83.2% 53.3%)');
+  const resolvedBaselineColor =
+    baselineColorProp ?? readCssVariable('--muted-foreground', 'hsl(215 16% 45%)');
+  const resolvedProjectedLineColor =
+    projectedLineColorProp ?? readCssVariable('--primary', 'hsl(221.2 83.2% 53.3%)');
+  const resolvedBelowEntryColor =
+    belowEntryColorProp ?? readCssVariable('--destructive', 'hsl(0 72% 50%)');
+  const resolvedBetweenColor = betweenProjectedColorProp ?? resolvedColor;
+  const resolvedAboveColor =
+    aboveProjectedColorProp ?? readCssVariable('--success', 'hsl(142.1 70.6% 45.3%)');
+  const color = resolvedColor;
+  const baselineColor = resolvedBaselineColor;
+  const projectedLineColor = resolvedProjectedLineColor;
+  const belowEntryColor = resolvedBelowEntryColor;
+  const betweenProjectedColor = resolvedBetweenColor;
+  const aboveProjectedColor = resolvedAboveColor;
   const gradientId = useId();
   const areaGradientId = `${gradientId}-fill-color`;
   const areaMaskId = `${gradientId}-fill-mask`;
@@ -463,7 +487,7 @@ export function Sparkline({
       }
 
       if (typeof hex !== 'string') {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
+        return `hsl(var(--muted-foreground)/${alpha})`;
       }
 
       let normalized = hex.trim();
@@ -471,6 +495,15 @@ export function Sparkline({
         const inner = normalized.slice(4, -1).trim();
         const rgbReference = inner.endsWith('-rgb') ? inner : `${inner}-rgb`;
         const value = `rgba(var(${rgbReference}), ${alpha})`;
+        cache.set(cacheKey, value);
+        return value;
+      }
+
+      if (normalized.startsWith('hsl(')) {
+        const hasAlpha = normalized.includes('/');
+        const value = hasAlpha
+          ? normalized.replace(/\/[^)]+/, `/${alpha}`)
+          : normalized.replace(')', ` / ${alpha})`);
         cache.set(cacheKey, value);
         return value;
       }
@@ -487,7 +520,7 @@ export function Sparkline({
       }
 
       if (normalized.length !== 6) {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
+        return `hsl(var(--muted-foreground)/${alpha})`;
       }
 
       const bigint = Number.parseInt(normalized, 16);
@@ -708,8 +741,8 @@ export function Sparkline({
                 y2={height}
                 gradientUnits="userSpaceOnUse"
               >
-                <stop offset="0%" stopColor="var(--color-neutral-white)" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="var(--color-neutral-white)" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--card))" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="hsl(var(--card))" stopOpacity={0} />
               </linearGradient>
               <mask id={areaMaskId} maskUnits="userSpaceOnUse">
                 <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
@@ -743,7 +776,7 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="rgba(var(--color-slate-400-rgb), 0.35)"
+                    stroke="hsl(var(--muted-foreground)/0.35)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
@@ -796,7 +829,7 @@ export function Sparkline({
                   y1={0}
                   x2={effectiveHoveredPoint.x}
                   y2={height}
-                  stroke="rgba(var(--color-primary-900-rgb), 0.25)"
+                  stroke="hsl(var(--foreground)/0.25)"
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />
@@ -804,7 +837,7 @@ export function Sparkline({
                   cx={effectiveHoveredPoint.x}
                   cy={effectiveHoveredPoint.y}
                   r={4.2}
-                  fill="var(--color-neutral-white)"
+                  fill="hsl(var(--card))"
                   stroke={color}
                   strokeWidth={1.4}
                 />
@@ -816,7 +849,7 @@ export function Sparkline({
                 cx={lastPoint.x}
                 cy={lastPoint.y}
                 r={2.8}
-                fill="var(--color-neutral-white)"
+                fill="hsl(var(--card))"
                 stroke={lastSegmentColor}
                 strokeWidth={1.2}
               />
@@ -825,8 +858,8 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
               const tone = event.type === 'BUY'
-                ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
-                : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
+                ? { fill: 'hsl(var(--success)/0.2)', stroke: 'hsl(var(--success))' }
+                : { fill: 'hsl(var(--destructive)/0.18)', stroke: 'hsl(var(--destructive))' };
               const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
               return (
@@ -872,7 +905,7 @@ export function Sparkline({
                 top: Math.max(effectiveHoveredPoint.y - 56, 8),
               }}
             >
-              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
+              <div className="rounded-lg bg-card/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-md ring-1 ring-foreground/10">
                 {hoveredPriceText}
               </div>
               <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
@@ -883,7 +916,7 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--color-neutral-white)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-card/95 px-3 py-2 text-xs shadow-lg ring-1 ring-foreground/10"
               style={{
                 left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
                 top: Math.max(activeEvent.y - 12, 12),

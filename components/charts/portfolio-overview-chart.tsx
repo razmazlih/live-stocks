@@ -3,12 +3,14 @@
 import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Fragment, useId, useMemo } from 'react';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { PortfolioSummary, PortfolioTimelinePoint } from '@/types';
+import { readChartPalette, readCssVariable } from '@/lib/theme-tokens';
 
 interface PortfolioOverviewChartProps {
   data: PortfolioTimelinePoint[];
@@ -34,12 +36,6 @@ type GradientStop = {
   color: string;
 };
 
-const trendStateColors: Record<ChartPoint['trendState'], string> = {
-  loss: 'var(--color-red-450)',
-  under: 'var(--color-primary-300)',
-  above: 'var(--color-green-500)',
-};
-
 const resolveTrendState = (
   netValue: number,
   forecastValue: number
@@ -63,20 +59,22 @@ const ActiveNetLineDot = ({
   cx,
   cy,
   payload,
+  colors,
 }: {
   cx?: number;
   cy?: number;
   payload?: ChartPoint;
+  colors: Record<ChartPoint['trendState'], string>;
 }) => {
   if (typeof cx !== 'number' || typeof cy !== 'number') {
     return null;
   }
 
   const point = payload as ChartPoint | undefined;
-  const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
+  const color = point ? colors[point.trendState] : colors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-neutral-white)" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="hsl(var(--card))" />
   );
 };
 
@@ -112,29 +110,29 @@ const resolveForecastGapVisuals = (
 ): { text: string; badge: string; border: string; background: string; icon: JSX.Element } => {
   if (value > 0) {
     return {
-      text: 'text-emerald-600',
-      badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-[color:var(--color-emerald-200)]/70',
-      border: 'border-overlay-emerald-100',
-      background: 'from-emerald-500/10 via-emerald-400/5 to-white',
+      text: 'text-success',
+      badge: 'bg-success/10 text-success ring-1 ring-inset ring-success/40',
+      border: 'border-success/30',
+      background: 'from-success/15 via-success/5 to-background',
       icon: <ArrowUpRight className="h-4 w-4" />,
     };
   }
 
   if (value < 0) {
     return {
-      text: 'text-rose-600',
-      badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-[color:var(--color-rose-200)]/70',
-      border: 'border-overlay-rose-100',
-      background: 'from-rose-500/10 via-rose-400/5 to-white',
+      text: 'text-destructive',
+      badge: 'bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/30',
+      border: 'border-destructive/30',
+      background: 'from-destructive/15 via-destructive/5 to-background',
       icon: <ArrowDownRight className="h-4 w-4" />,
     };
   }
 
   return {
-    text: 'text-slate-600',
-    badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-[color:var(--color-slate-200)]/70',
-    border: 'border-overlay-slate-200',
-    background: 'from-slate-500/5 via-slate-400/5 to-white',
+    text: 'text-muted-foreground',
+    badge: 'bg-muted text-muted-foreground ring-1 ring-inset ring-border/60',
+    border: 'border-border/60',
+    background: 'from-muted/20 via-muted/10 to-background',
     icon: <Minus className="h-4 w-4" />,
   };
 };
@@ -165,7 +163,7 @@ const ChartTooltip = ({
   const forecastUsd = point.forecastValueUsd ?? point.expectedValueUsd;
   const forecastIls = point.forecastValueIls ?? point.expectedValueIls;
 
-  const projectionClass = projectionGapUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+  const projectionClass = projectionGapUsd >= 0 ? 'text-success' : 'text-destructive';
 
   const netUsd = point.netValue;
   const netIls = point.netValueIls;
@@ -180,31 +178,31 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+    <div className="w-72 rounded-2xl border border-border bg-card/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
         <span>{labels.at}</span>
-        <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
+        <span className="text-muted-foreground">{labelFormatter(label ?? '')}</span>
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{labels.net}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
+        <div className="rounded-xl bg-gradient-to-br from-destructive/15 via-primary/10 to-success/15 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{labels.net}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{formatUsd(netUsd)}</p>
+          <p className="text-[11px] text-muted-foreground">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
+        <div className="rounded-xl border border-warning/50 bg-gradient-to-br from-warning/20 via-warning/10 to-card p-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-warning">{labels.forecast}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{formatUsd(forecastUsd)}</p>
+          <p className="text-[11px] text-muted-foreground">{formatIls(forecastIls)}</p>
           <div className="mt-2 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-overlay-amber-500">{labels.projection}</p>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="font-medium">{labels.usd}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapUsd, formatUsd)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="font-medium">{labels.ils}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapIls, formatIls)}
@@ -216,20 +214,20 @@ const ChartTooltip = ({
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {changeRows.map((row) => {
-          const changeClass = row.usd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+          const changeClass = row.usd >= 0 ? 'text-success' : 'text-destructive';
 
           return (
             <div
               key={row.key}
-              className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm"
+              className="rounded-xl border border-border/60 bg-overlay-neutral-white p-3 shadow-sm"
             >
-              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>{row.label}</span>
                 <span className={`text-xs font-semibold ${changeClass}`}>
                   {formatSignedCurrency(row.usd, formatUsd)}
                 </span>
               </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="font-medium">{labels.ils}</span>
                 <span className={`font-semibold ${changeClass}`}>
                   {formatSignedCurrency(row.ils, formatIls)}
@@ -246,10 +244,23 @@ const ChartTooltip = ({
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
+  const { resolvedTheme } = useTheme();
   const gradientReactId = useId();
   const netLineGradientId = useMemo(
     () => `portfolio-overview-gradient-${gradientReactId.replace(/[:]/g, '-')}`,
     [gradientReactId]
+  );
+  const chartPalette = useMemo(() => {
+    void resolvedTheme;
+    return readChartPalette();
+  }, [resolvedTheme]);
+  const trendStateColors = useMemo<Record<ChartPoint['trendState'], string>>(
+    () => ({
+      loss: chartPalette[2] ?? readCssVariable('--destructive', 'hsl(0 72% 50%)'),
+      under: chartPalette[0] ?? readCssVariable('--primary', 'hsl(221.2 83.2% 53.3%)'),
+      above: chartPalette[1] ?? readCssVariable('--success', 'hsl(142.1 70.6% 45.3%)'),
+    }),
+    [chartPalette]
   );
 
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
@@ -449,7 +460,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     }
 
     return stops;
-  }, [chartPoints]);
+  }, [chartPoints, trendStateColors]);
 
   const yDomain = useMemo<[number, number] | undefined>(() => {
     if (!chartPoints.length) {
@@ -546,8 +557,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
+    <Card className="relative z-[11] border border-border/50 bg-gradient-to-br from-card via-card/90 to-muted/60 shadow-xl glass-blur-sm">
+      <CardHeader className="space-y-2 border-b border-border/60 bg-card/80">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -555,7 +566,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+          <div className="rounded-3xl border border-border/60 bg-card/85 p-6 shadow-lg">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
@@ -647,19 +658,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
+          <div className="rounded-3xl border border-border/60 bg-overlay-neutral-white shadow-inner">
             <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-muted-foreground shadow-sm ring-1 ring-border/60 glass-blur-sm">
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-destructive" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-primary" />
                   <span>{t.dashboard.timelineLegendActualUnder}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                  <span className="block h-1.5 w-6 rounded-full bg-success" />
                   <span>{t.dashboard.timelineLegendActualAbove}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -700,7 +711,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--muted-foreground)/0.22)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -711,19 +722,19 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     axisLine={false}
                     tickMargin={16}
                     minTickGap={28}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'hsl(var(--primary)/0.35)', strokeWidth: 1.25 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,14 +752,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine y={0} stroke="hsl(var(--primary)/0.45)" strokeDasharray="1 6" strokeWidth={2} />
                   <Line
                     type="monotone"
                     dataKey="netValue"
                     stroke={`url(#${netLineGradientId})`}
                     strokeWidth={3.5}
                     dot={false}
-                    activeDot={<ActiveNetLineDot />}
+                    activeDot={<ActiveNetLineDot colors={trendStateColors} />}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}
@@ -756,11 +767,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Line
                     type="monotone"
                     dataKey="forecastValueUsd"
-                    stroke="var(--color-amber-500)"
+                    stroke="hsl(var(--warning))"
                     strokeWidth={2.5}
                     strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-neutral-white)' }}
+                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'hsl(var(--warning))', fill: 'hsl(var(--card))' }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}

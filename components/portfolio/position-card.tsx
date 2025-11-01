@@ -415,7 +415,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  baselineColor="hsl(var(--muted-foreground)/0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -564,7 +564,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  baselineColor="hsl(var(--muted-foreground)/0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}

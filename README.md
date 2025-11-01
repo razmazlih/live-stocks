@@ -215,6 +215,13 @@ supabase/
 - `npm run lint` – בדיקת תקינות ESLint.
 - `npm run typecheck` – בדיקות TypeScript ללא פליטה.
 - `npm test` – הרצת בדיקות יחידה וקומפוננטה עם Vitest.
+- `npm run scan:colors` – וידוא שאין צבעי HEX קשיחים בקוד (חוץ מנכסי SVG/תמונות).
+
+## Theme Provider וטוקנים
+- **ספק תֵמה גלובלי** – הקובץ `app/providers.tsx` עוטף את כל האפליקציה ב-`ThemeProvider` של `next-themes` עם `attribute="class"`, כך שה-`html` מקבל את המחלקה `light` או `dark` ללא הבהובים.
+- **טוקנים מבוססי HSL** – `app/globals.css` מגדיר משתני CSS (למשל `--background`, `--foreground`, `--success`) עבור מצב בהיר וכהה. Tailwind ממפה אותם למחלקות כמו `bg-background`, `text-muted-foreground`, `bg-card/80` ועוד.
+- **תאימות לאחור** – שכבת "Legacy token aliases" באותו קובץ משמרת שמות ישנים כגון `--color-primary-500` אבל מפנה אותם לטוקנים החדשים, כך שרכיבים קיימים נשארים רספונסיביים לנושא.
+- **הוספת צבע חדש** – הוסיפו את המשתנה ב-`:root` וב-`.dark` (למשל `--info-strong`), עדכנו את `tailwind.config.ts` תחת `theme.extend.colors`, ואז השתמשו ב-`className` כגון `text-info-strong` או `bg-[hsl(var(--info-strong))]` לפי הצורך.
 
 ## עקרונות עיצוב ופיתוח
 - **RTL ו-LTR דינמיים** – שינוי השפה מתעדכן בהקשר הגלובלי ומחיל כיוון מסמך מתאים בכל המסכים.

@@ -4,6 +4,7 @@ import { TrendingUp } from 'lucide-react';
 import { DailyChangeBadge } from './daily-change-badge';
 import { DashboardQuickAction } from './quick-actions';
 import { QuickActionsSection } from './quick-actions-section';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface DashboardHeroProps {
   title: string;
@@ -34,26 +35,27 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-      <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-primary-050)]/60 blur-3xl" />
+    <header className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/90 px-6 py-8 shadow-xl glass-surface">
+      <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-primary/15 blur-3xl" />
+      <div className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-secondary/20 blur-3xl" />
       <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-6">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-[var(--color-primary-002)] p-3 text-[var(--color-primary-500)] shadow-inner">
+            <div className="rounded-2xl bg-primary/15 p-3 text-primary shadow-inner">
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{title}</h1>
-              <p className="mt-2 max-w-xl text-base text-[var(--color-slate-600)]">{subtitle}</p>
+              <h1 className="text-3xl font-bold text-foreground sm:text-4xl">{title}</h1>
+              <p className="mt-2 max-w-xl text-base text-muted-foreground">{subtitle}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[var(--color-slate-500)] sm:text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-010)] px-3 py-1 text-[var(--color-primary-500)] shadow-sm">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-primary-400)]" />
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-primary shadow-sm">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
               {updatedLabel} {lastUpdatedDisplay ?? '—'}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-[var(--color-slate-600)] shadow-sm">
-              <TrendingUp className="h-4 w-4 text-[var(--color-primary-400)]" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1 text-muted-foreground shadow-sm">
+              <TrendingUp className="h-4 w-4 text-primary" />
               {exchangeRateLabel} {exchangeRateValue}
             </span>
             {dailyChange && (
@@ -66,7 +68,15 @@ export function DashboardHero({
             )}
           </div>
         </div>
-        <QuickActionsSection title={quickActionsTitle} actions={quickActions} />
+        <QuickActionsSection
+          title={quickActionsTitle}
+          actions={quickActions}
+          className="relative"
+        >
+          <div className="mt-4 flex justify-end">
+            <ThemeToggle />
+          </div>
+        </QuickActionsSection>
       </div>
     </header>
   );
