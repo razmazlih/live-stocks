@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { DashboardQuickActions } from './quick-actions';
@@ -26,6 +27,10 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
     >
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
       <DashboardQuickActions actions={actions} />
+      <div className="mt-4 flex justify-end">
+        {/* Token-aware toggle keeps navigation aligned with system theme */}
+        <ThemeToggle />
+      </div>
       {children}
     </div>
   );

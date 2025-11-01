@@ -76,9 +76,9 @@ export function Sparkline({
   height = 96,
   color = 'var(--color-primary-500)',
   baseline,
-  baselineColor = 'rgba(var(--color-slate-400-rgb), 0.9)',
+  baselineColor = 'hsl(var(--neutral-400) / 0.9)',
   projectedPrice,
-  projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
+  projectedLineColor = 'hsl(var(--primary) / 0.8)',
   belowEntryColor = 'var(--color-red-400)',
   betweenProjectedColor = 'var(--color-primary-500)',
   aboveProjectedColor = 'var(--color-green-400)',
@@ -456,29 +456,9 @@ export function Sparkline({
 
   const parseHexToRgba = useMemo(() => {
     const cache = new Map<string, string>();
-    return (hex: string, alpha: number) => {
-      const cacheKey = `${hex}-${alpha}`;
-      if (cache.has(cacheKey)) {
-        return cache.get(cacheKey)!;
-      }
 
-      if (typeof hex !== 'string') {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
-      }
-
-      let normalized = hex.trim();
-      if (normalized.startsWith('var(')) {
-        const inner = normalized.slice(4, -1).trim();
-        const rgbReference = inner.endsWith('-rgb') ? inner : `${inner}-rgb`;
-        const value = `rgba(var(${rgbReference}), ${alpha})`;
-        cache.set(cacheKey, value);
-        return value;
-      }
-
-      if (normalized.startsWith('#')) {
-        normalized = normalized.slice(1);
-      }
-
+    const hexToHsl = (value: string) => {
+      let normalized = value.replace('#', '').trim();
       if (normalized.length === 3) {
         normalized = normalized
           .split('')
@@ -487,16 +467,95 @@ export function Sparkline({
       }
 
       if (normalized.length !== 6) {
-        return `rgba(var(--color-slate-400-rgb), ${alpha})`;
+        return null;
       }
 
-      const bigint = Number.parseInt(normalized, 16);
-      const r = (bigint >> 16) & 255;
-      const g = (bigint >> 8) & 255;
-      const b = bigint & 255;
-      const value = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      cache.set(cacheKey, value);
-      return value;
+      const r = Number.parseInt(normalized.slice(0, 2), 16) / 255;
+      const g = Number.parseInt(normalized.slice(2, 4), 16) / 255;
+      const b = Number.parseInt(normalized.slice(4, 6), 16) / 255;
+
+      return rgbToHsl(r, g, b);
+    };
+
+    const rgbToHsl = (r: number, g: number, b: number) => {
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+
+      let h = 0;
+      if (delta > 0) {
+        if (max === r) {
+          h = ((g - b) / delta) % 6;
+        } else if (max === g) {
+          h = (b - r) / delta + 2;
+        } else {
+          h = (r - g) / delta + 4;
+        }
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+
+      const l = (max + min) / 2;
+      const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+
+      return {
+        h: Number(h.toFixed(1)),
+        s: Number((s * 100).toFixed(1)),
+        l: Number((l * 100).toFixed(1)),
+      };
+    };
+
+    const withAlpha = (color: string, alpha: number) =>
+      `color-mix(in hsl, ${color} ${(alpha * 100).toFixed(0)}%, transparent)`;
+
+    return (input: string, alpha: number) => {
+      const cacheKey = `${input}-${alpha}`;
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey)!;
+      }
+
+      if (typeof input !== 'string') {
+        const fallback = `hsl(var(--neutral-400) / ${alpha})`;
+        cache.set(cacheKey, fallback);
+        return fallback;
+      }
+
+      const normalized = input.trim();
+
+      if (normalized.startsWith('var(')) {
+        const inner = normalized.slice(4, -1).trim();
+        const baseName = inner.endsWith('-rgb') ? inner.slice(0, -4) : inner;
+        const resolved = `var(${baseName})`;
+        const value = withAlpha(resolved, alpha);
+        cache.set(cacheKey, value);
+        return value;
+      }
+
+      if (normalized.startsWith('#')) {
+        const hsl = hexToHsl(normalized);
+        if (hsl) {
+          const value = `hsl(${hsl.h} ${hsl.s}% ${hsl.l}% / ${alpha})`;
+          cache.set(cacheKey, value);
+          return value;
+        }
+      }
+
+      if (normalized.startsWith('rgb')) {
+        const [r, g, b] = normalized
+          .replace(/rgb(a)?\(|\)/g, '')
+          .split(',')
+          .map((part) => Number.parseFloat(part.trim()) / 255);
+        const hsl = rgbToHsl(r, g, b);
+        if (hsl) {
+          const value = `hsl(${hsl.h} ${hsl.s}% ${hsl.l}% / ${alpha})`;
+          cache.set(cacheKey, value);
+          return value;
+        }
+      }
+
+      const fallback = `hsl(var(--neutral-400) / ${alpha})`;
+      cache.set(cacheKey, fallback);
+      return fallback;
     };
   }, []);
 
@@ -743,7 +802,7 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="rgba(var(--color-slate-400-rgb), 0.35)"
+                    stroke="hsl(var(--neutral-400) / 0.35)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
@@ -796,7 +855,7 @@ export function Sparkline({
                   y1={0}
                   x2={effectiveHoveredPoint.x}
                   y2={height}
-                  stroke="rgba(var(--color-primary-900-rgb), 0.25)"
+                  stroke="hsl(var(--primary) / 0.25)"
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />

@@ -176,6 +176,16 @@ supabase/
 - רכיבי `components/ui` מבוססי Radix + Tailwind מספקים כפתורים, טפסים, טבלאות וחיווי מצב עם נגישות מובנית.
 - `components/dashboard`, `components/portfolio` ו-`components/watchlist` מחלקים את ממשק המשתמש לתתי-מודולים הניתנים לשימוש חוזר.
 - `app/globals.css` ו-`tailwind.config.ts` מגדירים טיפוגרפיה, צבעים, אנימציות ותמיכה ב-RTL.
+- `app/providers.tsx` עוטף את כל האפליקציה ב-`next-themes` ומוסיף מחלקת `class` מותאמת (כולל `suppressHydrationWarning`) כדי למנוע FOUC ולהחיל מצב כהה/בהיר לפי מערכת ההפעלה.
+
+#### Theme Provider וטוקני צבע
+- `app/providers.tsx` משתמש ב-`ThemeProvider` עם `attribute="class"`, כך שה-`<html>` מקבל את המחלקה `dark` באופן אוטומטי. כל רכיב יכול להסתמך על המחלקה הזו בלי להאזין לאירועים ידניים.
+- `styles/globals.css` מגדיר את כל טוקני העיצוב בפורמט HSL עבור מצבים בהיר וכהה תחת `:root` ו-`.dark`. הטוקנים ממופים ל-`tailwind.config.ts`, ולכן מספיק להשתמש במחלקות Tailwind כגון `bg-background`, `text-foreground`, `border-border` וכדומה.
+- כדי להוסיף טוקן חדש:
+  1. הוסיפו משתנה חדש ב-`:root` וב-`.dark` עם ערכי HSL (ללא `hsl()` מסביב).
+  2. עדכנו את `tailwind.config.ts` (במידת הצורך) כך שהטוקן יהיה זמין כצבע Tailwind או כשם עזר.
+  3. השתמשו במחלקות Tailwind מבוססות משתנים (`bg-[hsl(var(--my-token))]` או קיצור כמו `bg-card`).
+- לאחר שינויים בצבעים הריצו `npm run scan:colors` כדי לוודא שלא נותרו ערכי HEX/RGB קשיחים בקוד.
 
 ## API ושירותים חיצוניים
 - `GET /api/quote` – מחזיר מחיר חי ושינוי יומי מממשק Finnhub עם מנגנון retry.

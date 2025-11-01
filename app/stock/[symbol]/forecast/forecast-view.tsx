@@ -1105,7 +1105,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                               <stop offset="100%" stopColor="var(--color-primary-800)" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(var(--color-slate-400-rgb), 0.35)" />
+                          <CartesianGrid strokeDasharray="6 8" stroke="hsl(var(--neutral-400) / 0.35)" />
                           <XAxis
                             dataKey="timestamp"
                             type="number"
@@ -1141,7 +1141,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           ) : null}
                           <Tooltip
                             content={renderTooltip}
-                            cursor={{ stroke: 'rgba(var(--color-slate-400-rgb), 0.45)', strokeDasharray: '4 4' }}
+                            cursor={{ stroke: 'hsl(var(--neutral-400) / 0.45)', strokeDasharray: '4 4' }}
                           />
                           <Legend wrapperStyle={{ paddingTop: 12 }} />
                           {hasHistorical ? (

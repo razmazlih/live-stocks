@@ -265,7 +265,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-7">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.performanceTrendTitle}
@@ -290,7 +290,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-purple-500)" stopOpacity={0.12} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" />
+              <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--neutral-400) / 0.2)" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -307,7 +307,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(var(--color-primary-900-rgb), 0.15)', strokeWidth: 1 }}
+                  cursor={{ stroke: 'hsl(var(--neutral-700) / 0.15)', strokeWidth: 1 }}
                   content={
                     <ChartTooltip
                       valueFormatter={areaTooltipFormatter}
@@ -340,7 +340,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-5">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
@@ -431,7 +431,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
@@ -496,7 +496,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.pnlChart}
@@ -521,7 +521,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.25)" />
+            <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--neutral-400) / 0.25)" />
                 <XAxis
                   dataKey="symbol"
                   tickLine={false}
@@ -557,7 +557,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-12">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.holdingPeriodTitle}
@@ -580,7 +580,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                         <stop offset="100%" stopColor="var(--color-primary-500)" stopOpacity={0.55} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--neutral-400) / 0.2)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}
