@@ -265,8 +265,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+      <Card className="overflow-hidden border-[color:var(--color-card-border)] bg-gradient-to-br from-[color:var(--surface-glass-strong)] via-[color:var(--surface-glass)] to-[color:var(--surface-glass-muted)] shadow-2xl xl:col-span-7">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-faint)]">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.performanceTrendTitle}
           </CardTitle>
@@ -340,8 +340,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+      <Card className="overflow-hidden border-[color:var(--color-card-border)] bg-gradient-to-br from-[color:var(--surface-glass-strong)] via-[color:var(--surface-glass)] to-[color:var(--surface-glass-muted)] shadow-2xl xl:col-span-5">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-faint)]">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
           </CardTitle>
@@ -349,7 +349,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 py-12 text-center text-sm text-[var(--color-slate-500)]">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--surface-glass-muted)] py-12 text-center text-sm text-[var(--color-slate-500)]">
               <ArrowUpRight className="h-5 w-5 text-[var(--color-slate-400)]" />
               <p>{t.dashboard.topMoversEmpty}</p>
             </div>
@@ -365,7 +365,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.gainers.map((item, index) => (
                   <div
                     key={`gainer-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--surface-glass)] p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                       <ArrowUpRight className="h-5 w-5" />
@@ -385,7 +385,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--surface-glass-faint)] px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -401,7 +401,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {topMovers.losers.map((item, index) => (
                   <div
                     key={`loser-${item.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--surface-glass)] p-3 shadow-sm"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                       <ArrowDownRight className="h-5 w-5" />
@@ -421,7 +421,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--surface-glass-faint)] px-4 py-3 text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -431,8 +431,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+      <Card className="overflow-hidden border-[color:var(--color-card-border)] bg-gradient-to-br from-[color:var(--surface-glass-strong)] via-[color:var(--surface-glass)] to-[color:var(--surface-glass-muted)] shadow-2xl xl:col-span-6">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-faint)]">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
           </CardTitle>
@@ -472,7 +472,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   outerRadius={115}
                   paddingAngle={4}
                   cornerRadius={8}
-                  stroke="var(--color-neutral-white)"
+                  stroke="#ffffff"
                   strokeWidth={2}
                 >
                   {allocationData.map((entry, index) => {
@@ -496,8 +496,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+      <Card className="overflow-hidden border-[color:var(--color-card-border)] bg-gradient-to-br from-[color:var(--surface-glass-strong)] via-[color:var(--surface-glass)] to-[color:var(--surface-glass-muted)] shadow-2xl xl:col-span-6">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-faint)]">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.pnlChart}
           </CardTitle>
@@ -557,8 +557,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
+      <Card className="overflow-hidden border-[color:var(--color-card-border)] bg-gradient-to-br from-[color:var(--surface-glass-strong)] via-[color:var(--surface-glass)] to-[color:var(--surface-glass-muted)] shadow-2xl xl:col-span-12">
+        <CardHeader className="space-y-2 border-b border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-faint)]">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.holdingPeriodTitle}
           </CardTitle>
@@ -566,7 +566,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardHeader>
         <CardContent className="space-y-6">
           {!hasHoldingData ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 text-sm text-[var(--color-slate-500)]">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--surface-glass-muted)] text-sm text-[var(--color-slate-500)]">
               {t.dashboard.emptyChart}
             </div>
           ) : (
@@ -614,7 +614,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                 {holdingPeriodData.map((bucket) => (
                   <div
                     key={bucket.key}
-                    className="rounded-2xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner"
+                    className="rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--surface-glass)] p-4 shadow-inner"
                   >
                     <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-slate-500)]">{bucket.label}</p>
                     <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">

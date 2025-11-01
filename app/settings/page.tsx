@@ -49,7 +49,7 @@ export default function SettingsPage() {
       key: "refresh",
       icon: RefreshCw,
       label: `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      className: "bg-[color:var(--surface-glass)] text-slate-600",
       iconClassName: "text-slate-500",
     },
     {
@@ -169,14 +169,14 @@ export default function SettingsPage() {
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-card-border)] bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
           <div className="pointer-events-none absolute -right-10 top-0 h-44 w-44 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
           <div className="relative z-10 space-y-6">
             <Link href="/" className="inline-flex">
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 rounded-full bg-[color:var(--color-neutral-white)]/80 px-3 text-slate-600 shadow-sm hover:text-slate-800"
+                className="gap-2 rounded-full bg-[color:var(--surface-glass)] px-3 text-slate-600 shadow-sm hover:text-slate-800"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {locale === "he" ? "חזרה" : "Back"}
@@ -216,7 +216,7 @@ export default function SettingsPage() {
         </header>
 
         <main className="mt-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-card-border)] bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
             <div className="pointer-events-none absolute -left-16 top-0 h-52 w-52 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
             <div className="relative z-10">
               <form onSubmit={handleSubmit} className="space-y-8">

@@ -254,7 +254,7 @@ export default function HomePage() {
 
   const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-6 py-10 text-center text-sm text-slate-500">
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--surface-glass)] px-6 py-10 text-center text-sm text-slate-500">
       {message}
     </div>
   );
@@ -296,7 +296,7 @@ export default function HomePage() {
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner">
+        <div className="rounded-2xl border border-slate-100 bg-[color:var(--surface-glass)] p-4 shadow-inner">
           <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
         </div>
       </div>
@@ -323,7 +323,7 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-card-border)] bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
@@ -340,7 +340,7 @@ export default function HomePage() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/60 p-4 shadow-sm sm:hidden">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-muted)] p-4 shadow-sm sm:hidden">
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold text-slate-900">
                           {t.dashboard.sectionSelectorTitle}
@@ -363,8 +363,8 @@ export default function HomePage() {
                               className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                                 isActive
                                   ? 'border-blue-500 bg-[color:var(--color-blue-50)]/70 text-blue-600 shadow-sm'
-                                  : 'border-overlay-neutral-white bg-[color:var(--color-neutral-white)]/70 text-slate-500 hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/60 hover:text-blue-600'
-                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[color:var(--color-neutral-white)]/70 hover:text-slate-500'}`}
+                                  : 'border-overlay-neutral-white bg-[color:var(--surface-glass)] text-slate-500 hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/60 hover:text-blue-600'
+                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[color:var(--surface-glass)] hover:text-slate-500'}`}
                             >
                               <Icon
                                 className={`h-4 w-4 transition ${

@@ -883,7 +883,7 @@ export default function WatchlistPage() {
       key: 'tickers',
       icon: ListChecks,
       label: tickerSummary,
-      className: 'bg-[color:var(--color-neutral-white)]/70 text-slate-600',
+      className: 'bg-[color:var(--surface-glass)] text-slate-600',
       iconClassName: 'text-overlay-blue-500',
     },
   ] as const;
@@ -946,7 +946,7 @@ export default function WatchlistPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-card-border)] bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
             <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
@@ -1025,7 +1025,7 @@ export default function WatchlistPage() {
 
               {selectedGroup ? (
                 <div className="space-y-6">
-                  <div className="rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
+                  <div className="rounded-3xl border border-[color:var(--color-card-border)] bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="space-y-2">
                         <h2 className="text-2xl font-semibold text-slate-800">{selectedGroup.name}</h2>
@@ -1057,7 +1057,7 @@ export default function WatchlistPage() {
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
+                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-[color:var(--surface-glass-strong)] px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
                                   hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
                                 )}
                               >
@@ -1084,7 +1084,7 @@ export default function WatchlistPage() {
                             </PopoverTrigger>
                             <PopoverContent
                               align={isRtl ? 'end' : 'start'}
-                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm"
+                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--surface-glass-strong)] p-4 shadow-xl glass-blur-sm"
                             >
                               <div className="flex flex-col gap-3">
                                 <p className="text-sm font-medium text-slate-700">
@@ -1222,7 +1222,7 @@ export default function WatchlistPage() {
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-10 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-muted)] p-10 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
                       <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
@@ -1235,7 +1235,7 @@ export default function WatchlistPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-12 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-card-border)] bg-[color:var(--surface-glass-muted)] p-12 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
                   <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
