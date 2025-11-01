@@ -60,6 +60,7 @@
   --color-neutral-900: #050505;
   --color-neutral-black: #000000;
   --color-neutral-white: #ffffff;
+  --color-pure-white: #ffffff;
   --color-primary-500-rgb: 37, 99, 235;
   --color-primary-400-rgb: 59, 130, 246;
   --color-primary-900-rgb: 15, 23, 42;
@@ -139,9 +140,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --foreground-rgb: 214, 224, 255;
+    --background-start-rgb: 6, 12, 29;
+    --background-end-rgb: 9, 18, 39;
   }
 }
 
@@ -182,42 +183,180 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-    --color-card-surface: rgba(15, 23, 42, 0.82);
-    --color-card-border: rgba(148, 163, 184, 0.35);
-    --color-card-highlight: rgba(59, 130, 246, 0.18);
-    --color-card-shadow: rgba(0, 0, 0, 0.35);
+    --background: 222 55% 7%;
+    --foreground: 210 40% 96.1%;
+    --card: 222 47% 12%;
+    --card-foreground: 210 40% 96.1%;
+    --popover: 222 47% 12%;
+    --popover-foreground: 210 40% 96.1%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 218 34% 18%;
+    --secondary-foreground: 214 32% 85%;
+    --muted: 222 28% 18%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 352 74% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 26% 20%;
+    --input: 222 26% 20%;
+    --ring: 217 91% 65%;
+    --chart-1: 221 83% 66%;
+    --chart-2: 158 64% 52%;
+    --chart-3: 43 86% 62%;
+    --chart-4: 281 67% 67%;
+    --chart-5: 346 77% 63%;
+    --sidebar-background: 222 52% 6%;
+    --sidebar-foreground: 214 32% 85%;
+    --sidebar-primary: 221 83% 66%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 223 36% 12%;
+    --sidebar-accent-foreground: 214 32% 85%;
+    --sidebar-border: 223 36% 16%;
+    --sidebar-ring: 217 91% 65%;
+    --color-card-surface: rgba(6, 11, 28, 0.88);
+    --color-card-border: rgba(96, 112, 150, 0.45);
+    --color-card-highlight: rgba(96, 165, 250, 0.22);
+    --color-card-shadow: rgba(2, 6, 23, 0.55);
+
+    --color-primary-900: #dbeafe;
+    --color-primary-800: #bfdbfe;
+    --color-primary-700: #93c5fd;
+    --color-primary-650: #7aa5fb;
+    --color-primary-600: #60a5fa;
+    --color-primary-500: #3b82f6;
+    --color-primary-400: #2563eb;
+    --color-primary-300: #3b7af4;
+    --color-primary-200: #2c58c5;
+    --color-primary-100: #1f3f7a;
+    --color-primary-050: #162a55;
+    --color-primary-025: #10213f;
+    --color-primary-010: #0c1831;
+    --color-primary-005: #091227;
+    --color-primary-002: #060c1d;
+    --color-primary-500-rgb: 59, 130, 246;
+    --color-primary-400-rgb: 37, 99, 235;
+    --color-primary-900-rgb: 219, 234, 254;
+
+    --color-chart-fallback: #60a5fa;
+    --color-border-default: #1d2a45;
+    --color-warning-500: #facc15;
+    --color-overlay-primary-soft: rgba(96, 165, 250, 0.12);
+    --color-overlay-navy-soft: rgba(18, 31, 58, 0.55);
+    --color-overlay-sky-soft: rgba(14, 165, 233, 0.12);
+    --color-shadow-neutral-35: rgba(1, 4, 12, 0.65);
+    --color-shadow-hot-pink-28: rgba(244, 63, 94, 0.45);
+
+    --color-neutral-950: #020512;
+    --color-neutral-900: #050b1a;
+    --color-neutral-black: #01030a;
+    --color-neutral-white: #cfe0f4;
+    --color-neutral-white-rgb: 19, 30, 51;
+
+    --color-slate-50: #131c2e;
+    --color-slate-100: #1a2940;
+    --color-slate-200: #223654;
+    --color-slate-300: #2b4469;
+    --color-slate-400: #38537f;
+    --color-slate-500: #4a6799;
+    --color-slate-600: #6683b2;
+    --color-slate-700: #83a0c9;
+    --color-slate-800: #a3bddc;
+    --color-slate-900: #cfe0f4;
+    --color-slate-50-rgb: 19, 28, 46;
+    --color-slate-100-rgb: 26, 41, 64;
+    --color-slate-200-rgb: 34, 54, 84;
+    --color-slate-300-rgb: 43, 68, 105;
+    --color-slate-400-rgb: 56, 83, 127;
+    --color-slate-600-rgb: 102, 131, 178;
+    --color-slate-900-rgb: 207, 224, 244;
+
+    --color-gray-400: #8a9ac1;
+    --color-gray-500: #7484ad;
+    --color-gray-600: #5e6e97;
+    --color-gray-700: #49587f;
+    --color-gray-900: #1c2743;
+
+    --color-blue-50: #101c2f;
+    --color-blue-100: #162943;
+    --color-blue-200: #1c365c;
+    --color-blue-300: #25467a;
+    --color-blue-400: #2f5a9d;
+    --color-blue-500: #3b82f6;
+    --color-blue-600: #2563eb;
+    --color-blue-700: #1d4ed8;
+    --color-blue-50-rgb: 16, 28, 47;
+    --color-blue-100-rgb: 22, 41, 67;
+    --color-blue-200-rgb: 28, 54, 92;
+    --color-blue-500-rgb: 59, 130, 246;
+
+    --color-emerald-50: #06261f;
+    --color-emerald-100: #0b3b30;
+    --color-emerald-200: #125a45;
+    --color-emerald-400: #1f8f63;
+    --color-emerald-500: #2dd4a7;
+    --color-emerald-600: #1fa776;
+    --color-emerald-700: #16815b;
+    --color-emerald-100-rgb: 11, 59, 48;
+    --color-emerald-200-rgb: 18, 90, 69;
+
+    --color-green-600: #16a34a;
+    --color-green-500: #22c55e;
+    --color-green-400: #4ade80;
+    --color-green-300: #86efac;
+    --color-green-050: #0b2e1f;
+    --color-green-400-rgb: 74, 222, 128;
+
+    --color-amber-200: #4a3200;
+    --color-amber-300: #5f3f00;
+    --color-amber-500: #f59e0b;
+    --color-amber-600: #d97706;
+    --color-amber-500-rgb: 245, 158, 11;
+
+    --color-orange-500: #f97316;
+
+    --color-red-50: #39111d;
+    --color-red-200: #5e1d2b;
+    --color-red-300: #7a2438;
+    --color-red-400: #fb7185;
+    --color-red-450: #f85972;
+    --color-red-500: #f43f5e;
+    --color-red-600: #e11d48;
+    --color-red-700: #be123c;
+    --color-red-400-rgb: 251, 113, 133;
+    --color-red-600-rgb: 225, 29, 72;
+
+    --color-rose-50: #34101f;
+    --color-rose-100: #4a1c30;
+    --color-rose-200: #6a2745;
+    --color-rose-400: #fb7185;
+    --color-rose-500: #f43f5e;
+    --color-rose-600: #e11d48;
+    --color-rose-700: #be123c;
+    --color-rose-50-rgb: 52, 16, 31;
+    --color-rose-100-rgb: 74, 28, 48;
+    --color-rose-200-rgb: 106, 39, 69;
+
+    --color-sky-100: #12324d;
+    --color-sky-500: #0ea5e9;
+    --color-sky-600: #0284c7;
+    --color-sky-700: #0369a1;
+
+    --color-purple-500: #a855f7;
+    --color-purple-400: #7c3aed;
+    --color-purple-300: #9d5cf5;
+
+    --color-hot-pink-600: #ff3797;
+    --color-hot-pink-500: #ff5faf;
+    --color-hot-pink-400: #ff85c5;
+    --color-hot-pink-300: #ff9dd3;
+
+    --color-pink-500: #ec4899;
+
+    --color-indigo-600: #6366f1;
+    --color-indigo-700: #4c51bf;
+    --color-indigo-500-rgb: 99, 102, 241;
   }
 }
 
@@ -265,10 +404,10 @@
   .border-overlay-slate-300 { border-color: rgba(var(--color-slate-300-rgb), 0.8) !important; }
   .hover\:border-overlay-neutral-white:hover { border-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
 
-  .text-white { color: var(--color-neutral-white) !important; }
-  .bg-white { background-color: var(--color-neutral-white) !important; }
-  .border-white { border-color: var(--color-neutral-white) !important; }
-  .ring-white { --tw-ring-color: var(--color-neutral-white) !important; }
+  .text-white { color: var(--color-pure-white) !important; }
+  .bg-white { background-color: var(--color-pure-white) !important; }
+  .border-white { border-color: var(--color-pure-white) !important; }
+  .ring-white { --tw-ring-color: var(--color-pure-white) !important; }
   .text-amber-500 { color: var(--color-amber-500) !important; }
   .text-amber-600 { color: var(--color-amber-600) !important; }
   .text-blue-100 { color: var(--color-blue-100) !important; }

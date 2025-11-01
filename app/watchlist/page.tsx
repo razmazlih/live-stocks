@@ -1057,8 +1057,8 @@ export default function WatchlistPage() {
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
-                                  hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
+                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60 dark:border-slate-700 dark:bg-[color:var(--color-slate-200)]/35 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:bg-[color:var(--color-slate-200)]/55',
+                                  hasCustomStartDate ? 'ring-2 ring-blue-200 dark:ring-[color:var(--color-blue-400)]/60' : undefined
                                 )}
                               >
                                 <CalendarDays className="h-4 w-4 text-blue-500" />
@@ -1084,10 +1084,10 @@ export default function WatchlistPage() {
                             </PopoverTrigger>
                             <PopoverContent
                               align={isRtl ? 'end' : 'start'}
-                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm"
+                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm dark:border-[color:var(--color-slate-400)]/45 dark:bg-[color:var(--color-slate-200)]/35 dark:shadow-[0_24px_60px_rgba(8,15,35,0.5)]"
                             >
                               <div className="flex flex-col gap-3">
-                                <p className="text-sm font-medium text-slate-700">
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-100">
                                   {t.watchlist.filters.startDateDescription}
                                 </p>
                                 <Calendar
@@ -1112,7 +1112,7 @@ export default function WatchlistPage() {
                                     handleResetStartDate();
                                     setStartDatePopoverOpen(false);
                                   }}
-                                  className="justify-start text-slate-600 hover:text-blue-600"
+                                  className="justify-start text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-200"
                                 >
                                   {t.watchlist.filters.resetStartDate}
                                 </Button>

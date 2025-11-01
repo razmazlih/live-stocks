@@ -322,10 +322,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu dark:bg-[color:var(--color-slate-200)]/25 dark:text-slate-100',
         isHovered
-          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
-          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
+          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl dark:border-[color:var(--color-blue-400)]/55 dark:shadow-[0_24px_60px_rgba(8,15,35,0.45)]'
+          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg dark:border-[color:var(--color-slate-400)]/45 dark:shadow-[0_18px_45px_rgba(8,15,35,0.4)]'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}

@@ -2223,7 +2223,7 @@ export default function PositionsPage() {
                                     {position.display}
                                   </CardTitle>
                                   <CardDescription className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                    <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                                    <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:border-[color:var(--color-slate-400)]/50 dark:bg-[color:var(--color-slate-200)]/30 dark:text-slate-100">
                                       {position.symbol}
                                     </Badge>
                                     <BankBadge
