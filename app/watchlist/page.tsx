@@ -907,7 +907,7 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newGroup,
         onClick: openCreateGroupDialog,
-        className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+        className: 'bg-[var(--color-primary-deep)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-primary-darker)]',
       },
       {
         key: 'newTicker',
@@ -939,10 +939,10 @@ export default function WatchlistPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden bg-[#EEF5FF]"
+      className="relative min-h-screen overflow-hidden bg-[var(--color-surface-cloud)]"
       dir={isRtl ? 'rtl' : 'ltr'}
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#E4F1FF] via-[#F8FBFF] to-[#E3EEFF]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-gradient-cloud-start)] via-[var(--color-gradient-cloud-mid)] to-[var(--color-gradient-cloud-end)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -955,7 +955,7 @@ export default function WatchlistPage() {
                     <Eye className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{t.watchlist.title}</h1>
+                    <h1 className="text-3xl font-bold text-[var(--color-slate-900)] sm:text-4xl">{t.watchlist.title}</h1>
                     <p className="mt-2 max-w-xl text-base text-slate-600">{t.watchlist.subtitle}</p>
                   </div>
                 </div>
@@ -1122,7 +1122,7 @@ export default function WatchlistPage() {
                           <Button
                             size="sm"
                             onClick={openCreateTickerDialog}
-                            className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                            className="gap-2 rounded-full bg-[var(--color-primary)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-primary-strong)]"
                           >
                             <Plus className="h-4 w-4" />
                             {t.watchlist.actions.newTicker}
@@ -1227,7 +1227,7 @@ export default function WatchlistPage() {
                       <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
-                        className="gap-2 rounded-full bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]"
+                        className="gap-2 rounded-full bg-[var(--color-primary)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-primary-strong)]"
                       >
                         <Plus className="h-4 w-4" />
                         {t.watchlist.actions.newTicker}
@@ -1240,7 +1240,7 @@ export default function WatchlistPage() {
                   <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
-                    className="gap-2 rounded-full bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]"
+                    className="gap-2 rounded-full bg-[var(--color-primary-deep)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-primary-darker)]"
                   >
                     <Plus className="h-4 w-4" />
                     {t.watchlist.actions.newGroup}

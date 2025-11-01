@@ -32,7 +32,15 @@ type QuantileDefinition = {
   label: string;
 };
 
-const QUANTILE_COLORS = ['#2563EB', '#0EA5E9', '#6366F1', '#22C55E', '#F97316', '#EC4899', '#A855F7'];
+const QUANTILE_COLORS = [
+  'var(--color-primary)',
+  'var(--color-secondary)',
+  'var(--color-accent-indigo)',
+  'var(--color-success)',
+  'var(--color-warning-strong)',
+  'var(--color-rose)',
+  'var(--color-accent-lilac)',
+];
 
 const CONFIDENCE_BASE_KEY = '__confidenceBase';
 const CONFIDENCE_RANGE_KEY = '__confidenceRange';
@@ -396,7 +404,7 @@ function ForecastChartTooltip({
       key: 'historical',
       label: labels.historical,
       value: formatPrice(source[HISTORICAL_PRICE_KEY] as number),
-      color: '#1E293B',
+      color: 'var(--color-slate-800)',
     });
   }
 
@@ -405,7 +413,7 @@ function ForecastChartTooltip({
       key: 'confidence',
       label: labels.confidence,
       value: `${formatPrice(lower)} – ${formatPrice(upper)}`,
-      color: '#2563EB',
+      color: 'var(--color-primary)',
     });
   }
 
@@ -414,7 +422,7 @@ function ForecastChartTooltip({
       key: 'median',
       label: labels.median,
       value: formatPrice(source[medianKey] as number),
-      color: '#1D4ED8',
+      color: 'var(--color-primary-strong)',
     });
   }
 
@@ -423,7 +431,7 @@ function ForecastChartTooltip({
       key: 'pricePoint',
       label: labels.pricePoint,
       value: formatPrice(source[pricePointKey] as number),
-      color: '#0EA5E9',
+      color: 'var(--color-secondary)',
     });
   }
 
@@ -450,7 +458,7 @@ function ForecastChartTooltip({
         {probabilityValue ? (
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 text-slate-500">
-              <span className="h-2 w-2 rounded-full bg-[#F97316]" />
+              <span className="h-2 w-2 rounded-full bg-[var(--color-warning-strong)]" />
               {labels.probability}
             </span>
             <span className="font-semibold text-slate-900">{probabilityValue}</span>
@@ -967,7 +975,10 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div
+      className="min-h-screen bg-gradient-to-br from-[var(--color-gradient-sky-start)] via-[var(--color-gradient-sky-mid)] to-[var(--color-gradient-sky-end)]"
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link href={`/`}>
@@ -1097,12 +1108,12 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                         <ComposedChart data={timelineChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
                           <defs>
                             <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
-                              <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0.05} />
+                              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.28} />
+                              <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="historicalGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#1E293B" stopOpacity={0.18} />
-                              <stop offset="100%" stopColor="#1E293B" stopOpacity={0.02} />
+                              <stop offset="0%" stopColor="var(--color-slate-800)" stopOpacity={0.18} />
+                              <stop offset="100%" stopColor="var(--color-slate-800)" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="6 8" stroke="rgba(148, 163, 184, 0.35)" />
@@ -1112,7 +1123,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             scale="time"
                             domain={['dataMin', 'dataMax']}
                             tickFormatter={(value: number) => chartDateFormatter(value)}
-                            tick={{ fill: '#475569' }}
+                            tick={{ fill: 'var(--color-slate-600)' }}
                             tickLine={false}
                             axisLine={false}
                             minTickGap={24}
@@ -1120,7 +1131,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           <YAxis
                             yAxisId="price"
                             tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
-                            tick={{ fill: '#475569' }}
+                            tick={{ fill: 'var(--color-slate-600)' }}
                             width={90}
                             axisLine={false}
                             tickLine={false}
@@ -1132,7 +1143,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                               yAxisId="probability"
                               orientation={isRtl ? 'left' : 'right'}
                               tickFormatter={(value: number) => percentageFormatter.format(value)}
-                              tick={{ fill: '#475569' }}
+                              tick={{ fill: 'var(--color-slate-600)' }}
                               width={70}
                               axisLine={false}
                               tickLine={false}
@@ -1148,7 +1159,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             <Area
                               type="monotone"
                               dataKey={HISTORICAL_PRICE_KEY}
-                              stroke="#1E293B"
+                              stroke="var(--color-slate-800)"
                               strokeWidth={2.5}
                               fill="url(#historicalGradient)"
                               yAxisId="price"
@@ -1186,7 +1197,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={medianChartKey}
                             yAxisId="price"
-                            stroke="#2563EB"
+                            stroke="var(--color-primary)"
                             strokeWidth={3}
                             dot={{ r: 3, strokeWidth: 0 }}
                             activeDot={{ r: 5 }}
@@ -1198,7 +1209,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={pricePointChartKey}
                             yAxisId="price"
-                            stroke="#0EA5E9"
+                            stroke="var(--color-secondary)"
                             strokeWidth={2}
                             strokeDasharray="6 4"
                             dot={{ r: 2, strokeWidth: 0 }}
@@ -1229,7 +1240,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey="probability"
                             yAxisId="probability"
-                            stroke="#F97316"
+                            stroke="var(--color-warning-strong)"
                             strokeWidth={2}
                             dot={{ r: 3 }}
                             activeDot={{ r: 5 }}

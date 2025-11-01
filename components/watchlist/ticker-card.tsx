@@ -256,22 +256,22 @@ export function TickerCard({
 
   const trendColor = useMemo(() => {
     if (!historical || historical.length < 2) {
-      return '#2563EB';
+      return 'var(--color-primary)';
     }
 
     const first = historical[0]?.close ?? 0;
     const last = historical[historical.length - 1]?.close ?? 0;
     if (last > first) {
-      return '#047857';
+      return 'var(--color-success-strong)';
     }
     if (last < first) {
-      return '#b91c1c';
+      return 'var(--color-danger-strong)';
     }
-    return '#2563EB';
+    return 'var(--color-primary)';
   }, [historical]);
 
   const accentGradient = useMemo(() => {
-    const base = trendColor ?? '#2563EB';
+    const base = trendColor ?? 'var(--color-primary)';
     return `linear-gradient(90deg, ${base} 0%, ${base}CC 45%, ${base}66 100%)`;
   }, [trendColor]);
 

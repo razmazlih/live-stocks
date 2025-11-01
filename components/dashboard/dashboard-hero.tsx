@@ -43,7 +43,7 @@ export function DashboardHero({
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-[#0F172A] sm:text-4xl">{title}</h1>
+              <h1 className="text-3xl font-bold text-[var(--color-slate-900)] sm:text-4xl">{title}</h1>
               <p className="mt-2 max-w-xl text-base text-slate-600">{subtitle}</p>
             </div>
           </div>

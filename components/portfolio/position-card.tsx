@@ -213,7 +213,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineColor = useMemo(() => {
     if (typeof sparklineReferencePrice === 'number' && Number.isFinite(sparklineReferencePrice)) {
       if (sparklineReferencePrice < position.entryPrice) {
-        return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+        return {
+          className: 'text-[var(--color-danger-muted)]',
+          hex: 'var(--color-danger-muted)',
+        } as const;
       }
 
       if (
@@ -222,11 +225,17 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         projectedPrice > position.entryPrice &&
         sparklineReferencePrice >= projectedPrice
       ) {
-        return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+        return {
+          className: 'text-[var(--color-success-muted)]',
+          hex: 'var(--color-success-muted)',
+        } as const;
       }
     }
 
-    return { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+    return {
+      className: 'text-[var(--color-primary)]',
+      hex: 'var(--color-primary)',
+    } as const;
   }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
   const getTrendStyles = (value: number) => {

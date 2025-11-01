@@ -23,17 +23,20 @@ export function DashboardEmptyState({
 }: DashboardEmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-      <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner">
+      <div className="rounded-full bg-[var(--color-primary-soft)] p-3 text-[var(--color-primary)] shadow-inner">
         <Icon className="h-6 w-6" />
       </div>
       <div className="space-y-1">
-        <p className="text-lg font-semibold text-slate-800">{title}</p>
-        <p className="text-sm text-slate-500">{description}</p>
+        <p className="text-lg font-semibold text-[var(--color-slate-800)]">{title}</p>
+        <p className="text-sm text-[var(--color-slate-500)]">{description}</p>
       </div>
       <Button
         asChild
         size="sm"
-        className={cn('gap-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]', buttonClassName)}
+        className={cn(
+          'gap-2 bg-[var(--color-primary)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-primary-strong)]',
+          buttonClassName,
+        )}
       >
         <Link href={actionHref}>
           <Icon className="h-4 w-4" />

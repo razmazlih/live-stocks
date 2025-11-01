@@ -74,14 +74,14 @@ export function Sparkline({
   points,
   width = 320,
   height = 96,
-  color = '#2563EB',
+  color = 'var(--color-primary)',
   baseline,
   baselineColor = 'rgba(148, 163, 184, 0.9)',
   projectedPrice,
   projectedLineColor = 'rgba(37, 99, 235, 0.8)',
-  belowEntryColor = '#D22E2E',
-  betweenProjectedColor = '#2563EB',
-  aboveProjectedColor = '#4AA956',
+  belowEntryColor = 'var(--color-danger-muted)',
+  betweenProjectedColor = 'var(--color-primary)',
+  aboveProjectedColor = 'var(--color-success-muted)',
   annualGrowthRate,
   yearsHeld,
   events,
@@ -700,8 +700,8 @@ export function Sparkline({
                 y2={height}
                 gradientUnits="userSpaceOnUse"
               >
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--color-white)" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="var(--color-white)" stopOpacity={0} />
               </linearGradient>
               <mask id={areaMaskId} maskUnits="userSpaceOnUse">
                 <rect width={chartWidth} height={height} fill={`url(#${areaOpacityGradientId})`} />
@@ -796,7 +796,7 @@ export function Sparkline({
                   cx={effectiveHoveredPoint.x}
                   cy={effectiveHoveredPoint.y}
                   r={4.2}
-                  fill="#ffffff"
+                  fill="var(--color-white)"
                   stroke={color}
                   strokeWidth={1.4}
                 />
@@ -808,7 +808,7 @@ export function Sparkline({
                 cx={lastPoint.x}
                 cy={lastPoint.y}
                 r={2.8}
-                fill="#ffffff"
+                fill="var(--color-white)"
                 stroke={lastSegmentColor}
                 strokeWidth={1.2}
               />
@@ -817,8 +817,8 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
               const tone = event.type === 'BUY'
-                ? { fill: '#dcfce7', stroke: '#047857' }
-                : { fill: '#fee2e2', stroke: '#b91c1c' };
+                ? { fill: 'var(--color-success-soft)', stroke: 'var(--color-success-strong)' }
+                : { fill: 'var(--color-danger-soft)', stroke: 'var(--color-danger-strong)' };
               const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
               return (

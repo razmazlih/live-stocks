@@ -35,9 +35,9 @@ type GradientStop = {
 };
 
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
-  loss: '#ef4444',
-  under: '#0ea5e9',
-  above: '#22c55e',
+  loss: 'var(--color-loss)',
+  under: 'var(--color-secondary)',
+  above: 'var(--color-success)',
 };
 
 const resolveTrendState = (
@@ -76,7 +76,7 @@ const ActiveNetLineDot = ({
   const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="#ffffff" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-white)" />
   );
 };
 
@@ -711,14 +711,14 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     axisLine={false}
                     tickMargin={16}
                     minTickGap={28}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
@@ -756,11 +756,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <Line
                     type="monotone"
                     dataKey="forecastValueUsd"
-                    stroke="#f59e0b"
+                    stroke="var(--color-warning)"
                     strokeWidth={2.5}
                     strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 5.5, strokeWidth: 2, stroke: '#f97316', fill: '#ffffff' }}
+                    activeDot={{
+                      r: 5.5,
+                      strokeWidth: 2,
+                      stroke: 'var(--color-warning-strong)',
+                      fill: 'var(--color-white)',
+                    }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}
