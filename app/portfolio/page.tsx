@@ -44,21 +44,21 @@ export default function PortfolioPage() {
   const getTrendTone = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-success',
+        badge: 'bg-success/15 text-success',
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-destructive',
+        badge: 'bg-overlay-rose-50 text-destructive',
       };
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      text: 'text-muted-foreground',
+      badge: 'bg-[hsl(var(--muted))] text-muted-foreground',
     };
   };
 
@@ -278,7 +278,7 @@ export default function PortfolioPage() {
         key: 'value',
         label: t.dashboard.totalValue,
         value: formatCurrency(summary.totalValue, 'USD', locale),
-        valueClass: 'text-3xl font-semibold text-slate-900',
+        valueClass: 'text-3xl font-semibold text-foreground',
         secondary: {
           label: 'ILS',
           value: formatCurrency(totalValueIls, 'ILS', locale),
@@ -427,31 +427,31 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[hsl(var(--primary) / 0.12)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary) / 0.08)] via-[hsl(var(--primary) / 0.05)] to-[hsl(var(--primary) / 0.03)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--primary),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+          <header className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[hsl(var(--info) / 0.26)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
+                  <div className="rounded-2xl bg-[hsl(var(--info) / 0.18)] p-3 text-info shadow-inner">
                     <LineChart className="h-6 w-6" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{t.portfolio.title}</h1>
-                    <p className="mt-2 max-w-xl text-base text-slate-600">{t.portfolio.subtitle}</p>
+                    <h1 className="text-3xl font-bold text-[hsl(var(--primary))] sm:text-4xl">{t.portfolio.title}</h1>
+                    <p className="mt-2 max-w-xl text-base text-muted-foreground">{t.portfolio.subtitle}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-overlay-blue-50 px-3 py-1 text-info shadow-sm">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-[hsl(var(--info))]" />
                     {t.app.updated} {lastUpdatedDisplay ?? '—'}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
-                    <LineChart className="h-4 w-4 text-blue-500" />
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[hsl(var(--card))]/70 px-3 py-1 text-muted-foreground shadow-sm">
+                    <LineChart className="h-4 w-4 text-info" />
                     1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
                   </span>
                   {hasDailyChange && (
@@ -470,24 +470,24 @@ export default function PortfolioPage() {
           </header>
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[hsl(var(--info) / 0.18)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                    <RefreshCw className="h-5 w-5 animate-spin text-info" />
                     <p>{t.common.loading}</p>
                   </div>
                 ) : positions.length === 0 || !summary ? (
                   <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-                    <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner">
+                    <div className="rounded-full bg-[hsl(var(--info) / 0.18)] p-3 text-info shadow-inner">
                       <LineChart className="h-6 w-6" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-lg font-semibold text-slate-800">{t.portfolio.emptyTitle}</p>
-                      <p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p>
+                      <p className="text-lg font-semibold text-foreground">{t.portfolio.emptyTitle}</p>
+                      <p className="text-sm text-muted-foreground">{t.portfolio.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
+                    <Button asChild size="sm" className="gap-2 bg-[hsl(var(--primary))] text-[hsl(var(--card-foreground))] shadow-sm hover:bg-[var(--color-primary-700)]">
                       <Link href="/positions">
                         <ArrowUpRight className="h-4 w-4" />
                         <span>{t.positions.add}</span>
@@ -499,15 +499,15 @@ export default function PortfolioPage() {
                     <div className="space-y-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
-                          <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
+                          <h2 className="text-xl font-semibold text-foreground">{t.portfolio.timelineTitle}</h2>
+                          <p className="text-sm text-muted-foreground">{t.portfolio.overviewDescription}</p>
                         </div>
                       </div>
                       {portfolioTimeline.length > 0 ? (
                         <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-overlay-neutral-white py-14 text-center text-slate-500">
-                          <LineChart className="h-6 w-6 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-overlay-neutral-white py-14 text-center text-muted-foreground">
+                          <LineChart className="h-6 w-6 text-muted-foreground" />
                           <p>{t.portfolio.timelineEmpty}</p>
                         </div>
                       )}
@@ -516,7 +516,7 @@ export default function PortfolioPage() {
                     {summaryCards.length > 0 && (
                       <div className="space-y-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
+                          <h2 className="text-xl font-semibold text-foreground">{t.portfolio.overviewTitle}</h2>
                           {hasDailyChange && (
                             <span
                               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
@@ -536,7 +536,7 @@ export default function PortfolioPage() {
                               <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full card-glow blur-3xl" />
                               <div className="relative z-10 space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                                  <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
                                   {card.badge && (
                                     <span
                                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
@@ -548,22 +548,22 @@ export default function PortfolioPage() {
                                 </div>
                                 <p className={card.valueClass}>{card.value}</p>
                                 {card.secondary && (
-                                  <p className="text-sm text-slate-500">
+                                  <p className="text-sm text-muted-foreground">
                                     {card.secondary.label}:{' '}
-                                    <span className="font-medium text-slate-700">{card.secondary.value}</span>
+                                    <span className="font-medium text-foreground">{card.secondary.value}</span>
                                   </p>
                                 )}
                                 {card.helper?.map((helper) => (
                                   <div
                                     key={`${card.key}-${helper.label}`}
-                                    className="mt-3 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-primary-025)] px-3 py-2 text-xs text-slate-500"
+                                    className="mt-3 rounded-2xl border border-[var(--color-card-border)] bg-[hsl(var(--primary) / 0.08)] px-3 py-2 text-xs text-muted-foreground"
                                   >
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2">
                                         {helper.icon && (
                                           <span
                                             className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                                              helper.tone?.badge ?? 'bg-slate-100 text-slate-500'
+                                              helper.tone?.badge ?? 'bg-[hsl(var(--muted))] text-muted-foreground'
                                             }`}
                                           >
                                             {helper.icon}
@@ -573,21 +573,21 @@ export default function PortfolioPage() {
                                       </div>
                                       <span
                                         className={`font-semibold ${
-                                          helper.tone?.text ?? 'text-slate-700'
+                                          helper.tone?.text ?? 'text-foreground'
                                         }`}
                                       >
                                         {helper.value}
                                       </span>
                                     </div>
                                     {helper.secondary && (
-                                      <span className="mt-1 block text-[11px] font-medium text-slate-400">
+                                      <span className="mt-1 block text-[11px] font-medium text-muted-foreground">
                                         {helper.secondary}
                                       </span>
                                     )}
                                   </div>
                                 ))}
                                 {card.footnote && (
-                                  <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
+                                  <p className="text-xs font-medium text-muted-foreground">{card.footnote}</p>
                                 )}
                               </div>
                             </div>
@@ -598,19 +598,19 @@ export default function PortfolioPage() {
 
                     {generalStats.length > 0 && (
                       <div className="space-y-4">
-                        <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.generalStatsTitle}</h2>
+                        <h2 className="text-xl font-semibold text-foreground">{t.portfolio.generalStatsTitle}</h2>
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                           {generalStats.map((stat) => (
                             <div
                               key={stat.key}
                               className="rounded-3xl border card-surface p-5 transition-shadow duration-300"
                             >
-                              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                              <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-foreground'}`}>
                                 {stat.value}
                               </p>
                               {stat.helper && (
-                                <p className="text-xs font-medium text-slate-500">{stat.helper}</p>
+                                <p className="text-xs font-medium text-muted-foreground">{stat.helper}</p>
                               )}
                             </div>
                           ))}
@@ -622,8 +622,8 @@ export default function PortfolioPage() {
                       <div className="space-y-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
-                            <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
+                            <h2 className="text-xl font-semibold text-foreground">{t.portfolio.closedOverviewTitle}</h2>
+                            <p className="text-sm text-muted-foreground">{t.portfolio.closedOverviewDescription}</p>
                           </div>
                           <span
                             className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(closedSummary.performanceDeltaUsd).badge}`}
@@ -641,59 +641,59 @@ export default function PortfolioPage() {
                               key={stat.key}
                               className="rounded-3xl border card-surface p-5 transition-shadow duration-300"
                             >
-                              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                              <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-foreground'}`}>
                                 {stat.value}
                               </p>
                               {stat.helper && (
-                                <p className="text-xs font-medium text-slate-500">{stat.helper}</p>
+                                <p className="text-xs font-medium text-muted-foreground">{stat.helper}</p>
                               )}
                             </div>
                           ))}
                         </div>
-                        <p className="text-xs font-medium text-slate-500">
+                        <p className="text-xs font-medium text-muted-foreground">
                           {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
                         </p>
                       </div>
                     )}
 
                     <div className="space-y-4">
-                      <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
+                      <h2 className="text-xl font-semibold text-foreground">{t.portfolio.moversTitle}</h2>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-3xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 p-5 shadow-inner">
-                          <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
+                        <div className="rounded-3xl border border-[hsl(var(--success) / 0.28)] bg-[var(--color-emerald-50)]/70 p-5 shadow-inner">
+                          <p className="text-sm font-medium text-success">{t.portfolio.bestPerformer}</p>
                           {bestMetric ? (
-                            <div className="mt-3 space-y-1 text-sm text-slate-600">
-                              <p className="text-lg font-semibold text-slate-900">
+                            <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                              <p className="text-lg font-semibold text-foreground">
                                 {bestMetric.position.display || bestMetric.position.symbol}
                               </p>
                               <p>
                                 {formatSignedCurrency(bestMetric.positionPnLUsd, 'USD')}{' '}
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-muted-foreground">
                                   ({formatSignedPercent(bestMetric.roiPercent)})
                                 </span>
                               </p>
                             </div>
                           ) : (
-                            <p className="mt-3 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                            <p className="mt-3 text-sm text-muted-foreground">{t.portfolio.moversEmpty}</p>
                           )}
                         </div>
-                        <div className="rounded-3xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 p-5 shadow-inner">
-                          <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
+                        <div className="rounded-3xl border border-[hsl(var(--destructive) / 0.28)] bg-[var(--color-rose-50)]/70 p-5 shadow-inner">
+                          <p className="text-sm font-medium text-destructive">{t.portfolio.worstPerformer}</p>
                           {worstMetric ? (
-                            <div className="mt-3 space-y-1 text-sm text-slate-600">
-                              <p className="text-lg font-semibold text-slate-900">
+                            <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                              <p className="text-lg font-semibold text-foreground">
                                 {worstMetric.position.display || worstMetric.position.symbol}
                               </p>
                               <p>
                                 {formatSignedCurrency(worstMetric.positionPnLUsd, 'USD')}{' '}
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-muted-foreground">
                                   ({formatSignedPercent(worstMetric.roiPercent)})
                                 </span>
                               </p>
                             </div>
                           ) : (
-                            <p className="mt-3 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                            <p className="mt-3 text-sm text-muted-foreground">{t.portfolio.moversEmpty}</p>
                           )}
                         </div>
                       </div>

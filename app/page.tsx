@@ -67,24 +67,25 @@ export default function HomePage() {
     return value > 0 ? `+${formatted}` : formatted;
   };
 
+  // כל הטונים מבוססים על טוקני נושא במקום HEX קשיח
   const getTrendTone = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-success',
+        badge: 'bg-success/15 text-success',
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-destructive',
+        badge: 'bg-overlay-rose-50 text-destructive',
       };
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      text: 'text-muted-foreground',
+      badge: 'bg-[hsl(var(--muted))] text-muted-foreground',
     };
   };
 
@@ -179,7 +180,7 @@ export default function HomePage() {
           key: 'value',
           label: t.dashboard.totalValue,
           value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-3xl font-semibold text-slate-900',
+          valueClass: 'text-3xl font-semibold text-foreground',
           secondary: {
             label: 'ILS',
             value: formatCurrency(totalValueIls, 'ILS', locale),
@@ -254,7 +255,7 @@ export default function HomePage() {
 
   const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-6 py-10 text-center text-sm text-slate-500">
+    <div className="rounded-2xl border border-dashed border-border bg-[hsl(var(--card))]/70 px-6 py-10 text-center text-sm text-muted-foreground">
       {message}
     </div>
   );
@@ -263,7 +264,7 @@ export default function HomePage() {
     summary && summaryCards.length > 0 ? (
       <div className="space-y-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t.dashboard.summaryTitle}</h2>
           {dailyChangeData && (
             <DailyChangeBadge
               toneClass={dailyChangeData.toneClass}
@@ -295,8 +296,8 @@ export default function HomePage() {
   const renderVisualizationsSection = () =>
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner">
+        <h3 className="text-lg font-semibold text-foreground">{t.dashboard.visualizationsTitle}</h3>
+        <div className="rounded-2xl border border-border bg-[hsl(var(--card))]/70 p-4 shadow-inner">
           <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
         </div>
       </div>
@@ -305,9 +306,9 @@ export default function HomePage() {
     );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[hsl(var(--primary) / 0.12)]">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary) / 0.08)] via-[hsl(var(--primary) / 0.05)] to-[hsl(var(--primary) / 0.03)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--primary),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <DashboardHero
@@ -323,12 +324,12 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-[hsl(var(--card))]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[hsl(var(--info) / 0.18)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                    <RefreshCw className="h-5 w-5 animate-spin text-info" />
                     <p>{t.common.loading}</p>
                   </div>
                 ) : !hasAnyPositions ? (
@@ -340,13 +341,13 @@ export default function HomePage() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/60 p-4 shadow-sm sm:hidden">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-[hsl(var(--card))]/70 bg-[hsl(var(--card))]/60 p-4 shadow-sm sm:hidden">
                       <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">
+                        <h2 className="text-lg font-semibold text-foreground">
                           {t.dashboard.sectionSelectorTitle}
                         </h2>
                         {activeSectionConfig?.description && (
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm text-muted-foreground">
                             {activeSectionConfig.description}
                           </p>
                         )}
@@ -360,15 +361,15 @@ export default function HomePage() {
                               type="button"
                               onClick={() => available && setActiveSection(key)}
                               disabled={!available}
-                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--info))] ${
                                 isActive
-                                  ? 'border-blue-500 bg-[color:var(--color-blue-50)]/70 text-blue-600 shadow-sm'
-                                  : 'border-overlay-neutral-white bg-[color:var(--color-neutral-white)]/70 text-slate-500 hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/60 hover:text-blue-600'
-                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[color:var(--color-neutral-white)]/70 hover:text-slate-500'}`}
+                                  ? 'border-[hsl(var(--info))] bg-[hsl(var(--info) / 0.12)]/70 text-info shadow-sm'
+                                  : 'border-overlay-neutral-white bg-[hsl(var(--card))]/70 text-muted-foreground hover:border-[hsl(var(--info) / 0.26)] hover:bg-[hsl(var(--info) / 0.12)]/60 hover:text-info'
+                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[hsl(var(--card))]/70 hover:text-muted-foreground'}`}
                             >
                               <Icon
                                 className={`h-4 w-4 transition ${
-                                  isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
+                                  isActive ? 'text-info' : 'text-muted-foreground group-hover:text-info'
                                 }`}
                               />
                               <span>{label}</span>
