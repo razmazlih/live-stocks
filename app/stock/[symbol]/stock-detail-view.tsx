@@ -1176,7 +1176,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--color-slate-400-hsl) / 0.18)" vertical={false} />
                         <XAxis
                           dataKey="timestamp"
                           type="number"
@@ -1201,7 +1201,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                         />
                         <Tooltip
-                          cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
+                          cursor={{ stroke: 'hsl(var(--color-primary-500-hsl) / 0.25)', strokeWidth: 2 }}
                           wrapperStyle={{ outline: 'none' }}
                           content={renderTooltip}
                         />
@@ -1215,7 +1215,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             name={t.stock.detailView.tooltip.volume}
                             barSize={14}
                             radius={[6, 6, 0, 0]}
-                            fill="rgba(var(--color-primary-400-rgb), 0.18)"
+                            fill="hsl(var(--color-primary-400-hsl) / 0.18)"
                           />
                         )}
                         <Area
