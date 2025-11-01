@@ -1079,16 +1079,6 @@ export default function PositionsPage() {
           <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
           <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-6">
-              <Link href="/" className="inline-flex">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 rounded-full bg-[color:var(--color-neutral-white)]/80 px-3 text-slate-600 shadow-sm hover:text-slate-800"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  {locale === "he" ? "חזרה" : "Back"}
-                </Button>
-              </Link>
               <div className="flex items-start gap-3">
                 <div className="rounded-2xl bg-blue-100 p-3 text-blue-600 shadow-inner">
                   <Layers className="h-6 w-6" />
