@@ -32,7 +32,7 @@ type QuantileDefinition = {
   label: string;
 };
 
-const QUANTILE_COLORS = ['var(--color-primary-500)', 'var(--color-primary-300)', 'var(--color-purple-400)', 'var(--color-green-500)', 'var(--color-orange-500)', 'var(--color-pink-500)', 'var(--color-purple-300)'];
+const QUANTILE_COLORS = ['hsl(var(--primary))', 'hsl(var(--primary) / 0.24)', 'hsl(var(--info))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(var(--info))'];
 
 const CONFIDENCE_BASE_KEY = '__confidenceBase';
 const CONFIDENCE_RANGE_KEY = '__confidenceRange';
@@ -320,7 +320,7 @@ function getQuantileValue(model: NormalizedForecastModel | null | undefined, key
 function ForecastSkeleton() {
   return (
     <div className="space-y-6">
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[hsl(var(--card))]/70 border border-[hsl(var(--card))]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -329,7 +329,7 @@ function ForecastSkeleton() {
           <Skeleton className="h-72 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[hsl(var(--card))]/70 border border-[hsl(var(--card))]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-72" />
@@ -405,7 +405,7 @@ function ForecastChartTooltip({
       key: 'confidence',
       label: labels.confidence,
       value: `${formatPrice(lower)} – ${formatPrice(upper)}`,
-      color: 'var(--color-primary-500)',
+      color: 'hsl(var(--primary))',
     });
   }
 
@@ -423,7 +423,7 @@ function ForecastChartTooltip({
       key: 'pricePoint',
       label: labels.pricePoint,
       value: formatPrice(source[pricePointKey] as number),
-      color: 'var(--color-primary-300)',
+      color: 'hsl(var(--primary) / 0.24)',
     });
   }
 
@@ -435,25 +435,25 @@ function ForecastChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 p-3 shadow-xl backdrop-blur">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
+    <div className="rounded-xl border border-[hsl(var(--border))]/70 bg-[hsl(var(--card))]/95 p-3 shadow-xl backdrop-blur">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{resolvedLabel}</p>
       <div className="mt-2 space-y-1">
         {items.map((item) => (
           <div key={item.key} className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-slate-500">
+            <span className="flex items-center gap-2 text-muted-foreground">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
               {item.label}
             </span>
-            <span className="font-semibold text-slate-900">{item.value}</span>
+            <span className="font-semibold text-foreground">{item.value}</span>
           </div>
         ))}
         {probabilityValue ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-slate-500">
-              <span className="h-2 w-2 rounded-full bg-[var(--color-orange-500)]" />
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
               {labels.probability}
             </span>
-            <span className="font-semibold text-slate-900">{probabilityValue}</span>
+            <span className="font-semibold text-foreground">{probabilityValue}</span>
           </div>
         ) : null}
       </div>
@@ -967,7 +967,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[hsl(var(--primary) / 0.18)] to-[hsl(var(--primary) / 0.02)]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link href={`/`}>
@@ -984,16 +984,16 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         </header>
 
         <div className="mb-6 space-y-2">
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-2xl font-semibold text-foreground">
             {t.stock.forecastView.title} · {normalizedSymbol}
           </h1>
-          <p className="max-w-2xl text-sm text-slate-600">{t.stock.forecastView.subtitle}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">{t.stock.forecastView.subtitle}</p>
         </div>
 
         {showSkeleton ? (
           <ForecastSkeleton />
         ) : error ? (
-          <Card className="bg-overlay-neutral-white border border-red-200 text-red-700">
+          <Card className="bg-overlay-neutral-white border border-[hsl(var(--destructive) / 0.3)] text-destructive">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.forecastView.states.error}</div>
               <div className="text-sm text-overlay-red-600">{error}</div>
@@ -1003,7 +1003,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
             </CardContent>
           </Card>
         ) : !hasForecasts ? (
-          <Card className="bg-overlay-neutral-white border border-[color:var(--color-slate-200)]/60 text-center text-slate-600">
+          <Card className="bg-overlay-neutral-white border border-[hsl(var(--border))]/60 text-center text-muted-foreground">
             <CardContent className="py-10 text-lg font-semibold">
               {t.stock.forecastView.states.empty}
             </CardContent>
@@ -1011,7 +1011,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         ) : (
           <div className="space-y-6">
             {summaryForecast && summaryMetadata && (
-              <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow-lg backdrop-blur">
+              <Card className="bg-overlay-neutral-white border border-[hsl(var(--card))]/60 shadow-lg backdrop-blur">
                 <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle>{t.stock.forecastView.summaryCardTitle}</CardTitle>
@@ -1022,18 +1022,18 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                       )}
                     </CardDescription>
                     {summaryMetadata.dateLabel ? (
-                      <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                      <p className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {t.stock.forecastView.summaryCardGenerated} {summaryMetadata.dateLabel}
                       </p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    <Badge variant="secondary" className="bg-[hsl(var(--info) / 0.18)] text-info">
                       {summaryMetadata.horizonLabel}
                     </Badge>
                     <Badge variant="outline">{summaryMetadata.modelName}</Badge>
                     {summaryForecast.flags ? (
-                      <Badge variant="outline" className="border-amber-300 text-amber-600">
+                      <Badge variant="outline" className="border-[hsl(var(--warning) / 0.4)] text-warning">
                         {summaryForecast.flags}
                       </Badge>
                     ) : null}
@@ -1041,41 +1041,41 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
-                      <p className="text-sm text-slate-500">{t.stock.forecastView.summary.pricePoint}</p>
-                      <p className="mt-2 text-2xl font-semibold text-slate-900">
+                    <div className="rounded-lg bg-[hsl(var(--muted) / 0.85)]/70 p-4 shadow-sm">
+                      <p className="text-sm text-muted-foreground">{t.stock.forecastView.summary.pricePoint}</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
                         {typeof summaryPricePoint === 'number'
                           ? formatCurrency(summaryPricePoint, 'USD', locale)
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
-                      <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP10}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                    <div className="rounded-lg bg-[hsl(var(--muted) / 0.85)]/70 p-4 shadow-sm">
+                      <p className="text-sm text-muted-foreground">{t.stock.forecastView.summary.priceP10}</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {typeof summaryPriceP10 === 'number'
                           ? formatCurrency(summaryPriceP10, 'USD', locale)
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
-                      <p className="text-sm text-slate-500">{t.stock.forecastView.summary.priceP90}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                    <div className="rounded-lg bg-[hsl(var(--muted) / 0.85)]/70 p-4 shadow-sm">
+                      <p className="text-sm text-muted-foreground">{t.stock.forecastView.summary.priceP90}</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {typeof summaryPriceP90 === 'number'
                           ? formatCurrency(summaryPriceP90, 'USD', locale)
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
-                      <p className="text-sm text-slate-500">{t.stock.forecastView.summary.probabilityUp}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                    <div className="rounded-lg bg-[hsl(var(--muted) / 0.85)]/70 p-4 shadow-sm">
+                      <p className="text-sm text-muted-foreground">{t.stock.forecastView.summary.probabilityUp}</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {typeof summaryProbabilityUp === 'number'
                           ? percentageFormatter.format(summaryProbabilityUp)
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm">
-                      <p className="text-sm text-slate-500">{t.stock.forecastView.summary.quality}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                    <div className="rounded-lg bg-[hsl(var(--muted) / 0.85)]/70 p-4 shadow-sm">
+                      <p className="text-sm text-muted-foreground">{t.stock.forecastView.summary.quality}</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {typeof summaryQuality === 'number' ? qualityFormatter.format(summaryQuality) : '—'}
                       </p>
                     </div>
@@ -1084,7 +1084,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </Card>
             )}
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="bg-overlay-neutral-white border border-[hsl(var(--card))]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.quantilesCardTitle}</CardTitle>
                 <CardDescription>{t.stock.forecastView.quantilesCardDescription}</CardDescription>
@@ -1097,22 +1097,22 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                         <ComposedChart data={timelineChartData} margin={{ top: 20, right: 28, bottom: 0, left: 0 }}>
                           <defs>
                             <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="var(--color-primary-500)" stopOpacity={0.28} />
-                              <stop offset="100%" stopColor="var(--color-primary-300)" stopOpacity={0.05} />
+                              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.28} />
+                              <stop offset="100%" stopColor="hsl(var(--primary) / 0.24)" stopOpacity={0.05} />
                             </linearGradient>
                             <linearGradient id="historicalGradient" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor="var(--color-primary-800)" stopOpacity={0.18} />
                               <stop offset="100%" stopColor="var(--color-primary-800)" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="6 8" stroke="rgba(var(--color-slate-400-rgb), 0.35)" />
+                          <CartesianGrid strokeDasharray="6 8" stroke="hsl(var(--muted-foreground) / 0.35)" />
                           <XAxis
                             dataKey="timestamp"
                             type="number"
                             scale="time"
                             domain={['dataMin', 'dataMax']}
                             tickFormatter={(value: number) => chartDateFormatter(value)}
-                            tick={{ fill: 'var(--color-slate-600)' }}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
                             tickLine={false}
                             axisLine={false}
                             minTickGap={24}
@@ -1120,7 +1120,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           <YAxis
                             yAxisId="price"
                             tickFormatter={(value: number) => formatCurrency(value, 'USD', locale)}
-                            tick={{ fill: 'var(--color-slate-600)' }}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
                             width={90}
                             axisLine={false}
                             tickLine={false}
@@ -1132,7 +1132,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                               yAxisId="probability"
                               orientation={isRtl ? 'left' : 'right'}
                               tickFormatter={(value: number) => percentageFormatter.format(value)}
-                              tick={{ fill: 'var(--color-slate-600)' }}
+                              tick={{ fill: 'hsl(var(--muted-foreground))' }}
                               width={70}
                               axisLine={false}
                               tickLine={false}
@@ -1141,7 +1141,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                           ) : null}
                           <Tooltip
                             content={renderTooltip}
-                            cursor={{ stroke: 'rgba(var(--color-slate-400-rgb), 0.45)', strokeDasharray: '4 4' }}
+                            cursor={{ stroke: 'hsl(var(--muted-foreground) / 0.45)', strokeDasharray: '4 4' }}
                           />
                           <Legend wrapperStyle={{ paddingTop: 12 }} />
                           {hasHistorical ? (
@@ -1186,7 +1186,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={medianChartKey}
                             yAxisId="price"
-                            stroke="var(--color-primary-500)"
+                            stroke="hsl(var(--primary))"
                             strokeWidth={3}
                             dot={{ r: 3, strokeWidth: 0 }}
                             activeDot={{ r: 5 }}
@@ -1198,7 +1198,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey={pricePointChartKey}
                             yAxisId="price"
-                            stroke="var(--color-primary-300)"
+                            stroke="hsl(var(--primary) / 0.24)"
                             strokeWidth={2}
                             strokeDasharray="6 4"
                             dot={{ r: 2, strokeWidth: 0 }}
@@ -1229,7 +1229,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             type="monotone"
                             dataKey="probability"
                             yAxisId="probability"
-                            stroke="var(--color-orange-500)"
+                            stroke="hsl(var(--warning))"
                             strokeWidth={2}
                             dot={{ r: 3 }}
                             activeDot={{ r: 5 }}
@@ -1239,17 +1239,17 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {t.stock.forecastView.chart.weightedNote}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">{t.stock.forecastView.noQuantiles}</p>
+                  <p className="text-sm text-muted-foreground">{t.stock.forecastView.noQuantiles}</p>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="bg-overlay-neutral-white border border-[hsl(var(--card))]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.table.title}</CardTitle>
                 <CardDescription>{t.stock.forecastView.table.subtitle}</CardDescription>
@@ -1260,20 +1260,20 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                     {groupedRows.map((group) => (
                       <div
                         key={group.horizon}
-                        className="space-y-4 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
+                        className="space-y-4 rounded-2xl border border-[hsl(var(--card))]/60 bg-[hsl(var(--card))]/70 p-4 shadow-sm ring-1 ring-[var(--color-neutral-black)]/5"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               {t.stock.forecastView.table.horizon}
                             </p>
-                            <p className="text-lg font-semibold text-slate-900">{group.horizonLabel}</p>
+                            <p className="text-lg font-semibold text-foreground">{group.horizonLabel}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                            <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-1 text-xs font-semibold text-muted-foreground">
                               {group.rows.length}
                             </span>
-                            <span className="text-xs font-medium text-slate-500">
+                            <span className="text-xs font-medium text-muted-foreground">
                               {t.stock.forecastView.table.model}
                             </span>
                           </div>
@@ -1314,25 +1314,25 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             return (
                               <div
                                 key={row.id}
-                                className="flex h-full flex-col justify-between rounded-xl border border-[color:var(--color-neutral-white)]/70 bg-overlay-neutral-white p-4 shadow-sm"
+                                className="flex h-full flex-col justify-between rounded-xl border border-[hsl(var(--card))]/70 bg-overlay-neutral-white p-4 shadow-sm"
                               >
                                 <div className="space-y-4">
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="space-y-1">
-                                      <p className="text-base font-semibold text-slate-900">{row.modelName}</p>
+                                      <p className="text-base font-semibold text-foreground">{row.modelName}</p>
                                       {row.ticker ? (
-                                        <p className="text-xs uppercase tracking-wide text-slate-400">{row.ticker}</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{row.ticker}</p>
                                       ) : null}
                                       {row.dateLabel ? (
-                                        <p className="text-xs text-slate-500">{row.dateLabel}</p>
+                                        <p className="text-xs text-muted-foreground">{row.dateLabel}</p>
                                       ) : null}
                                     </div>
                                     {typeof row.qualityScore === 'number' ? (
                                       <div className="text-right">
-                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                           {t.stock.forecastView.table.quality}
                                         </p>
-                                        <p className="text-sm font-semibold text-slate-900">
+                                        <p className="text-sm font-semibold text-foreground">
                                           {qualityFormatter.format(row.qualityScore)}
                                         </p>
                                       </div>
@@ -1341,26 +1341,26 @@ export function ForecastView({ symbol }: ForecastViewProps) {
 
                                   <div className="space-y-3">
                                     <div className="space-y-1">
-                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                         <span>{t.stock.forecastView.table.probabilityUp}</span>
-                                        <span className="text-slate-700">{probabilityUpLabel}</span>
+                                        <span className="text-foreground">{probabilityUpLabel}</span>
                                       </div>
                                       {typeof row.pUp === 'number' ? (
                                         <Progress
                                           value={row.pUp * 100}
-                                          className="h-2 bg-emerald-100 [&>div]:bg-emerald-500"
+                                          className="h-2 bg-success/20 [&>div]:bg-success/15"
                                         />
                                       ) : null}
                                     </div>
                                     <div className="space-y-1">
-                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+                                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                         <span>{t.stock.forecastView.table.probabilityDown}</span>
-                                        <span className="text-slate-700">{probabilityDownLabel}</span>
+                                        <span className="text-foreground">{probabilityDownLabel}</span>
                                       </div>
                                       {typeof row.pDown === 'number' ? (
                                         <Progress
                                           value={row.pDown * 100}
-                                          className="h-2 bg-rose-100 [&>div]:bg-rose-500"
+                                          className="h-2 bg-overlay-rose-50 [&>div]:bg-[hsl(var(--destructive))]"
                                         />
                                       ) : null}
                                     </div>
@@ -1368,35 +1368,35 @@ export function ForecastView({ symbol }: ForecastViewProps) {
 
                                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                                     <div>
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                         {t.stock.forecastView.table.pricePoint}
                                       </p>
-                                      <p className="font-medium text-slate-900">{pricePointLabel}</p>
+                                      <p className="font-medium text-foreground">{pricePointLabel}</p>
                                     </div>
                                     <div>
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                         {t.stock.forecastView.table.priceP10}
                                       </p>
-                                      <p className="font-medium text-slate-900">{priceP10Label}</p>
+                                      <p className="font-medium text-foreground">{priceP10Label}</p>
                                     </div>
                                     <div>
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                         {t.stock.forecastView.table.priceP50}
                                       </p>
-                                      <p className="font-medium text-slate-900">{priceP50Label}</p>
+                                      <p className="font-medium text-foreground">{priceP50Label}</p>
                                     </div>
                                     <div>
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                         {t.stock.forecastView.table.priceP90}
                                       </p>
-                                      <p className="font-medium text-slate-900">{priceP90Label}</p>
+                                      <p className="font-medium text-foreground">{priceP90Label}</p>
                                     </div>
                                   </div>
                                 </div>
 
                                 {flagTokens.length > 0 ? (
                                   <div className="mt-4 space-y-2">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                       {t.stock.forecastView.table.flags}
                                     </p>
                                     <div className="flex flex-wrap gap-1">
@@ -1416,7 +1416,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">{t.stock.forecastView.states.empty}</p>
+                  <p className="text-sm text-muted-foreground">{t.stock.forecastView.states.empty}</p>
                 )}
               </CardContent>
             </Card>

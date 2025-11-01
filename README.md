@@ -239,3 +239,10 @@ supabase/
 - הרחבת כיסוי בדיקות (unit + e2e) לרכיבי חישוב וזרימות נתונים.
 - תמיכה במטבעות נוספים והרחבת סימולציות "What-if" לדינמיקת ריביות ומסים.
 - אינטגרציה עם שירותי ניתוח נוספים (למשל Alpha Vantage) ותמיכה במספר טוקנים למשתמשים שונים.
+
+## ניהול Theme ומערכת טוקנים
+- מעטפת ה-Theme יושבת בקובץ `app/providers.tsx` ומשתמשת ב-`next-themes` עם `defaultTheme="system"` ו-`enableSystem`, כך שה-HTML נטען מיד עם המחלקה העדכנית וללא FOUC.
+- טוקני הצבע מוגדרים ב-`styles/globals.css` תחת `:root` ו-`.dark` וממופים ל-Tailwind דרך `tailwind.config.ts`. כל צבע כתוב במבנה HSL ומאפשר שימוש באלפא (`hsl(var(--primary) / 0.16)` וכדומה).
+- בעת הוספת גוון חדש מוסיפים את הטוקן לשני מצבי הצבע, מרחיבים את `tailwind.config.ts` (במידת הצורך), ומשתמשים במחלקות כגון `bg-[hsl(var(--token))]`, `text-token-foreground` וכו'.
+- רכיבי צד-ג' כמו גרפים (Recharts), Toasts ו-SVGs משתמשים ב-css variables ולכן מתעדכנים אוטומטית לפי מצב המערכת.
+- כפתור `ThemeToggle` נמצא ב-`components/theme-toggle.tsx` ומוצג ב-`QuickActionsSection`, כך שניתן להחליף ידנית בין בהיר וכהה בכל מסך.
