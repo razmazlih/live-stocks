@@ -55,11 +55,13 @@
   --color-slate-200: #e2e8f0;
   --color-slate-100: #f1f5f9;
   --color-slate-300: #cbd5e1;
+  --color-slate-800: #1f2937;
   --color-slate-50: #f8fafc;
   --color-neutral-950: #0a0a0a;
   --color-neutral-900: #050505;
   --color-neutral-black: #000000;
   --color-neutral-white: #ffffff;
+  --true-white: #ffffff;
   --color-primary-500-rgb: 37, 99, 235;
   --color-primary-400-rgb: 59, 130, 246;
   --color-primary-900-rgb: 15, 23, 42;
@@ -135,6 +137,57 @@
   --color-slate-900-rgb: 15, 23, 42;
   --color-rose-200-rgb: 254, 205, 211;
   --color-slate-300-rgb: 203, 213, 225;
+
+  /* Surface tokens */
+  --surface-base: #ffffff;
+  --surface-blue-50: var(--color-blue-50);
+  --surface-blue-100: var(--color-blue-100);
+  --surface-blue-200: var(--color-blue-200);
+  --surface-blue-400: var(--color-blue-400);
+  --surface-blue-500: var(--color-blue-500);
+  --surface-emerald-50: var(--color-emerald-50);
+  --surface-emerald-100: var(--color-emerald-100);
+  --surface-emerald-500: var(--color-emerald-500);
+  --surface-rose-50: var(--color-rose-50);
+  --surface-rose-100: var(--color-rose-100);
+  --surface-rose-500: var(--color-rose-500);
+  --surface-sky-100: var(--color-sky-100);
+  --surface-sky-500: var(--color-sky-500);
+  --surface-slate-50: var(--color-slate-50);
+  --surface-slate-100: var(--color-slate-100);
+  --surface-slate-200: var(--color-slate-200);
+  --surface-slate-700: #334155;
+  --surface-slate-800: #1f2937;
+  --surface-slate-900: #0f172a;
+
+  /* Border tokens */
+  --border-white: rgba(255, 255, 255, 0.9);
+  --border-blue-100: var(--color-blue-100);
+  --border-blue-200: var(--color-blue-200);
+  --border-blue-300: var(--color-blue-300);
+  --border-blue-400: var(--color-blue-400);
+  --border-blue-500: var(--color-blue-500);
+  --border-emerald-100: var(--color-emerald-100);
+  --border-red-200: var(--color-red-200);
+  --border-rose-100: var(--color-rose-100);
+  --border-rose-200: var(--color-rose-200);
+  --border-slate-100: var(--color-slate-100);
+  --border-slate-200: var(--color-slate-200);
+  --border-slate-300: var(--color-slate-300);
+  --border-slate-600: var(--color-slate-600);
+  --border-slate-700: var(--color-slate-700);
+  --border-amber-200: var(--color-amber-200);
+  --border-amber-300: var(--color-amber-300);
+  --border-amber-500: var(--color-amber-500);
+
+  /* Ring tokens */
+  --ring-white: rgba(255, 255, 255, 0.9);
+  --ring-blue-100: var(--color-blue-100);
+  --ring-blue-200: var(--color-blue-200);
+  --ring-emerald-200: var(--color-emerald-200);
+  --ring-red-400: var(--color-red-400);
+  --ring-rose-200: var(--color-rose-200);
+  --ring-slate-200: var(--color-slate-200);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -182,42 +235,226 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-    --color-card-surface: rgba(15, 23, 42, 0.82);
-    --color-card-border: rgba(148, 163, 184, 0.35);
-    --color-card-highlight: rgba(59, 130, 246, 0.18);
-    --color-card-shadow: rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 96%;
+    --card: 223 47% 14%;
+    --card-foreground: 210 40% 96%;
+    --popover: 223 47% 14%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 96%;
+    --secondary: 220 30% 22%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 220 30% 22%;
+    --muted-foreground: 215 20% 72%;
+    --accent: 222 35% 26%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 356 68% 54%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 221 34% 20%;
+    --input: 221 34% 20%;
+    --ring: 217 91% 60%;
+    --chart-1: 215 88% 65%;
+    --chart-2: 160 70% 52%;
+    --chart-3: 37 90% 62%;
+    --chart-4: 280 70% 65%;
+    --chart-5: 333 75% 63%;
+    --sidebar-background: 222 43% 12%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 96%;
+    --sidebar-accent: 222 35% 24%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 221 36% 18%;
+    --sidebar-ring: 217 91% 60%;
+    --color-card-surface: rgba(10, 19, 35, 0.88);
+    --color-card-border: rgba(99, 118, 155, 0.45);
+    --color-card-highlight: rgba(88, 127, 255, 0.22);
+    --color-card-shadow: rgba(2, 6, 14, 0.55);
+
+    /* Primary palette */
+    --color-primary-900: #061122;
+    --color-primary-800: #0b1d36;
+    --color-primary-700: #123055;
+    --color-primary-650: #173a69;
+    --color-primary-600: #1c4580;
+    --color-primary-500: #3a6edc;
+    --color-primary-400: #5585ff;
+    --color-primary-300: #7c9fff;
+    --color-primary-200: #a1bbff;
+    --color-primary-100: #c5d4ff;
+    --color-primary-050: #d7e0ff;
+    --color-primary-025: #e2e7ff;
+    --color-primary-010: #eaf0ff;
+    --color-primary-005: #eff3ff;
+    --color-primary-002: #f4f6ff;
+    --color-sky-600: #1e7fbf;
+    --color-chart-fallback: #5585ff;
+
+    /* Accent palette */
+    --color-green-600: #1f8a5a;
+    --color-green-500: #22c55e;
+    --color-green-400: #2ed47a;
+    --color-green-300: #34e89e;
+    --color-green-050: #0f3523;
+    --color-red-600: #f14668;
+    --color-red-500: #ff6b6b;
+    --color-red-400: #ff7d7d;
+    --color-red-450: #ff6f7d;
+    --color-red-050: #34121b;
+    --color-orange-500: #fb923c;
+    --color-amber-500: #fbbf24;
+    --color-purple-500: #a78bfa;
+    --color-purple-400: #8b5cf6;
+    --color-purple-300: #7c3aed;
+    --color-pink-500: #f472b6;
+    --color-hot-pink-600: #ff2e7a;
+    --color-hot-pink-500: #ff4494;
+    --color-hot-pink-400: #ff5faa;
+    --color-hot-pink-300: #ff7fc1;
+
+    /* Neutral palette */
+    --color-slate-700: #c7d3e5;
+    --color-slate-600: #aebfd7;
+    --color-slate-500: #97aac7;
+    --color-slate-400: #8195b3;
+    --color-slate-200: #5b6f87;
+    --color-slate-100: #e3ecfb;
+    --color-slate-300: #6c809f;
+    --color-slate-800: #dbe5f6;
+    --color-slate-50: #f4f7fe;
+    --color-neutral-950: #010611;
+    --color-neutral-900: #050b17;
+    --color-neutral-black: #000000;
+    --color-neutral-white: #f5f9ff;
+    --true-white: #ffffff;
+    --color-border-default: #1c2638;
+    --color-warning-500: #facc15;
+
+    /* Overlay tokens */
+    --color-overlay-primary-soft: rgba(58, 110, 220, 0.18);
+    --color-overlay-navy-soft: rgba(8, 17, 34, 0.6);
+    --color-overlay-sky-soft: rgba(30, 127, 191, 0.24);
+    --color-shadow-neutral-35: rgba(2, 6, 14, 0.55);
+    --color-shadow-hot-pink-28: rgba(255, 68, 148, 0.32);
+
+    /* Extended palettes */
+    --color-blue-50: #0f1b2d;
+    --color-blue-100: #15263f;
+    --color-blue-200: #1b3152;
+    --color-blue-300: #234064;
+    --color-blue-400: #2f4f7d;
+    --color-blue-500: #3d61a3;
+    --color-blue-600: #4a74c5;
+    --color-blue-700: #5f8bdc;
+    --color-emerald-50: #0f2d24;
+    --color-emerald-100: #143a2f;
+    --color-emerald-200: #1c4d3f;
+    --color-emerald-400: #2f7b5c;
+    --color-emerald-500: #37a172;
+    --color-emerald-600: #3fc786;
+    --color-emerald-700: #4fe7a3;
+    --color-gray-400: #8e9ab0;
+    --color-gray-500: #a3aec2;
+    --color-gray-600: #bac4d4;
+    --color-gray-700: #d3dae6;
+    --color-gray-900: #eef1f7;
+    --color-indigo-600: #808cff;
+    --color-indigo-700: #9aa4ff;
+    --color-red-50: #361016;
+    --color-red-200: #632330;
+    --color-red-300: #8c2f3e;
+    --color-rose-50: #351321;
+    --color-rose-100: #482033;
+    --color-rose-200: #642c46;
+    --color-rose-400: #9c3d63;
+    --color-rose-500: #c54b7c;
+    --color-rose-600: #e05692;
+    --color-rose-700: #f46aa4;
+    --color-sky-100: #122c3f;
+    --color-sky-500: #1f6f9f;
+    --color-sky-600: #2688b8;
+    --color-sky-700: #2ca1d1;
+    --color-amber-200: #8a5f16;
+    --color-amber-300: #b1791f;
+    --color-amber-600: #f59e0b;
+
+    /* RGB tokens */
+    --color-primary-500-rgb: 58, 110, 220;
+    --color-primary-400-rgb: 85, 133, 255;
+    --color-primary-900-rgb: 6, 17, 34;
+    --color-indigo-500-rgb: 120, 132, 255;
+    --color-slate-400-rgb: 129, 149, 179;
+    --color-red-400-rgb: 255, 125, 125;
+    --color-green-400-rgb: 47, 123, 92;
+    --color-neutral-white-rgb: 245, 249, 255;
+    --color-rose-50-rgb: 53, 19, 33;
+    --color-rose-100-rgb: 72, 32, 51;
+    --color-blue-50-rgb: 15, 27, 45;
+    --color-blue-200-rgb: 27, 49, 82;
+    --color-blue-500-rgb: 61, 97, 163;
+    --color-emerald-100-rgb: 20, 58, 47;
+    --color-amber-500-rgb: 251, 191, 36;
+    --color-red-600-rgb: 241, 70, 104;
+    --color-slate-50-rgb: 244, 247, 254;
+    --color-slate-100-rgb: 227, 236, 251;
+    --color-slate-200-rgb: 91, 111, 135;
+    --color-slate-300-rgb: 108, 128, 159;
+    --color-slate-600-rgb: 174, 191, 215;
+    --color-slate-900-rgb: 12, 18, 31;
+    --color-rose-200-rgb: 100, 44, 70;
+
+    /* Surface tokens */
+    --surface-base: #0b1220;
+    --surface-blue-50: #0f1b2d;
+    --surface-blue-100: #15263f;
+    --surface-blue-200: #1b3152;
+    --surface-blue-400: #234064;
+    --surface-blue-500: #2f4f7d;
+    --surface-emerald-50: #102b23;
+    --surface-emerald-100: #16392e;
+    --surface-emerald-500: #205b41;
+    --surface-rose-50: #2d1320;
+    --surface-rose-100: #3c1b2c;
+    --surface-rose-500: #802b4d;
+    --surface-sky-100: #122c3f;
+    --surface-sky-500: #1d5375;
+    --surface-slate-50: #101827;
+    --surface-slate-100: #151f2f;
+    --surface-slate-200: #1c283b;
+    --surface-slate-700: #2a3447;
+    --surface-slate-800: #202838;
+    --surface-slate-900: #161d2c;
+
+    /* Border tokens */
+    --border-white: rgba(255, 255, 255, 0.18);
+    --border-blue-100: rgba(61, 97, 163, 0.28);
+    --border-blue-200: rgba(61, 97, 163, 0.36);
+    --border-blue-300: rgba(61, 97, 163, 0.44);
+    --border-blue-400: rgba(61, 97, 163, 0.56);
+    --border-blue-500: rgba(61, 97, 163, 0.68);
+    --border-emerald-100: rgba(32, 91, 65, 0.35);
+    --border-red-200: rgba(255, 107, 107, 0.35);
+    --border-rose-100: rgba(72, 32, 51, 0.4);
+    --border-rose-200: rgba(100, 44, 70, 0.45);
+    --border-slate-100: rgba(21, 31, 47, 0.55);
+    --border-slate-200: rgba(28, 40, 59, 0.6);
+    --border-slate-300: rgba(42, 52, 71, 0.65);
+    --border-slate-600: rgba(151, 170, 199, 0.45);
+    --border-slate-700: rgba(199, 211, 229, 0.4);
+    --border-amber-200: rgba(138, 95, 22, 0.45);
+    --border-amber-300: rgba(177, 121, 31, 0.5);
+    --border-amber-500: rgba(251, 191, 36, 0.55);
+
+    /* Ring tokens */
+    --ring-white: rgba(255, 255, 255, 0.2);
+    --ring-blue-100: rgba(61, 97, 163, 0.35);
+    --ring-blue-200: rgba(61, 97, 163, 0.45);
+    --ring-emerald-200: rgba(47, 123, 92, 0.45);
+    --ring-red-400: rgba(255, 125, 125, 0.45);
+    --ring-rose-200: rgba(100, 44, 70, 0.45);
+    --ring-slate-200: rgba(28, 40, 59, 0.55);
   }
 }
 
@@ -265,10 +502,10 @@
   .border-overlay-slate-300 { border-color: rgba(var(--color-slate-300-rgb), 0.8) !important; }
   .hover\:border-overlay-neutral-white:hover { border-color: rgba(var(--color-neutral-white-rgb), 0.8) !important; }
 
-  .text-white { color: var(--color-neutral-white) !important; }
-  .bg-white { background-color: var(--color-neutral-white) !important; }
-  .border-white { border-color: var(--color-neutral-white) !important; }
-  .ring-white { --tw-ring-color: var(--color-neutral-white) !important; }
+  .text-white { color: var(--true-white) !important; }
+  .bg-white { background-color: var(--surface-base) !important; }
+  .border-white { border-color: var(--border-white) !important; }
+  .ring-white { --tw-ring-color: var(--ring-white) !important; }
   .text-amber-500 { color: var(--color-amber-500) !important; }
   .text-amber-600 { color: var(--color-amber-600) !important; }
   .text-blue-100 { color: var(--color-blue-100) !important; }
@@ -308,48 +545,48 @@
   .text-slate-700 { color: var(--color-slate-700) !important; }
   .text-slate-800 { color: var(--color-slate-800) !important; }
   .text-slate-900 { color: var(--color-slate-900) !important; }
-  .bg-blue-100 { background-color: var(--color-blue-100) !important; }
-  .bg-blue-200 { background-color: var(--color-blue-200) !important; }
-  .bg-blue-400 { background-color: var(--color-blue-400) !important; }
-  .bg-blue-50 { background-color: var(--color-blue-50) !important; }
-  .bg-blue-500 { background-color: var(--color-blue-500) !important; }
-  .bg-emerald-100 { background-color: var(--color-emerald-100) !important; }
-  .bg-emerald-50 { background-color: var(--color-emerald-50) !important; }
-  .bg-emerald-500 { background-color: var(--color-emerald-500) !important; }
-  .bg-rose-100 { background-color: var(--color-rose-100) !important; }
-  .bg-rose-50 { background-color: var(--color-rose-50) !important; }
-  .bg-rose-500 { background-color: var(--color-rose-500) !important; }
-  .bg-sky-100 { background-color: var(--color-sky-100) !important; }
-  .bg-sky-500 { background-color: var(--color-sky-500) !important; }
-  .bg-slate-100 { background-color: var(--color-slate-100) !important; }
-  .bg-slate-200 { background-color: var(--color-slate-200) !important; }
-  .bg-slate-50 { background-color: var(--color-slate-50) !important; }
-  .bg-slate-700 { background-color: var(--color-slate-700) !important; }
-  .bg-slate-800 { background-color: var(--color-slate-800) !important; }
-  .bg-slate-900 { background-color: var(--color-slate-900) !important; }
-  .border-amber-200 { border-color: var(--color-amber-200) !important; }
-  .border-amber-300 { border-color: var(--color-amber-300) !important; }
-  .border-amber-500 { border-color: var(--color-amber-500) !important; }
-  .border-blue-100 { border-color: var(--color-blue-100) !important; }
-  .border-blue-200 { border-color: var(--color-blue-200) !important; }
-  .border-blue-300 { border-color: var(--color-blue-300) !important; }
-  .border-blue-400 { border-color: var(--color-blue-400) !important; }
-  .border-blue-500 { border-color: var(--color-blue-500) !important; }
-  .border-emerald-100 { border-color: var(--color-emerald-100) !important; }
-  .border-red-200 { border-color: var(--color-red-200) !important; }
-  .border-rose-100 { border-color: var(--color-rose-100) !important; }
-  .border-rose-200 { border-color: var(--color-rose-200) !important; }
-  .border-slate-100 { border-color: var(--color-slate-100) !important; }
-  .border-slate-200 { border-color: var(--color-slate-200) !important; }
-  .border-slate-300 { border-color: var(--color-slate-300) !important; }
-  .border-slate-600 { border-color: var(--color-slate-600) !important; }
-  .border-slate-700 { border-color: var(--color-slate-700) !important; }
-  .ring-blue-100 { --tw-ring-color: var(--color-blue-100) !important; }
-  .ring-blue-200 { --tw-ring-color: var(--color-blue-200) !important; }
-  .ring-emerald-200 { --tw-ring-color: var(--color-emerald-200) !important; }
-  .ring-red-400 { --tw-ring-color: var(--color-red-400) !important; }
-  .ring-rose-200 { --tw-ring-color: var(--color-rose-200) !important; }
-  .ring-slate-200 { --tw-ring-color: var(--color-slate-200) !important; }
+  .bg-blue-100 { background-color: var(--surface-blue-100) !important; }
+  .bg-blue-200 { background-color: var(--surface-blue-200) !important; }
+  .bg-blue-400 { background-color: var(--surface-blue-400) !important; }
+  .bg-blue-50 { background-color: var(--surface-blue-50) !important; }
+  .bg-blue-500 { background-color: var(--surface-blue-500) !important; }
+  .bg-emerald-100 { background-color: var(--surface-emerald-100) !important; }
+  .bg-emerald-50 { background-color: var(--surface-emerald-50) !important; }
+  .bg-emerald-500 { background-color: var(--surface-emerald-500) !important; }
+  .bg-rose-100 { background-color: var(--surface-rose-100) !important; }
+  .bg-rose-50 { background-color: var(--surface-rose-50) !important; }
+  .bg-rose-500 { background-color: var(--surface-rose-500) !important; }
+  .bg-sky-100 { background-color: var(--surface-sky-100) !important; }
+  .bg-sky-500 { background-color: var(--surface-sky-500) !important; }
+  .bg-slate-100 { background-color: var(--surface-slate-100) !important; }
+  .bg-slate-200 { background-color: var(--surface-slate-200) !important; }
+  .bg-slate-50 { background-color: var(--surface-slate-50) !important; }
+  .bg-slate-700 { background-color: var(--surface-slate-700) !important; }
+  .bg-slate-800 { background-color: var(--surface-slate-800) !important; }
+  .bg-slate-900 { background-color: var(--surface-slate-900) !important; }
+  .border-amber-200 { border-color: var(--border-amber-200) !important; }
+  .border-amber-300 { border-color: var(--border-amber-300) !important; }
+  .border-amber-500 { border-color: var(--border-amber-500) !important; }
+  .border-blue-100 { border-color: var(--border-blue-100) !important; }
+  .border-blue-200 { border-color: var(--border-blue-200) !important; }
+  .border-blue-300 { border-color: var(--border-blue-300) !important; }
+  .border-blue-400 { border-color: var(--border-blue-400) !important; }
+  .border-blue-500 { border-color: var(--border-blue-500) !important; }
+  .border-emerald-100 { border-color: var(--border-emerald-100) !important; }
+  .border-red-200 { border-color: var(--border-red-200) !important; }
+  .border-rose-100 { border-color: var(--border-rose-100) !important; }
+  .border-rose-200 { border-color: var(--border-rose-200) !important; }
+  .border-slate-100 { border-color: var(--border-slate-100) !important; }
+  .border-slate-200 { border-color: var(--border-slate-200) !important; }
+  .border-slate-300 { border-color: var(--border-slate-300) !important; }
+  .border-slate-600 { border-color: var(--border-slate-600) !important; }
+  .border-slate-700 { border-color: var(--border-slate-700) !important; }
+  .ring-blue-100 { --tw-ring-color: var(--ring-blue-100) !important; }
+  .ring-blue-200 { --tw-ring-color: var(--ring-blue-200) !important; }
+  .ring-emerald-200 { --tw-ring-color: var(--ring-emerald-200) !important; }
+  .ring-red-400 { --tw-ring-color: var(--ring-red-400) !important; }
+  .ring-rose-200 { --tw-ring-color: var(--ring-rose-200) !important; }
+  .ring-slate-200 { --tw-ring-color: var(--ring-slate-200) !important; }
 }
 @layer components {
   .card-surface {

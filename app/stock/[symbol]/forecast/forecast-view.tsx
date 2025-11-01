@@ -320,7 +320,7 @@ function getQuantileValue(model: NormalizedForecastModel | null | undefined, key
 function ForecastSkeleton() {
   return (
     <div className="space-y-6">
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[color:var(--surface-base)]/70 border border-[color:var(--border-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -329,7 +329,7 @@ function ForecastSkeleton() {
           <Skeleton className="h-72 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[color:var(--surface-base)]/70 border border-[color:var(--border-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-72" />
@@ -435,7 +435,7 @@ function ForecastChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 p-3 shadow-xl backdrop-blur">
+    <div className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--surface-base)]/95 p-3 shadow-xl backdrop-blur">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{resolvedLabel}</p>
       <div className="mt-2 space-y-1">
         {items.map((item) => (
@@ -1011,7 +1011,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         ) : (
           <div className="space-y-6">
             {summaryForecast && summaryMetadata && (
-              <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow-lg backdrop-blur">
+              <Card className="bg-overlay-neutral-white border border-[color:var(--border-white)]/60 shadow-lg backdrop-blur">
                 <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle>{t.stock.forecastView.summaryCardTitle}</CardTitle>
@@ -1084,7 +1084,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </Card>
             )}
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="bg-overlay-neutral-white border border-[color:var(--border-white)]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.quantilesCardTitle}</CardTitle>
                 <CardDescription>{t.stock.forecastView.quantilesCardDescription}</CardDescription>
@@ -1249,7 +1249,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="bg-overlay-neutral-white border border-[color:var(--border-white)]/60 shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.table.title}</CardTitle>
                 <CardDescription>{t.stock.forecastView.table.subtitle}</CardDescription>
@@ -1260,7 +1260,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                     {groupedRows.map((group) => (
                       <div
                         key={group.horizon}
-                        className="space-y-4 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
+                        className="space-y-4 rounded-2xl border border-[color:var(--border-white)]/60 bg-[color:var(--surface-base)]/70 p-4 shadow-sm ring-1 ring-[color:var(--color-neutral-black)]/5"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
@@ -1314,7 +1314,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             return (
                               <div
                                 key={row.id}
-                                className="flex h-full flex-col justify-between rounded-xl border border-[color:var(--color-neutral-white)]/70 bg-overlay-neutral-white p-4 shadow-sm"
+                                className="flex h-full flex-col justify-between rounded-xl border border-[color:var(--border-white)]/70 bg-overlay-neutral-white p-4 shadow-sm"
                               >
                                 <div className="space-y-4">
                                   <div className="flex items-start justify-between gap-3">

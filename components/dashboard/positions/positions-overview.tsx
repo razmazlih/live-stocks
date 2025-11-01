@@ -127,7 +127,7 @@ export function PositionsOverview({
               <Button
                 variant="outline"
                 size="sm"
-                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
+                className="group rounded-full border-slate-200 bg-[color:var(--surface-base)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
               >
                 <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
                 <span className="text-sm font-medium">
@@ -140,7 +140,7 @@ export function PositionsOverview({
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg backdrop-blur-xl">
+            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-slate-100 bg-[color:var(--surface-base)]/95 p-2 shadow-lg backdrop-blur-xl">
               <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t.dashboard.positionFilters.title}
               </DropdownMenuLabel>
@@ -177,7 +177,7 @@ export function PositionsOverview({
         </div>
       </div>
       {filterEmptyState ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/60 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--surface-base)]/60 px-6 py-10 text-center text-sm text-slate-500">
           {t.dashboard.positionFilters.empty}
         </div>
       ) : (

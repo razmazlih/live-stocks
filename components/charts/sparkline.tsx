@@ -804,7 +804,7 @@ export function Sparkline({
                   cx={effectiveHoveredPoint.x}
                   cy={effectiveHoveredPoint.y}
                   r={4.2}
-                  fill="var(--color-neutral-white)"
+                  fill="var(--true-white)"
                   stroke={color}
                   strokeWidth={1.4}
                 />
@@ -816,7 +816,7 @@ export function Sparkline({
                 cx={lastPoint.x}
                 cy={lastPoint.y}
                 r={2.8}
-                fill="var(--color-neutral-white)"
+                fill="var(--true-white)"
                 stroke={lastSegmentColor}
                 strokeWidth={1.2}
               />
@@ -872,7 +872,7 @@ export function Sparkline({
                 top: Math.max(effectiveHoveredPoint.y - 56, 8),
               }}
             >
-              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
+              <div className="rounded-lg bg-[color:var(--surface-base)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
                 {hoveredPriceText}
               </div>
               <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
@@ -883,7 +883,7 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--color-neutral-white)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--surface-base)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
               style={{
                 left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
                 top: Math.max(activeEvent.y - 12, 12),

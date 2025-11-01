@@ -349,7 +349,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--border-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
@@ -449,7 +449,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             <div className="flex items-start justify-between gap-3 sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--border-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
@@ -492,7 +492,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
                 <Badge
                   variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-[color:var(--color-neutral-white)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
+                  className={`flex items-center gap-1 rounded-full border-0 bg-[color:var(--surface-base)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
                 >
                   {dailyChangeIcon}
                   <span>{t.dashboard.dailyChange}</span>
@@ -536,7 +536,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
+              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--surface-base)]/70 p-3 shadow-inner sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.projected}</p>
                 <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
                   <div className="flex items-center justify-between gap-2">

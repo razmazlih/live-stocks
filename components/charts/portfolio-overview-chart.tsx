@@ -76,7 +76,7 @@ const ActiveNetLineDot = ({
   const color = point ? trendStateColors[point.trendState] : trendStateColors.above;
 
   return (
-    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--color-neutral-white)" />
+    <circle cx={cx} cy={cy} r={6.5} strokeWidth={2.5} stroke={color} fill="var(--true-white)" />
   );
 };
 
@@ -180,7 +180,7 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--surface-base)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         <span>{labels.at}</span>
         <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
@@ -546,8 +546,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
+    <Card className="relative z-[11] border-[color:var(--border-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
+      <CardHeader className="space-y-2 border-b border-[color:var(--border-white)]/60 bg-[color:var(--surface-base)]/70">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -555,7 +555,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--surface-base)]/85 p-6 shadow-lg">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>

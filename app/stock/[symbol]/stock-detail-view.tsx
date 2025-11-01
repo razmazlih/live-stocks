@@ -311,7 +311,7 @@ function StockDetailSkeleton() {
           <Skeleton className="ml-auto h-4 w-24" />
         </div>
       </div>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[color:var(--surface-base)]/70 border border-[color:var(--border-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -319,7 +319,7 @@ function StockDetailSkeleton() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--color-neutral-white)]/60 p-4">
+              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--surface-base)]/60 p-4">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-5 w-20" />
                 <Skeleton className="h-3 w-32" />
@@ -328,7 +328,7 @@ function StockDetailSkeleton() {
           </div>
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[color:var(--surface-base)]/70 border border-[color:var(--border-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-4 w-64" />
@@ -337,7 +337,7 @@ function StockDetailSkeleton() {
           <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card className="bg-[color:var(--surface-base)]/70 border border-[color:var(--border-white)]/50 shadow">
         <CardHeader>
           <Skeleton className="h-5 w-44" />
         </CardHeader>
@@ -881,7 +881,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </CardContent>
           </Card>
         ) : !position || !metrics ? (
-          <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60">
+          <Card className="bg-overlay-neutral-white border border-[color:var(--border-white)]/60">
             <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
               {t.stock.detailView.states.empty}
             </CardContent>
@@ -996,7 +996,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </div>
             </div>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[color:var(--surface-base)]/85 border border-[color:var(--border-white)]/60 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">
                   {t.stock.detailView.quickFactsTitle}
@@ -1008,7 +1008,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   {quickFacts.map((fact) => (
                     <div
                       key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
+                      className="rounded-xl border border-slate-100 bg-[color:var(--surface-base)]/70 p-4 shadow-sm"
                     >
                       <div className="text-xs uppercase tracking-wide text-gray-500">
                         {fact.label}
@@ -1028,7 +1028,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[color:var(--surface-base)]/85 border border-[color:var(--border-white)]/60 shadow-xl">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">
@@ -1127,7 +1127,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="bg-[color:var(--surface-base)]/85 border border-[color:var(--border-white)]/60 shadow-xl">
               <CardHeader className="gap-2">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
