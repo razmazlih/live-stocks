@@ -60,7 +60,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'Al
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
+  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-primary-010)]/92 p-4 text-sm text-slate-400 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -757,13 +757,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                      className="rounded-xl bg-[color:var(--color-primary-025)]/75 px-3 py-2 text-xs leading-5 text-slate-100"
                     >
                       <div className="flex items-center justify-between font-semibold">
                         <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
                         <span className="text-slate-300">{timeLabel}</span>
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-200">
+                      <div className="mt-1 text-[11px] text-slate-400">
                         {`${formatDualCurrency(trade.tradePrice)} · ${quantityLabel}: ${formatNumber(
                           trade.quantity,
                           locale
