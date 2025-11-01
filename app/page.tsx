@@ -70,21 +70,21 @@ export default function HomePage() {
   const getTrendTone = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        text: 'text-[hsl(var(--success))]',
+        badge: 'bg-[hsl(var(--success-soft))] text-[hsl(var(--success))]', // tokenized gain tone
       };
     }
 
     if (value < 0) {
       return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        text: 'text-[hsl(var(--danger))]',
+        badge: 'bg-[hsl(var(--danger-soft))] text-[hsl(var(--danger))]', // tokenized loss tone
       };
     }
 
     return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      text: 'text-muted-foreground',
+      badge: 'bg-surface-muted text-muted-foreground',
     };
   };
 

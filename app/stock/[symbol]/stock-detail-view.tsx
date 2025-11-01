@@ -198,14 +198,15 @@ function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
   }
 
   const isBuy = payload.type === 'BUY';
-  const fill = isBuy ? 'var(--color-green-300)' : 'var(--color-red-500)';
+  const fill = isBuy ? 'var(--color-emerald-400)' : 'var(--color-red-500)';
+  const neutralFill = 'var(--color-neutral-white)';
   const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
 
   return (
     <g transform={`translate(${cx}, ${cy})`}>
-      <circle r={6.5} fill="white" fillOpacity={0.92} />
+      <circle r={6.5} fill={neutralFill} fillOpacity={0.92} />
       <circle r={5} fill={fill} />
-      <path d={arrowPath} fill="white" />
+      <path d={arrowPath} fill={neutralFill} />
     </g>
   );
 }

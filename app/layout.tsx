@@ -1,14 +1,11 @@
-import './globals.css';
+import '../styles/globals.css';
 import type { Metadata } from 'next';
+import Providers from './providers';
 import { AppProvider } from '@/lib/context';
 import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
-  title: 'Stocks Status',
-  description: 'Advanced stock portfolio tracker with analytics',
-  icons: {
-    icon: 'https://res.cloudinary.com/dvdgfcniz/image/upload/c_crop,w_167,h_167,ar_1:1/v1761288262/image_sa6vpb.jpg',
-  },
+  title: 'Dashboard',
 };
 
 export default function RootLayout({
@@ -17,12 +14,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className="font-sans">
-        <AppProvider>
-          {children}
-          <Toaster />
-        </AppProvider>
+        <Providers>
+          <AppProvider>
+            {children}
+            <Toaster />
+          </AppProvider>
+        </Providers>
       </body>
     </html>
   );

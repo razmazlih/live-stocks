@@ -38,21 +38,21 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     icon: LineChart,
     label: t.portfolio.quickAction,
     href: '/portfolio',
-    className: 'bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]',
+    className: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/80', // tokenized action chip
   }),
   realized: () => ({
     key: 'realized',
     icon: CircleDollarSign,
     label: t.realized.quickAction,
     href: '/realized',
-    className: 'bg-[var(--color-primary-300)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-sky-600)]',
+    className: 'bg-primary/80 text-primary-foreground shadow-sm hover:bg-primary', // tokenized action chip
   }),
   watchlist: () => ({
     key: 'watchlist',
     icon: Eye,
     label: t.watchlist.quickAction,
     href: '/watchlist',
-    className: 'bg-[var(--color-primary-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-700)]',
+    className: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/80', // tokenized action chip
   }),
   positions: () => ({
     key: 'positions',
@@ -67,7 +67,7 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     label: t.settings.title,
     href: '/settings',
     variant: 'ghost',
-    className: 'text-[var(--color-slate-600)] hover:text-[var(--color-primary-900)]',
+    className: 'text-muted-foreground hover:text-foreground', // theme-aware neutral text
     labelClassName: 'hidden sm:inline',
   }),
 });

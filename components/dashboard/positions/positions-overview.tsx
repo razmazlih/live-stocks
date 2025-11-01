@@ -113,10 +113,10 @@ export function PositionsOverview({
     <div className="space-y-3 sm:space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
-          <p className="text-sm text-slate-500">{sortNotice}</p>
+          <h2 className="text-xl font-semibold text-foreground">{openTitle}</h2>
+          <p className="text-sm text-muted-foreground">{sortNotice}</p>
           {hasFilterApplied && (
-            <Badge className="mt-1 inline-flex rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+            <Badge className="mt-1 inline-flex rounded-full border-border/60 bg-primary/15 px-3 py-1 text-xs font-medium text-primary shadow-sm">
               {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
             </Badge>
           )}
@@ -124,27 +124,28 @@ export function PositionsOverview({
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              {/* Token-aware filter trigger replacing legacy RGB palette */}
               <Button
                 variant="outline"
                 size="sm"
-                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
+                className="group rounded-full border border-border/60 bg-surface-elevated px-4 py-2 text-muted-foreground shadow-sm transition hover:border-ring hover:bg-surface-glass hover:text-primary"
               >
-                <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
+                <Filter className="h-4 w-4 text-primary transition group-hover:text-primary" />
                 <span className="text-sm font-medium">
                   {hasFilterApplied
                     ? activeFilterOption.label
                     : t.dashboard.positionFilters.triggerLabel}
                 </span>
-                <Badge className="ml-2 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                <Badge className="ml-2 rounded-full border-transparent bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                   {filteredOpenMetrics.length}
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg backdrop-blur-xl">
-              <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-border/60 bg-surface-glass p-2 shadow-lg backdrop-blur-xl">
+              <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t.dashboard.positionFilters.title}
               </DropdownMenuLabel>
-              <DropdownMenuSeparator className="mx-2 my-2 bg-slate-100" />
+              <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
               {filterOptions.map(({ key, label, description, icon: Icon }) => {
                 const isActive = activeFilter === key;
                 return (
@@ -152,32 +153,32 @@ export function PositionsOverview({
                     key={key}
                     onSelect={() => setActiveFilter(key)}
                     className={cn(
-                      'group flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition focus:bg-[color:var(--color-blue-50)]/70 focus:text-blue-700',
-                      isActive ? 'bg-[color:var(--color-blue-50)]/60 text-blue-700' : 'text-slate-600'
+                      'group flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition focus:bg-primary/15 focus:text-primary',
+                      isActive ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
                     )}
                   >
-                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-500">
+                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary">
                       <Icon className="h-4 w-4" />
                     </span>
                     <div className="space-y-0.5">
-                      <p className="font-medium text-slate-900 group-focus:text-blue-700">
+                      <p className="font-medium text-foreground group-focus:text-primary">
                         {label}
                       </p>
-                      <p className="text-xs text-slate-500 group-focus:text-blue-600">
+                      <p className="text-xs text-muted-foreground group-focus:text-primary">
                         {description}
                       </p>
                     </div>
-                    {isActive && <Check className="ml-auto h-4 w-4 text-blue-500" />}
+                    {isActive && <Check className="ml-auto h-4 w-4 text-primary" />}
                   </DropdownMenuItem>
                 );
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <p className="text-xs font-medium text-slate-400 sm:text-right">{openResultLabel}</p>
+          <p className="text-xs font-medium text-muted-foreground sm:text-right">{openResultLabel}</p>
         </div>
       </div>
       {filterEmptyState ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/60 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-surface-elevated px-6 py-10 text-center text-sm text-muted-foreground">
           {t.dashboard.positionFilters.empty}
         </div>
       ) : (
@@ -194,8 +195,8 @@ export function PositionsOverview({
       {showClosedSection && (
         <div className="space-y-3 sm:space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
-            <p className="text-sm text-slate-500">{sortNotice}</p>
+            <h2 className="text-xl font-semibold text-foreground">{closedTitle}</h2>
+            <p className="text-sm text-muted-foreground">{sortNotice}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
             {filteredClosedMetrics.map((metrics) => (

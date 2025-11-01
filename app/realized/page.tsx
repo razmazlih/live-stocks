@@ -264,7 +264,7 @@ export default function RealizedPnLPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.realized.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.realized.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
+                    <Button asChild size="sm" className="gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
                       <Link href="/positions">
                         <Receipt className="h-4 w-4" />
                         <span>{t.realized.goToPositions}</span>

@@ -37,7 +37,7 @@ type GradientStop = {
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
   loss: 'var(--color-red-450)',
   under: 'var(--color-primary-300)',
-  above: 'var(--color-green-500)',
+  above: 'var(--color-emerald-500)',
 };
 
 const resolveTrendState = (
@@ -115,7 +115,7 @@ const resolveForecastGapVisuals = (
       text: 'text-emerald-600',
       badge: 'bg-emerald-100 text-emerald-600 ring-1 ring-inset ring-[color:var(--color-emerald-200)]/70',
       border: 'border-overlay-emerald-100',
-      background: 'from-emerald-500/10 via-emerald-400/5 to-white',
+      background: 'from-emerald-500/10 via-emerald-400/5 to-[hsl(var(--card))]',
       icon: <ArrowUpRight className="h-4 w-4" />,
     };
   }
@@ -125,7 +125,7 @@ const resolveForecastGapVisuals = (
       text: 'text-rose-600',
       badge: 'bg-rose-100 text-rose-600 ring-1 ring-inset ring-[color:var(--color-rose-200)]/70',
       border: 'border-overlay-rose-100',
-      background: 'from-rose-500/10 via-rose-400/5 to-white',
+      background: 'from-rose-500/10 via-rose-400/5 to-[hsl(var(--card))]',
       icon: <ArrowDownRight className="h-4 w-4" />,
     };
   }
@@ -134,7 +134,7 @@ const resolveForecastGapVisuals = (
     text: 'text-slate-600',
     badge: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-[color:var(--color-slate-200)]/70',
     border: 'border-overlay-slate-200',
-    background: 'from-slate-500/5 via-slate-400/5 to-white',
+    background: 'from-slate-500/5 via-slate-400/5 to-[hsl(var(--card))]',
     icon: <Minus className="h-4 w-4" />,
   };
 };
@@ -180,19 +180,19 @@ const ChartTooltip = ({
   ];
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
+    <div className="w-72 rounded-2xl border border-slate-200 bg-card/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         <span>{labels.at}</span>
         <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{labels.net}</p>
+        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-primary-500/10 to-emerald-500/15 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-500">{labels.net}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
           <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
+        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-[hsl(var(--card))]/85 p-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
           <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
@@ -546,7 +546,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
+    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-[color:var(--color-neutral-white)]/98 via-[color:var(--color-neutral-white)]/92 to-slate-100/70 shadow-xl glass-blur-sm">
       <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
@@ -597,33 +597,33 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
+                <div className="rounded-2xl bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-[hsl(var(--card))] p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">{t.dashboard.currentPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-[color:var(--color-neutral-white)] p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
+                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-[color:var(--color-neutral-white)] p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
                     <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
                     <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
+                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-[color:var(--color-neutral-white)] p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
+                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-[color:var(--color-neutral-white)] p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
                     <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
                     <p className="text-xs text-slate-400">{formattedBestDate}</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
+                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-[color:var(--color-neutral-white)] p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
                     <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
@@ -631,7 +631,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
+                <div className="rounded-2xl bg-gradient-to-r from-primary-500/10 via-[hsl(var(--card))] to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {t.dashboard.portfolioOverviewFootnote}
                   </p>
@@ -723,7 +723,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   />
                   <Tooltip
                     wrapperStyle={{ zIndex: 40 }}
-                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
+                    cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-primary-500-rgb), 0.35)', strokeWidth: 1.25 }}
                     content={
                       <ChartTooltip
                         formatUsd={usdFormatter}
@@ -741,7 +741,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       />
                     }
                   />
-                  <ReferenceLine y={0} stroke="rgba(var(--color-indigo-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
+                  <ReferenceLine y={0} stroke="rgba(var(--color-primary-500-rgb), 0.45)" strokeDasharray="1 6" strokeWidth={2} />
                   <Line
                     type="monotone"
                     dataKey="netValue"

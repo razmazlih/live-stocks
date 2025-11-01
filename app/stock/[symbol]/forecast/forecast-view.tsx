@@ -32,7 +32,7 @@ type QuantileDefinition = {
   label: string;
 };
 
-const QUANTILE_COLORS = ['var(--color-primary-500)', 'var(--color-primary-300)', 'var(--color-purple-400)', 'var(--color-green-500)', 'var(--color-orange-500)', 'var(--color-pink-500)', 'var(--color-purple-300)'];
+const QUANTILE_COLORS = ['var(--color-primary-500)', 'var(--color-primary-300)', 'var(--color-purple-400)', 'var(--color-emerald-500)', 'var(--color-orange-500)', 'var(--color-pink-500)', 'var(--color-purple-300)'];
 
 const CONFIDENCE_BASE_KEY = '__confidenceBase';
 const CONFIDENCE_RANGE_KEY = '__confidenceRange';

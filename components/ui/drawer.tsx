@@ -28,7 +28,11 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
+    className={cn(
+      // Tokenized overlay scrim follows the active theme.
+      "fixed inset-0 z-50 bg-[hsl(var(--surface-shadow))]/80",
+      className
+    )}
     {...props}
   />
 ))

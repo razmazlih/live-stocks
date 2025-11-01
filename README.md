@@ -25,6 +25,7 @@ Live Stocks היא אפליקציית לוח מחוונים מתקדמת לני�
 - [משתני סביבה](#משתני-סביבה)
 - [סקריפטים שימושיים](#סקריפטים-שימושיים)
 - [עקרונות עיצוב ופיתוח](#עקרונות-עיצוב-ופיתוח)
+- [מערכת תמות וטוקנים](#מערכת-תמות-וטוקנים)
 - [תחזוקה ושגרת עבודה](#תחזוקה-ושגרת-עבודה)
 - [נושאים להמשך פיתוח](#נושאים-להמשך-פיתוח)
 
@@ -222,6 +223,12 @@ supabase/
 - **שמירת הגדרות** – שילוב בין Local Storage ל-Supabase מבטיח עקביות הגדרות בין סשנים ומכשירים.
 - **התמודדות עם מגבלות API** – `fetchWithRetry` והעטיפות ב-`lib/services` מספקים backoff אחיד והודעות שגיאה ברורות.
 - **נגישות ו-UI עקבי** – רכיבי `components/ui` מבוססי Radix מעניקים מצבי מקלדת ו-Focus מובנים עם סטיילינג Tailwind אחיד.
+
+## מערכת תמות וטוקנים
+- **ThemeProvider אחיד** – הקומפוננטה `app/providers.tsx` עוטפת את כל ה-layout עם `ThemeProvider` של `next-themes` (עם `attribute="class"`, `enableSystem` ו-`disableTransitionOnChange`). המשמעות: `<html>` נטען עם המחלקה המתאימה (`light`/`dark`) ללא FOUC.
+- **טוקני HSL גלובליים** – `styles/globals.css` מגדיר שכבת `@layer base` עם טוקנים (למשל `--background`, `--card`, `--color-emerald-500`) גם למצב בהיר וגם ל-dark. Tailwind ממפה אותם לקלאסים כמו `bg-card`, `text-muted-foreground` ו-`text-emerald-600` דרך `tailwind.config.ts`.
+- **הוספת צבע חדש** – הוסיפו שני ערכים ל-light/dark תחת `@layer base` (למשל `--color-brand-500`), ואז הרחיבו את `tailwind.config.ts` תחת `theme.extend.colors`. ניתן להשתמש בהמשך ב-`bg-brand-500` או ב-`var(--color-brand-500)` בתוך SVG/גרפים.
+- **רכיבים צד-ג'** – גרפים, Toasts וסקרולרים משתמשים ב-`var(--surface-*)` ובטוקני chart (`--chart-1`...`--chart-5`) כך שהצבעים מתעדכנים אוטומטית עם מחלקת ה-`dark`.
 
 ## תחזוקה ושגרת עבודה
 1. **לפני פיתוח פיצ'ר** – עדכנו את הענף (`git pull`), הריצו `npm install` במקרה של תלויות חדשות והפעילו את Supabase המקומי.

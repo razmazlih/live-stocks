@@ -222,7 +222,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         projectedPrice > position.entryPrice &&
         sparklineReferencePrice >= projectedPrice
       ) {
-        return { className: 'text-[var(--color-green-400)]', hex: 'var(--color-green-400)' } as const;
+        return { className: 'text-[var(--color-emerald-400)]', hex: 'var(--color-emerald-400)' } as const;
       }
     }
 
@@ -232,15 +232,15 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const getTrendStyles = (value: number) => {
     if (value > 0) {
       return {
-        text: 'text-[var(--color-green-300)]',
-        badge: 'bg-[var(--color-green-050)] text-[var(--color-green-300)]',
+        text: 'text-[var(--color-emerald-500)]',
+        badge: 'bg-[var(--color-emerald-50)] text-[var(--color-emerald-500)]',
       };
     }
 
     if (value < 0) {
       return {
         text: 'text-[var(--color-red-500)]',
-        badge: 'bg-[var(--color-red-050)] text-[var(--color-red-500)]',
+        badge: 'bg-[var(--color-red-50)] text-[var(--color-red-500)]',
       };
     }
 
@@ -322,7 +322,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-card transition-all duration-300 ease-out will-change-transform transform-gpu',
         isHovered
           ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
           : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
@@ -338,7 +338,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       <div
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
+          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-primary-400/20 to-transparent blur-3xl transition-opacity duration-500',
           isHovered ? 'opacity-90' : 'opacity-0'
         )}
       />
@@ -429,7 +429,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {forecastEnabled ? (
                 <Link
                   href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+                  className="group inline-flex items-center gap-1 text-sm font-semibold text-primary-500 transition-colors hover:text-primary-600"
                 >
                   {t.dashboard.viewForecast}
                   <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -578,7 +578,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               {forecastEnabled ? (
                 <Link
                   href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+                  className="group inline-flex items-center gap-1 text-sm font-semibold text-primary-500 transition-colors hover:text-primary-600"
                 >
                   {t.dashboard.viewForecast}
                   <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

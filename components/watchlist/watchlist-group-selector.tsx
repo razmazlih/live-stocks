@@ -64,7 +64,7 @@ export function WatchlistGroupSelector({
             variant="outline"
             size="sm"
             onClick={onCreate}
-            className="gap-1 rounded-full border-blue-100 bg-overlay-neutral-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-white"
+            className="gap-1 rounded-full border-blue-100 bg-overlay-neutral-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-card"
           >
             <Plus className="h-4 w-4" />
             <span>{addLabel}</span>

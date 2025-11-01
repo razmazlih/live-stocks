@@ -262,7 +262,7 @@ export function TickerCard({
     const first = historical[0]?.close ?? 0;
     const last = historical[historical.length - 1]?.close ?? 0;
     if (last > first) {
-      return 'var(--color-green-600)';
+      return 'var(--color-emerald-600)';
     }
     if (last < first) {
       return 'var(--color-red-600)';

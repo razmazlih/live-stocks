@@ -26,16 +26,19 @@ type BankBadgeProps = {
   className?: string;
 };
 
-const bankVisuals: Record<BankIdentifier, { background: string; ring: string; shadow: string }> = {
+// Tokenized brand palette keeps badges theme-aware without fixed hex values
+const bankVisuals: Record<BankIdentifier, { background: string; ring: string; shadow: string; text: string }> = {
   bank_one: {
-    background: 'bg-[var(--color-neutral-950)]',
-    ring: 'ring-[color:var(--color-neutral-white)]/15',
-    shadow: 'shadow-[0_8px_20px_var(--color-shadow-neutral-35)]',
+    background: 'bg-[hsl(var(--brand-bank-one))]',
+    ring: 'ring-[hsl(var(--brand-bank-one-foreground)/0.15)]',
+    shadow: 'shadow-[0_8px_20px_var(--brand-bank-one-glow)]',
+    text: 'text-[hsl(var(--brand-bank-one-foreground))]',
   },
   bank_two: {
-    background: 'bg-gradient-to-br from-[var(--color-hot-pink-400)] via-[var(--color-hot-pink-500)] to-[var(--color-hot-pink-600)]',
-    ring: 'ring-[color:var(--color-hot-pink-500)]/40',
-    shadow: 'shadow-[0_8px_20px_var(--color-shadow-hot-pink-28)]',
+    background: 'bg-gradient-to-br from-[hsl(var(--brand-pepper)/0.85)] via-[hsl(var(--brand-pepper))] to-[hsl(var(--brand-pepper)/0.72)]',
+    ring: 'ring-[hsl(var(--brand-pepper)/0.45)]',
+    shadow: 'shadow-[0_8px_20px_var(--brand-pepper-glow)]',
+    text: 'text-[hsl(var(--brand-pepper-foreground))]',
   },
 };
 
@@ -49,7 +52,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
         className={cn(
           iconBase,
           iconWrapper,
-          'bg-[var(--color-neutral-900)] text-[var(--color-neutral-white)]'
+          'bg-[hsl(var(--brand-bank-one))] text-[hsl(var(--brand-bank-one-foreground))]'
         )}
       >
         <span
@@ -70,7 +73,7 @@ function renderIcon(bank: BankIdentifier, locale: BankBadgeProps['locale'], size
       className={cn(
         iconBase,
         iconWrapper,
-        'bg-[var(--color-hot-pink-300)] text-[var(--color-neutral-white)] font-black uppercase tracking-[0.14em] leading-tight'
+        'bg-[hsl(var(--brand-pepper)/0.85)] text-[hsl(var(--brand-pepper-foreground))] font-black uppercase tracking-[0.14em] leading-tight'
       )}
     >
       {locale === 'he' ? (
@@ -92,11 +95,12 @@ export function BankBadge({ bank, locale = 'he', size = 'md', className }: BankB
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-2 rounded-full font-semibold text-[var(--color-neutral-white)] transition-transform duration-200 ease-out',
+        'inline-flex items-center gap-2 rounded-full font-semibold transition-transform duration-200 ease-out',
         'ring-1 ring-inset',
         visuals.background,
         visuals.ring,
         visuals.shadow,
+        visuals.text,
         sizeTokens.container,
         className
       )}

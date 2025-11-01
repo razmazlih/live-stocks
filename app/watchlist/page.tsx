@@ -907,7 +907,7 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newGroup,
         onClick: openCreateGroupDialog,
-        className: 'bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]',
+        className: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
       },
       {
         key: 'newTicker',
@@ -1057,7 +1057,8 @@ export default function WatchlistPage() {
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
+                                  // Tokenize range filter chip so it respects theme palettes.
+                                  'flex h-auto items-center gap-3 rounded-full border-border bg-card px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-slate-100/70',
                                   hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
                                 )}
                               >
@@ -1122,7 +1123,7 @@ export default function WatchlistPage() {
                           <Button
                             size="sm"
                             onClick={openCreateTickerDialog}
-                            className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                            className="gap-2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                           >
                             <Plus className="h-4 w-4" />
                             {t.watchlist.actions.newTicker}
@@ -1226,7 +1227,7 @@ export default function WatchlistPage() {
                       <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
-                        className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                        className="gap-2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                       >
                         <Plus className="h-4 w-4" />
                         {t.watchlist.actions.newTicker}
@@ -1239,7 +1240,7 @@ export default function WatchlistPage() {
                   <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
-                    className="gap-2 rounded-full bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]"
+                    className="gap-2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                   >
                     <Plus className="h-4 w-4" />
                     {t.watchlist.actions.newGroup}

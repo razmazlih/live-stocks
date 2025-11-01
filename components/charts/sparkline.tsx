@@ -81,7 +81,7 @@ export function Sparkline({
   projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
   belowEntryColor = 'var(--color-red-400)',
   betweenProjectedColor = 'var(--color-primary-500)',
-  aboveProjectedColor = 'var(--color-green-400)',
+  aboveProjectedColor = 'var(--color-emerald-400)',
   annualGrowthRate,
   yearsHeld,
   events,
@@ -825,8 +825,8 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
               const isActive = activeEventId === event.id;
               const tone = event.type === 'BUY'
-                ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
-                : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
+                ? { fill: 'var(--color-emerald-50)', stroke: 'var(--color-emerald-600)' }
+                : { fill: 'var(--color-red-50)', stroke: 'var(--color-red-600)' };
               const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
               return (

@@ -35,7 +35,7 @@ interface PortfolioVisualizationsProps {
 const COLORS = [
   'var(--color-primary-500)',
   'var(--color-primary-300)',
-  'var(--color-green-500)',
+  'var(--color-emerald-500)',
   'var(--color-purple-500)',
   'var(--color-orange-500)',
   'var(--color-amber-500)',
@@ -265,7 +265,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-7">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-7">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.performanceTrendTitle}
@@ -340,7 +340,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-5">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-5">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
@@ -431,7 +431,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
@@ -496,7 +496,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-6">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-6">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.pnlChart}
@@ -517,8 +517,8 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0.6} />
                   </linearGradient>
                   <linearGradient id="pnlProjectedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-green-500)" stopOpacity={0.95} />
-                    <stop offset="95%" stopColor="var(--color-green-500)" stopOpacity={0.6} />
+                    <stop offset="5%" stopColor="var(--color-emerald-500)" stopOpacity={0.95} />
+                    <stop offset="95%" stopColor="var(--color-emerald-500)" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.25)" />
@@ -557,7 +557,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-white/95 via-white/80 to-white/60 shadow-2xl xl:col-span-12">
+      <Card className="overflow-hidden border-[color:var(--color-neutral-white)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-neutral-white)]/80 to-[color:var(--color-neutral-white)]/60 shadow-2xl xl:col-span-12">
         <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-100)]/60 bg-[color:var(--color-neutral-white)]/50">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.holdingPeriodTitle}

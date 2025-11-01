@@ -33,8 +33,9 @@ export function TimeRangeTabs({
             key={range}
             value={range}
             className={cn(
-              'rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium transition-colors data-[state=active]:border-transparent data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:border-slate-700 dark:bg-slate-800 dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900',
-              'shadow-sm hover:border-slate-300 hover:bg-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-700'
+              // Tokenized tab chip avoids hard-coded palette references.
+              'rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors data-[state=active]:border-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground',
+              'shadow-sm hover:border-border/70 hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
             )}
           >
             {labels?.[range] ?? range}
