@@ -175,7 +175,13 @@ supabase/
 ### רכיבי UI ועיצוב
 - רכיבי `components/ui` מבוססי Radix + Tailwind מספקים כפתורים, טפסים, טבלאות וחיווי מצב עם נגישות מובנית.
 - `components/dashboard`, `components/portfolio` ו-`components/watchlist` מחלקים את ממשק המשתמש לתתי-מודולים הניתנים לשימוש חוזר.
-- `app/globals.css` ו-`tailwind.config.ts` מגדירים טיפוגרפיה, צבעים, אנימציות ותמיכה ב-RTL.
+- `app/providers.tsx` עוטף את האפליקציה ב-`ThemeProvider` של `next-themes` עם `darkMode="class"`, ומאפשר סנכרון עם מערכת ההפעלה או הפעלה ידנית דרך הכפתור `ThemeToggle` שנמצא בכל קופסת פעולות.
+- `app/globals.css` מגדיר טוקנים בצורת `--color-*-hsl` עבור כל צבע (וריאנטי מותג, נטרלים ומצבי התרעה). הערכים מנוהלים ב-HSL כך שניתן להשתמש בהם כ-`hsl(var(--token-hsl) / <alpha>)` ולשמור על ניגודיות מתאימה בשני המצבים.
+- `tailwind.config.ts` ממפה את הטוקנים לערכי Tailwind (למשל `text-slate-500` או `bg-emerald-100`) ומבטיח שהמחלקות הקיימות יתאימו אוטומטית ל-Light/Dark.
+- **הוספת צבע חדש:**
+  1. הוסיפו את הטוקן ל-`app/globals.css` כזוג `--color-name-hsl` ו-`--color-name` (הראשון מאחסן HSL, השני עוטף ב-`hsl(var(...))`).
+  2. הרחיבו את `tailwind.config.ts` כך שיכלול את הטוקן תחת `theme.extend.colors` אם יש צורך במחלקות Tailwind סטנדרטיות.
+  3. השתמשו במחלקות Tailwind (למשל `text-name-500`) או בערכים ישירים `hsl(var(--color-name-hsl) / <alpha>)` בקומפוננטות.
 
 ## API ושירותים חיצוניים
 - `GET /api/quote` – מחזיר מחיר חי ושינוי יומי מממשק Finnhub עם מנגנון retry.

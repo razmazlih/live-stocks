@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { DashboardQuickActions } from './quick-actions';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface QuickActionsSectionProps {
   title: string;
@@ -24,7 +25,10 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
         className
       )}
     >
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+        <ThemeToggle />
+      </div>
       <DashboardQuickActions actions={actions} />
       {children}
     </div>
