@@ -38,21 +38,24 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     icon: LineChart,
     label: t.portfolio.quickAction,
     href: '/portfolio',
-    className: 'bg-[#1E3A8A] text-white shadow-sm hover:bg-[#1E40AF]',
+    className:
+      'bg-[var(--color-blue-900)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-blue-800)]',
   }),
   realized: () => ({
     key: 'realized',
     icon: CircleDollarSign,
     label: t.realized.quickAction,
     href: '/realized',
-    className: 'bg-[#0EA5E9] text-white shadow-sm hover:bg-[#0284C7]',
+    className:
+      'bg-[var(--color-cyan-500)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-cyan-600)]',
   }),
   watchlist: () => ({
     key: 'watchlist',
     icon: Eye,
     label: t.watchlist.quickAction,
     href: '/watchlist',
-    className: 'bg-[#2563EB] text-white shadow-sm hover:bg-[#1D4ED8]',
+    className:
+      'bg-[var(--color-blue-500)] text-[var(--color-white)] shadow-sm hover:bg-[var(--color-blue-600)]',
   }),
   positions: () => ({
     key: 'positions',

@@ -913,7 +913,7 @@ export default function PositionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5FAFF] via-[#E6F2FF] to-[#D9E9FF]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-surface-gradient-from)] via-[var(--color-surface-gradient-mid)] to-[var(--color-surface-gradient-to)]">
       <div className="mx-auto max-w-6xl px-6 py-8 lg:py-12">
         <header className="mb-10 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1228,7 +1228,7 @@ export default function PositionsPage() {
             </Dialog>
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-[#0F172A]">{t.positions.title}</h1>
+            <h1 className="text-3xl font-bold text-[var(--color-slate-900)]">{t.positions.title}</h1>
             <p className="max-w-2xl text-sm text-slate-600">{t.positions.subtitle}</p>
           </div>
           <section className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-sm backdrop-blur">

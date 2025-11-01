@@ -51,6 +51,59 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Project color palette */
+    --color-white: #ffffff;
+    --color-black-rgb: 0, 0, 0;
+    --color-white-rgb: 255, 255, 255;
+    --color-slate-400-rgb: 148, 163, 184;
+    --color-slate-900-rgb: 15, 23, 42;
+    --color-blue-400-rgb: 59, 130, 246;
+    --color-blue-500-rgb: 37, 99, 235;
+    --color-indigo-500-rgb: 99, 102, 241;
+    --color-indigo-500: #6366f1;
+    --color-rose-500-rgb: 244, 63, 94;
+
+    --color-slate-900: #0f172a;
+    --color-slate-800: #1e293b;
+    --color-slate-600: #475569;
+    --color-surface-base: #eef5ff;
+    --color-surface-overlay: #e4f1ff;
+    --color-surface-highlight: #f8fbff;
+    --color-surface-contrast: #e3eeff;
+    --color-surface-gradient-from: #f5faff;
+    --color-surface-gradient-mid: #e6f2ff;
+    --color-surface-gradient-to: #d9e9ff;
+
+    --color-blue-500: #2563eb;
+    --color-blue-600: #1d4ed8;
+    --color-blue-400: #3b82f6;
+    --color-blue-900: #1e3a8a;
+    --color-blue-800: #1e40af;
+    --color-cyan-500: #0ea5e9;
+    --color-cyan-600: #0284c7;
+    --color-orange-500: #f97316;
+    --color-amber-500: #f59e0b;
+    --color-emerald-700: #047857;
+    --color-emerald-600: #059669;
+    --color-emerald-550: #4aa956;
+    --color-emerald-500: #22c55e;
+    --color-emerald-50: #dcfce7;
+    --color-rose-700: #b91c1c;
+    --color-rose-600: #dc2626;
+    --color-rose-550: #d22e2e;
+    --color-rose-500-bright: #ef4444;
+    --color-rose-50: #fee2e2;
+    --color-rose-400: #ff2f86;
+    --color-rose-400-rgb: 255, 47, 134;
+    --color-rose-300: #ff4ba3;
+    --color-rose-200: #ff1566;
+    --color-rose-100: #ff0066;
+    --color-pink-500: #ec4899;
+    --color-purple-500: #a855f7;
+    --color-purple-400: #8b5cf6;
+    --color-neutral-950: #050505;
+    --color-neutral-900: #0a0a0a;
   }
   .dark {
     --background: 0 0% 3.9%;

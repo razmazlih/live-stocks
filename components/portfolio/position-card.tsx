@@ -213,7 +213,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const sparklineColor = useMemo(() => {
     if (typeof sparklineReferencePrice === 'number' && Number.isFinite(sparklineReferencePrice)) {
       if (sparklineReferencePrice < position.entryPrice) {
-        return { className: 'text-[#D22E2E]', hex: '#D22E2E' } as const;
+        return { className: 'text-[var(--color-rose-550)]', hex: 'var(--color-rose-550)' } as const;
       }
 
       if (
@@ -222,11 +222,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         projectedPrice > position.entryPrice &&
         sparklineReferencePrice >= projectedPrice
       ) {
-        return { className: 'text-[#4AA956]', hex: '#4AA956' } as const;
+        return { className: 'text-[var(--color-emerald-550)]', hex: 'var(--color-emerald-550)' } as const;
       }
     }
 
-    return { className: 'text-[#2563EB]', hex: '#2563EB' } as const;
+    return { className: 'text-[var(--color-blue-500)]', hex: 'var(--color-blue-500)' } as const;
   }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
   const getTrendStyles = (value: number) => {
@@ -415,7 +415,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
@@ -564,7 +564,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   height={130}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
-                  baselineColor="rgba(148, 163, 184, 0.5)"
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
