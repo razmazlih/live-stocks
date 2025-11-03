@@ -210,8 +210,14 @@ export function usePortfolioData() {
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : null;
+            const lotTimestamps = (position.lots ?? [])
+              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
+              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
+            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
+            const defaultLookback = now - 60 * 60 * 24 * 30;
+            const baselineTimestamp = earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
+            const from = Math.min(baselineTimestamp, now);
 
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
