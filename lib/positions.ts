@@ -255,6 +255,173 @@ export function summarizeLots(lots: PositionLot[], asOf: Date = new Date()): Pos
   };
 }
 
+type ActivationSegment = {
+  lots: PositionLot[];
+  startTimestamp: number | null;
+  endTimestamp: number | null;
+  remainingQuantity: number;
+};
+
+function normalizeLotTimestamp(lot: PositionLot): number | null {
+  if (!lot.executedAt) {
+    return null;
+  }
+
+  const timestamp = new Date(lot.executedAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function collectActivationSegments(position: Position): ActivationSegment[] {
+  const lots = Array.isArray(position.lots) ? position.lots : [];
+
+  if (!lots.length) {
+    return [];
+  }
+
+  const orderedLots = lots
+    .map((lot) => ({ lot, timestamp: normalizeLotTimestamp(lot) }))
+    .filter((entry): entry is { lot: PositionLot; timestamp: number } => entry.timestamp !== null)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const segments: ActivationSegment[] = [];
+  let currentLots: PositionLot[] = [];
+  let currentStart: number | null = null;
+  let runningQuantity = 0;
+
+  for (const { lot, timestamp } of orderedLots) {
+    const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (quantity === 0) {
+      continue;
+    }
+
+    const isBuy = lot.type === 'BUY';
+
+    if (isBuy && runningQuantity <= 0) {
+      currentLots = [];
+      currentStart = timestamp;
+      runningQuantity = 0;
+    } else if (!isBuy && runningQuantity <= 0 && currentLots.length === 0) {
+      // Ignore unmatched sell lots that precede any open quantity
+      continue;
+    }
+
+    currentLots.push(lot);
+    runningQuantity += isBuy ? quantity : -quantity;
+
+    if (runningQuantity < 0) {
+      runningQuantity = 0;
+    }
+
+    if (runningQuantity <= 1e-8) {
+      segments.push({
+        lots: [...currentLots],
+        startTimestamp: currentStart,
+        endTimestamp: timestamp,
+        remainingQuantity: 0,
+      });
+      currentLots = [];
+      currentStart = null;
+      runningQuantity = 0;
+    }
+  }
+
+  if (currentLots.length > 0 || runningQuantity > 0) {
+    segments.push({
+      lots: [...currentLots],
+      startTimestamp: currentStart,
+      endTimestamp: null,
+      remainingQuantity: runningQuantity,
+    });
+  }
+
+  return segments;
+}
+
+function computeAverageBuyPrice(lots: PositionLot[]): { average: number; earliestBuy?: string | null } {
+  const buyLots = lots.filter((lot) => lot.type === 'BUY');
+
+  if (!buyLots.length) {
+    return { average: 0, earliestBuy: null };
+  }
+
+  const totals = buyLots.reduce(
+    (acc, lot) => {
+      const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+      if (quantity === 0) {
+        return acc;
+      }
+
+      const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+      const cost = quantity * lot.price + commission;
+
+      acc.quantity += quantity;
+      acc.cost += cost;
+
+      if (!acc.earliest || new Date(lot.executedAt) < new Date(acc.earliest)) {
+        acc.earliest = lot.executedAt;
+      }
+
+      return acc;
+    },
+    { quantity: 0, cost: 0, earliest: null as string | null }
+  );
+
+  const average = totals.quantity > 0 ? totals.cost / totals.quantity : 0;
+  return { average, earliestBuy: totals.earliest };
+}
+
+export function expandPositionActivations(position: Position): Position[] {
+  const segments = collectActivationSegments(position);
+  const baseId = position.id ?? position.symbol;
+
+  if (segments.length === 0) {
+    const activationId = `${baseId}::activation-0`;
+    const isHistorical = position.quantity <= 0;
+    return [
+      {
+        ...position,
+        activationId,
+        activationIndex: 0,
+        activationStart: position.entryDate ?? null,
+        activationEnd: isHistorical ? position.entryDate ?? null : null,
+        isHistoricalActivation: isHistorical,
+        originalId: position.id,
+      },
+    ];
+  }
+
+  return segments.map((segment, index) => {
+    const activationId = `${baseId}::activation-${index + 1}`;
+    const { average: averageBuyPrice, earliestBuy } = computeAverageBuyPrice(segment.lots);
+    const derivedEntryPrice = averageBuyPrice > 0 ? averageBuyPrice : position.entryPrice;
+    const startIso = earliestBuy
+      ? new Date(earliestBuy).toISOString()
+      : segment.startTimestamp
+        ? new Date(segment.startTimestamp).toISOString()
+        : position.entryDate ?? null;
+    const endIso = segment.endTimestamp ? new Date(segment.endTimestamp).toISOString() : null;
+    const remainingQuantity = segment.remainingQuantity > 0 ? segment.remainingQuantity : 0;
+    const isHistorical = remainingQuantity <= 0 && endIso !== null;
+
+    const derivedId = !isHistorical && position.id ? position.id : `${activationId}`;
+
+    return {
+      ...position,
+      id: derivedId,
+      originalId: position.id,
+      activationId,
+      activationIndex: index,
+      activationStart: startIso,
+      activationEnd: endIso,
+      isHistoricalActivation: isHistorical,
+      entryPrice: derivedEntryPrice,
+      entryDate: startIso ?? position.entryDate,
+      quantity: remainingQuantity,
+      lots: segment.lots,
+    };
+  });
+}
+
 export function mapPositionRow(row: SupabasePositionRow): Position {
   const lots = Array.isArray(row.position_lots)
     ? row.position_lots.map(normalizeLot).filter((lot) => lot.quantity > 0)
