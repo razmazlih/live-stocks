@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
+import {
+  computeRealizedSales,
+  expandPositionActivations,
+  mapPositionPlanRow,
+  mapPositionRow,
+} from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
@@ -22,9 +27,11 @@ import {
 } from '@/types';
 
 interface SparklineResult {
+  key: string;
   symbol: string;
   points: HistoricalPoint[];
   timeline: PortfolioTimelinePoint[];
+  isHistorical: boolean;
 }
 
 interface LoadSparklinesResult {
@@ -206,15 +213,51 @@ export function usePortfolioData() {
       const results = await Promise.all<SparklineResult>(
         positionsList.map(async (position) => {
           try {
+            const key = position.activationId ?? position.id ?? position.symbol;
             const now = Math.floor(Date.now() / 1000);
+            const activationStartMsRaw = position.activationStart
+              ? new Date(position.activationStart).getTime()
+              : undefined;
+            const activationEndMsRaw = position.activationEnd
+              ? new Date(position.activationEnd).getTime()
+              : undefined;
+            const activationStartMs =
+              typeof activationStartMsRaw === 'number' && Number.isFinite(activationStartMsRaw)
+                ? activationStartMsRaw
+                : null;
+            const activationEndMs =
+              typeof activationEndMsRaw === 'number' && Number.isFinite(activationEndMsRaw)
+                ? activationEndMsRaw
+                : null;
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : null;
+            const lotTimestamps = (position.lots ?? [])
+              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
+              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
+            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
+            const defaultLookback = now - 60 * 60 * 24 * 30;
+            let baselineTimestamp = activationStartMs
+              ? Math.floor(activationStartMs / 1000)
+              : earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
+            const to = activationEndMs ? Math.floor(activationEndMs / 1000) : now;
+
+            if (!Number.isFinite(baselineTimestamp)) {
+              baselineTimestamp = defaultLookback;
+            }
+
+            if (baselineTimestamp > to) {
+              baselineTimestamp = to - 60 * 60 * 24 * 5;
+            }
+
+            let from = Math.min(baselineTimestamp, to);
+            if (from === to) {
+              from = Math.max(0, to - 60 * 60 * 24 * 5);
+            }
 
             const response = await fetch(
-              `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
+              `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${to}${
                 settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
               }`
             );
@@ -222,9 +265,11 @@ export function usePortfolioData() {
             if (!response.ok) {
               console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
               return {
+                key,
                 symbol: position.symbol,
                 points: [],
                 timeline: [],
+                isHistorical: Boolean(position.isHistoricalActivation),
               };
             }
 
@@ -233,37 +278,57 @@ export function usePortfolioData() {
             if (candleData?.error) {
               console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
               return {
+                key,
                 symbol: position.symbol,
                 points: [],
                 timeline: [],
+                isHistorical: Boolean(position.isHistoricalActivation),
               };
             }
 
             const points = mapCandleDataToPoints(candleData);
-            const timeline = buildPositionTimeline(position, points, settings.annualGrowthRate);
+            const filteredPoints = points.filter((point) => {
+              if (activationStartMs && point.timestamp < activationStartMs) {
+                return false;
+              }
+              if (activationEndMs && point.timestamp > activationEndMs) {
+                return false;
+              }
+              return true;
+            });
+            const effectivePoints = filteredPoints.length > 0 ? filteredPoints : points;
+            const timeline = buildPositionTimeline(position, effectivePoints, settings.annualGrowthRate);
 
             return {
+              key,
               symbol: position.symbol,
-              points,
+              points: effectivePoints,
               timeline,
+              isHistorical: Boolean(position.isHistoricalActivation),
             };
           } catch (error) {
             console.error(`Failed to load sparkline for ${position.symbol}:`, error);
             return {
+              key: position.activationId ?? position.id ?? position.symbol,
               symbol: position.symbol,
               points: [],
               timeline: [],
+              isHistorical: Boolean(position.isHistoricalActivation),
             };
           }
         })
       );
 
-      const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
+      const sparklineEntries = results.map((result) => [result.key, result.points] as const);
       const aggregatedTimeline = new Map<
         number,
         { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
       >();
       results.forEach((result) => {
+        if (result.isHistorical) {
+          return;
+        }
+
         result.timeline.forEach((point) => {
           const current =
             aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
@@ -329,49 +394,67 @@ export function usePortfolioData() {
 
         const trimmedToken = settings.finnhubToken?.trim();
 
-        const metricsPromises = mappedPositions.map(async (position) => {
-          try {
-            let quoteData: { c?: number; d?: number; error?: string } | null = null;
+        const activationPositions = mappedPositions.flatMap((position) => expandPositionActivations(position));
 
-            if (trimmedToken) {
-              const quoteResponse = await fetch(
-                `/api/quote?symbol=${encodeURIComponent(position.symbol)}&token=${encodeURIComponent(trimmedToken)}`
-              );
+        const quoteEntries = await Promise.all(
+          mappedPositions.map(async (position) => {
+            try {
+              let quoteData: { c?: number; d?: number; error?: string } | null = null;
 
-              if (quoteResponse.ok) {
-                const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
-                if (!parsed.error) {
-                  quoteData = parsed;
+              if (trimmedToken) {
+                const quoteResponse = await fetch(
+                  `/api/quote?symbol=${encodeURIComponent(position.symbol)}&token=${encodeURIComponent(trimmedToken)}`
+                );
+
+                if (quoteResponse.ok) {
+                  const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
+                  if (!parsed.error) {
+                    quoteData = parsed;
+                  } else {
+                    console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
+                  }
                 } else {
-                  console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
+                  console.warn(`Quote request failed with status ${quoteResponse.status} for ${position.symbol}`);
                 }
-              } else {
-                console.warn(`Quote request failed with status ${quoteResponse.status} for ${position.symbol}`);
               }
+
+              return {
+                symbol: position.symbol,
+                currentPrice: quoteData?.c ?? position.entryPrice,
+                dailyChange: quoteData?.d,
+              };
+            } catch (error) {
+              console.error(`Failed to fetch quote for ${position.symbol}:`, error);
+              return {
+                symbol: position.symbol,
+                currentPrice: position.entryPrice,
+                dailyChange: undefined,
+              };
             }
+          })
+        );
 
-            const currentPrice = quoteData?.c ?? position.entryPrice;
-            const dailyChange = quoteData?.d;
-
-            return calculatePositionMetrics(
-              position,
-              currentPrice,
-              rate,
-              settings.annualGrowthRate,
-              dailyChange
-            );
-          } catch (error) {
-            console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-            return calculatePositionMetrics(
-              position,
-              position.entryPrice,
-              rate,
-              settings.annualGrowthRate
-            );
-          }
+        const quoteMap = new Map<string, { currentPrice: number; dailyChange?: number }>();
+        quoteEntries.forEach((entry) => {
+          quoteMap.set(entry.symbol, {
+            currentPrice: entry.currentPrice,
+            dailyChange: entry.dailyChange,
+          });
         });
 
-        const calculatedMetrics = await Promise.all(metricsPromises);
+        const calculatedMetrics = activationPositions.map((position) => {
+          const quote = quoteMap.get(position.symbol);
+          const currentPrice = quote?.currentPrice ?? position.entryPrice;
+          const dailyChange = quote?.dailyChange;
+
+          return calculatePositionMetrics(
+            position,
+            currentPrice,
+            rate,
+            settings.annualGrowthRate,
+            dailyChange
+          );
+        });
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
         const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
@@ -464,7 +547,7 @@ export function usePortfolioData() {
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
-          await loadSparklines(mappedPositions);
+          await loadSparklines(activationPositions);
 
         const taxTimeline = taxSummary.timeline
           .slice()

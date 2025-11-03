@@ -47,6 +47,18 @@ export interface Position {
   location: PositionLocation;
   lots?: PositionLot[];
   plans?: PositionPlan[];
+  /** Identifier tying this instance to a specific activation lifecycle */
+  activationId?: string;
+  /** Sequential index (0-based) of the activation for the symbol */
+  activationIndex?: number;
+  /** ISO timestamp for when this activation began */
+  activationStart?: string | null;
+  /** ISO timestamp for when this activation ended (null for active) */
+  activationEnd?: string | null;
+  /** Whether this activation represents a fully closed historical cycle */
+  isHistoricalActivation?: boolean;
+  /** Original persistent identifier of the position record */
+  originalId?: string;
 }
 
 export interface RealizedSale {
