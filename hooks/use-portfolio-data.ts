@@ -210,8 +210,23 @@ export function usePortfolioData() {
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : Number.POSITIVE_INFINITY;
+            const earliestLotTimestamp = Array.isArray(position.lots)
+              ? position.lots.reduce((earliest, lot) => {
+                  const executedAt = lot?.executedAt ? new Date(lot.executedAt) : null;
+                  const executedTimestamp =
+                    executedAt instanceof Date && !Number.isNaN(executedAt.getTime())
+                      ? Math.floor(executedAt.getTime() / 1000)
+                      : Number.POSITIVE_INFINITY;
+                  return Math.min(earliest, executedTimestamp);
+                }, Number.POSITIVE_INFINITY)
+              : Number.POSITIVE_INFINITY;
+            const fallbackFrom = now - 60 * 60 * 24 * 30;
+            const finiteCandidates = [entryTimestamp, earliestLotTimestamp].filter((value) =>
+              Number.isFinite(value)
+            );
+            const rawFrom = finiteCandidates.length > 0 ? Math.min(...finiteCandidates, now) : fallbackFrom;
+            const from = Math.min(rawFrom, now);
 
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
