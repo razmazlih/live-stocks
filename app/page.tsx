@@ -43,6 +43,7 @@ export default function HomePage() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
+    historicalActivations,
     reload,
   } = usePortfolioData();
 
@@ -144,8 +145,12 @@ export default function HomePage() {
     [metrics, sortByForecastGap]
   );
   const closedMetrics = useMemo(
-    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity <= 0)),
-    [metrics, sortByForecastGap]
+    () =>
+      sortByForecastGap([
+        ...metrics.filter((metric) => metric.position.quantity <= 0),
+        ...historicalActivations,
+      ]),
+    [metrics, sortByForecastGap, historicalActivations]
   );
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
 

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
-import { computeRealizedSales } from '@/lib/positions';
+import { computeRealizedSales, getPositionActivations } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +85,33 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
   const realizedSales = useMemo(() => computeRealizedSales(position), [position]);
 
+  const activationRange = useMemo(() => {
+    const segments = getPositionActivations(position);
+
+    if (segments.length === 0) {
+      const entryTime = new Date(position.entryDate).getTime();
+      return {
+        start: Number.isNaN(entryTime) ? null : entryTime,
+        end: null as number | null,
+      };
+    }
+
+    const target = isClosed
+      ? segments[segments.length - 1]
+      : segments.find((segment) => segment.isOpen) ?? segments[segments.length - 1];
+
+    const startTime = target?.start ? new Date(target.start).getTime() : Number.NaN;
+    const endTime = target?.end ? new Date(target.end).getTime() : Number.NaN;
+
+    return {
+      start: Number.isNaN(startTime) ? null : startTime,
+      end: Number.isNaN(endTime) ? null : endTime,
+    };
+  }, [isClosed, position]);
+
+  const activationStart = activationRange.start;
+  const activationEnd = activationRange.end;
+
   const closedSummary = useMemo(() => {
     if (!isClosed || realizedSales.length === 0) {
       return null;
@@ -140,26 +167,57 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     };
   }, [isClosed, realizedSales]);
 
-  const lastSaleTimestamp = closedSummary?.lastSaleDate?.getTime();
-
   const effectiveSparklineData = useMemo(() => {
     const points = sparklineData ?? [];
 
-    if (!isClosed || !lastSaleTimestamp) {
+    if (!points.length) {
       return points;
     }
 
-    const limited = points.filter((point) => point.timestamp <= lastSaleTimestamp);
-    return limited.length > 0 ? limited : points;
-  }, [isClosed, lastSaleTimestamp, sparklineData]);
+    const filtered = points.filter((point) => {
+      if (activationStart !== null && point.timestamp < activationStart) {
+        return false;
+      }
+      if (activationEnd !== null && point.timestamp > activationEnd) {
+        return false;
+      }
+      return true;
+    });
 
-  const effectiveSparklineEvents = useMemo(() => {
-    if (!isClosed || !lastSaleTimestamp) {
-      return sparklineEvents;
+    if (filtered.length > 0) {
+      return filtered;
     }
 
-    return sparklineEvents.filter((event) => event.timestamp <= lastSaleTimestamp);
-  }, [isClosed, lastSaleTimestamp, sparklineEvents]);
+    if (activationEnd !== null) {
+      const upToEnd = points.filter((point) => point.timestamp <= activationEnd);
+      if (upToEnd.length > 0) {
+        return upToEnd;
+      }
+    }
+
+    if (activationStart !== null) {
+      const fromStart = points.filter((point) => point.timestamp >= activationStart);
+      if (fromStart.length > 0) {
+        return fromStart;
+      }
+    }
+
+    return points;
+  }, [activationEnd, activationStart, sparklineData]);
+
+  const effectiveSparklineEvents = useMemo(() => {
+    const filtered = sparklineEvents.filter((event) => {
+      if (activationStart !== null && event.timestamp < activationStart) {
+        return false;
+      }
+      if (activationEnd !== null && event.timestamp > activationEnd) {
+        return false;
+      }
+      return true;
+    });
+
+    return filtered.length > 0 ? filtered : sparklineEvents;
+  }, [activationEnd, activationStart, sparklineEvents]);
 
   const finalSparklineClose = useMemo(() => {
     if (!effectiveSparklineData.length) {

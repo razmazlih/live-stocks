@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
+import {
+  computeRealizedSales,
+  getPositionActivations,
+  mapPositionPlanRow,
+  mapPositionRow,
+} from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
@@ -190,6 +195,7 @@ export function usePortfolioData() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
+  const [historicalActivations, setHistoricalActivations] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [openSummary, setOpenSummary] = useState<PortfolioSummary | null>(null);
   const [sparklineData, setSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
@@ -210,8 +216,19 @@ export function usePortfolioData() {
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : null;
+            const activations = getPositionActivations(position);
+            const currentActivation = activations.find((activation) => activation.isOpen);
+            const activationStartTimestamp = currentActivation?.start
+              ? Math.floor(new Date(currentActivation.start).getTime() / 1000)
+              : null;
+            const lotTimestamps = (position.lots ?? [])
+              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
+              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
+            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
+            const defaultLookback = now - 60 * 60 * 24 * 30;
+            const baselineTimestamp = activationStartTimestamp ?? earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
+            const from = Math.min(baselineTimestamp, now);
 
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
@@ -330,9 +347,10 @@ export function usePortfolioData() {
         const trimmedToken = settings.finnhubToken?.trim();
 
         const metricsPromises = mappedPositions.map(async (position) => {
-          try {
-            let quoteData: { c?: number; d?: number; error?: string } | null = null;
+          let currentPrice = position.entryPrice;
+          let dailyChange: number | undefined;
 
+          try {
             if (trimmedToken) {
               const quoteResponse = await fetch(
                 `/api/quote?symbol=${encodeURIComponent(position.symbol)}&token=${encodeURIComponent(trimmedToken)}`
@@ -341,7 +359,8 @@ export function usePortfolioData() {
               if (quoteResponse.ok) {
                 const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
                 if (!parsed.error) {
-                  quoteData = parsed;
+                  currentPrice = parsed.c ?? currentPrice;
+                  dailyChange = parsed.d;
                 } else {
                   console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
                 }
@@ -349,29 +368,51 @@ export function usePortfolioData() {
                 console.warn(`Quote request failed with status ${quoteResponse.status} for ${position.symbol}`);
               }
             }
-
-            const currentPrice = quoteData?.c ?? position.entryPrice;
-            const dailyChange = quoteData?.d;
-
-            return calculatePositionMetrics(
-              position,
-              currentPrice,
-              rate,
-              settings.annualGrowthRate,
-              dailyChange
-            );
           } catch (error) {
             console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-            return calculatePositionMetrics(
-              position,
-              position.entryPrice,
-              rate,
-              settings.annualGrowthRate
-            );
           }
+
+          const baseMetrics = calculatePositionMetrics(
+            position,
+            currentPrice,
+            rate,
+            settings.annualGrowthRate,
+            dailyChange
+          );
+
+          const activations = getPositionActivations(position);
+          const closedActivationMetrics = activations
+            .filter((activation) => !activation.isOpen && activation.totalBuyQuantity > 0)
+            .map((activation) => {
+              const averageEntryPrice = activation.totalBuyQuantity > 0
+                ? activation.totalBuyCostUsd / activation.totalBuyQuantity
+                : position.entryPrice;
+
+              const activationPosition: Position = {
+                ...position,
+                id: activation.id,
+                entryPrice: averageEntryPrice > 0 ? averageEntryPrice : position.entryPrice,
+                entryDate: activation.start ?? position.entryDate,
+                quantity: 0,
+                lots: activation.lots,
+              };
+
+              const exitPrice = activation.lastSellPrice ?? currentPrice;
+
+              return calculatePositionMetrics(
+                activationPosition,
+                exitPrice,
+                rate,
+                settings.annualGrowthRate
+              );
+            });
+
+          return { metrics: baseMetrics, closedActivationMetrics };
         });
 
-        const calculatedMetrics = await Promise.all(metricsPromises);
+        const metricsResults = await Promise.all(metricsPromises);
+        const calculatedMetrics = metricsResults.map((result) => result.metrics);
+        const closedActivationMetrics = metricsResults.flatMap((result) => result.closedActivationMetrics);
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
         const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
@@ -524,6 +565,7 @@ export function usePortfolioData() {
         setUnassignedPlans(mappedUnassignedPlans);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
+        setHistoricalActivations(closedActivationMetrics);
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
@@ -567,6 +609,7 @@ export function usePortfolioData() {
     positions,
     unassignedPlans,
     metrics,
+    historicalActivations,
     summary,
     openSummary,
     sparklineData,

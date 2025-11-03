@@ -398,3 +398,146 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
 
   return realized;
 }
+
+export interface PositionActivation {
+  id: string;
+  lots: PositionLot[];
+  start: string | null;
+  end: string | null;
+  isOpen: boolean;
+  totalBuyQuantity: number;
+  totalBuyCostUsd: number;
+  lastSellPrice: number | null;
+  lastSellDate: string | null;
+}
+
+export function getPositionActivations(position: Position): PositionActivation[] {
+  const lots = position.lots ?? [];
+
+  if (!lots.length) {
+    return [];
+  }
+
+  const sortedLots = lots
+    .map((lot, index) => ({ lot, index }))
+    .filter(({ lot }) => Number.isFinite(lot.quantity) && Math.max(lot.quantity, 0) > 0)
+    .sort((a, b) => {
+      const aTime = new Date(a.lot.executedAt).getTime();
+      const bTime = new Date(b.lot.executedAt).getTime();
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+        return a.index - b.index;
+      }
+      if (Number.isNaN(aTime)) {
+        return 1;
+      }
+      if (Number.isNaN(bTime)) {
+        return -1;
+      }
+      if (aTime === bTime) {
+        return a.index - b.index;
+      }
+      return aTime - bTime;
+    })
+    .map(({ lot }) => lot);
+
+  const activations: PositionActivation[] = [];
+  let activationIndex = 0;
+  let openQuantity = 0;
+  let builder: {
+    lots: PositionLot[];
+    start: string | null;
+    totalBuyQuantity: number;
+    totalBuyCostUsd: number;
+    lastSellPrice: number | null;
+    lastSellDate: string | null;
+  } | null = null;
+
+  const pushActivation = (isOpen: boolean) => {
+    if (!builder) {
+      return;
+    }
+
+    const totalBuyQuantity = builder.totalBuyQuantity;
+    if (totalBuyQuantity <= 0) {
+      builder = null;
+      return;
+    }
+
+    activationIndex += 1;
+    const activationStart = builder.start ?? builder.lots[0]?.executedAt ?? position.entryDate ?? null;
+    const activationEnd = isOpen ? null : builder.lastSellDate ?? builder.lots[builder.lots.length - 1]?.executedAt ?? null;
+
+    activations.push({
+      id: `${position.id ?? position.symbol}-activation-${activationIndex}`,
+      lots: [...builder.lots],
+      start: activationStart,
+      end: activationEnd,
+      isOpen,
+      totalBuyQuantity,
+      totalBuyCostUsd: builder.totalBuyCostUsd,
+      lastSellPrice: builder.lastSellPrice,
+      lastSellDate: builder.lastSellDate,
+    });
+
+    builder = null;
+  };
+
+  for (const lot of sortedLots) {
+    const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (quantity === 0) {
+      continue;
+    }
+
+    const executedTime = new Date(lot.executedAt).getTime();
+    if (Number.isNaN(executedTime)) {
+      continue;
+    }
+
+    if (lot.type === 'BUY') {
+      if (!builder || openQuantity <= 1e-8) {
+        builder = {
+          lots: [],
+          start: lot.executedAt ?? null,
+          totalBuyQuantity: 0,
+          totalBuyCostUsd: 0,
+          lastSellPrice: null,
+          lastSellDate: null,
+        };
+      }
+
+      builder.lots.push(lot);
+      const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+      builder.totalBuyQuantity += quantity;
+      builder.totalBuyCostUsd += quantity * lot.price + commission;
+      openQuantity += quantity;
+      continue;
+    }
+
+    if (!builder) {
+      builder = {
+        lots: [],
+        start: lot.executedAt ?? null,
+        totalBuyQuantity: 0,
+        totalBuyCostUsd: 0,
+        lastSellPrice: null,
+        lastSellDate: null,
+      };
+    }
+
+    builder.lots.push(lot);
+    builder.lastSellPrice = lot.price;
+    builder.lastSellDate = lot.executedAt ?? null;
+    openQuantity = Math.max(openQuantity - quantity, 0);
+
+    if (openQuantity <= 1e-8) {
+      pushActivation(false);
+      openQuantity = 0;
+    }
+  }
+
+  if (builder && openQuantity > 1e-8) {
+    pushActivation(true);
+  }
+
+  return activations;
+}
