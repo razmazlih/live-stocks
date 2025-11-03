@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
+import {
+  computeRealizedSales,
+  extractPositionActivations,
+  mapPositionPlanRow,
+  mapPositionRow,
+  PositionActivation,
+} from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
@@ -25,6 +31,7 @@ interface SparklineResult {
   symbol: string;
   points: HistoricalPoint[];
   timeline: PortfolioTimelinePoint[];
+  activationEntries: Array<[string, HistoricalPoint[]]>;
 }
 
 interface LoadSparklinesResult {
@@ -196,6 +203,7 @@ export function usePortfolioData() {
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [closedActivationMetrics, setClosedActivationMetrics] = useState<PositionMetrics[]>([]);
 
   const loadSparklines = useCallback(
     async (positionsList: Position[]): Promise<LoadSparklinesResult> => {
@@ -210,8 +218,24 @@ export function usePortfolioData() {
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : null;
+            const lotTimestamps = (position.lots ?? [])
+              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
+              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
+            const activations = extractPositionActivations(position);
+            const activationStarts = activations
+              .map((activation) => activation.startTimestamp)
+              .filter((timestamp): timestamp is number => typeof timestamp === 'number' && Number.isFinite(timestamp));
+            const earliestActivationTimestamp = activationStarts.length > 0
+              ? Math.floor(Math.min(...activationStarts) / 1000)
+              : null;
+            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
+            const defaultLookback = now - 60 * 60 * 24 * 30;
+            const baselineTimestamp = earliestActivationTimestamp
+              ?? earliestLotTimestamp
+              ?? entryTimestamp
+              ?? defaultLookback;
+            const from = Math.min(baselineTimestamp, now);
 
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
@@ -236,16 +260,34 @@ export function usePortfolioData() {
                 symbol: position.symbol,
                 points: [],
                 timeline: [],
+                activationEntries: [],
               };
             }
 
             const points = mapCandleDataToPoints(candleData);
             const timeline = buildPositionTimeline(position, points, settings.annualGrowthRate);
+            const activationEntries = activations.map((activation) => {
+              const key = activation.position.id ?? activation.activationId;
+              const start = activation.startTimestamp ?? points[0]?.timestamp;
+              const end = activation.endTimestamp ?? null;
+              const filtered = points.filter((point) => {
+                if (typeof start === 'number' && Number.isFinite(start) && point.timestamp < start) {
+                  return false;
+                }
+                if (typeof end === 'number' && Number.isFinite(end) && point.timestamp > end) {
+                  return false;
+                }
+                return true;
+              });
+
+              return [key, filtered.length > 0 ? filtered : points] as [string, HistoricalPoint[]];
+            });
 
             return {
               symbol: position.symbol,
               points,
               timeline,
+              activationEntries,
             };
           } catch (error) {
             console.error(`Failed to load sparkline for ${position.symbol}:`, error);
@@ -253,12 +295,19 @@ export function usePortfolioData() {
               symbol: position.symbol,
               points: [],
               timeline: [],
+              activationEntries: [],
             };
           }
         })
       );
 
-      const sparklineEntries = results.map((result) => [result.symbol, result.points] as const);
+      const sparklineEntries = results.flatMap((result) => {
+        const entries: Array<[string, HistoricalPoint[]]> = [[result.symbol, result.points]];
+        result.activationEntries.forEach((entry) => {
+          entries.push(entry);
+        });
+        return entries;
+      });
       const aggregatedTimeline = new Map<
         number,
         { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
@@ -326,6 +375,17 @@ export function usePortfolioData() {
         const rateResponse = await fetch('/api/exchange-rate');
         const rateData = await rateResponse.json();
         const rate = rateData.usdToIls || 3.7;
+
+        const closedActivations: PositionActivation[] = [];
+
+        mappedPositions.forEach((position) => {
+          const activations = extractPositionActivations(position);
+          activations.forEach((activation) => {
+            if (!activation.isOpen) {
+              closedActivations.push(activation);
+            }
+          });
+        });
 
         const trimmedToken = settings.finnhubToken?.trim();
 
@@ -466,6 +526,17 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
+        const closedActivationMetricsList: PositionMetrics[] = await Promise.all(
+          closedActivations.map((activation) =>
+            calculatePositionMetrics(
+              activation.position,
+              activation.lastSalePrice ?? activation.position.entryPrice,
+              rate,
+              settings.annualGrowthRate
+            )
+          )
+        );
+
         const taxTimeline = taxSummary.timeline
           .slice()
           .sort((a, b) => a.timestamp - b.timestamp);
@@ -528,9 +599,11 @@ export function usePortfolioData() {
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
         setPortfolioTimeline(finalTimeline);
+        setClosedActivationMetrics(closedActivationMetricsList);
         setLastUpdate(new Date());
       } catch (error) {
         console.error('Error loading portfolio data:', error);
+        setClosedActivationMetrics([]);
       } finally {
         if (background) {
           setRefreshingCount((count) => Math.max(0, count - 1));
@@ -573,6 +646,7 @@ export function usePortfolioData() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
+    closedActivationMetrics,
     reload: () => loadData({ background: true }),
   };
 }

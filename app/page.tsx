@@ -43,6 +43,7 @@ export default function HomePage() {
     portfolioTimeline,
     usdToIls,
     lastUpdate,
+    closedActivationMetrics,
     reload,
   } = usePortfolioData();
 
@@ -143,10 +144,23 @@ export default function HomePage() {
     () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity > 0)),
     [metrics, sortByForecastGap]
   );
-  const closedMetrics = useMemo(
-    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity <= 0)),
-    [metrics, sortByForecastGap]
-  );
+  const closedMetrics = useMemo(() => {
+    const activationBaseIds = new Set(
+      closedActivationMetrics.map((metric) => {
+        const id = metric.position.id ?? metric.position.symbol;
+        return id.split('::')[0] ?? id;
+      })
+    );
+
+    const aggregatedClosed = metrics.filter((metric) => metric.position.quantity <= 0);
+    const fallbackAggregated = aggregatedClosed.filter((metric) => {
+      const id = metric.position.id ?? metric.position.symbol;
+      const baseId = id.split('::')[0] ?? id;
+      return !activationBaseIds.has(baseId);
+    });
+
+    return sortByForecastGap([...closedActivationMetrics, ...fallbackAggregated]);
+  }, [metrics, closedActivationMetrics, sortByForecastGap]);
   const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
 
   const dailyChangeData = hasDailyChange

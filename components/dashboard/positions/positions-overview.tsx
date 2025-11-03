@@ -186,7 +186,11 @@ export function PositionsOverview({
             <PositionCard
               key={metrics.position.id || metrics.position.symbol}
               metrics={metrics}
-              sparklineData={sparklineData[metrics.position.symbol] || []}
+              sparklineData={
+                sparklineData[metrics.position.id ?? metrics.position.symbol]
+                  ?? sparklineData[metrics.position.symbol]
+                  ?? []
+              }
             />
           ))}
         </div>
@@ -202,7 +206,11 @@ export function PositionsOverview({
               <PositionCard
                 key={`closed-${metrics.position.id || metrics.position.symbol}`}
                 metrics={metrics}
-                sparklineData={sparklineData[metrics.position.symbol] || []}
+                sparklineData={
+                  sparklineData[metrics.position.id ?? metrics.position.symbol]
+                    ?? sparklineData[metrics.position.symbol]
+                    ?? []
+                }
               />
             ))}
           </div>
