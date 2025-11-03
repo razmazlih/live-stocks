@@ -182,13 +182,16 @@ export function PositionsOverview({
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-          {filteredOpenMetrics.map((metrics) => (
-            <PositionCard
-              key={metrics.position.id || metrics.position.symbol}
-              metrics={metrics}
-              sparklineData={sparklineData[metrics.position.symbol] || []}
-            />
-          ))}
+          {filteredOpenMetrics.map((metrics) => {
+            const sparklineKey = metrics.position.id ?? metrics.position.symbol;
+            return (
+              <PositionCard
+                key={sparklineKey}
+                metrics={metrics}
+                sparklineData={sparklineData[sparklineKey] || []}
+              />
+            );
+          })}
         </div>
       )}
       {showClosedSection && (
@@ -198,13 +201,17 @@ export function PositionsOverview({
             <p className="text-sm text-slate-500">{sortNotice}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-            {filteredClosedMetrics.map((metrics) => (
-              <PositionCard
-                key={`closed-${metrics.position.id || metrics.position.symbol}`}
-                metrics={metrics}
-                sparklineData={sparklineData[metrics.position.symbol] || []}
-              />
-            ))}
+            {filteredClosedMetrics.map((metrics) => {
+              const sparklineKey = metrics.position.id ?? metrics.position.symbol;
+              const cardKey = metrics.position.id ?? `closed-${metrics.position.symbol}`;
+              return (
+                <PositionCard
+                  key={cardKey}
+                  metrics={metrics}
+                  sparklineData={sparklineData[sparklineKey] || []}
+                />
+              );
+            })}
           </div>
         </div>
       )}

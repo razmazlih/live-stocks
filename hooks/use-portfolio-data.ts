@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
-import { computeRealizedSales, mapPositionPlanRow, mapPositionRow } from '@/lib/positions';
+import {
+  computeRealizedSales,
+  extractPositionActivations,
+  mapPositionPlanRow,
+  mapPositionRow,
+} from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
@@ -42,6 +47,35 @@ type NormalizedLot = {
   quantity: number;
   timestamp: number;
 };
+
+function clampPointsToWindow(
+  points: HistoricalPoint[],
+  startTimestamp?: number | null,
+  endTimestamp?: number | null
+): HistoricalPoint[] {
+  if (!points.length) {
+    return [];
+  }
+
+  const hasStart = typeof startTimestamp === 'number' && Number.isFinite(startTimestamp);
+  const hasEnd = typeof endTimestamp === 'number' && Number.isFinite(endTimestamp);
+
+  if (!hasStart && !hasEnd) {
+    return points;
+  }
+
+  const filtered = points.filter((point) => {
+    if (hasStart && startTimestamp !== undefined && point.timestamp < startTimestamp) {
+      return false;
+    }
+    if (hasEnd && endTimestamp !== undefined && point.timestamp > endTimestamp) {
+      return false;
+    }
+    return true;
+  });
+
+  return filtered.length > 0 ? filtered : points;
+}
 
 function buildPositionTimeline(
   position: Position,
@@ -210,8 +244,14 @@ export function usePortfolioData() {
             const entryDate = position.entryDate ? new Date(position.entryDate) : null;
             const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
               ? Math.floor(entryDate.getTime() / 1000)
-              : now - 60 * 60 * 24 * 30;
-            const from = Math.min(entryTimestamp, now);
+              : null;
+            const lotTimestamps = (position.lots ?? [])
+              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
+              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
+            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
+            const defaultLookback = now - 60 * 60 * 24 * 30;
+            const baselineTimestamp = earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
+            const from = Math.min(baselineTimestamp, now);
 
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${now}${
@@ -323,6 +363,10 @@ export function usePortfolioData() {
         const mappedUnassignedPlans: PositionPlan[] = (unattachedPlansResult.data || []).map(
           mapPositionPlanRow,
         );
+        const activationSummaries = mappedPositions.map((position) => ({
+          position,
+          activations: extractPositionActivations(position),
+        }));
         const rateResponse = await fetch('/api/exchange-rate');
         const rateData = await rateResponse.json();
         const rate = rateData.usdToIls || 3.7;
@@ -466,6 +510,73 @@ export function usePortfolioData() {
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
           await loadSparklines(mappedPositions);
 
+        const trimmedSparklineMap = new Map<string, HistoricalPoint[]>();
+        const activationMetrics: PositionMetrics[] = [];
+
+        const setSparklineEntry = (key: string | undefined, points: HistoricalPoint[]) => {
+          if (!key) {
+            return;
+          }
+          trimmedSparklineMap.set(key, points);
+        };
+
+        activationSummaries.forEach(({ position, activations }) => {
+          const rawPoints = nextSparklineData[position.symbol] ?? [];
+          const baseKey = position.id ?? `${position.symbol}-${position.location}`;
+          const entryTimestamp = new Date(position.entryDate).getTime();
+          const fallbackStart = Number.isNaN(entryTimestamp) ? null : entryTimestamp;
+          const lastClosedActivation = activations.closedActivations[activations.closedActivations.length - 1];
+
+          const startForPosition = position.quantity > 0
+            ? activations.currentActivation?.startTimestamp ?? fallbackStart
+            : lastClosedActivation?.startTimestamp ?? fallbackStart;
+          const endForPosition = position.quantity > 0 ? null : lastClosedActivation?.endTimestamp ?? null;
+
+          const trimmedPoints = clampPointsToWindow(rawPoints, startForPosition, endForPosition);
+          setSparklineEntry(baseKey, trimmedPoints);
+          if (!position.id || position.id !== position.symbol) {
+            setSparklineEntry(position.symbol, trimmedPoints);
+          }
+
+          activations.closedActivations.forEach((activation) => {
+            const activationKey = `${baseKey}-activation-${activation.sequence}`;
+            const activationEntryPrice = activation.totalBuyQuantity > 0
+              ? activation.totalBuyCost / activation.totalBuyQuantity
+              : position.entryPrice;
+            const activationStartIso = activation.startTimestamp
+              ? new Date(activation.startTimestamp).toISOString()
+              : position.entryDate;
+            const activationPosition: Position = {
+              ...position,
+              id: activationKey,
+              entryPrice: activationEntryPrice,
+              entryDate: activationStartIso,
+              quantity: 0,
+              lots: activation.lots,
+              plans: [],
+              activationSequence: activation.sequence,
+            };
+            const lastSellPrice = activation.lastSellPrice ?? activationEntryPrice;
+            const activationMetric = calculatePositionMetrics(
+              activationPosition,
+              lastSellPrice,
+              rate,
+              settings.annualGrowthRate
+            );
+            activationMetrics.push(activationMetric);
+
+            const activationPoints = clampPointsToWindow(
+              rawPoints,
+              activation.startTimestamp,
+              activation.endTimestamp
+            );
+            setSparklineEntry(activationKey, activationPoints);
+          });
+        });
+
+        const trimmedSparklineData = Object.fromEntries(trimmedSparklineMap.entries());
+        const combinedMetrics = [...calculatedMetrics, ...activationMetrics];
+
         const taxTimeline = taxSummary.timeline
           .slice()
           .sort((a, b) => a.timestamp - b.timestamp);
@@ -523,10 +634,10 @@ export function usePortfolioData() {
         setPositions(mappedPositions);
         setUnassignedPlans(mappedUnassignedPlans);
         setUsdToIls(rate);
-        setMetrics(calculatedMetrics);
+        setMetrics(combinedMetrics);
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
-        setSparklineData(nextSparklineData);
+        setSparklineData(trimmedSparklineData);
         setPortfolioTimeline(finalTimeline);
         setLastUpdate(new Date());
       } catch (error) {

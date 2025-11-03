@@ -153,13 +153,30 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     return limited.length > 0 ? limited : points;
   }, [isClosed, lastSaleTimestamp, sparklineData]);
 
-  const effectiveSparklineEvents = useMemo(() => {
-    if (!isClosed || !lastSaleTimestamp) {
-      return sparklineEvents;
+  const firstVisibleTimestamp = useMemo(() => {
+    if (!effectiveSparklineData.length) {
+      return null;
     }
 
-    return sparklineEvents.filter((event) => event.timestamp <= lastSaleTimestamp);
-  }, [isClosed, lastSaleTimestamp, sparklineEvents]);
+    const firstPoint = effectiveSparklineData[0];
+    return typeof firstPoint?.timestamp === 'number' && Number.isFinite(firstPoint.timestamp)
+      ? firstPoint.timestamp
+      : null;
+  }, [effectiveSparklineData]);
+
+  const effectiveSparklineEvents = useMemo(() => {
+    let events = sparklineEvents;
+
+    if (isClosed && lastSaleTimestamp) {
+      events = events.filter((event) => event.timestamp <= lastSaleTimestamp);
+    }
+
+    if (firstVisibleTimestamp !== null) {
+      events = events.filter((event) => event.timestamp >= firstVisibleTimestamp);
+    }
+
+    return events;
+  }, [firstVisibleTimestamp, isClosed, lastSaleTimestamp, sparklineEvents]);
 
   const finalSparklineClose = useMemo(() => {
     if (!effectiveSparklineData.length) {
@@ -365,6 +382,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                     <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
+                    {typeof position.activationSequence === 'number' && (
+                      <Badge variant="secondary" className="border border-indigo-100 bg-indigo-50 text-indigo-700">
+                        {t.dashboard.activationBadge(position.activationSequence)}
+                      </Badge>
+                    )}
                     <span className="inline-flex items-center gap-1.5">
                       <BankBadge
                         bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
@@ -472,6 +494,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                     <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
+                    {typeof position.activationSequence === 'number' && (
+                      <Badge variant="secondary" className="border border-indigo-100 bg-indigo-50 text-indigo-700">
+                        {t.dashboard.activationBadge(position.activationSequence)}
+                      </Badge>
+                    )}
                     <span className="inline-flex items-center gap-1.5">
                       <BankBadge
                         bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}

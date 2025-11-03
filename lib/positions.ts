@@ -73,6 +73,17 @@ export interface PositionSummary {
   weightedHoldingYears: number;
 }
 
+export interface PositionActivationSummary {
+  sequence: number;
+  lots: PositionLot[];
+  startTimestamp: number | null;
+  endTimestamp: number | null;
+  totalBuyQuantity: number;
+  totalBuyCost: number;
+  lastSellPrice: number | null;
+  lastSellTimestamp: number | null;
+}
+
 function parseNumeric(value?: number | string | null): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
@@ -253,6 +264,115 @@ export function summarizeLots(lots: PositionLot[], asOf: Date = new Date()): Pos
     earliestEntryDate,
     weightedHoldingYears,
   };
+}
+
+export function extractPositionActivations(position: Position): {
+  currentActivation: PositionActivationSummary | null;
+  closedActivations: PositionActivationSummary[];
+} {
+  const lots = Array.isArray(position.lots) ? position.lots : [];
+
+  if (lots.length === 0) {
+    if (position.quantity > 0) {
+      const fallbackStart = new Date(position.entryDate).getTime();
+      return {
+        currentActivation: {
+          sequence: 1,
+          lots: [],
+          startTimestamp: Number.isNaN(fallbackStart) ? null : fallbackStart,
+          endTimestamp: null,
+          totalBuyQuantity: position.quantity,
+          totalBuyCost: position.entryPrice * position.quantity,
+          lastSellPrice: null,
+          lastSellTimestamp: null,
+        },
+        closedActivations: [],
+      };
+    }
+
+    return { currentActivation: null, closedActivations: [] };
+  }
+
+  const sortedLots = [...lots].sort((a, b) => {
+    const aTime = new Date(a.executedAt).getTime();
+    const bTime = new Date(b.executedAt).getTime();
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return 0;
+    }
+    return aTime - bTime;
+  });
+
+  const closedActivations: PositionActivationSummary[] = [];
+  let currentActivation: PositionActivationSummary | null = null;
+  let openQuantity = 0;
+  let sequence = 0;
+
+  const startNewActivation = (timestamp: number | null) => {
+    sequence += 1;
+    currentActivation = {
+      sequence,
+      lots: [],
+      startTimestamp: Number.isFinite(timestamp ?? NaN) ? timestamp : null,
+      endTimestamp: null,
+      totalBuyQuantity: 0,
+      totalBuyCost: 0,
+      lastSellPrice: null,
+      lastSellTimestamp: null,
+    };
+  };
+
+  for (const lot of sortedLots) {
+    const timestamp = new Date(lot.executedAt).getTime();
+    const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+
+    if (quantity <= 0 || Number.isNaN(timestamp)) {
+      continue;
+    }
+
+    if (lot.type === 'SELL' && !currentActivation) {
+      continue;
+    }
+
+    if (!currentActivation) {
+      startNewActivation(timestamp);
+    }
+
+    if (!currentActivation) {
+      continue;
+    }
+
+    currentActivation.lots.push(lot);
+
+    if (lot.type === 'BUY') {
+      if (currentActivation.startTimestamp === null) {
+        currentActivation.startTimestamp = timestamp;
+      }
+      const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+      currentActivation.totalBuyQuantity += quantity;
+      currentActivation.totalBuyCost += quantity * lot.price + commission;
+      openQuantity += quantity;
+    } else {
+      currentActivation.lastSellPrice = lot.price;
+      currentActivation.lastSellTimestamp = timestamp;
+      openQuantity -= quantity;
+
+      if (openQuantity <= 1e-8) {
+        currentActivation.endTimestamp = timestamp;
+        closedActivations.push(currentActivation);
+        currentActivation = null;
+        openQuantity = 0;
+      } else if (openQuantity < 0) {
+        openQuantity = 0;
+      }
+    }
+  }
+
+  if (currentActivation && openQuantity <= 1e-8) {
+    closedActivations.push({ ...currentActivation, endTimestamp: currentActivation.lastSellTimestamp });
+    currentActivation = null;
+  }
+
+  return { currentActivation, closedActivations };
 }
 
 export function mapPositionRow(row: SupabasePositionRow): Position {

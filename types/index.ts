@@ -47,6 +47,7 @@ export interface Position {
   location: PositionLocation;
   lots?: PositionLot[];
   plans?: PositionPlan[];
+  activationSequence?: number;
 }
 
 export interface RealizedSale {
