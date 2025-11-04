@@ -50,6 +50,8 @@ type NormalizedLot = {
   timestamp: number;
 };
 
+const REALIZED_EPSILON = 1e-6;
+
 function buildPositionTimeline(
   position: Position,
   points: HistoricalPoint[],
@@ -189,6 +191,64 @@ function buildPositionTimeline(
   return timeline;
 }
 
+export function aggregatePortfolioTimeline(
+  results: Array<{ timeline: PortfolioTimelinePoint[] }>
+): PortfolioTimelinePoint[] {
+  if (results.length === 0) {
+    return [];
+  }
+
+  const aggregatedTotals = new Map<number, number>();
+  const realizedAdjustments = new Map<number, number>();
+  const expectedRealizedAdjustments = new Map<number, number>();
+
+  results.forEach(({ timeline }) => {
+    let previousRealized = 0;
+    let previousExpectedRealized = 0;
+
+    timeline.forEach((point) => {
+      const currentTotal = aggregatedTotals.get(point.timestamp) ?? 0;
+      aggregatedTotals.set(point.timestamp, currentTotal + point.totalPnLUsd);
+
+      const realized = point.netPnLUsd - point.totalPnLUsd;
+      const realizedDelta = realized - previousRealized;
+      if (Math.abs(realizedDelta) > REALIZED_EPSILON) {
+        const existingAdjustment = realizedAdjustments.get(point.timestamp) ?? 0;
+        realizedAdjustments.set(point.timestamp, existingAdjustment + realizedDelta);
+      }
+      previousRealized = realized;
+
+      const expectedRealized = point.expectedNetPnLUsd - point.totalPnLUsd;
+      const expectedRealizedDelta = expectedRealized - previousExpectedRealized;
+      if (Math.abs(expectedRealizedDelta) > REALIZED_EPSILON) {
+        const existingExpected = expectedRealizedAdjustments.get(point.timestamp) ?? 0;
+        expectedRealizedAdjustments.set(point.timestamp, existingExpected + expectedRealizedDelta);
+      }
+      previousExpectedRealized = expectedRealized;
+    });
+  });
+
+  const sortedEntries = Array.from(aggregatedTotals.entries()).sort((a, b) => a[0] - b[0]);
+
+  let runningRealizedUsd = 0;
+  let runningExpectedRealizedUsd = 0;
+
+  return sortedEntries.map(([timestamp, totalPnLUsd]) => {
+    runningRealizedUsd += realizedAdjustments.get(timestamp) ?? 0;
+    runningExpectedRealizedUsd += expectedRealizedAdjustments.get(timestamp) ?? 0;
+
+    return {
+      timestamp,
+      totalPnLUsd,
+      totalPnLIls: 0,
+      netPnLUsd: totalPnLUsd + runningRealizedUsd,
+      netPnLIls: 0,
+      expectedNetPnLUsd: totalPnLUsd + runningExpectedRealizedUsd,
+      expectedNetPnLIls: 0,
+    };
+  });
+}
+
 export function usePortfolioData() {
   const { settings, refreshTrigger } = useApp();
 
@@ -320,36 +380,7 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.key, result.points] as const);
-      const aggregatedTimeline = new Map<
-        number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
-      >();
-      results.forEach((result) => {
-        if (result.isHistorical) {
-          return;
-        }
-
-        result.timeline.forEach((point) => {
-          const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
-          current.totalPnLUsd += point.totalPnLUsd;
-          current.netPnLUsd += point.netPnLUsd;
-          current.expectedNetPnLUsd += point.expectedNetPnLUsd;
-          aggregatedTimeline.set(point.timestamp, current);
-        });
-      });
-
-      const sortedTimeline = Array.from(aggregatedTimeline.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([timestamp, values]) => ({
-          timestamp,
-          totalPnLUsd: values.totalPnLUsd,
-          totalPnLIls: 0,
-          netPnLUsd: values.netPnLUsd,
-          netPnLIls: 0,
-          expectedNetPnLUsd: values.expectedNetPnLUsd,
-          expectedNetPnLIls: 0,
-        }));
+      const sortedTimeline = aggregatePortfolioTimeline(results);
       const sparklineData = Object.fromEntries(sparklineEntries);
 
       return {
