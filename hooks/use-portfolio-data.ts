@@ -320,41 +320,78 @@ export function usePortfolioData() {
       );
 
       const sparklineEntries = results.map((result) => [result.key, result.points] as const);
-      const aggregatedTimeline = new Map<
-        number,
-        { totalPnLUsd: number; netPnLUsd: number; expectedNetPnLUsd: number }
-      >();
-      results.forEach((result) => {
-        if (result.isHistorical) {
-          return;
-        }
+      const sparklineData = Object.fromEntries(sparklineEntries);
+      const timelineResults = results.filter((result) => result.timeline.length > 0);
 
+      if (timelineResults.length === 0) {
+        return {
+          sparklineData,
+          portfolioTimeline: [],
+        };
+      }
+
+      const timestampSet = new Set<number>();
+      timelineResults.forEach((result) => {
         result.timeline.forEach((point) => {
-          const current =
-            aggregatedTimeline.get(point.timestamp) ?? { totalPnLUsd: 0, netPnLUsd: 0, expectedNetPnLUsd: 0 };
-          current.totalPnLUsd += point.totalPnLUsd;
-          current.netPnLUsd += point.netPnLUsd;
-          current.expectedNetPnLUsd += point.expectedNetPnLUsd;
-          aggregatedTimeline.set(point.timestamp, current);
+          timestampSet.add(point.timestamp);
         });
       });
 
-      const sortedTimeline = Array.from(aggregatedTimeline.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([timestamp, values]) => ({
+      const sortedTimestamps = Array.from(timestampSet).sort((a, b) => a - b);
+
+      type SegmentState = {
+        timeline: PortfolioTimelinePoint[];
+        index: number;
+        lastPoint?: PortfolioTimelinePoint;
+      };
+
+      const segmentStates: SegmentState[] = timelineResults.map((result) => ({
+        timeline: [...result.timeline].sort((a, b) => a.timestamp - b.timestamp),
+        index: 0,
+        lastPoint: undefined,
+      }));
+
+      const aggregatedTimelinePoints: PortfolioTimelinePoint[] = sortedTimestamps.map((timestamp) => {
+        let totalPnLUsd = 0;
+        let netPnLUsd = 0;
+        let expectedNetPnLUsd = 0;
+
+        segmentStates.forEach((state) => {
+          while (state.index < state.timeline.length && state.timeline[state.index].timestamp <= timestamp) {
+            state.lastPoint = state.timeline[state.index];
+            state.index += 1;
+          }
+
+          if (state.lastPoint && state.lastPoint.timestamp <= timestamp) {
+            totalPnLUsd += state.lastPoint.totalPnLUsd;
+            netPnLUsd += state.lastPoint.netPnLUsd;
+            expectedNetPnLUsd += state.lastPoint.expectedNetPnLUsd;
+          }
+        });
+
+        return {
           timestamp,
-          totalPnLUsd: values.totalPnLUsd,
+          totalPnLUsd,
           totalPnLIls: 0,
-          netPnLUsd: values.netPnLUsd,
+          netPnLUsd,
           netPnLIls: 0,
-          expectedNetPnLUsd: values.expectedNetPnLUsd,
+          expectedNetPnLUsd,
           expectedNetPnLIls: 0,
-        }));
-      const sparklineData = Object.fromEntries(sparklineEntries);
+        };
+      });
+
+      const lastAggregatedPoint = aggregatedTimelinePoints[aggregatedTimelinePoints.length - 1];
+      const nowTimestamp = Date.now();
+      if (lastAggregatedPoint && lastAggregatedPoint.timestamp < nowTimestamp) {
+        aggregatedTimelinePoints.push({
+          ...lastAggregatedPoint,
+          timestamp: nowTimestamp,
+        });
+      }
 
       return {
         sparklineData,
-        portfolioTimeline: sortedTimeline,
+        portfolioTimeline: aggregatedTimelinePoints,
       };
     },
     [settings.annualGrowthRate, settings.finnhubToken]
