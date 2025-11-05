@@ -1075,7 +1075,7 @@ export default function PositionsPage() {
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+        <header className="card-surface liquid-panel rounded-3xl px-6 py-8">
           <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
           <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-6">
@@ -2109,7 +2109,7 @@ export default function PositionsPage() {
         </Dialog>
 
         <main className="mt-10 space-y-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
+          <section className="card-surface liquid-panel rounded-3xl px-4 py-6 sm:px-8">
             <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
             <div className="relative z-10">
               <div>
@@ -2145,13 +2145,13 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+          <section className="card-surface liquid-panel rounded-3xl px-4 py-8 sm:px-8">
             <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
             <div className="relative z-10">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
                 <div className="space-y-4">
                   {loading ? (
-                    <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                    <Card className="card-surface">
                       <CardContent className="py-16 text-center text-slate-500">
                         {t.common.loading}
                       </CardContent>
@@ -2347,7 +2347,7 @@ export default function PositionsPage() {
                                         return (
                                           <div
                                             key={`${lot.id}-${lot.executedAt}`}
-                                            className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-1 text-xs text-slate-600 shadow-sm"
+                                            className="card-surface flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 px-3 py-1 text-xs text-slate-600 shadow-sm"
                                           >
                                             <span
                                               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${typeBadgeClass}`}
@@ -2434,7 +2434,7 @@ export default function PositionsPage() {
                                               plan.id ??
                                               `${plan.symbol}-${plan.targetDate}`
                                             }
-                                            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-2 text-xs text-slate-600 shadow-sm"
+                                            className="card-surface flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 px-3 py-2 text-xs text-slate-600 shadow-sm"
                                           >
                                             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                                               <span

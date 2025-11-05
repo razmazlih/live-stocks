@@ -206,7 +206,7 @@ export default function RealizedPnLPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+          <header className="card-surface liquid-panel rounded-3xl px-6 py-8">
             <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
@@ -247,7 +247,7 @@ export default function RealizedPnLPage() {
           </header>
 
           <main className="mt-10 space-y-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <section className="card-surface liquid-panel rounded-3xl px-4 py-8 sm:px-8">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (

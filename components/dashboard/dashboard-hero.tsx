@@ -34,7 +34,7 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+    <header className="card-surface liquid-panel rounded-3xl px-6 py-8">
       <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-primary-050)]/60 blur-3xl" />
       <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-6">

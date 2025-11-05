@@ -254,7 +254,7 @@ export default function HomePage() {
 
   const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-6 py-10 text-center text-sm text-slate-500">
+    <div className="card-surface rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500">
       {message}
     </div>
   );
@@ -296,7 +296,7 @@ export default function HomePage() {
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner">
+        <div className="card-surface rounded-2xl border border-slate-100 p-4 shadow-inner">
           <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
         </div>
       </div>
@@ -305,9 +305,7 @@ export default function HomePage() {
     );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+    <div className="liquid-page">
       <div className="relative">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <DashboardHero
@@ -323,7 +321,7 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <section className="card-surface liquid-panel rounded-3xl px-4 py-8 sm:px-8">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
@@ -340,7 +338,7 @@ export default function HomePage() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/60 p-4 shadow-sm sm:hidden">
+                    <div className="card-surface flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 p-4 shadow-sm sm:hidden">
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold text-slate-900">
                           {t.dashboard.sectionSelectorTitle}

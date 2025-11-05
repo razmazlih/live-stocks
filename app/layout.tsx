@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="font-sans">
+      <body className="font-sans liquid-background">
         <AppProvider>
           {children}
           <Toaster />

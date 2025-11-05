@@ -221,7 +221,7 @@ const ChartTooltip = ({
           return (
             <div
               key={row.key}
-              className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm"
+              className="card-surface rounded-xl border border-[color:var(--color-slate-200)]/70 p-3 shadow-sm"
             >
               <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <span>{row.label}</span>
@@ -647,9 +647,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
+        <div className="card-surface rounded-3xl border border-[color:var(--color-slate-200)]/70 shadow-inner">
             <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
+              <div className="card-surface flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>

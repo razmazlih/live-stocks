@@ -993,7 +993,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         {showSkeleton ? (
           <ForecastSkeleton />
         ) : error ? (
-          <Card className="bg-overlay-neutral-white border border-red-200 text-red-700">
+          <Card className="card-surface border border-red-200 text-red-700">
             <CardContent className="flex flex-col items-center gap-4 py-10">
               <div className="text-lg font-semibold">{t.stock.forecastView.states.error}</div>
               <div className="text-sm text-overlay-red-600">{error}</div>
@@ -1003,7 +1003,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
             </CardContent>
           </Card>
         ) : !hasForecasts ? (
-          <Card className="bg-overlay-neutral-white border border-[color:var(--color-slate-200)]/60 text-center text-slate-600">
+          <Card className="card-surface border border-[color:var(--color-slate-200)]/60 text-center text-slate-600">
             <CardContent className="py-10 text-lg font-semibold">
               {t.stock.forecastView.states.empty}
             </CardContent>
@@ -1011,7 +1011,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
         ) : (
           <div className="space-y-6">
             {summaryForecast && summaryMetadata && (
-              <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow-lg backdrop-blur">
+              <Card className="card-surface shadow-lg">
                 <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle>{t.stock.forecastView.summaryCardTitle}</CardTitle>
@@ -1084,7 +1084,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </Card>
             )}
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="card-surface shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.quantilesCardTitle}</CardTitle>
                 <CardDescription>{t.stock.forecastView.quantilesCardDescription}</CardDescription>
@@ -1249,7 +1249,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60 shadow">
+            <Card className="card-surface shadow">
               <CardHeader>
                 <CardTitle>{t.stock.forecastView.table.title}</CardTitle>
                 <CardDescription>{t.stock.forecastView.table.subtitle}</CardDescription>
@@ -1314,7 +1314,7 @@ export function ForecastView({ symbol }: ForecastViewProps) {
                             return (
                               <div
                                 key={row.id}
-                                className="flex h-full flex-col justify-between rounded-xl border border-[color:var(--color-neutral-white)]/70 bg-overlay-neutral-white p-4 shadow-sm"
+                                className="card-surface flex h-full flex-col justify-between rounded-xl border border-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
                               >
                                 <div className="space-y-4">
                                   <div className="flex items-start justify-between gap-3">
