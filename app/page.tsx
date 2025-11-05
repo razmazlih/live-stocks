@@ -71,20 +71,20 @@ export default function HomePage() {
     if (value > 0) {
       return {
         text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
+        badge: 'liquid-badge liquid-badge--positive',
       };
     }
 
     if (value < 0) {
       return {
         text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
+        badge: 'liquid-badge liquid-badge--negative',
       };
     }
 
     return {
       text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
+      badge: 'liquid-badge liquid-badge--neutral',
     };
   };
 
@@ -296,7 +296,7 @@ export default function HomePage() {
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner">
+        <div className="rounded-2xl border card-surface p-4">
           <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
         </div>
       </div>
@@ -305,95 +305,104 @@ export default function HomePage() {
     );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <DashboardHero
-            title={t.app.title}
-            subtitle={t.app.subtitle}
-            updatedLabel={t.app.updated}
-            lastUpdatedDisplay={lastUpdatedDisplay}
-            exchangeRateLabel="1 USD ≈"
-            exchangeRateValue={formatCurrency(currentRate, 'ILS', locale)}
-            quickActionsTitle={t.dashboard.quickActions}
-            quickActions={quickActions}
-            dailyChange={dailyChangeData}
-          />
+    <div className="relative">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="floating-orb floating-orb--blue -left-32 top-8 h-72 w-72 sm:h-96 sm:w-96" />
+        <div className="floating-orb floating-orb--pink right-[-8rem] top-[35%] h-64 w-64 sm:h-80 sm:w-80" />
+        <div className="floating-orb floating-orb--emerald left-1/2 top-[75%] h-64 w-64 sm:h-96 sm:w-96" />
+      </div>
+      <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <DashboardHero
+          title={t.app.title}
+          subtitle={t.app.subtitle}
+          updatedLabel={t.app.updated}
+          lastUpdatedDisplay={lastUpdatedDisplay}
+          exchangeRateLabel="1 USD ≈"
+          exchangeRateValue={formatCurrency(currentRate, 'ILS', locale)}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+          dailyChange={dailyChangeData}
+        />
 
-          <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
-              <div className="relative z-10">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
-                    <p>{t.common.loading}</p>
-                  </div>
-                ) : !hasAnyPositions ? (
-                  <DashboardEmptyState
-                    title={t.dashboard.noPositions}
-                    description={t.positions.title}
-                    actionLabel={t.positions.add}
-                    actionHref="/positions"
-                  />
-                ) : (
-                  <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/60 p-4 shadow-sm sm:hidden">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">
-                          {t.dashboard.sectionSelectorTitle}
-                        </h2>
-                        {activeSectionConfig?.description && (
-                          <p className="text-sm text-slate-500">
-                            {activeSectionConfig.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {sectionTabs.map(({ key, label, icon: Icon, available }) => {
-                          const isActive = activeSection === key;
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => available && setActiveSection(key)}
-                              disabled={!available}
-                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                                isActive
-                                  ? 'border-blue-500 bg-[color:var(--color-blue-50)]/70 text-blue-600 shadow-sm'
-                                  : 'border-overlay-neutral-white bg-[color:var(--color-neutral-white)]/70 text-slate-500 hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/60 hover:text-blue-600'
-                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[color:var(--color-neutral-white)]/70 hover:text-slate-500'}`}
-                            >
-                              <Icon
-                                className={`h-4 w-4 transition ${
-                                  isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
-                                }`}
-                              />
-                              <span>{label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+        <main className="mt-12 space-y-12">
+          <section className="glass-panel relative overflow-hidden rounded-[2.5rem] px-4 py-10 sm:px-10">
+            <div className="pointer-events-none absolute inset-0">
+              <div className="floating-orb floating-orb--blue -right-24 -top-28 h-72 w-72 sm:h-[26rem] sm:w-[26rem]" />
+              <div className="floating-orb floating-orb--pink -left-20 bottom-[-6rem] h-64 w-64 sm:h-80 sm:w-80" />
+            </div>
+            <div className="liquid-sparkle" />
+            <div className="relative z-10">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-500">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-400" />
+                  <p className="text-sm font-medium">{t.common.loading}</p>
+                </div>
+              ) : !hasAnyPositions ? (
+                <DashboardEmptyState
+                  title={t.dashboard.noPositions}
+                  description={t.positions.title}
+                  actionLabel={t.positions.add}
+                  actionHref="/positions"
+                />
+              ) : (
+                <div className="space-y-8">
+                  <div className="glass-chip flex flex-col gap-4 rounded-2xl p-4 sm:hidden">
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold text-slate-900">
+                        {t.dashboard.sectionSelectorTitle}
+                      </h2>
+                      {activeSectionConfig?.description && (
+                        <p className="text-sm text-slate-500">
+                          {activeSectionConfig.description}
+                        </p>
+                      )}
                     </div>
-
-                    <div className="space-y-10 sm:hidden">
-                      {activeSection === 'summary' && renderSummarySection()}
-                      {activeSection === 'positions' && renderPositionsSection()}
-                      {activeSection === 'visualizations' && renderVisualizationsSection()}
-                    </div>
-                    <div className="hidden space-y-10 sm:block">
-                      {renderSummarySection()}
-                      {renderPositionsSection()}
-                      {renderVisualizationsSection()}
+                    <div className="flex flex-wrap gap-2">
+                      {sectionTabs.map(({ key, label, icon: Icon, available }) => {
+                        const isActive = activeSection === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => available && setActiveSection(key)}
+                            disabled={!available}
+                            className={`glass-chip group inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                              isActive
+                                ? 'text-blue-700 shadow-[0_24px_36px_-22px_rgba(37,99,235,0.45)] ring-1 ring-white/50'
+                                : 'text-slate-600 hover:text-blue-600 hover:shadow-[0_20px_32px_-24px_rgba(37,99,235,0.4)]'
+                            } ${
+                              available
+                                ? ''
+                                : 'cursor-not-allowed opacity-60 hover:shadow-none hover:text-slate-500'
+                            }`}
+                          >
+                            <Icon
+                              className={`h-4 w-4 transition-colors duration-300 ${
+                                isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
+                              }`}
+                            />
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
-              </div>
-            </section>
-          </main>
-        </div>
+
+                  <div className="space-y-12 sm:hidden">
+                    {activeSection === 'summary' && renderSummarySection()}
+                    {activeSection === 'positions' && renderPositionsSection()}
+                    {activeSection === 'visualizations' && renderVisualizationsSection()}
+                  </div>
+                  <div className="hidden space-y-12 sm:block">
+                    {renderSummarySection()}
+                    {renderPositionsSection()}
+                    {renderVisualizationsSection()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );

@@ -18,10 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="font-sans">
+      <body className="font-sans antialiased">
+        <div className="liquid-background">
+          <div className="liquid-background__gradient" />
+          <div className="liquid-background__orb liquid-background__orb--primary" />
+          <div className="liquid-background__orb liquid-background__orb--accent" />
+          <div className="liquid-background__sheen" />
+        </div>
         <AppProvider>
-          {children}
-          <Toaster />
+          <div className="relative z-10 flex min-h-screen flex-col">
+            {children}
+            <Toaster />
+          </div>
         </AppProvider>
       </body>
     </html>
