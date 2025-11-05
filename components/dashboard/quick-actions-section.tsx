@@ -20,7 +20,7 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
   return (
     <div
       className={cn(
-        'w-full max-w-md rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-5 shadow-inner glass-blur-sm',
+        'glass-subpanel p-5',
         className
       )}
     >
