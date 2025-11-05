@@ -168,9 +168,10 @@ export default function SettingsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-          <div className="pointer-events-none absolute -right-10 top-0 h-44 w-44 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <header className="liquid-panel relative overflow-hidden rounded-3xl px-6 py-8">
+          <div className="pointer-events-none absolute -right-14 top-[-10%] h-60 w-60 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.35),_transparent_65%)] blur-3xl animate-[glassDrift_24s_ease-in-out_infinite]" />
+          <div className="pointer-events-none absolute -bottom-10 left-[-10%] h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.2),_transparent_70%)] blur-3xl opacity-80 animate-[glassPulse_20s_ease-in-out_infinite]" />
           <div className="relative z-10 space-y-6">
             <Link href="/" className="inline-flex">
               <Button
@@ -216,8 +217,9 @@ export default function SettingsPage() {
         </header>
 
         <main className="mt-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-52 w-52 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+          <section className="liquid-panel relative overflow-hidden rounded-3xl px-4 py-8 sm:px-8">
+            <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.32),_transparent_65%)] blur-3xl animate-[glassDrift_26s_ease-in-out_infinite]" />
+            <div className="pointer-events-none absolute -bottom-16 right-[-12%] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.18),_transparent_68%)] blur-3xl opacity-75 animate-[glassPulse_24s_ease-in-out_infinite]" />
             <div className="relative z-10">
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid gap-6 md:grid-cols-2">

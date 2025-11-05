@@ -34,8 +34,9 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-      <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-primary-050)]/60 blur-3xl" />
+    <header className="liquid-panel relative overflow-hidden rounded-3xl px-6 py-8">
+      <div className="pointer-events-none absolute -right-16 top-[-12%] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.35),_transparent_65%)] blur-3xl animate-[glassDrift_22s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute -bottom-12 left-[-10%] h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.18),_transparent_68%)] blur-3xl opacity-80 animate-[glassPulse_18s_ease-in-out_infinite]" />
       <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-6">
           <div className="flex items-start gap-3">

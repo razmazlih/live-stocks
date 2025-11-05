@@ -44,7 +44,7 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
         return (
           <div
             key={card.key}
-            className="relative overflow-hidden rounded-3xl border card-surface p-5 transition-shadow duration-300"
+            className="card-surface relative overflow-hidden rounded-3xl p-5"
           >
             <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full card-glow blur-3xl" />
             <div className="relative z-10 space-y-3">

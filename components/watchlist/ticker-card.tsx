@@ -299,7 +299,7 @@ export function TickerCard({
   return (
     <Card
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border card-surface ring-1 ring-[color:var(--color-slate-200)]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl',
+        'card-surface relative flex h-full flex-col overflow-hidden transition-transform duration-500',
         className
       )}
     >
@@ -359,13 +359,13 @@ export function TickerCard({
               {priceText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
+          <div className="card-surface min-w-0 rounded-xl p-2.5 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
             <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
+          <div className="card-surface min-w-0 rounded-xl p-2.5 sm:p-3">
             <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
             <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
               {basePriceText}

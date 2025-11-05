@@ -1074,9 +1074,10 @@ export default function PositionsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <header className="liquid-panel relative overflow-hidden rounded-3xl px-6 py-8">
+          <div className="pointer-events-none absolute -right-16 top-[-12%] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.35),_transparent_65%)] blur-3xl animate-[glassDrift_24s_ease-in-out_infinite]" />
+          <div className="pointer-events-none absolute -bottom-12 left-[-10%] h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.2),_transparent_70%)] blur-3xl opacity-80 animate-[glassPulse_20s_ease-in-out_infinite]" />
           <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-6">
               <div className="flex items-start gap-3">
@@ -2109,8 +2110,9 @@ export default function PositionsPage() {
         </Dialog>
 
         <main className="mt-10 space-y-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+          <section className="liquid-panel relative overflow-hidden rounded-3xl px-4 py-6 sm:px-8">
+            <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.3),_transparent_65%)] blur-3xl animate-[glassDrift_26s_ease-in-out_infinite]" />
+            <div className="pointer-events-none absolute -bottom-16 right-[-12%] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.18),_transparent_68%)] blur-3xl opacity-70 animate-[glassPulse_24s_ease-in-out_infinite]" />
             <div className="relative z-10">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -2122,10 +2124,7 @@ export default function PositionsPage() {
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {overviewStats.map(({ key, label, value, icon: Icon }) => (
-                  <Card
-                    key={key}
-                    className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner"
-                  >
+                  <Card key={key} className="card-surface border-none">
                     <CardContent className="flex items-center gap-3 p-4">
                       <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
                         <Icon className="h-5 w-5" />
@@ -2145,19 +2144,23 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+          <section className="liquid-panel relative overflow-hidden rounded-3xl px-4 py-8 sm:px-8">
+            <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.32),_transparent_65%)] blur-3xl animate-[glassDrift_30s_ease-in-out_infinite]" />
+            <div className="pointer-events-none absolute -bottom-20 left-[-12%] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.2),_transparent_68%)] blur-3xl opacity-70 animate-[glassPulse_26s_ease-in-out_infinite]" />
             <div className="relative z-10">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
                 <div className="space-y-4">
                   {loading ? (
-                    <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                    <Card className="card-surface border-none shadow-sm">
                       <CardContent className="py-16 text-center text-slate-500">
                         {t.common.loading}
                       </CardContent>
                     </Card>
                   ) : positions.length === 0 ? (
-                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                    <Card
+                      className="card-surface border border-dashed border-white/40 bg-white/10 text-center shadow-none backdrop-blur-sm dark:border-white/15 dark:bg-white/5"
+                      style={{ borderStyle: "dashed" }}
+                    >
                       <CardContent className="flex flex-col items-center gap-4 py-12">
                         <p className="text-base font-semibold text-slate-700">
                           {t.dashboard.noPositions}

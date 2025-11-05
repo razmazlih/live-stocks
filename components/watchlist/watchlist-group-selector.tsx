@@ -47,12 +47,9 @@ export function WatchlistGroupSelector({
 }: WatchlistGroupSelectorProps) {
   return (
     <div
-      className={cn(
-        'flex w-full flex-col overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-xl glass-blur-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
-        className
-      )}
+      className={cn('liquid-panel flex w-full flex-col overflow-hidden rounded-3xl', className)}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 px-6 py-5 dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/40">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/40 bg-white/10 px-6 py-5 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
           {description ? (
@@ -64,7 +61,7 @@ export function WatchlistGroupSelector({
             variant="outline"
             size="sm"
             onClick={onCreate}
-            className="gap-1 rounded-full border-blue-100 bg-overlay-neutral-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-white"
+            className="gap-1 rounded-full border-transparent bg-white/30 text-blue-600 shadow-sm transition-colors hover:bg-white/50 dark:bg-white/10 dark:text-blue-100 dark:hover:bg-white/20"
           >
             <Plus className="h-4 w-4" />
             <span>{addLabel}</span>
@@ -97,10 +94,10 @@ export function WatchlistGroupSelector({
                   <div
                     key={group.id ?? group.name}
                     className={cn(
-                      'group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-4 py-4 transition-all',
-                      'border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm hover:border-[color:var(--color-blue-200)]/70 hover:shadow-md dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:hover:border-slate-600',
-                      isActive &&
-                        'border-[color:var(--color-blue-400)]/70 bg-overlay-blue-50 text-blue-700 shadow-md dark:border-[color:var(--color-blue-500)]/60 dark:bg-[color:var(--color-slate-800)]/70 dark:text-blue-100'
+                      'liquid-panel group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl px-4 py-4 transition-all hover:-translate-y-1',
+                      isActive
+                        ? 'ring-1 ring-[color:var(--color-blue-400)]/45 dark:ring-[color:var(--color-blue-500)]/40'
+                        : 'hover:ring-1 hover:ring-[color:var(--color-blue-200)]/50 dark:hover:ring-[color:var(--color-slate-500)]/50'
                     )}
                     onClick={() => group.id && onSelect(group.id)}
                   >
@@ -151,7 +148,7 @@ export function WatchlistGroupSelector({
         </div>
       </ScrollArea>
       {isRefreshing ? (
-        <div className="flex items-center justify-center gap-2 border-t border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 px-4 py-2 text-xs text-slate-500 dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/40 dark:text-slate-400">
+        <div className="flex items-center justify-center gap-2 border-t border-white/20 bg-white/10 px-4 py-2 text-xs text-slate-500 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
           <Loader2 className="h-3 w-3 animate-spin" />
           <span>{loadingText}</span>
         </div>

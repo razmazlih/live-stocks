@@ -18,10 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="font-sans">
+      <body className="font-sans glass-body">
+        <div className="liquid-glass-backdrop" aria-hidden="true">
+          <div className="liquid-glass-backdrop__layer liquid-glass-backdrop__layer--primary" />
+          <div className="liquid-glass-backdrop__layer liquid-glass-backdrop__layer--secondary" />
+          <div className="liquid-glass-backdrop__reflection" />
+          <div className="liquid-glass-backdrop__grid" />
+        </div>
         <AppProvider>
-          {children}
-          <Toaster />
+          <div className="relative z-10 flex min-h-screen flex-col">
+            {children}
+            <Toaster />
+          </div>
         </AppProvider>
       </body>
     </html>

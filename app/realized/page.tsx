@@ -201,13 +201,12 @@ export default function RealizedPnLPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+    <div className="page-shell">
+      <div className="page-shell__content">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <header className="liquid-panel relative overflow-hidden rounded-3xl px-6 py-8">
+            <div className="pointer-events-none absolute -right-16 top-[-12%] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.4),_transparent_65%)] blur-3xl animate-[glassDrift_24s_ease-in-out_infinite]" />
+            <div className="pointer-events-none absolute -bottom-10 left-[-8%] h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.2),_transparent_70%)] blur-3xl opacity-80 animate-[glassPulse_20s_ease-in-out_infinite]" />
             <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
@@ -247,8 +246,9 @@ export default function RealizedPnLPage() {
           </header>
 
           <main className="mt-10 space-y-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+            <section className="liquid-panel relative overflow-hidden rounded-3xl px-4 py-8 sm:px-8">
+              <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_top,_rgba(var(--color-blue-200-rgb),0.35),_transparent_65%)] blur-3xl animate-[glassDrift_28s_ease-in-out_infinite]" />
+              <div className="pointer-events-none absolute -bottom-20 right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(var(--color-purple-400-rgb),0.22),_transparent_68%)] blur-3xl opacity-70 animate-[glassPulse_24s_ease-in-out_infinite]" />
               <div className="relative z-10">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
