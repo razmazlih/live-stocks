@@ -34,6 +34,8 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     combined,
     combinedIls,
     yearsHeld,
+    currentValue,
+    currentValueIls,
   } = metrics;
 
   const isClosed = position.quantity <= 0;
@@ -512,6 +514,14 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueUsd}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(currentValue, 'USD', locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueIls}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(currentValueIls, 'ILS', locale)}</p>
               </div>
             </div>
 

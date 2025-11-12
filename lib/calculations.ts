@@ -54,6 +54,7 @@ export function calculatePositionMetrics(
   const combinedIls = combined * usdToIlsRate;
 
   const currentValue = currentPrice * normalizedQuantity;
+  const currentValueIls = currentValue * usdToIlsRate;
   const costBasis = normalizedEntryPrice * normalizedQuantity;
   const roiPercent = costBasis !== 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
 
@@ -84,6 +85,7 @@ export function calculatePositionMetrics(
     combinedIls,
     yearsHeld,
     currentValue,
+    currentValueIls,
     roiPercent,
     dailyChange: dailyChangeValue,
     dailyChangePercent,
