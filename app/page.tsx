@@ -287,6 +287,7 @@ export default function HomePage() {
         openMetrics={openMetrics}
         closedMetrics={closedMetrics}
         sparklineData={sparklineData}
+        usdToIlsRate={currentRate}
       />
     ) : (
       renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)

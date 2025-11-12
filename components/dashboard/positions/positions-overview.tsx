@@ -36,6 +36,7 @@ interface PositionsOverviewProps {
   openMetrics: PositionMetrics[];
   closedMetrics: PositionMetrics[];
   sparklineData: Record<string, HistoricalPoint[]>;
+  usdToIlsRate: number;
 }
 
 type FilterKey = 'all' | 'winners' | 'losers' | 'ahead' | 'lagging' | 'recent';
@@ -73,6 +74,7 @@ export function PositionsOverview({
   openMetrics,
   closedMetrics,
   sparklineData,
+  usdToIlsRate,
 }: PositionsOverviewProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
@@ -186,12 +188,13 @@ export function PositionsOverview({
             const sparklineKey =
               metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
             return (
-            <PositionCard
-              key={metrics.position.id || metrics.position.symbol}
-              metrics={metrics}
-              sparklineData={sparklineData[sparklineKey] || []}
-            />
-          );
+              <PositionCard
+                key={metrics.position.id || metrics.position.symbol}
+                metrics={metrics}
+                sparklineData={sparklineData[sparklineKey] || []}
+                usdToIlsRate={usdToIlsRate}
+              />
+            );
           })}
         </div>
       )}
@@ -206,12 +209,13 @@ export function PositionsOverview({
               const sparklineKey =
                 metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
               return (
-              <PositionCard
-                key={`closed-${metrics.position.id || metrics.position.symbol}`}
-                metrics={metrics}
-                sparklineData={sparklineData[sparklineKey] || []}
-              />
-            );
+                <PositionCard
+                  key={`closed-${metrics.position.id || metrics.position.symbol}`}
+                  metrics={metrics}
+                  sparklineData={sparklineData[sparklineKey] || []}
+                  usdToIlsRate={usdToIlsRate}
+                />
+              );
             })}
           </div>
         </div>

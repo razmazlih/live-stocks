@@ -19,9 +19,10 @@ import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 interface PositionCardProps {
   metrics: PositionMetrics;
   sparklineData?: HistoricalPoint[];
+  usdToIlsRate: number;
 }
 
-export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
+export function PositionCard({ metrics, sparklineData, usdToIlsRate }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const forecastEnabled = FORECAST_FEATURE_ENABLED;
@@ -34,7 +35,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     combined,
     combinedIls,
     yearsHeld,
+    currentValue,
   } = metrics;
+
+  const positionValueUsd = currentValue;
+  const positionValueIls = currentValue * usdToIlsRate;
 
   const isClosed = position.quantity <= 0;
   const changeFromEntryPercent = position.entryPrice !== 0
@@ -512,6 +517,14 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueUsd}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(positionValueUsd, 'USD', locale)}</p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueIls}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(positionValueIls, 'ILS', locale)}</p>
               </div>
             </div>
 
