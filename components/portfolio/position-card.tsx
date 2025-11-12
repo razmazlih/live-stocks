@@ -19,9 +19,10 @@ import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 interface PositionCardProps {
   metrics: PositionMetrics;
   sparklineData?: HistoricalPoint[];
+  usdToIlsRate: number;
 }
 
-export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
+export function PositionCard({ metrics, sparklineData, usdToIlsRate }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const forecastEnabled = FORECAST_FEATURE_ENABLED;
@@ -34,6 +35,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
     combined,
     combinedIls,
     yearsHeld,
+    currentValue,
   } = metrics;
 
   const isClosed = position.quantity <= 0;
@@ -267,6 +269,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const changeFromEntryStyles = changeFromEntryPercent !== null ? getTrendStyles(changeFromEntryPercent) : null;
 
   const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
+
+  const normalizedRate = Number.isFinite(usdToIlsRate) ? usdToIlsRate : 0;
+  const positionValueUsd = currentValue;
+  const positionValueIls = currentValue * normalizedRate;
 
   const closedStats = closedSummary
     ? [
@@ -506,12 +512,36 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
 
             <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-600 sm:gap-3 sm:text-sm">
               <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.quantity}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatNumber(position.quantity, locale)}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
+                  {t.dashboard.quantity}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">
+                  {formatNumber(position.quantity, locale)}
+                </p>
               </div>
               <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
+                  {t.dashboard.entryPrice}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">
+                  {formatCurrency(position.entryPrice, 'USD', locale)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
+                  {t.dashboard.positionValueUsd}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">
+                  {formatCurrency(positionValueUsd, 'USD', locale)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
+                  {t.dashboard.positionValueIls}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">
+                  {formatCurrency(positionValueIls, 'ILS', locale)}
+                </p>
               </div>
             </div>
 
