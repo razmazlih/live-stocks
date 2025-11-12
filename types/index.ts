@@ -130,6 +130,7 @@ export interface PositionMetrics {
   combinedIls: number;
   yearsHeld: number;
   currentValue: number;
+  currentValueIls: number;
   roiPercent: number;
   dailyChange?: number;
   dailyChangePercent?: number;
