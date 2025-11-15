@@ -87,14 +87,22 @@ export async function GET() {
     const realizedTotals = realizedSales.reduce(
       (acc, sale) => {
         const profitUsd = isFiniteNumber(sale.profitUsd) ? sale.profitUsd : 0;
+        const costBasisUsd = isFiniteNumber(sale.costBasisUsd) ? sale.costBasisUsd : 0;
+        const holdingDays = isFiniteNumber(sale.holdingPeriodDays) ? sale.holdingPeriodDays : 0;
+        const yearsHeld = Math.max(holdingDays / 365.25, 0);
+        const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+        const expectedProfitUsd = costBasisUsd * (expectedFactor - 1);
         const profitIls = profitUsd * usdToIlsRate;
+        const expectedProfitIls = expectedProfitUsd * usdToIlsRate;
 
         return {
           profitUsd: acc.profitUsd + profitUsd,
           profitIls: acc.profitIls + profitIls,
+          expectedProfitUsd: acc.expectedProfitUsd + expectedProfitUsd,
+          expectedProfitIls: acc.expectedProfitIls + expectedProfitIls,
         };
       },
-      { profitUsd: 0, profitIls: 0 },
+      { profitUsd: 0, profitIls: 0, expectedProfitUsd: 0, expectedProfitIls: 0 },
     );
 
     const chronologicalSales = realizedSales
@@ -111,17 +119,31 @@ export async function GET() {
 
     const totalCurrentPnLUsd = summary.totalCurrentPnLUsd + realizedTotals.profitUsd;
     const totalCurrentPnLIls = summary.totalCurrentPnLIls + realizedTotals.profitIls;
+    const totalProjectedPnLUsd = Math.max(
+      summary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd,
+      0,
+    );
+    const totalProjectedPnLIls = Math.max(
+      summary.totalProjectedPnLIls + realizedTotals.expectedProfitIls,
+      0,
+    );
 
-    const totalNetPnLUsd = totalCurrentPnLUsd - taxSummary.taxUsd;
-    const totalNetPnLIls = totalCurrentPnLIls - taxSummary.taxIls;
+    const netPnLUsd = totalCurrentPnLUsd - taxSummary.taxUsd;
+    const netPnLIls = totalCurrentPnLIls - taxSummary.taxIls;
+    const forecastGapUsd = netPnLUsd - totalProjectedPnLUsd;
+    const forecastGapIls = netPnLIls - totalProjectedPnLIls;
 
     return NextResponse.json(
       {
         timestamp: new Date().toISOString(),
         usdToIlsRate,
         netPnL: {
-          usd: toFixedNumber(totalNetPnLUsd),
-          ils: toFixedNumber(totalNetPnLIls),
+          usd: toFixedNumber(netPnLUsd),
+          ils: toFixedNumber(netPnLIls),
+        },
+        forecastGap: {
+          usd: toFixedNumber(forecastGapUsd),
+          ils: toFixedNumber(forecastGapIls),
         },
       },
       { headers: NO_STORE_HEADERS },
