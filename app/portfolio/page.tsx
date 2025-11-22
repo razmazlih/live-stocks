@@ -171,7 +171,6 @@ export default function PortfolioPage() {
     : 0;
 
   const openPositionsCount = openMetrics.length;
-  const closedPositionsCount = closedSummary?.uniqueSymbols ?? 0;
 
   const bestMetric = metrics.reduce((best, metric) => {
     if (!best || metric.positionPnLUsd > best.positionPnLUsd) {
@@ -202,45 +201,11 @@ export default function PortfolioPage() {
           label: t.portfolio.openPositions,
           value: openPositionsCount.toString(),
         },
-        ...(closedSummary
-          ? [
-              {
-                key: 'closedPositions',
-                label: t.portfolio.closedPositions,
-                value: closedPositionsCount.toString(),
-                helper: t.portfolio.closedPositionsHelper(
-                  formatCurrency(closedSummary.totalProceedsUsd, 'USD', locale)
-                ),
-              },
-            ]
-          : []),
         {
           key: 'averageReturn',
           label: t.portfolio.averageReturn,
           value: formatSignedPercent(averageReturnPercent),
           toneClass: getTrendTone(averageReturnPercent).text,
-        },
-        {
-          key: 'totalValueUsd',
-          label: t.portfolio.totalValueUsd,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
-          helper: formatCurrency(totalValueIls, 'ILS', locale),
-        },
-        {
-          key: 'totalCostUsd',
-          label: t.portfolio.totalCostUsd,
-          value: formatCurrency(summary.totalCost, 'USD', locale),
-        },
-        {
-          key: 'dailyChangeUsd',
-          label: t.portfolio.dailyChangeUsd,
-          value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
-          toneClass: dailyChangeTone.text,
-        },
-        {
-          key: 'usdToIls',
-          label: t.portfolio.usdToIlsRate,
-          value: formatCurrency(currentRate, 'ILS', locale),
         },
       ]
     : [];
@@ -292,7 +257,6 @@ export default function PortfolioPage() {
           tone: getTrendTone(totalReturnUsd),
           icon: getTrendIcon(totalReturnUsd),
         },
-        footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
       },
       {
         key: 'net',
@@ -386,27 +350,10 @@ export default function PortfolioPage() {
           helper: formatCurrency(closedSummary.totalProceedsIls, 'ILS', locale),
         },
         {
-          key: 'closedProfit',
-          label: t.portfolio.closedTotalProfit,
-          value: formatSignedCurrency(closedSummary.totalProfitUsd, 'USD'),
-          helper: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS'),
-          toneClass: getTrendTone(closedSummary.totalProfitUsd).text,
-        },
-        {
-          key: 'expectedProfit',
-          label: t.portfolio.expectedProfitLabel,
-          value: formatSignedCurrency(closedSummary.expectedProfitUsd, 'USD'),
-          helper: formatSignedCurrency(closedSummary.expectedProfitIls, 'ILS'),
-          toneClass: getTrendTone(closedSummary.expectedProfitUsd).text,
-        },
-        {
-          key: 'performanceDelta',
-          label: t.portfolio.performanceVsExpectedLabel,
-          value: formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD'),
-          helper: `${formatSignedCurrency(closedSummary.performanceDeltaIls, 'ILS')} · ${formatSignedPercent(
-            closedSummary.performanceDeltaPercent
-          )}`,
-          toneClass: getTrendTone(closedSummary.performanceDeltaUsd).text,
+          key: 'closedCost',
+          label: t.realized.totalCost,
+          value: formatCurrency(closedSummary.totalCostUsd, 'USD', locale),
+          helper: formatCurrency(closedSummary.totalCostIls, 'ILS', locale),
         },
       ]
     : [];
@@ -517,15 +464,6 @@ export default function PortfolioPage() {
                       <div className="space-y-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
-                          {hasDailyChange && (
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
-                            >
-                              {dailyChangeIcon}
-                              {formatSignedCurrency(totalDailyChangeUsd, 'USD')}
-                              <span className="text-xs font-medium text-overlay-slate-600">{t.dashboard.dailyChange}</span>
-                            </span>
-                          )}
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                           {summaryCards.map((card) => (
@@ -625,15 +563,6 @@ export default function PortfolioPage() {
                             <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
                             <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
                           </div>
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(closedSummary.performanceDeltaUsd).badge}`}
-                          >
-                            {getTrendIcon(closedSummary.performanceDeltaUsd)}
-                            {formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD')}
-                            <span className="text-xs font-medium text-overlay-slate-600">
-                              {t.portfolio.performanceVsExpectedPill}
-                            </span>
-                          </span>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                           {closedStats.map((stat) => (
