@@ -7,12 +7,19 @@ import { DashboardQuickActions } from './quick-actions';
 
 interface QuickActionsSectionProps {
   title: string;
+  description?: string;
   actions: DashboardQuickAction[];
   children?: ReactNode;
   className?: string;
 }
 
-export function QuickActionsSection({ title, actions, children, className }: QuickActionsSectionProps) {
+export function QuickActionsSection({
+  title,
+  description,
+  actions,
+  children,
+  className,
+}: QuickActionsSectionProps) {
   if (!actions.length && !children) {
     return null;
   }
@@ -25,6 +32,7 @@ export function QuickActionsSection({ title, actions, children, className }: Qui
       )}
     >
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
       <DashboardQuickActions actions={actions} />
       {children}
     </div>
