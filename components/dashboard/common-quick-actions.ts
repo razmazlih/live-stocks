@@ -1,4 +1,4 @@
-import { CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings } from 'lucide-react';
+import { CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings, Sparkles } from 'lucide-react';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { translations } from '@/lib/translations';
@@ -12,6 +12,7 @@ export type CommonQuickActionKey =
   | 'realized'
   | 'watchlist'
   | 'positions'
+  | 'aiPrompts'
   | 'settings';
 
 type QuickActionFactory = () => DashboardQuickAction;
@@ -60,6 +61,13 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     label: t.positions.add,
     href: '/positions',
     variant: 'secondary',
+  }),
+  aiPrompts: () => ({
+    key: 'aiPrompts',
+    icon: Sparkles,
+    label: t.aiPrompts.quickAction,
+    href: '/ai-prompts',
+    className: 'bg-[var(--color-primary-700)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-800)]',
   }),
   settings: () => ({
     key: 'settings',
