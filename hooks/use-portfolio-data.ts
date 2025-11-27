@@ -53,7 +53,8 @@ type NormalizedLot = {
 function buildPositionTimeline(
   position: Position,
   points: HistoricalPoint[],
-  annualGrowthRate: number
+  annualGrowthRate: number,
+  spyPoints: HistoricalPoint[]
 ): PortfolioTimelinePoint[] {
   if (!points.length) {
     return [];
@@ -101,6 +102,8 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: 0,
         expectedNetPnLIls: 0,
+        spyNetPnLUsd: 0,
+        spyNetPnLIls: 0,
       }));
     }
 
@@ -112,6 +115,19 @@ function buildPositionTimeline(
       const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
       const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
+
+      // SPY Calculation for simple position
+      let spyPnL = 0;
+      if (spyPoints.length > 0) {
+        const entrySpyPoint = spyPoints.find(p => Math.abs(p.timestamp - baselineTimestamp) < 24 * 60 * 60 * 1000) || spyPoints[0];
+        const currentSpyPoint = spyPoints.find(p => Math.abs(p.timestamp - point.timestamp) < 24 * 60 * 60 * 1000);
+        
+        if (entrySpyPoint && currentSpyPoint && entrySpyPoint.close > 0) {
+           const spyQuantity = (position.entryPrice * position.quantity) / entrySpyPoint.close;
+           spyPnL = (spyQuantity * currentSpyPoint.close) - (position.entryPrice * position.quantity);
+        }
+      }
+
       return {
         timestamp: point.timestamp,
         totalPnLUsd: openPnL,
@@ -120,14 +136,40 @@ function buildPositionTimeline(
         netPnLIls: 0,
         expectedNetPnLUsd: expectedPnL,
         expectedNetPnLIls: 0,
+        spyNetPnLUsd: spyPnL,
+        spyNetPnLIls: 0,
       };
     });
   }
+
+  // Create SPY price map for O(1) lookup
+  const spyMap = new Map<number, number>();
+  spyPoints.forEach(p => {
+     // Normalize to midnight for better matching
+     const date = new Date(p.timestamp);
+     date.setHours(0,0,0,0);
+     spyMap.set(date.getTime(), p.close);
+  });
+
+  const getSpyPrice = (ts: number): number | null => {
+      const date = new Date(ts);
+      date.setHours(0,0,0,0);
+      const key = date.getTime();
+      if (spyMap.has(key)) return spyMap.get(key)!;
+      
+      // Fallback: find nearest previous
+      // Since map is not sorted by key, we might need a sorted array or just accept exact match for now.
+      // Given daily resolution, exact match on date should work most of the time.
+      // Let's try to find a close match in the array if map fails
+      const found = spyPoints.find(p => Math.abs(p.timestamp - ts) < 24 * 60 * 60 * 1000);
+      return found ? found.close : null;
+  };
 
   const openLots: Array<{ quantity: number; price: number; timestamp: number }> = [];
   const timeline: PortfolioTimelinePoint[] = [];
   let realizedPnL = 0;
   let expectedRealizedPnL = 0;
+  let realizedSpyPnL = 0;
   let lotIndex = 0;
 
   for (const point of points) {
@@ -155,6 +197,15 @@ function buildPositionTimeline(
         const holdingYears = Math.max(0, (lot.timestamp - current.timestamp) / msPerYear);
         const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
         expectedRealizedPnL += matched * current.price * (expectedFactor - 1);
+
+        // Realized SPY PnL
+        const buySpyPrice = getSpyPrice(current.timestamp);
+        const sellSpyPrice = getSpyPrice(lot.timestamp);
+        if (buySpyPrice && sellSpyPrice && buySpyPrice > 0) {
+            const spyQty = (matched * current.price) / buySpyPrice;
+            realizedSpyPnL += (spyQty * sellSpyPrice) - (matched * current.price);
+        }
+
         current.quantity -= matched;
         remaining -= matched;
 
@@ -175,6 +226,18 @@ function buildPositionTimeline(
     }, 0);
     const expectedNetPnL = expectedOpenPnL + expectedRealizedPnL;
 
+    // Open SPY PnL
+    const openSpyPnL = openLots.reduce((sum, lot) => {
+        const buySpyPrice = getSpyPrice(lot.timestamp);
+        const currentSpyPrice = getSpyPrice(timestamp);
+        if (buySpyPrice && currentSpyPrice && buySpyPrice > 0) {
+            const spyQty = (lot.quantity * lot.price) / buySpyPrice;
+            return sum + ((spyQty * currentSpyPrice) - (lot.quantity * lot.price));
+        }
+        return sum;
+    }, 0);
+    const netSpyPnL = openSpyPnL + realizedSpyPnL;
+
     timeline.push({
       timestamp,
       totalPnLUsd: openPnL,
@@ -183,6 +246,8 @@ function buildPositionTimeline(
       netPnLIls: 0,
       expectedNetPnLUsd: expectedNetPnL,
       expectedNetPnLIls: 0,
+      spyNetPnLUsd: netSpyPnL,
+      spyNetPnLIls: 0,
     });
   }
 
@@ -210,9 +275,18 @@ export function usePortfolioData() {
         return { sparklineData: {}, portfolioTimeline: [] };
       }
 
-      const results = await Promise.all<SparklineResult>(
+      interface IntermediateSparklineResult extends SparklineResult {
+        from?: number;
+        to?: number;
+        position?: Position;
+      }
+
+      const results = await Promise.all<IntermediateSparklineResult>(
         positionsList.map(async (position) => {
-          try {
+            let from = 0;
+            let to = 0;
+
+            try {
             const key = position.activationId ?? position.id ?? position.symbol;
             const now = Math.floor(Date.now() / 1000);
             const activationStartMsRaw = position.activationStart
@@ -257,7 +331,7 @@ export function usePortfolioData() {
             let baselineTimestamp = activationStartBoundaryMs !== null
               ? Math.floor(activationStartBoundaryMs / 1000)
               : earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
-            const to = activationEndBoundaryMs !== null ? Math.floor(activationEndBoundaryMs / 1000) : now;
+            to = activationEndBoundaryMs !== null ? Math.floor(activationEndBoundaryMs / 1000) : now;
 
             if (!Number.isFinite(baselineTimestamp)) {
               baselineTimestamp = defaultLookback;
@@ -267,11 +341,16 @@ export function usePortfolioData() {
               baselineTimestamp = to - 60 * 60 * 24 * 5;
             }
 
-            let from = Math.min(baselineTimestamp, to);
+            from = Math.min(baselineTimestamp, to);
             if (from === to) {
               from = Math.max(0, to - 60 * 60 * 24 * 5);
             }
 
+            // Fetch SPY data if needed (we'll fetch it once globally actually, but here we need the range)
+            // Wait, we need to fetch SPY globally first.
+            // Let's refactor this to calculate ranges first, then fetch SPY, then fetch positions.
+            
+            // For now, let's just fetch position candles here as before.
             const response = await fetch(
               `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${to}${
                 settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
@@ -286,6 +365,8 @@ export function usePortfolioData() {
                 points: [],
                 timeline: [],
                 isHistorical: Boolean(position.isHistoricalActivation),
+                from, // Return from/to to help with SPY fetch
+                to
               };
             }
 
@@ -299,6 +380,8 @@ export function usePortfolioData() {
                 points: [],
                 timeline: [],
                 isHistorical: Boolean(position.isHistoricalActivation),
+                from,
+                to
               };
             }
 
@@ -313,14 +396,16 @@ export function usePortfolioData() {
               return true;
             });
             const effectivePoints = filteredPoints.length > 0 ? filteredPoints : points;
-            const timeline = buildPositionTimeline(position, effectivePoints, settings.annualGrowthRate);
-
+            
             return {
               key,
               symbol: position.symbol,
               points: effectivePoints,
-              timeline,
+              timeline: [], // We will build timeline later after fetching SPY
               isHistorical: Boolean(position.isHistoricalActivation),
+              position, // Pass position through
+              from,
+              to
             };
           } catch (error) {
             console.error(`Failed to load sparkline for ${position.symbol}:`, error);
@@ -330,14 +415,49 @@ export function usePortfolioData() {
               points: [],
               timeline: [],
               isHistorical: Boolean(position.isHistoricalActivation),
+              from,
+              to
             };
           }
         })
       );
 
-      const sparklineEntries = results.map((result) => [result.key, result.points] as const);
+      // Calculate global range for SPY
+      const validFroms = results.map((r) => r.from).filter((f): f is number => typeof f === 'number' && f > 0);
+      const validTos = results.map((r) => r.to).filter((t): t is number => typeof t === 'number' && t > 0);
+      
+      const minFrom = validFroms.length > 0 ? Math.min(...validFroms) : 0;
+      const maxTo = validTos.length > 0 ? Math.max(...validTos) : 0;
+      
+      let spyPoints: HistoricalPoint[] = [];
+      if (minFrom < Number.MAX_SAFE_INTEGER && maxTo > 0) {
+          try {
+             const spyResponse = await fetch(
+              `/api/candles?symbol=SPY&resolution=D&from=${minFrom}&to=${maxTo}${
+                settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
+              }`
+            );
+            if (spyResponse.ok) {
+                const spyData = await spyResponse.json();
+                if (!spyData.error) {
+                    spyPoints = mapCandleDataToPoints(spyData);
+                }
+            }
+          } catch (e) {
+              console.error("Failed to fetch SPY data", e);
+          }
+      }
+
+      // Now build timelines
+      const finalResults = results.map((result) => {
+          if (!result.position) return result;
+          const timeline = buildPositionTimeline(result.position, result.points, settings.annualGrowthRate, spyPoints);
+          return { ...result, timeline };
+      });
+
+      const sparklineEntries = finalResults.map((result) => [result.key, result.points] as const);
       const sparklineData = Object.fromEntries(sparklineEntries);
-      const timelineResults = results.filter((result) => result.timeline.length > 0);
+      const timelineResults = finalResults.filter((result) => result.timeline.length > 0);
 
       if (timelineResults.length === 0) {
         return {
@@ -371,6 +491,7 @@ export function usePortfolioData() {
         let totalPnLUsd = 0;
         let netPnLUsd = 0;
         let expectedNetPnLUsd = 0;
+        let spyNetPnLUsd = 0;
 
         segmentStates.forEach((state) => {
           while (state.index < state.timeline.length && state.timeline[state.index].timestamp <= timestamp) {
@@ -382,6 +503,7 @@ export function usePortfolioData() {
             totalPnLUsd += state.lastPoint.totalPnLUsd;
             netPnLUsd += state.lastPoint.netPnLUsd;
             expectedNetPnLUsd += state.lastPoint.expectedNetPnLUsd;
+            spyNetPnLUsd += state.lastPoint.spyNetPnLUsd;
           }
         });
 
@@ -393,6 +515,8 @@ export function usePortfolioData() {
           netPnLIls: 0,
           expectedNetPnLUsd,
           expectedNetPnLIls: 0,
+          spyNetPnLUsd,
+          spyNetPnLIls: 0,
         };
       });
 
@@ -622,6 +746,8 @@ export function usePortfolioData() {
           const netPnLIlsBeforeTax = netPnLUsdBeforeTax * rate;
           const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
           const expectedNetPnLIlsBeforeTax = expectedNetPnLUsdBeforeTax * rate;
+          const spyNetPnLUsd = point.spyNetPnLUsd;
+          const spyNetPnLIls = spyNetPnLUsd * rate;
 
           return {
             ...point,
@@ -630,6 +756,8 @@ export function usePortfolioData() {
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,
             expectedNetPnLIls: expectedNetPnLIlsBeforeTax,
+            spyNetPnLUsd,
+            spyNetPnLIls,
           };
         });
 
@@ -650,6 +778,8 @@ export function usePortfolioData() {
           netPnLIls: enrichedSummary.totalNetPnLIls,
           expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
           expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+          spyNetPnLUsd: timelineWithoutToday[timelineWithoutToday.length - 1]?.spyNetPnLUsd ?? 0,
+          spyNetPnLIls: timelineWithoutToday[timelineWithoutToday.length - 1]?.spyNetPnLIls ?? 0,
         };
 
         const finalTimeline = [...timelineWithoutToday, todayPoint].sort(

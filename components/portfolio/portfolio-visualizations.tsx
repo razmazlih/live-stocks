@@ -176,6 +176,7 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
       timestamp: point.timestamp,
       actual: currency === 'ILS' ? point.netPnLIls : point.netPnLUsd,
       expected: currency === 'ILS' ? point.expectedNetPnLIls : point.expectedNetPnLUsd,
+      spy: currency === 'ILS' ? point.spyNetPnLIls : point.spyNetPnLUsd,
     }));
   }, [currency, timeline]);
 
@@ -289,6 +290,10 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                     <stop offset="5%" stopColor="var(--color-purple-500)" stopOpacity={0.85} />
                     <stop offset="95%" stopColor="var(--color-purple-500)" stopOpacity={0.12} />
                   </linearGradient>
+                  <linearGradient id="performanceSpyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-slate-400)" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="var(--color-slate-400)" stopOpacity={0.05} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.2)" />
                 <XAxis
@@ -332,6 +337,16 @@ export function PortfolioVisualizations({ metrics, summary, timeline }: Portfoli
                   fill="url(#performanceExpectedGradient)"
                   strokeWidth={2}
                   name={t.dashboard.performanceTrendExpected}
+                  activeDot={{ r: 5, strokeWidth: 0 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="spy"
+                  stroke="var(--color-slate-400)"
+                  fill="url(#performanceSpyGradient)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="S&P 500"
                   activeDot={{ r: 5, strokeWidth: 0 }}
                 />
               </AreaChart>

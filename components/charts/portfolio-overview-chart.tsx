@@ -26,6 +26,8 @@ type ChartPoint = PortfolioTimelinePoint & {
   forecastValueIls: number;
   deltaUsd: number;
   deltaIls: number;
+  spyValueUsd: number;
+  spyValueIls: number;
   trendState: 'loss' | 'under' | 'above';
 };
 
@@ -95,6 +97,7 @@ interface ChartTooltipProps {
     projection: string;
     usd: string;
     ils: string;
+    spy: string;
   };
 }
 
@@ -164,6 +167,8 @@ const ChartTooltip = ({
   const projectionGapIls = point.netValueIls - point.expectedValueIls;
   const forecastUsd = point.forecastValueUsd ?? point.expectedValueUsd;
   const forecastIls = point.forecastValueIls ?? point.expectedValueIls;
+  const spyUsd = point.spyValueUsd;
+  const spyIls = point.spyValueIls;
 
   const projectionClass = projectionGapUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
@@ -211,6 +216,21 @@ const ChartTooltip = ({
               </span>
             </div>
           </div>
+        </div>
+        <div className="col-span-2 rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{labels.spy}</p>
+            <div className="mt-1 flex items-center justify-between">
+                <div>
+                    <p className="text-lg font-semibold text-slate-700">{formatUsd(spyUsd)}</p>
+                    <p className="text-[11px] text-slate-500">{formatIls(spyIls)}</p>
+                </div>
+                <div className="text-right">
+                     <p className={`text-sm font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
+                     </p>
+                     <p className="text-[11px] text-slate-400">vs S&P 500</p>
+                </div>
+            </div>
         </div>
       </div>
 
@@ -317,6 +337,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       const deltaUsd = netValue - previousNetUsd;
       const deltaIls = deltaUsd * summary.usdToIlsRate;
 
+      const spyValueUsd = point.spyNetPnLUsd ?? 0;
+      const spyValueIls = point.spyNetPnLIls ?? (spyValueUsd * summary.usdToIlsRate);
+
       const forecastBaselineUsd = Number.isFinite(forecastValueUsd)
         ? forecastValueUsd
         : expectedValueUsd;
@@ -332,6 +355,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         forecastValueIls,
         deltaUsd,
         deltaIls,
+        spyValueUsd,
+        spyValueIls,
         trendState,
       };
     });
@@ -465,14 +490,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         point.netValue,
         point.expectedValueUsd,
         point.forecastValueUsd,
-        point.totalPnLUsd
+        point.totalPnLUsd,
+        point.spyValueUsd
       );
       maxValue = Math.max(
         maxValue,
         point.netValue,
         point.expectedValueUsd,
         point.forecastValueUsd,
-        point.totalPnLUsd
+        point.totalPnLUsd,
+        point.spyValueUsd
       );
     });
 
@@ -666,6 +693,10 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-overlay-amber-500" />
                   <span>{t.dashboard.timelineLegendForecast}</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-slate-400" />
+                  <span>S&P 500</span>
+                </div>
               </div>
               <div className="relative h-[22rem] w-full lg:h-[24rem]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -737,6 +768,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                           projection: t.dashboard.timelineTooltipProjection,
                           usd: t.dashboard.usdLabel,
                           ils: t.dashboard.ilsLabel,
+                          spy: "S&P 500",
                         }}
                       />
                     }
@@ -761,6 +793,18 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     strokeDasharray="6 6"
                     dot={false}
                     activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-neutral-white)' }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="spyValueUsd"
+                    stroke="var(--color-slate-400)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     isAnimationActive={false}

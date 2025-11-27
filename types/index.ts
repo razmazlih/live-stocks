@@ -162,6 +162,8 @@ export interface PortfolioTimelinePoint {
   netPnLIls: number;
   expectedNetPnLUsd: number;
   expectedNetPnLIls: number;
+  spyNetPnLUsd: number;
+  spyNetPnLIls: number;
 }
 
 export interface Settings {
