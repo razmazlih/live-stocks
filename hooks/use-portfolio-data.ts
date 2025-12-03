@@ -761,8 +761,11 @@ export function usePortfolioData() {
           };
         });
 
+        // Use UTC boundaries to align with candle timestamps (which are UTC-based)
+        // and avoid removing the previous day's final point when the viewer's
+        // local timezone is ahead of UTC.
         const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
+        startOfToday.setUTCHours(0, 0, 0, 0);
         const startOfTodayMs = startOfToday.getTime();
         const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
 
