@@ -767,7 +767,7 @@ export function usePortfolioData() {
         const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
 
         const timelineWithoutToday = adjustedTimeline.filter(
-          (point) => point.timestamp < startOfTodayMs || point.timestamp > endOfTodayMs
+          (point) => point.timestamp <= startOfTodayMs || point.timestamp > endOfTodayMs
         );
 
         const todayPoint: PortfolioTimelinePoint = {
@@ -782,9 +782,15 @@ export function usePortfolioData() {
           spyNetPnLIls: timelineWithoutToday[timelineWithoutToday.length - 1]?.spyNetPnLIls ?? 0,
         };
 
-        const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
-          (a, b) => a.timestamp - b.timestamp
+        const hasStartOfDayPoint = timelineWithoutToday.some(
+          (point) => point.timestamp === startOfTodayMs
         );
+
+        const finalTimeline = hasStartOfDayPoint
+          ? timelineWithoutToday
+              .map((point) => (point.timestamp === startOfTodayMs ? todayPoint : point))
+              .sort((a, b) => a.timestamp - b.timestamp)
+          : [...timelineWithoutToday, todayPoint].sort((a, b) => a.timestamp - b.timestamp);
 
         setPositions(mappedPositions);
         setUnassignedPlans(mappedUnassignedPlans);
