@@ -766,25 +766,49 @@ export function usePortfolioData() {
         const startOfTodayMs = startOfToday.getTime();
         const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
 
-        const timelineWithoutToday = adjustedTimeline.filter(
-          (point) => point.timestamp < startOfTodayMs || point.timestamp > endOfTodayMs
+        const todayPoints = adjustedTimeline.filter(
+          (point) => point.timestamp >= startOfTodayMs && point.timestamp <= endOfTodayMs
         );
 
-        const todayPoint: PortfolioTimelinePoint = {
-          timestamp: startOfTodayMs,
-          totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
-          totalPnLIls: enrichedSummary.totalCurrentPnLIls,
-          netPnLUsd: enrichedSummary.totalNetPnLUsd,
-          netPnLIls: enrichedSummary.totalNetPnLIls,
-          expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
-          expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
-          spyNetPnLUsd: timelineWithoutToday[timelineWithoutToday.length - 1]?.spyNetPnLUsd ?? 0,
-          spyNetPnLIls: timelineWithoutToday[timelineWithoutToday.length - 1]?.spyNetPnLIls ?? 0,
-        };
+        let finalTimeline: PortfolioTimelinePoint[];
 
-        const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
-          (a, b) => a.timestamp - b.timestamp
-        );
+        if (todayPoints.length > 0) {
+          const latestTodayPoint = todayPoints[todayPoints.length - 1];
+          const spyBaseline = latestTodayPoint.spyNetPnLUsd ?? 0;
+          finalTimeline = adjustedTimeline.map((point) =>
+            point === latestTodayPoint
+              ? {
+                  ...point,
+                  totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
+                  totalPnLIls: enrichedSummary.totalCurrentPnLIls,
+                  netPnLUsd: enrichedSummary.totalNetPnLUsd,
+                  netPnLIls: enrichedSummary.totalNetPnLIls,
+                  expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
+                  expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+                  spyNetPnLUsd: spyBaseline,
+                  spyNetPnLIls: spyBaseline * rate,
+                }
+              : point
+          );
+        } else {
+          const previousSpyPoint = adjustedTimeline[adjustedTimeline.length - 1];
+          const spyBaseline = previousSpyPoint?.spyNetPnLUsd ?? 0;
+          const todayPoint: PortfolioTimelinePoint = {
+            timestamp: startOfTodayMs,
+            totalPnLUsd: enrichedSummary.totalCurrentPnLUsd,
+            totalPnLIls: enrichedSummary.totalCurrentPnLIls,
+            netPnLUsd: enrichedSummary.totalNetPnLUsd,
+            netPnLIls: enrichedSummary.totalNetPnLIls,
+            expectedNetPnLUsd: enrichedSummary.totalProjectedPnLUsd,
+            expectedNetPnLIls: enrichedSummary.totalProjectedPnLIls,
+            spyNetPnLUsd: spyBaseline,
+            spyNetPnLIls: spyBaseline * rate,
+          };
+
+          finalTimeline = [...adjustedTimeline, todayPoint];
+        }
+
+        finalTimeline = [...finalTimeline].sort((a, b) => a.timestamp - b.timestamp);
 
         setPositions(mappedPositions);
         setUnassignedPlans(mappedUnassignedPlans);
