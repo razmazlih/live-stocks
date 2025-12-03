@@ -761,9 +761,8 @@ export function usePortfolioData() {
           };
         });
 
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const startOfTodayMs = startOfToday.getTime();
+        const now = new Date();
+        const startOfTodayMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
         const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
 
         const timelineWithoutToday = adjustedTimeline.filter(
