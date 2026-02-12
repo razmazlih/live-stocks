@@ -34,25 +34,26 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-      <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-primary-050)]/60 blur-3xl" />
-      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-3">
+    <header className="home-hero relative overflow-hidden rounded-[2rem] border border-[color:var(--color-neutral-white)]/70 px-5 py-6 shadow-xl glass-blur-sm sm:px-7 sm:py-7">
+      <div className="pointer-events-none absolute -right-24 -top-16 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-primary-400-rgb),0.25),_transparent_68%)] blur-2xl" />
+      <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-primary-900-rgb),0.12),_transparent_72%)] blur-2xl" />
+      <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-[var(--color-primary-002)] p-2.5 text-[var(--color-primary-500)] shadow-inner">
+            <div className="rounded-2xl bg-[color:var(--color-neutral-white)]/80 p-2.5 text-[var(--color-primary-500)] shadow-md ring-1 ring-[color:var(--color-slate-200)]/70">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{title}</h1>
-              <p className="mt-1 max-w-xl text-sm text-[var(--color-slate-600)] sm:text-base">{subtitle}</p>
+              <h1 className="text-2xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-3xl">{title}</h1>
+              <p className="mt-1 max-w-2xl text-sm text-[var(--color-slate-600)] sm:text-base">{subtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[var(--color-slate-500)] sm:text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-010)] px-3 py-1 text-[var(--color-primary-500)] shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 text-[var(--color-primary-600)] shadow-sm">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-primary-400)]" />
               {updatedLabel} {lastUpdatedDisplay ?? '—'}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-[var(--color-slate-600)] shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 text-[var(--color-slate-600)] shadow-sm">
               <TrendingUp className="h-4 w-4 text-[var(--color-primary-400)]" />
               {exchangeRateLabel} {exchangeRateValue}
             </span>

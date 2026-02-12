@@ -352,6 +352,42 @@
   .ring-slate-200 { --tw-ring-color: var(--color-slate-200) !important; }
 }
 @layer components {
+  .home-dashboard {
+    background-image:
+      radial-gradient(circle at 8% 12%, rgba(255, 255, 255, 0.66), transparent 28%),
+      radial-gradient(circle at 92% 8%, rgba(var(--color-primary-400-rgb), 0.12), transparent 24%);
+  }
+
+  .home-hero {
+    background:
+      linear-gradient(130deg, rgba(255, 255, 255, 0.93), rgba(241, 247, 255, 0.86) 55%, rgba(232, 242, 255, 0.82)),
+      rgba(var(--color-neutral-white-rgb), 0.86);
+    box-shadow:
+      0 20px 44px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  }
+
+  .home-main-surface {
+    border-color: rgba(var(--color-neutral-white-rgb), 0.72);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(246, 250, 255, 0.82)),
+      rgba(var(--color-neutral-white-rgb), 0.8);
+    box-shadow:
+      0 24px 52px rgba(15, 23, 42, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .home-summary-card {
+    background:
+      linear-gradient(148deg, rgba(255, 255, 255, 0.95), rgba(236, 244, 255, 0.7));
+    border-color: rgba(191, 219, 254, 0.52);
+    box-shadow:
+      0 16px 36px rgba(15, 23, 42, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
   .card-surface {
     background: linear-gradient(
       135deg,

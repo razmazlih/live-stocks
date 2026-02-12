@@ -318,7 +318,7 @@ export default function HomePage() {
     );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
+    <div className="home-dashboard relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
@@ -336,8 +336,8 @@ export default function HomePage() {
           />
 
           <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+            <section className="home-main-surface relative overflow-hidden rounded-3xl border px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+              <div className="pointer-events-none absolute -left-20 -top-10 h-60 w-60 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-blue-500-rgb),0.16),_transparent_68%)] blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
@@ -390,13 +390,12 @@ export default function HomePage() {
                         })}
                       </div>
                     </div>
-
                     <div className="space-y-10 sm:hidden">
                       {activeSection === 'summary' && renderSummarySection()}
                       {activeSection === 'positions' && renderPositionsSection()}
                       {activeSection === 'visualizations' && renderVisualizationsSection()}
                     </div>
-                    <div className="hidden space-y-10 sm:block">
+                    <div className="hidden space-y-12 sm:block">
                       {renderSummarySection()}
                       {renderPositionsSection()}
                       {renderVisualizationsSection()}
