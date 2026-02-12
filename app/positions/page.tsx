@@ -37,7 +37,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StockAvatarImage } from "@/components/ui/stock-avatar-image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
@@ -2208,12 +2209,11 @@ export default function PositionsPage() {
                             <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-12 w-12 border border-slate-200 bg-slate-50">
-                                  {position.imageUrl ? (
-                                    <AvatarImage
-                                      src={position.imageUrl}
-                                      alt={`${position.display} logo`}
-                                    />
-                                  ) : null}
+                                  <StockAvatarImage
+                                    symbol={position.symbol}
+                                    display={`${position.display} logo`}
+                                    imageUrl={position.imageUrl}
+                                  />
                                   <AvatarFallback className="text-sm font-medium text-slate-600">
                                     {fallbackInitials}
                                   </AvatarFallback>

@@ -107,7 +107,6 @@ export function Sparkline({
   const areaMaskId = `${gradientId}-fill-mask`;
   const areaOpacityGradientId = `${gradientId}-fill-opacity`;
   const strokeGradientId = `${gradientId}-stroke`;
-  const glowId = `${gradientId}-glow`;
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
@@ -655,8 +654,35 @@ export function Sparkline({
     );
   }
 
-  const areaPath = [`M 0 ${height}`, ...normalizedPoints.map((point) => `L ${point.x} ${point.y}`), `L ${chartWidth} ${height}`, 'Z'].join(' ');
-  const linePath = normalizedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const createSmoothPath = (pathPoints: NormalizedPoint[]) => {
+    if (pathPoints.length < 2) {
+      return '';
+    }
+
+    if (pathPoints.length === 2) {
+      return `M ${pathPoints[0].x} ${pathPoints[0].y} L ${pathPoints[1].x} ${pathPoints[1].y}`;
+    }
+
+    let path = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+
+    for (let index = 0; index < pathPoints.length - 1; index += 1) {
+      const current = pathPoints[index];
+      const next = pathPoints[index + 1];
+      const midX = (current.x + next.x) / 2;
+      const midY = (current.y + next.y) / 2;
+      path += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
+    }
+
+    const lastPoint = pathPoints[pathPoints.length - 1];
+    path += ` T ${lastPoint.x} ${lastPoint.y}`;
+    return path;
+  };
+
+  const linePath = createSmoothPath(normalizedPoints);
+  const firstPoint = normalizedPoints[0] ?? null;
+  const areaPath = firstPoint
+    ? `${linePath} L ${chartWidth} ${height} L ${firstPoint.x} ${height} Z`
+    : '';
   const lastPoint = normalizedPoints[normalizedPoints.length - 1] ?? null;
 
   return (
@@ -719,19 +745,12 @@ export function Sparkline({
                   <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
                 ))}
               </linearGradient>
-              <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
             </defs>
 
             {!showYAxis ? (
               <g opacity={0.08}>
-                <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
-                <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 4" />
+                <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 7" />
+                <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 7" />
               </g>
             ) : null}
 
@@ -743,9 +762,9 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="rgba(var(--color-slate-400-rgb), 0.35)"
+                    stroke="rgba(var(--color-slate-400-rgb), 0.2)"
                     strokeWidth="1"
-                    strokeDasharray="4 4"
+                    strokeDasharray="2 7"
                   />
                 ))
               : null}
@@ -758,7 +777,7 @@ export function Sparkline({
                 y2={baselineY}
                 stroke={baselineColor}
                 strokeWidth="1"
-                strokeDasharray="4 3"
+                strokeDasharray="3 6"
               />
             )}
 
@@ -767,8 +786,8 @@ export function Sparkline({
                 d={projectedLinePath}
                 fill="none"
                 stroke={projectedLineColor}
-                strokeWidth={1.5}
-                strokeDasharray="6 4"
+                strokeWidth={1.1}
+                strokeDasharray="4 7"
               />
             )}
 
@@ -776,92 +795,110 @@ export function Sparkline({
               d={areaPath}
               fill={`url(#${areaGradientId})`}
               mask={`url(#${areaMaskId})`}
-              opacity={0.6}
+              opacity={0.34}
             />
 
             <path
               d={linePath}
               fill="none"
               stroke={`url(#${strokeGradientId})`}
-              strokeWidth={2.4}
+              strokeWidth={2.35}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={`url(#${glowId})`}
             />
 
-            {interactive && effectiveHoveredPoint ? (
+            <path
+              d={linePath}
+              fill="none"
+              stroke="rgba(var(--color-neutral-white-rgb), 0.28)"
+              strokeWidth={0.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.52}
+            />
+
+              {interactive && effectiveHoveredPoint ? (
+                <>
+                  <line
+                    x1={effectiveHoveredPoint.x}
+                    y1={0}
+                    x2={effectiveHoveredPoint.x}
+                    y2={height}
+                    stroke="rgba(var(--color-primary-900-rgb), 0.25)"
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                  />
+                  <circle
+                    cx={effectiveHoveredPoint.x}
+                    cy={effectiveHoveredPoint.y}
+                    r={4.2}
+                    fill="var(--color-neutral-white)"
+                    stroke={color}
+                    strokeWidth={1.4}
+                  />
+                </>
+              ) : null}
+
+            {lastPoint ? (
               <>
-                <line
-                  x1={effectiveHoveredPoint.x}
-                  y1={0}
-                  x2={effectiveHoveredPoint.x}
-                  y2={height}
-                  stroke="rgba(var(--color-primary-900-rgb), 0.25)"
-                  strokeWidth={1}
-                  strokeDasharray="4 4"
+                <circle
+                  cx={lastPoint.x}
+                  cy={lastPoint.y}
+                  r={5.8}
+                  fill={lastSegmentColor}
+                  opacity={0.12}
                 />
                 <circle
-                  cx={effectiveHoveredPoint.x}
-                  cy={effectiveHoveredPoint.y}
-                  r={4.2}
+                  cx={lastPoint.x}
+                  cy={lastPoint.y}
+                  r={3.2}
                   fill="var(--color-neutral-white)"
-                  stroke={color}
-                  strokeWidth={1.4}
+                  stroke={lastSegmentColor}
+                  strokeWidth={1.35}
                 />
               </>
             ) : null}
 
-            {lastPoint ? (
-              <circle
-                cx={lastPoint.x}
-                cy={lastPoint.y}
-                r={2.8}
-                fill="var(--color-neutral-white)"
-                stroke={lastSegmentColor}
-                strokeWidth={1.2}
-              />
-            ) : null}
-
             {normalizedEvents.map((event) => {
-              const isActive = activeEventId === event.id;
-              const tone = event.type === 'BUY'
-                ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
-                : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
-              const labelPrice = event.priceLabel ?? event.price.toLocaleString();
+                const isActive = activeEventId === event.id;
+                const tone = event.type === 'BUY'
+                  ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
+                  : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
+                const labelPrice = event.priceLabel ?? event.price.toLocaleString();
 
-              return (
-                <circle
-                  key={event.id}
-                  cx={event.x}
-                  cy={event.y}
-                  r={isActive ? 4.6 : 3.6}
-                  fill={tone.fill}
-                  stroke={tone.stroke}
-                  strokeWidth={isActive ? 1.8 : 1.4}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
-                  onMouseEnter={(e) => {
-                    e.stopPropagation();
-                    setHoveredEventId(event.id);
-                  }}
-                  onMouseLeave={(e) => {
-                    e.stopPropagation();
-                    setHoveredEventId((current) => (current === event.id ? null : current));
-                  }}
-                  onFocus={() => setHoveredEventId(event.id)}
-                  onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedEventId((current) => (current === event.id ? null : event.id));
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                    setSelectedEventId((current) => (current === event.id ? null : event.id));
-                  }}
-                />
-              );
-            })}
+                return (
+                  <circle
+                    key={event.id}
+                    cx={event.x}
+                    cy={event.y}
+                    r={isActive ? 3.9 : 2.8}
+                    fill={tone.fill}
+                    stroke={tone.stroke}
+                    strokeWidth={isActive ? 1.5 : 1.05}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
+                    onMouseEnter={(e) => {
+                      e.stopPropagation();
+                      setHoveredEventId(event.id);
+                    }}
+                    onMouseLeave={(e) => {
+                      e.stopPropagation();
+                      setHoveredEventId((current) => (current === event.id ? null : current));
+                    }}
+                    onFocus={() => setHoveredEventId(event.id)}
+                    onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId((current) => (current === event.id ? null : event.id));
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId((current) => (current === event.id ? null : event.id));
+                    }}
+                  />
+                );
+              })}
           </svg>
 
           {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (

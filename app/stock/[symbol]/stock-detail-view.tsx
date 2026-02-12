@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BankBadge } from '@/components/branding/bank-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -892,7 +893,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
+                    <StockAvatarImage
+                      symbol={position.symbol}
+                      display={position.display}
+                      imageUrl={position.imageUrl}
+                    />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>

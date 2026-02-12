@@ -9,7 +9,8 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Badge } from '@/components/ui/badge';
 import { BankBadge } from '@/components/branding/bank-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
@@ -397,7 +398,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
                   <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
+                    <StockAvatarImage
+                      symbol={position.symbol}
+                      display={position.display}
+                      imageUrl={position.imageUrl}
+                    />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>
@@ -463,7 +468,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
+              <div className="relative p-1 sm:p-1.5">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
@@ -530,7 +535,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
                   <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
-                    <AvatarImage src={position.imageUrl} alt={position.display} />
+                    <StockAvatarImage
+                      symbol={position.symbol}
+                      display={position.display}
+                      imageUrl={position.imageUrl}
+                    />
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>
@@ -672,7 +681,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="rounded-3xl border border-[color:var(--color-slate-100)]/70 bg-[color:var(--color-slate-50)]/70 p-3 sm:p-4">
+              <div className="relative p-1 sm:p-1.5">
                 <Sparkline
                   points={effectiveSparklineData}
                   height={130}
