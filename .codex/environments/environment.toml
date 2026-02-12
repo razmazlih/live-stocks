@@ -9,3 +9,17 @@ script = ""
 name = "Run"
 icon = "run"
 command = "npm run dev"
+
+[[actions]]
+name = "Reset"
+icon = "tool"
+command = '''
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+rm -rf node_modules package-lock.json
+npm install
+
+npm run dev
+'''

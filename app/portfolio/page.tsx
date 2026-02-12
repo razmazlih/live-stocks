@@ -397,7 +397,7 @@ export default function PortfolioPage() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
       <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
           <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
             <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -435,8 +435,8 @@ export default function PortfolioPage() {
             </div>
           </header>
 
-          <main className="mt-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+          <main className="mt-6">
+            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-6">
               <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
               <div className="relative z-10">
                 {loading ? (
@@ -461,37 +461,122 @@ export default function PortfolioPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-10">
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-6">
+                    <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                      <div className="space-y-4 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
                         <div>
                           <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
                           <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
                         </div>
+                        {portfolioTimeline.length > 0 ? (
+                          <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-overlay-neutral-white py-14 text-center text-slate-500">
+                            <LineChart className="h-6 w-6 text-slate-400" />
+                            <p>{t.portfolio.timelineEmpty}</p>
+                          </div>
+                        )}
                       </div>
-                      {portfolioTimeline.length > 0 ? (
-                        <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-overlay-neutral-white py-14 text-center text-slate-500">
-                          <LineChart className="h-6 w-6 text-slate-400" />
-                          <p>{t.portfolio.timelineEmpty}</p>
+
+                      <aside className="space-y-4">
+                        {generalStats.length > 0 && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {generalStats.map((stat) => (
+                              <div
+                                key={stat.key}
+                                className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
+                              >
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
+                                <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                                  {stat.value}
+                                </p>
+                                {stat.helper && <p className="text-xs font-medium text-slate-500">{stat.helper}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
+                          <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 px-4 py-3.5 shadow-inner">
+                              <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
+                              {bestMetric ? (
+                                <div className="mt-2.5 space-y-1 text-sm text-slate-600">
+                                  <p className="text-lg font-semibold text-slate-900">
+                                    {bestMetric.position.display || bestMetric.position.symbol}
+                                  </p>
+                                  <p>
+                                    {formatSignedCurrency(bestMetric.positionPnLUsd, 'USD')}{' '}
+                                    <span className="text-xs text-slate-500">
+                                      ({formatSignedPercent(bestMetric.roiPercent)})
+                                    </span>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                              )}
+                            </div>
+                            <div className="rounded-2xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 px-4 py-3.5 shadow-inner">
+                              <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
+                              {worstMetric ? (
+                                <div className="mt-2.5 space-y-1 text-sm text-slate-600">
+                                  <p className="text-lg font-semibold text-slate-900">
+                                    {worstMetric.position.display || worstMetric.position.symbol}
+                                  </p>
+                                  <p>
+                                    {formatSignedCurrency(worstMetric.positionPnLUsd, 'USD')}{' '}
+                                    <span className="text-xs text-slate-500">
+                                      ({formatSignedPercent(worstMetric.roiPercent)})
+                                    </span>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )}
+
+                        {closedSummary && closedStats.length > 0 && (
+                          <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
+                            <div>
+                              <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
+                              <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {closedStats.map((stat) => (
+                                <div
+                                  key={stat.key}
+                                  className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
+                                >
+                                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
+                                  <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                                    {stat.value}
+                                  </p>
+                                  {stat.helper && <p className="text-xs font-medium text-slate-500">{stat.helper}</p>}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs font-medium text-slate-500">
+                              {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
+                            </p>
+                          </div>
+                        )}
+                      </aside>
                     </div>
 
                     {summaryCards.length > 0 && (
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="space-y-3">
+                        <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
+                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                           {summaryCards.map((card) => (
                             <div
                               key={card.key}
-                              className="relative overflow-hidden rounded-3xl border card-surface p-5 transition-shadow duration-300"
+                              className="relative overflow-hidden rounded-3xl border card-surface p-4 transition-shadow duration-300"
                             >
                               <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full card-glow blur-3xl" />
-                              <div className="relative z-10 space-y-3">
+                              <div className="relative z-10 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
                                   {card.badge && (
@@ -513,7 +598,7 @@ export default function PortfolioPage() {
                                 {card.helper?.map((helper) => (
                                   <div
                                     key={`${card.key}-${helper.label}`}
-                                    className="mt-3 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-primary-025)] px-3 py-2 text-xs text-slate-500"
+                                    className="mt-2.5 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-primary-025)] px-3 py-2 text-xs text-slate-500"
                                   >
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2">
@@ -543,109 +628,13 @@ export default function PortfolioPage() {
                                     )}
                                   </div>
                                 ))}
-                                {card.footnote && (
-                                  <p className="text-xs font-medium text-slate-500">{card.footnote}</p>
-                                )}
+                                {card.footnote && <p className="text-xs font-medium text-slate-500">{card.footnote}</p>}
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-
-                    {generalStats.length > 0 && (
-                      <div className="space-y-4">
-                        <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.generalStatsTitle}</h2>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                          {generalStats.map((stat) => (
-                            <div
-                              key={stat.key}
-                              className="rounded-3xl border card-surface p-5 transition-shadow duration-300"
-                            >
-                              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
-                                {stat.value}
-                              </p>
-                              {stat.helper && (
-                                <p className="text-xs font-medium text-slate-500">{stat.helper}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {closedSummary && closedStats.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
-                            <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
-                          </div>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                          {closedStats.map((stat) => (
-                            <div
-                              key={stat.key}
-                              className="rounded-3xl border card-surface p-5 transition-shadow duration-300"
-                            >
-                              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                              <p className={`mt-2 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
-                                {stat.value}
-                              </p>
-                              {stat.helper && (
-                                <p className="text-xs font-medium text-slate-500">{stat.helper}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-xs font-medium text-slate-500">
-                          {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-3xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 p-5 shadow-inner">
-                          <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
-                          {bestMetric ? (
-                            <div className="mt-3 space-y-1 text-sm text-slate-600">
-                              <p className="text-lg font-semibold text-slate-900">
-                                {bestMetric.position.display || bestMetric.position.symbol}
-                              </p>
-                              <p>
-                                {formatSignedCurrency(bestMetric.positionPnLUsd, 'USD')}{' '}
-                                <span className="text-xs text-slate-500">
-                                  ({formatSignedPercent(bestMetric.roiPercent)})
-                                </span>
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
-                          )}
-                        </div>
-                        <div className="rounded-3xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 p-5 shadow-inner">
-                          <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
-                          {worstMetric ? (
-                            <div className="mt-3 space-y-1 text-sm text-slate-600">
-                              <p className="text-lg font-semibold text-slate-900">
-                                {worstMetric.position.display || worstMetric.position.symbol}
-                              </p>
-                              <p>
-                                {formatSignedCurrency(worstMetric.positionPnLUsd, 'USD')}{' '}
-                                <span className="text-xs text-slate-500">
-                                  ({formatSignedPercent(worstMetric.roiPercent)})
-                                </span>
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
