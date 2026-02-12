@@ -390,7 +390,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         )}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+      <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
             <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-3">
@@ -505,11 +505,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex flex-col gap-2.5 sm:gap-3">
               {dailyChangeAmount !== null && dailyChangeStyles && (
                 <div
                   className={cn(
-                    '-mx-4 -mt-4 w-[calc(100%+2rem)] border-x-0 border-t-0 px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-6 sm:-mt-6 sm:w-[calc(100%+3rem)] sm:px-6 sm:py-2',
+                    '-mx-3.5 -mt-3.5 w-[calc(100%+1.75rem)] border-x-0 border-t-0 px-3.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-4 sm:-mt-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-1.5',
                     dailyChangeBannerClassName
                   )}
                 >
@@ -581,12 +581,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-600 sm:gap-3 sm:text-sm">
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:gap-2.5 sm:text-sm">
               {openSnapshotCards.map((stat) => (
                 <div
                   key={stat.key}
                   className={cn(
-                    'rounded-2xl border p-2.5 shadow-sm sm:p-3',
+                    'rounded-2xl border p-2 shadow-sm sm:p-2.5',
                     stat.isPrimary
                       ? 'border-blue-100 bg-blue-50/70'
                       : 'border-slate-100 bg-overlay-slate-50'
@@ -612,9 +612,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
               ))}
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-3 shadow-inner sm:p-4">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-2.5 shadow-inner sm:p-3">
               <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-blue-100/35 blur-2xl" />
-              <div className="relative space-y-3">
+              <div className="relative space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                     {t.dashboard.current} / {t.dashboard.projected}
@@ -624,10 +624,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   </Badge>
                 </div>
 
-                <div className="grid gap-2.5 md:grid-cols-2">
-                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-2.5">
                     <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
-                    <dl className="mt-2 space-y-2">
+                    <dl className="mt-1.5 space-y-1.5">
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.price}</dt>
                         <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
@@ -651,9 +651,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                     </dl>
                   </section>
 
-                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-3">
+                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-2.5">
                     <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
-                    <dl className="mt-2 space-y-2">
+                    <dl className="mt-1.5 space-y-1.5">
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.weightedProjectedPrice}</dt>
                         <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
@@ -681,10 +681,10 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="relative p-1 sm:p-1.5">
+              <div className="relative p-0.5 sm:p-1">
                 <Sparkline
                   points={effectiveSparklineData}
-                  height={130}
+                  height={108}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
@@ -692,12 +692,12 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
                   events={effectiveSparklineEvents}
-                  className="h-32 w-full sm:h-36"
+                  className="h-24 w-full sm:h-28"
                 />
               </div>
             )}
 
-            <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
+            <div className="flex flex-wrap justify-end gap-2 sm:gap-2.5">
               {forecastEnabled ? (
                 <Link
                   href={`/stock/${position.symbol}/forecast`}
