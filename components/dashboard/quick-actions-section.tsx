@@ -27,12 +27,19 @@ export function QuickActionsSection({
   return (
     <div
       className={cn(
-        'w-full max-w-md rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70 p-5 shadow-inner glass-blur-sm',
+        'w-full lg:min-w-[420px] lg:max-w-[560px]',
         className
       )}
     >
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-      {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
+      <div className="flex items-center gap-2 lg:justify-end">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+          {title}
+        </p>
+        <span className="h-px flex-1 bg-gradient-to-l from-[color:var(--color-primary-200)]/65 to-transparent" />
+      </div>
+      {description ? (
+        <p className="mt-1 text-xs leading-relaxed text-[var(--color-slate-500)]">{description}</p>
+      ) : null}
       <DashboardQuickActions actions={actions} />
       {children}
     </div>

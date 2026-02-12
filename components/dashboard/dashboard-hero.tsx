@@ -34,17 +34,17 @@ export function DashboardHero({
   dailyChange,
 }: DashboardHeroProps) {
   return (
-    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-6 py-8 shadow-xl glass-blur-sm">
+    <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-primary-050)]/60 blur-3xl" />
-      <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-6">
+      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-[var(--color-primary-002)] p-3 text-[var(--color-primary-500)] shadow-inner">
-              <TrendingUp className="h-6 w-6" />
+            <div className="rounded-2xl bg-[var(--color-primary-002)] p-2.5 text-[var(--color-primary-500)] shadow-inner">
+              <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-[var(--color-primary-900)] sm:text-4xl">{title}</h1>
-              <p className="mt-2 max-w-xl text-base text-[var(--color-slate-600)]">{subtitle}</p>
+              <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{title}</h1>
+              <p className="mt-1 max-w-xl text-sm text-[var(--color-slate-600)] sm:text-base">{subtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[var(--color-slate-500)] sm:text-sm">
