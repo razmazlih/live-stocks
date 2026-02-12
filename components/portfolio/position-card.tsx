@@ -236,6 +236,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       return {
         text: 'text-[var(--color-green-300)]',
         badge: 'bg-[var(--color-green-050)] text-[var(--color-green-300)]',
+        surface: 'border border-emerald-100 bg-emerald-50/80',
       };
     }
 
@@ -243,19 +244,34 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       return {
         text: 'text-[var(--color-red-500)]',
         badge: 'bg-[var(--color-red-050)] text-[var(--color-red-500)]',
+        surface: 'border border-rose-100 bg-rose-50/80',
       };
     }
 
     return {
       text: 'text-[var(--color-slate-600)]',
       badge: 'bg-[var(--color-slate-100)] text-[var(--color-slate-500)]',
+      surface: 'border border-slate-200 bg-slate-50/70',
     };
   };
 
   const dailyChangeValue = typeof metrics.dailyChange === 'number' ? metrics.dailyChange : null;
   const dailyChangePercent = metrics.dailyChangePercent;
+  const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
   const dailyChangeAmount = dailyChangeValue !== null ? dailyChangeValue * position.quantity : null;
   const dailyChangeStyles = dailyChangeAmount !== null ? getTrendStyles(dailyChangeAmount) : null;
+  const dailyChangePercentText =
+    typeof dailyChangePercent === 'number' && Number.isFinite(dailyChangePercent)
+      ? percentText(dailyChangePercent)
+      : null;
+  const dailyChangeBannerClassName =
+    dailyChangeAmount === null
+      ? 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95'
+      : dailyChangeAmount > 0
+        ? 'border-emerald-200/75 bg-gradient-to-r from-emerald-100/80 via-emerald-50/55 to-white'
+        : dailyChangeAmount < 0
+          ? 'border-rose-200/75 bg-gradient-to-r from-rose-100/80 via-rose-50/55 to-white'
+          : 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95';
   const dailyChangeIcon = dailyChangeAmount !== null
     ? dailyChangeAmount > 0
       ? <ArrowUpRight className="h-3.5 w-3.5" />
@@ -267,8 +283,6 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
   const currentPnLStyles = getTrendStyles(positionPnLUsd);
   const combinedStyles = getTrendStyles(combined);
   const changeFromEntryStyles = changeFromEntryPercent !== null ? getTrendStyles(changeFromEntryPercent) : null;
-
-  const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
 
   const closedStats = closedSummary
     ? [
@@ -306,6 +320,36 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
         },
       ]
     : [];
+
+  const openSnapshotCards = [
+    {
+      key: 'value-usd',
+      label: t.dashboard.positionValueUsd,
+      value: formatCurrency(currentValue, 'USD', locale),
+      isPrimary: true,
+    },
+    {
+      key: 'value-ils',
+      label: t.dashboard.positionValueIls,
+      value: formatCurrency(currentValueIls, 'ILS', locale),
+      isPrimary: true,
+    },
+    {
+      key: 'quantity',
+      label: t.dashboard.quantity,
+      value: formatNumber(position.quantity, locale),
+      isPrimary: false,
+    },
+    {
+      key: 'entry-price',
+      label: t.dashboard.entryPrice,
+      value: formatCurrency(position.entryPrice, 'USD', locale),
+      isPrimary: false,
+    },
+  ];
+
+  const valueDirectionClass =
+    'block w-full text-left [direction:ltr] [unicode-bidi:isolate] tabular-nums';
 
   const sparklineProjectedPrice = isClosed ? undefined : projectedPrice;
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
@@ -348,8 +392,9 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
       <div className="relative z-10 flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         {isClosed ? (
           <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              <div className="flex items-start gap-3 sm:gap-4">
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-3">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
                   <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
@@ -397,13 +442,20 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   )}
                 </div>
               </div>
+              </div>
             </div>
 
             {closedStats.length > 0 && (
               <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm md:grid-cols-3">
                 {closedStats.map((stat) => (
-                  <div key={stat.key} className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{stat.label}</p>
+                  <div
+                    key={stat.key}
+                    className={cn(
+                      'rounded-2xl border p-2.5 shadow-sm sm:p-3',
+                      stat.tone?.surface ?? 'border-slate-100 bg-overlay-slate-50'
+                    )}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{stat.label}</p>
                     <p className={`mt-1 text-sm font-semibold ${stat.tone?.text ?? 'text-slate-900'} sm:text-base`}>{stat.value}</p>
                   </div>
                 ))}
@@ -448,8 +500,34 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
           </>
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3 sm:gap-4">
-              <div className="flex items-start gap-3 sm:gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {dailyChangeAmount !== null && dailyChangeStyles && (
+                <div
+                  className={cn(
+                    '-mx-4 -mt-4 w-[calc(100%+2rem)] border-x-0 border-t-0 px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-6 sm:-mt-6 sm:w-[calc(100%+3rem)] sm:px-6 sm:py-2',
+                    dailyChangeBannerClassName
+                  )}
+                >
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
+                    <div className={cn('inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.11em]', dailyChangeStyles.text)}>
+                      {dailyChangeIcon}
+                      <span>{t.dashboard.dailyChange}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5">
+                      <span className={cn('text-[clamp(0.98rem,1.2vw,1.08rem)] font-semibold leading-none', dailyChangeStyles.text)}>
+                        <span className={valueDirectionClass}>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+                      </span>
+                      {dailyChangePercentText && (
+                        <span className={cn('inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none', dailyChangeStyles.badge)}>
+                          <span className={valueDirectionClass}>{dailyChangePercentText}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
                   <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
                     <AvatarImage src={position.imageUrl} alt={position.display} />
@@ -468,9 +546,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   )}
                 </div>
 
-                <div className="space-y-1.5 sm:space-y-2">
+                <div className="min-w-0 space-y-1.5 sm:space-y-2">
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <h3 className="text-base font-semibold text-slate-900 sm:text-xl">{position.display}</h3>
+                    <h3 className="min-w-0 text-base font-semibold leading-tight text-slate-900 sm:text-xl">
+                      {position.display}
+                    </h3>
                     <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
@@ -490,80 +570,104 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   </p>
                 </div>
               </div>
-
-              {dailyChangeAmount !== null && dailyChangeStyles && dailyChangePercent !== undefined && (
-                <Badge
-                  variant="outline"
-                  className={`flex items-center gap-1 rounded-full border-0 bg-[color:var(--color-neutral-white)]/70 px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur ${dailyChangeStyles.badge}`}
-                >
-                  {dailyChangeIcon}
-                  <span>{t.dashboard.dailyChange}</span>
-                  <div className="flex flex-col items-start gap-1 font-semibold">
-                    <span>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
-                    <span>{percentText(dailyChangePercent)}</span>
-                  </div>
-                </Badge>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-600 sm:gap-3 sm:text-sm">
-              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.quantity}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatNumber(position.quantity, locale)}</p>
-              </div>
-              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.entryPrice}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(position.entryPrice, 'USD', locale)}</p>
-              </div>
-              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueUsd}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(currentValue, 'USD', locale)}</p>
-              </div>
-              <div className="rounded-2xl bg-overlay-slate-50 p-2.5 shadow-sm sm:p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">{t.dashboard.positionValueIls}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(currentValueIls, 'ILS', locale)}</p>
-              </div>
+              {openSnapshotCards.map((stat) => (
+                <div
+                  key={stat.key}
+                  className={cn(
+                    'rounded-2xl border p-2.5 shadow-sm sm:p-3',
+                    stat.isPrimary
+                      ? 'border-blue-100 bg-blue-50/70'
+                      : 'border-slate-100 bg-overlay-slate-50'
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'text-[11px] font-semibold uppercase tracking-wide sm:text-xs',
+                      stat.isPrimary ? 'text-blue-700' : 'text-slate-400'
+                    )}
+                  >
+                    {stat.label}
+                  </p>
+                  <p
+                    className={cn(
+                      'mt-1 font-semibold leading-tight text-slate-900',
+                      stat.isPrimary ? 'text-[clamp(0.9rem,2.5vw,1.15rem)]' : 'text-[clamp(0.85rem,2.3vw,1rem)]'
+                    )}
+                  >
+                    <span className={valueDirectionClass}>{stat.value}</span>
+                  </p>
+                </div>
+              ))}
             </div>
 
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-3 shadow-inner sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.current}</p>
-                <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <dt>{t.dashboard.price}</dt>
-                    <dd className="text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(currentPrice, 'USD', locale)}</dd>
-                  </div>
-                  <div className={`flex items-center justify-between gap-2 ${currentPnLStyles.text}`}>
-                    <dt>{t.dashboard.pnl} USD</dt>
-                    <dd className="text-sm font-semibold sm:text-base">{formatCurrency(positionPnLUsd, 'USD', locale)}</dd>
-                  </div>
-                  {settings.currency === 'ILS' && (
-                    <div className={`flex items-center justify-between gap-2 ${currentPnLStyles.text}`}>
-                      <dt>{t.dashboard.pnl} ILS</dt>
-                      <dd className="text-sm font-semibold sm:text-base">{formatCurrency(positionPnLIls, 'ILS', locale)}</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-3 shadow-inner sm:p-4">
+              <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-blue-100/35 blur-2xl" />
+              <div className="relative space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                    {t.dashboard.current} / {t.dashboard.projected}
+                  </p>
+                  <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                    USD / ILS
+                  </Badge>
+                </div>
 
-              <div className="rounded-3xl border border-overlay-slate-100 bg-[color:var(--color-neutral-white)]/70 p-3 shadow-inner sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{t.dashboard.projected}</p>
-                <dl className="mt-2 space-y-2.5 text-xs text-slate-600 sm:mt-3 sm:space-y-3 sm:text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <dt>{t.dashboard.weightedProjectedPrice}</dt>
-                    <dd className="text-sm font-semibold text-slate-900 sm:text-base">{formatCurrency(projectedPrice, 'USD', locale)}</dd>
-                  </div>
-                  <div className={`flex items-center justify-between gap-2 ${combinedStyles.text}`}>
-                    <dt>{t.dashboard.combined} USD</dt>
-                    <dd className="text-sm font-semibold sm:text-base">{formatCurrency(combined, 'USD', locale)}</dd>
-                  </div>
-                  {settings.currency === 'ILS' && (
-                    <div className={`flex items-center justify-between gap-2 ${combinedStyles.text}`}>
-                      <dt>{t.dashboard.combined} ILS</dt>
-                      <dd className="text-sm font-semibold sm:text-base">{formatCurrency(combinedIls, 'ILS', locale)}</dd>
-                    </div>
-                  )}
-                </dl>
+                <div className="grid gap-2.5 md:grid-cols-2">
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3">
+                    <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
+                    <dl className="mt-2 space-y-2">
+                      <div>
+                        <dt className="text-xs font-medium text-slate-500">{t.dashboard.price}</dt>
+                        <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
+                          <span className={valueDirectionClass}>{formatCurrency(currentPrice, 'USD', locale)}</span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-slate-500">{t.dashboard.pnl} USD</dt>
+                        <dd className={cn('mt-0.5 text-base font-bold leading-tight', currentPnLStyles.text)}>
+                          <span className={valueDirectionClass}>{formatCurrency(positionPnLUsd, 'USD', locale)}</span>
+                        </dd>
+                      </div>
+                      {settings.currency === 'ILS' && (
+                        <div>
+                          <dt className="text-xs font-medium text-slate-500">{t.dashboard.pnl} ILS</dt>
+                          <dd className={cn('mt-0.5 text-base font-bold leading-tight', currentPnLStyles.text)}>
+                            <span className={valueDirectionClass}>{formatCurrency(positionPnLIls, 'ILS', locale)}</span>
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </section>
+
+                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-3">
+                    <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
+                    <dl className="mt-2 space-y-2">
+                      <div>
+                        <dt className="text-xs font-medium text-slate-500">{t.dashboard.weightedProjectedPrice}</dt>
+                        <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
+                          <span className={valueDirectionClass}>{formatCurrency(projectedPrice, 'USD', locale)}</span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-slate-500">{t.dashboard.combined} USD</dt>
+                        <dd className={cn('mt-0.5 text-base font-bold leading-tight', combinedStyles.text)}>
+                          <span className={valueDirectionClass}>{formatCurrency(combined, 'USD', locale)}</span>
+                        </dd>
+                      </div>
+                      {settings.currency === 'ILS' && (
+                        <div>
+                          <dt className="text-xs font-medium text-slate-500">{t.dashboard.combined} ILS</dt>
+                          <dd className={cn('mt-0.5 text-base font-bold leading-tight', combinedStyles.text)}>
+                            <span className={valueDirectionClass}>{formatCurrency(combinedIls, 'ILS', locale)}</span>
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </section>
+                </div>
               </div>
             </div>
 
