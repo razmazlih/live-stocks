@@ -10,15 +10,26 @@ import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
-import { computeRealizedSales } from '@/lib/positions';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 
 export default function PortfolioPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, refreshing, positions, metrics, summary, portfolioTimeline, usdToIls, lastUpdate, reload } =
-    usePortfolioData();
+  const {
+    loading,
+    refreshing,
+    positions,
+    metrics,
+    summary,
+    portfolioTimeline,
+    usdToIls,
+    historicalIlsNetPnL,
+    historicalIlsRealizedPnL,
+    realizedSales: realizedSalesWithFx,
+    lastUpdate,
+    reload,
+  } = usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -78,16 +89,8 @@ export default function PortfolioPage() {
   const rateForSummary = summary?.usdToIlsRate ?? usdToIls;
 
   const realizedSales = useMemo(
-    () =>
-      positions.flatMap((position) =>
-        computeRealizedSales(position).map((sale) => ({
-          ...sale,
-          proceedsIls: sale.proceedsUsd * rateForSummary,
-          costBasisIls: sale.costBasisUsd * rateForSummary,
-          profitIls: sale.profitUsd * rateForSummary,
-        }))
-      ),
-    [positions, rateForSummary]
+    () => realizedSalesWithFx,
+    [realizedSalesWithFx],
   );
 
   const closedSummary = useMemo(() => {
@@ -98,11 +101,11 @@ export default function PortfolioPage() {
     const totals = realizedSales.reduce(
       (acc, sale) => {
         acc.totalProceedsUsd += sale.proceedsUsd;
-        acc.totalProceedsIls += sale.proceedsIls;
+        acc.totalProceedsIls += sale.proceedsIls ?? sale.proceedsUsd * rateForSummary;
         acc.totalCostUsd += sale.costBasisUsd;
-        acc.totalCostIls += sale.costBasisIls;
+        acc.totalCostIls += sale.costBasisIls ?? sale.costBasisUsd * rateForSummary;
         acc.totalProfitUsd += sale.profitUsd;
-        acc.totalProfitIls += sale.profitIls;
+        acc.totalProfitIls += sale.profitIls ?? sale.profitUsd * rateForSummary;
         acc.totalQuantity += sale.quantity;
         acc.weightedHoldingDays += sale.holdingPeriodDays * sale.quantity;
         return acc;
@@ -269,6 +272,14 @@ export default function PortfolioPage() {
         },
         helper: [
           {
+            label: t.portfolio.ilsCurrentLabel,
+            value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS'),
+          },
+          {
+            label: t.portfolio.ilsHistoricalAdjustedLabel,
+            value: formatSignedCurrency(historicalIlsNetPnL, 'ILS'),
+          },
+          {
             label: t.dashboard.forecastGap,
             value: formatSignedCurrency(netForecastGapUsd, 'USD'),
             secondary: t.dashboard.forecastGapSecondary(
@@ -323,6 +334,14 @@ export default function PortfolioPage() {
         value: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS'),
       },
       helper: [
+        {
+          label: t.portfolio.ilsCurrentLabel,
+          value: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS'),
+        },
+        {
+          label: t.portfolio.ilsHistoricalAdjustedLabel,
+          value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS'),
+        },
         {
           label: t.portfolio.expectedProfitLabel,
           value: formatSignedCurrency(closedSummary.expectedProfitUsd, 'USD'),

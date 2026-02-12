@@ -75,6 +75,10 @@ export interface RealizedSale {
   profitPercent: number;
   averageEntryPrice: number;
   holdingPeriodDays: number;
+  proceedsIls?: number;
+  costBasisIls?: number;
+  profitIls?: number;
+  sellUsdToIls?: number;
 }
 
 export interface StockQuote {

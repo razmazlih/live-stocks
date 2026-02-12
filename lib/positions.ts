@@ -8,6 +8,7 @@ import {
 } from '@/types';
 
 export const DEFAULT_COMMISSION_USD = 8;
+export type FxRateResolver = (timestamp: number) => number;
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -560,6 +561,133 @@ export function computeRealizedSales(position: Position): RealizedSale[] {
       profitPercent,
       averageEntryPrice,
       holdingPeriodDays,
+    });
+  }
+
+  return realized;
+}
+
+export function computeRealizedSalesWithFx(
+  position: Position,
+  getFxRateAt: FxRateResolver,
+): RealizedSale[] {
+  const lots = position.lots ?? [];
+
+  if (!lots.length) {
+    return [];
+  }
+
+  const sortedLots = [...lots].sort((a, b) => {
+    const aTime = new Date(a.executedAt).getTime();
+    const bTime = new Date(b.executedAt).getTime();
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return 0;
+    }
+    return aTime - bTime;
+  });
+
+  type BuyLot = {
+    id?: string;
+    price: number;
+    quantity: number;
+    executedAt: string;
+    timestamp: number;
+    totalCost: number;
+  };
+
+  const openBuys: BuyLot[] = [];
+  const realized: RealizedSale[] = [];
+
+  for (const lot of sortedLots) {
+    const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (quantity === 0) {
+      continue;
+    }
+
+    const lotTimestamp = new Date(lot.executedAt).getTime();
+    if (!Number.isFinite(lotTimestamp)) {
+      console.warn('Skipping realized lot with invalid timestamp:', lot.executedAt);
+      continue;
+    }
+
+    if (lot.type === 'BUY') {
+      openBuys.push({
+        id: lot.id,
+        price: lot.price,
+        quantity,
+        executedAt: lot.executedAt,
+        timestamp: lotTimestamp,
+        totalCost: quantity * lot.price + (lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0),
+      });
+      continue;
+    }
+
+    const sellDate = new Date(lot.executedAt);
+    const sellFx = getFxRateAt(lotTimestamp);
+    let remaining = quantity;
+    let matchedQuantity = 0;
+    let costBasisUsd = 0;
+    let costBasisIls = 0;
+    let weightedHoldingDays = 0;
+
+    while (remaining > 0 && openBuys.length) {
+      const current = openBuys[0];
+      if (current.quantity <= 0) {
+        openBuys.shift();
+        continue;
+      }
+      const matched = Math.min(remaining, current.quantity);
+
+      const costPerUnit = current.quantity > 0 ? current.totalCost / current.quantity : current.price;
+      const costPortion = costPerUnit * matched;
+      costBasisUsd += costPortion;
+      costBasisIls += costPortion * getFxRateAt(current.timestamp);
+      matchedQuantity += matched;
+
+      const buyDate = new Date(current.executedAt);
+      if (!Number.isNaN(buyDate.getTime()) && !Number.isNaN(sellDate.getTime())) {
+        const diffMs = sellDate.getTime() - buyDate.getTime();
+        const diffDays = Math.max(diffMs / (1000 * 60 * 60 * 24), 0);
+        weightedHoldingDays += diffDays * matched;
+      }
+
+      current.quantity = Math.max(current.quantity - matched, 0);
+      current.totalCost = Math.max(current.totalCost - costPortion, 0);
+      remaining -= matched;
+
+      if (current.quantity <= 1e-8) {
+        openBuys.shift();
+      }
+    }
+
+    const grossProceeds = lot.price * quantity;
+    const commission = lot.hasCommission ? Math.max(lot.commissionAmount, 0) : 0;
+    const proceedsUsd = grossProceeds - commission;
+    const proceedsIls = proceedsUsd * sellFx;
+    const averageEntryPrice = matchedQuantity > 0 ? costBasisUsd / matchedQuantity : 0;
+    const profitUsd = proceedsUsd - costBasisUsd;
+    const profitIls = proceedsIls - costBasisIls;
+    const profitPercent = costBasisUsd > 0 ? (profitUsd / costBasisUsd) * 100 : 0;
+    const holdingPeriodDays = matchedQuantity > 0 ? weightedHoldingDays / matchedQuantity : 0;
+
+    realized.push({
+      id: lot.id,
+      positionId: position.id,
+      symbol: position.symbol,
+      display: position.display,
+      quantity,
+      sellPrice: lot.price,
+      sellDate: lot.executedAt,
+      proceedsUsd,
+      costBasisUsd,
+      profitUsd,
+      profitPercent,
+      averageEntryPrice,
+      holdingPeriodDays,
+      proceedsIls,
+      costBasisIls,
+      profitIls,
+      sellUsdToIls: sellFx,
     });
   }
 

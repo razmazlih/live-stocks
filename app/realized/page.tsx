@@ -16,7 +16,6 @@ import {
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
-import { computeRealizedSales } from '@/lib/positions';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
@@ -25,7 +24,8 @@ import { QuickActionsSection } from '@/components/dashboard/quick-actions-sectio
 export default function RealizedPnLPage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, refreshing, positions, summary, usdToIls, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, realizedSales: realizedSalesWithFx, summary, usdToIls, lastUpdate, reload } =
+    usePortfolioData();
 
   const lastUpdatedDisplay = useMemo(() => {
     if (!lastUpdate) {
@@ -42,15 +42,13 @@ export default function RealizedPnLPage() {
 
   const realizedSales = useMemo(
     () =>
-      positions.flatMap((position) =>
-        computeRealizedSales(position).map((sale) => ({
-          ...sale,
-          proceedsIls: sale.proceedsUsd * rate,
-          costBasisIls: sale.costBasisUsd * rate,
-          profitIls: sale.profitUsd * rate,
-        }))
-      ),
-    [positions, rate]
+      realizedSalesWithFx.map((sale) => ({
+        ...sale,
+        proceedsIls: sale.proceedsIls ?? sale.proceedsUsd * rate,
+        costBasisIls: sale.costBasisIls ?? sale.costBasisUsd * rate,
+        profitIls: sale.profitIls ?? sale.profitUsd * rate,
+      })),
+    [realizedSalesWithFx, rate],
   );
 
   const sortedSales = useMemo(

@@ -42,6 +42,8 @@ export default function HomePage() {
     sparklineData,
     portfolioTimeline,
     usdToIls,
+    historicalIlsNetPnL,
+    historicalIlsRealizedPnL,
     lastUpdate,
     reload,
   } = usePortfolioData();
@@ -204,6 +206,10 @@ export default function HomePage() {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
           },
+          helper: [
+            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS') },
+            { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS') },
+          ],
         },
         {
           key: 'projected',
@@ -224,6 +230,13 @@ export default function HomePage() {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
           },
+          helper: [
+            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCombinedIls, 'ILS') },
+            {
+              label: t.portfolio.ilsHistoricalAdjustedLabel,
+              value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS'),
+            },
+          ],
         },
       ]
     : [];
