@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Stocks - סיכום מערכת</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    :root {
+      --bg: #f6f8fb;
+      --ink: #0f172a;
+      --muted: #334155;
+      --brand: #0b3b66;
+      --brand-2: #1e5f97;
+      --card: #ffffff;
+      --line: #dbe5f1;
+      --ok: #166534;
+      --warn: #9a3412;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Arial", "Arial Unicode MS", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      line-height: 1.35;
+    }
+    .page {
+      background: radial-gradient(circle at 8% 8%, #eef5ff 0, #f6f8fb 40%, #f6f8fb 100%);
+      min-height: 260mm;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      page-break-after: always;
+      padding: 6px;
+      border: 1px solid #e7eef7;
+      border-radius: 16px;
+    }
+    .page:last-child { page-break-after: auto; }
+
+    .hero {
+      border-radius: 14px;
+      color: #fff;
+      padding: 16px 18px;
+      background: linear-gradient(130deg, var(--brand), var(--brand-2));
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: -30px;
+      top: -50px;
+      width: 180px;
+      height: 180px;
+      background: rgba(255,255,255,.14);
+      border-radius: 50%;
+    }
+    h1 { margin: 0; font-size: 30px; letter-spacing: .2px; }
+    .sub { margin-top: 6px; font-size: 14px; opacity: .95; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+    .kpi .num { font-size: 22px; font-weight: 700; color: #12395b; }
+    .kpi .lbl { font-size: 12px; color: var(--muted); }
+
+    .section-title {
+      background: #e8f1fb;
+      color: #0d3558;
+      border: 1px solid #cfe0f5;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 6px 12px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 15px; color: #0f3050; }
+
+    ul { margin: 4px 0 0; padding-right: 18px; }
+    li { margin: 3px 0; font-size: 13px; }
+    p { margin: 4px 0; font-size: 13px; }
+
+    .cap-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .cap {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px;
+      min-height: 122px;
+    }
+    .cap .head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f3557;
+    }
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      font-size: 11px;
+      padding: 2px 8px;
+      background: #eef6ff;
+      border: 1px solid #c8def8;
+      color: #11406a;
+      margin-top: 4px;
+    }
+
+    .flow {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .flow-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+    .node {
+      border: 1px solid #bdd6ee;
+      border-radius: 10px;
+      background: #f7fbff;
+      padding: 8px;
+      position: relative;
+      min-height: 88px;
+    }
+    .node h4 { margin: 0 0 4px; font-size: 13px; color: #0d3558; }
+    .node p { margin: 0; font-size: 12px; color: #31475c; }
+
+    .arrow { text-align: center; font-size: 20px; color: #3f6f9c; margin-top: -2px; }
+
+    .run-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+    }
+    .step .n {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #0d3c67; color: #fff; display: inline-flex;
+      align-items: center; justify-content: center; font-size: 12px; margin-left: 6px;
+    }
+    .mono { font-family: "Menlo", "Consolas", monospace; direction: ltr; unicode-bidi: bidi-override; font-size: 12px; background: #f8fbff; border: 1px solid #d8e7f7; border-radius: 8px; padding: 6px; margin-top: 5px; }
+
+    .not-found {
+      background: #fff7ed;
+      border: 1px solid #fdcfaa;
+      border-right: 5px solid #f59e0b;
+      border-radius: 10px;
+      padding: 9px 10px;
+      color: var(--warn);
+      font-size: 13px;
+    }
+
+    .footer {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #4b647f;
+      font-size: 11px;
+      border-top: 1px dashed #c9d8ea;
+      padding-top: 8px;
+    }
+
+    .small { font-size: 12px; color: #2b3f55; }
+
+    svg { display: block; }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <header class="hero">
+      <h1>Live Stocks - סיכום מוצר מתקדם</h1>
+      <div class="sub">סיכום חזותי מבוסס מאגר בלבד: Next.js App Router, Supabase, API Routes, Hooks ושירותי שוק</div>
+    </header>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="num">9</div><div class="lbl">מסכי אפליקציה</div></div>
+      <div class="kpi"><div class="num">6</div><div class="lbl">נתיבי API</div></div>
+      <div class="kpi"><div class="num">4+</div><div class="lbl">ישויות נתונים</div></div>
+      <div class="kpi"><div class="num">2</div><div class="lbl">שפות UI (HE/EN)</div></div>
+    </div>
+
+    <div class="section-title">מה המערכת הזו</div>
+    <div class="card">
+      <p>אפליקציית Portfolio Dashboard לניהול תיק מניות בזמן אמת עם אנליטיקה, Watchlist, חישובי PnL ומעקב רב-מסכים.</p>
+      <p>המוצר משלב ממשק משתמש עשיר, שכבת API פנימית, חיבור ל־Supabase, ושירותי שוק חיצוניים (Finnhub + שערי מטבע).</p>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>למי זה מיועד</h3>
+        <ul>
+          <li>משקיע פרטי שרוצה תמונת מצב מהירה ומדויקת של תיק ההשקעות.</li>
+          <li>משתמש שעובד בעברית או באנגלית וצריך מעבר שפה ותמיכה ב־RTL/LTR.</li>
+          <li>מי שמנהל פוזיציות, לוטים, ותוכניות יציאה ורוצה ניתוח ביצועים מתמשך.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>איור יכולות (overview)</h3>
+        <svg viewBox="0 0 320 170" width="100%" height="140" aria-label="capabilities illustration">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#dbeafe"/>
+              <stop offset="100%" stop-color="#eff6ff"/>
+            </linearGradient>
+          </defs>
+          <rect x="8" y="10" width="304" height="150" rx="16" fill="url(#g1)" stroke="#bfd8f2"/>
+          <rect x="22" y="24" width="90" height="52" rx="10" fill="#fff" stroke="#9ec1e4"/>
+          <rect x="126" y="24" width="82" height="52" rx="10" fill="#fff" stroke="#9ec1e4"/>
+          <rect x="220" y="24" width="82" height="52" rx="10" fill="#fff" stroke="#9ec1e4"/>
+          <rect x="22" y="88" width="280" height="56" rx="10" fill="#fff" stroke="#9ec1e4"/>
+          <text x="67" y="52" font-size="12" text-anchor="middle" fill="#0d3558">Dashboard</text>
+          <text x="167" y="52" font-size="12" text-anchor="middle" fill="#0d3558">Watchlist</text>
+          <text x="261" y="52" font-size="12" text-anchor="middle" fill="#0d3558">Forecast</text>
+          <text x="162" y="112" font-size="12" text-anchor="middle" fill="#0d3558">Portfolio Analytics + FX + PnL + API Data</text>
+          <polyline points="67,77 67,88" stroke="#4b7da8" fill="none"/>
+          <polyline points="167,77 167,88" stroke="#4b7da8" fill="none"/>
+          <polyline points="261,77 261,88" stroke="#4b7da8" fill="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="section-title">מה הפרויקט יודע לעשות</div>
+    <div class="cap-grid">
+      <div class="cap">
+        <div class="head">📊 אנליטיקה ותצוגת תיק</div>
+        <ul>
+          <li>Dashboard עם סיכומים וגרפים.</li>
+          <li>Current / Projected / Realized PnL.</li>
+          <li>Portfolio Timeline ותובנות ביצועים.</li>
+        </ul>
+        <div class="badge">מקור: app/page.tsx + hooks/use-portfolio-data.ts</div>
+      </div>
+      <div class="cap">
+        <div class="head">📈 נתוני שוק בזמן אמת</div>
+        <ul>
+          <li>Quote ו־Candles דרך API פנימי.</li>
+          <li>Retry/Backoff מובנה בקריאות HTTP.</li>
+          <li>Fallback לשערי מטבע.</li>
+        </ul>
+        <div class="badge">מקור: app/api/* + lib/services/*</div>
+      </div>
+      <div class="cap">
+        <div class="head">🧩 ניהול נתוני השקעות</div>
+        <ul>
+          <li>Positions + Lots + Plans.</li>
+          <li>Watchlist Groups + Tickers.</li>
+          <li>Settings מרכזיות במסד הנתונים.</li>
+        </ul>
+        <div class="badge">מקור: supabase/migrations/*</div>
+      </div>
+      <div class="cap">
+        <div class="head">🌐 UX דו-לשוני והגדרות</div>
+        <ul>
+          <li>HE/EN עם RTL/LTR.</li>
+          <li>שמירת הגדרות וריענון גלובלי.</li>
+          <li>מסכי Settings ו־AI Prompts.</li>
+        </ul>
+        <div class="badge">מקור: lib/context.tsx + app/settings/page.tsx</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Generated: 2026-02-13</span>
+      <span>Live Stocks | Visual Hebrew Summary</span>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-title">ארכיטקטורה וזרימת נתונים (מבוסס קוד)</div>
+    <div class="flow">
+      <div class="flow-row">
+        <div class="node">
+          <h4>Frontend UI</h4>
+          <p>Pages: Dashboard, Portfolio, Positions, Watchlist, Settings, Stock Detail, Forecast.</p>
+        </div>
+        <div class="node">
+          <h4>Hooks + Context</h4>
+          <p>use-portfolio-data, use-watchlist, AppProvider, translations.</p>
+        </div>
+        <div class="node">
+          <h4>API Layer</h4>
+          <p>/api/quote, /api/candles, /api/portfolio, /api/exchange-rate, /api/forecast.</p>
+        </div>
+        <div class="node">
+          <h4>Data Sources</h4>
+          <p>Supabase tables + Finnhub + Exchange-rate providers.</p>
+        </div>
+      </div>
+      <div class="arrow">← ← ← זרימת נתונים ← ← ←</div>
+      <p class="small">הזרימה בפועל: UI מפעיל hooks, hooks/עמודים מבצעים קריאות API ו־Supabase, השירותים מחזירים נתונים, ואז מתבצעים חישובים והצגה חזותית.</p>
+    </div>
+
+    <div class="section-title">מפת רכיבים ושירותים</div>
+    <div class="run-grid">
+      <div class="card">
+        <h3>רכיבי מערכת מרכזיים</h3>
+        <ul>
+          <li><b>app/</b>: ניתוב ומסכים.</li>
+          <li><b>components/</b>: UI reusable כולל chart cards.</li>
+          <li><b>hooks/</b>: לוגיקת טעינה ותיאום state.</li>
+          <li><b>lib/</b>: חישובים, תרגומים, שירותי API, context.</li>
+          <li><b>supabase/</b>: סכמת DB, מיגרציות, seed ותצורה.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>נתיבי API שזוהו</h3>
+        <ul>
+          <li>GET <b>/api/quote</b></li>
+          <li>GET <b>/api/candles</b></li>
+          <li>GET <b>/api/exchange-rate</b></li>
+          <li>POST <b>/api/portfolio</b></li>
+          <li>GET <b>/api/portfolio/combined-pnl</b></li>
+          <li>GET <b>/api/forecast/[horizon]/[symbol]</b></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section-title">איך מריצים מהר (Minimal)</div>
+    <div class="run-grid">
+      <div class="step"><span class="n">1</span>התקנת תלויות<div class="mono">npm install</div></div>
+      <div class="step"><span class="n">2</span>יצירת קובץ סביבה<div class="mono">cp .env.exemple .env.local</div></div>
+      <div class="step"><span class="n">3</span>הפעלת Supabase מקומי<div class="mono">npx supabase start</div></div>
+      <div class="step"><span class="n">4</span>מיגרציות ונתוני seed<div class="mono">npx supabase db reset</div></div>
+      <div class="step"><span class="n">5</span>הרצת אפליקציה<div class="mono">npm run dev</div></div>
+      <div class="step"><span class="n">6</span>בדיקות איכות<div class="mono">npm run lint && npm run typecheck && npm test</div></div>
+    </div>
+
+    <div class="section-title">מה לא נמצא במפורש במאגר</div>
+    <div class="not-found">
+      פרסונת יעד עסקית רשמית אחת, SLA כמותי לפרודקשן, ומסמך פריסה אחיד לסביבה עננית ספציפית - לא נמצאו במפורש בקבצי הקוד/התיעוד.
+    </div>
+
+    <div class="footer">
+      <span>מקורות: README.md, package.json, app/*, hooks/*, lib/*, supabase/migrations/*</span>
+      <span>עמוד 2/2</span>
+    </div>
+  </section>
+</body>
+</html>
