@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
@@ -20,9 +20,10 @@ import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 interface PositionCardProps {
   metrics: PositionMetrics;
   sparklineData?: HistoricalPoint[];
+  closedSelector?: ReactNode;
 }
 
-export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
+export function PositionCard({ metrics, sparklineData, closedSelector }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const forecastEnabled = FORECAST_FEATURE_ENABLED;
@@ -445,6 +446,11 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                       </span>
                     </p>
                   )}
+                  {closedSelector ? (
+                    <div className="pt-1">
+                      {closedSelector}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               </div>
