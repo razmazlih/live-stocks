@@ -548,7 +548,7 @@ export function PositionCard({ metrics, sparklineData }: PositionCardProps) {
                   {changeFromEntryPercent !== null && (
                     <Badge
                       variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
                     >
                       {percentText(changeFromEntryPercent)}
                     </Badge>
