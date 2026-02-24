@@ -161,7 +161,9 @@ export async function POST(request: NextRequest) {
       0,
       Math.floor(((minFxTimestamp ?? Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000) - 2 * 24 * 60 * 60),
     );
-    const fxHistoryPoints = await fetchUsdIlsHistoricalPoints(fxFrom, nowSeconds);
+    const fxHistoryPoints = await fetchUsdIlsHistoricalPoints(fxFrom, nowSeconds, {
+      baseUrl: request.nextUrl.origin,
+    });
     const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, usdToIlsRate);
 
     const realizedSales = mappedPositions.flatMap((position) =>
@@ -206,6 +208,10 @@ export async function POST(request: NextRequest) {
     );
     const totalCombinedUsd = totalCurrentPnLUsd - totalProjectedPnLUsd;
     const totalCombinedIls = totalCurrentPnLIls - totalProjectedPnLIls;
+    const totalNetPnLUsd = totalCurrentPnLUsd - taxSummary.taxUsd;
+    const totalNetPnLIls = totalCurrentPnLIls - taxSummary.taxIls;
+    const totalForecastGapUsd = totalNetPnLUsd - totalProjectedPnLUsd;
+    const totalForecastGapIls = totalNetPnLIls - totalProjectedPnLIls;
 
     const summary = {
       ...baseSummary,
@@ -219,8 +225,10 @@ export async function POST(request: NextRequest) {
       totalRealizedProfitIls: toFixedNumber(realizedTotals.profitIls),
       totalTaxesPaidUsd: toFixedNumber(taxSummary.taxUsd),
       totalTaxesPaidIls: toFixedNumber(taxSummary.taxIls),
-      totalNetPnLUsd: toFixedNumber(totalCurrentPnLUsd - taxSummary.taxUsd),
-      totalNetPnLIls: toFixedNumber(totalCurrentPnLIls - taxSummary.taxIls),
+      totalNetPnLUsd: toFixedNumber(totalNetPnLUsd),
+      totalNetPnLIls: toFixedNumber(totalNetPnLIls),
+      totalForecastGapUsd: toFixedNumber(totalForecastGapUsd),
+      totalForecastGapIls: toFixedNumber(totalForecastGapIls),
       totalValue: toFixedNumber(baseSummary.totalValue),
       totalCost: toFixedNumber(baseSummary.totalCost),
       usdToIlsRate: toFixedNumber(baseSummary.usdToIlsRate),

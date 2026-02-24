@@ -64,13 +64,18 @@ export function buildUsdIlsRateResolver(
 export async function fetchUsdIlsHistoricalPoints(
   from: number,
   to: number,
+  options?: { baseUrl?: string },
 ): Promise<HistoricalPoint[]> {
   if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to) {
     return [];
   }
 
+  const path = `/api/candles?symbol=${encodeURIComponent('ILS=X')}&resolution=D&from=${from}&to=${to}`;
+  const baseUrl = options?.baseUrl?.trim();
+  const url = baseUrl ? `${baseUrl.replace(/\/+$/, '')}${path}` : path;
+
   const response = await fetch(
-    `/api/candles?symbol=${encodeURIComponent('ILS=X')}&resolution=D&from=${from}&to=${to}`,
+    url,
   );
   if (!response.ok) {
     return [];
