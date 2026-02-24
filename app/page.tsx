@@ -40,7 +40,6 @@ export default function HomePage() {
     summary: portfolioSummary,
     openSummary,
     sparklineData,
-    portfolioTimeline,
     usdToIls,
     historicalIlsNetPnL,
     historicalIlsRealizedPnL,
@@ -309,8 +308,8 @@ export default function HomePage() {
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-inner">
-          <PortfolioVisualizations metrics={openMetrics} summary={summary} timeline={portfolioTimeline} />
+        <div className="rounded-[28px] border border-white/65 bg-[color:var(--color-neutral-white)]/55 p-4 shadow-[0_24px_52px_-34px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
+          <PortfolioVisualizations metrics={openMetrics} summary={summary} />
         </div>
       </div>
     ) : (
