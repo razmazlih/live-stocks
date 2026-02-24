@@ -4,6 +4,18 @@ export interface RetryOptions {
   shouldRetry?: (response: Response) => boolean;
 }
 
+export class HttpStatusError extends Error {
+  status: number;
+  retryAfterSeconds?: number;
+
+  constructor(status: number, retryAfterSeconds?: number) {
+    super(`HTTP ${status}`);
+    this.name = 'HttpStatusError';
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 const DEFAULT_RETRIES = 3;
 const DEFAULT_DELAY_MS = 1000;
 const DEFAULT_SHOULD_RETRY = (response: Response): boolean => {
@@ -41,7 +53,12 @@ export async function fetchWithRetry(
         return response;
       }
 
-      lastError = new Error(`HTTP ${response.status}`);
+      const retryAfterRaw = response.headers.get('retry-after');
+      const retryAfterSeconds = retryAfterRaw ? Number.parseInt(retryAfterRaw, 10) : Number.NaN;
+      lastError = new HttpStatusError(
+        response.status,
+        Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined,
+      );
 
       if (!shouldRetry(response) || attempt === retries - 1) {
         throw lastError;

@@ -142,6 +142,7 @@ export const translations = {
       sectionVisualizationsLabel: 'ויזואליזציות',
       sectionVisualizationsDescription: 'תרשימים אינטראקטיביים של התיק.',
       sectionVisualizationsEmpty: 'אין מספיק נתונים להצגת תרשימים.',
+      weeklyInsights: 'Insights שבועי',
     },
     portfolio: {
       title: 'סקירת התיק',
@@ -754,6 +755,7 @@ export const translations = {
       sectionVisualizationsLabel: 'Visualizations',
       sectionVisualizationsDescription: 'Interactive charts that visualize your portfolio.',
       sectionVisualizationsEmpty: 'There is not enough data to render the charts yet.',
+      weeklyInsights: 'Weekly insights',
     },
     portfolio: {
       title: 'Portfolio overview',

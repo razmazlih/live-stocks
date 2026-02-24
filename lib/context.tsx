@@ -21,6 +21,7 @@ interface AppContextType {
   setLocale: (locale: Locale) => void;
   settings: Settings;
   setSettings: (settings: Settings) => void;
+  settingsReady: boolean;
   refreshTrigger: number;
   triggerRefresh: () => void;
   processPlans: () => Promise<void>;
@@ -229,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLocale,
         settings,
         setSettings,
+        settingsReady,
         refreshTrigger,
         triggerRefresh,
         processPlans,

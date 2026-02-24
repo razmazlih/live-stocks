@@ -1,4 +1,4 @@
-import { CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings, Sparkles } from 'lucide-react';
+import { BrainCircuit, CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings, Sparkles } from 'lucide-react';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { translations } from '@/lib/translations';
@@ -8,6 +8,7 @@ type Translation = (typeof translations)['he'];
 export type CommonQuickActionKey =
   | 'reload'
   | 'dashboard'
+  | 'insights'
   | 'portfolio'
   | 'realized'
   | 'watchlist'
@@ -33,6 +34,13 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     label: t.app.title,
     href: '/',
     variant: 'secondary',
+  }),
+  insights: () => ({
+    key: 'insights',
+    icon: BrainCircuit,
+    label: t.dashboard.weeklyInsights,
+    href: '/insights',
+    className: 'bg-[var(--color-indigo-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-indigo-600)]',
   }),
   portfolio: () => ({
     key: 'portfolio',

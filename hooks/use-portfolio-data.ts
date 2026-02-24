@@ -43,6 +43,7 @@ interface LoadSparklinesResult {
 
 interface LoadOptions {
   background?: boolean;
+  forceQuoteRefresh?: boolean;
 }
 
 type NormalizedLot = {
@@ -285,7 +286,7 @@ function buildPositionTimeline(
 }
 
 export function usePortfolioData() {
-  const { settings, refreshTrigger } = useApp();
+  const { settings, settingsReady, refreshTrigger } = useApp();
 
   const [loading, setLoading] = useState(true);
   const [refreshingCount, setRefreshingCount] = useState(0);
@@ -588,7 +589,11 @@ export function usePortfolioData() {
   );
 
   const loadData = useCallback(
-    async ({ background = false }: LoadOptions = {}) => {
+    async ({ background = false, forceQuoteRefresh = false }: LoadOptions = {}) => {
+      if (!settingsReady) {
+        return;
+      }
+
       try {
       if (background) {
         setRefreshingCount((count) => count + 1);
@@ -647,43 +652,44 @@ export function usePortfolioData() {
         const fxHistoryPoints = await fetchUsdIlsHistoricalPoints(fxFrom, fxTo);
         const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate);
 
-        const quoteEntries = await Promise.all(
-          mappedPositions.map(async (position) => {
-            try {
-              let quoteData: { c?: number; d?: number; error?: string } | null = null;
-
-              if (trimmedToken) {
-                const quoteResponse = await fetch(
-                  `/api/quote?symbol=${encodeURIComponent(position.symbol)}&token=${encodeURIComponent(trimmedToken)}`
-                );
-
-                if (quoteResponse.ok) {
-                  const parsed = (await quoteResponse.json()) as { c?: number; d?: number; error?: string };
-                  if (!parsed.error) {
-                    quoteData = parsed;
-                  } else {
-                    console.warn(`Quote API error for ${position.symbol}:`, parsed.error);
-                  }
-                } else {
-                  console.warn(`Quote request failed with status ${quoteResponse.status} for ${position.symbol}`);
-                }
-              }
-
-              return {
-                symbol: position.symbol,
-                currentPrice: quoteData?.c ?? position.entryPrice,
-                dailyChange: quoteData?.d,
-              };
-            } catch (error) {
-              console.error(`Failed to fetch quote for ${position.symbol}:`, error);
-              return {
-                symbol: position.symbol,
-                currentPrice: position.entryPrice,
-                dailyChange: undefined,
-              };
-            }
-          })
+        const normalizedSymbols = Array.from(
+          new Set(mappedPositions.map((position) => position.symbol.trim().toUpperCase()).filter(Boolean)),
         );
+
+        let batchedQuotes: Record<string, { c?: number; d?: number }> = {};
+        if (trimmedToken && normalizedSymbols.length > 0) {
+          const quoteParams = new URLSearchParams({
+            symbols: normalizedSymbols.join(','),
+            token: trimmedToken,
+          });
+          if (forceQuoteRefresh) {
+            quoteParams.set('forceRefresh', '1');
+          }
+
+          try {
+            const quotesResponse = await fetch(`/api/quotes?${quoteParams.toString()}`);
+            if (quotesResponse.ok) {
+              const payload = (await quotesResponse.json()) as {
+                quotes?: Record<string, { c?: number; d?: number }>;
+              };
+              batchedQuotes = payload.quotes ?? {};
+            } else {
+              console.warn(`Quotes request failed with status ${quotesResponse.status}`);
+            }
+          } catch (error) {
+            console.error('Failed to fetch batched quotes:', error);
+          }
+        }
+
+        const quoteEntries = mappedPositions.map((position) => {
+          const normalizedSymbol = position.symbol.trim().toUpperCase();
+          const quoteData = batchedQuotes[normalizedSymbol];
+          return {
+            symbol: position.symbol,
+            currentPrice: quoteData?.c ?? position.entryPrice,
+            dailyChange: quoteData?.d,
+          };
+        });
 
         const quoteMap = new Map<string, { currentPrice: number; dailyChange?: number }>();
         quoteEntries.forEach((entry) => {
@@ -882,14 +888,21 @@ export function usePortfolioData() {
         }
       }
     },
-    [loadSparklines, settings.annualGrowthRate, settings.finnhubToken]
+    [loadSparklines, settings.annualGrowthRate, settings.finnhubToken, settingsReady]
   );
 
   useEffect(() => {
+    if (!settingsReady) {
+      return;
+    }
     void loadData();
-  }, [loadData, refreshTrigger]);
+  }, [loadData, refreshTrigger, settingsReady]);
 
   useEffect(() => {
+    if (!settingsReady) {
+      return;
+    }
+
     if (!settings.refreshInterval || settings.refreshInterval <= 0) {
       return;
     }
@@ -902,7 +915,7 @@ export function usePortfolioData() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [loadData, settings.refreshInterval]);
+  }, [loadData, settings.refreshInterval, settingsReady]);
 
   return {
     loading,
@@ -919,6 +932,6 @@ export function usePortfolioData() {
     historicalIlsRealizedPnL,
     realizedSales,
     lastUpdate,
-    reload: () => loadData({ background: true }),
+    reload: () => loadData({ background: true, forceQuoteRefresh: true }),
   };
 }

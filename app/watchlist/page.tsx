@@ -467,6 +467,9 @@ export default function WatchlistPage() {
         if (finnhubToken) {
           quoteParams.set('token', finnhubToken);
         }
+        if (options?.force) {
+          quoteParams.set('forceRefresh', '1');
+        }
 
         const candlesParams = new URLSearchParams({
           symbol,

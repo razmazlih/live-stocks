@@ -447,9 +447,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         setPositions(mappedPositions);
 
         const trimmedToken = settings.finnhubToken?.trim();
-        const quoteUrl = trimmedToken
-          ? `/api/quote?symbol=${encodeURIComponent(normalizedSymbol)}&token=${encodeURIComponent(trimmedToken)}`
+        const quoteParams = trimmedToken
+          ? new URLSearchParams({
+              symbol: normalizedSymbol,
+              token: trimmedToken,
+            })
           : null;
+        if (quoteParams && reloadKey > 0) {
+          quoteParams.set('forceRefresh', '1');
+        }
+        const quoteUrl = quoteParams ? `/api/quote?${quoteParams.toString()}` : null;
         const [quoteResponse, rateResponse] = await Promise.all([
           quoteUrl ? fetch(quoteUrl) : Promise.resolve<null | Response>(null),
           fetch('/api/exchange-rate'),
