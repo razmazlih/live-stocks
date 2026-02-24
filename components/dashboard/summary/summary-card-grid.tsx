@@ -40,40 +40,48 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => {
         const valueClass = card.valueClass ?? 'text-3xl font-semibold text-slate-900';
+        const hasDetails = Boolean(card.secondary || card.helper?.length || card.footnote);
 
         return (
           <div
             key={card.key}
-            className="home-summary-card relative overflow-hidden rounded-3xl border p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl"
+            className="home-summary-card group relative overflow-hidden rounded-3xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
           >
+            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/80 to-transparent" />
             <div className="pointer-events-none absolute -right-16 top-0 h-44 w-44 rounded-full card-glow blur-3xl" />
-            <div className="relative z-10 space-y-4">
+            <div className="relative z-10 space-y-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-500">{card.label}</p>
+                <p className="text-sm font-semibold tracking-wide text-slate-600">{card.label}</p>
                 {card.badge && (
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm ${card.badge.className}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${card.badge.className}`}>
                     {card.badge.icon}
                     {card.badge.value}
                   </span>
                 )}
               </div>
-              <p className={`${valueClass} tracking-tight`}>{card.value}</p>
+              <p className={`${valueClass} leading-none tracking-tight`}>{card.value}</p>
 
-              <div className="space-y-2 rounded-2xl border border-[color:var(--color-slate-100)]/90 bg-[color:var(--color-neutral-white)]/65 px-3 py-2.5">
+              {hasDetails && (
+              <div className="space-y-2 rounded-2xl border border-sky-100/80 bg-white/70 px-4 py-3 backdrop-blur-sm">
                 {card.secondary && (
-                  <p className="text-sm text-slate-500">
-                    {card.secondary.label}:{' '}
+                  <div className="grid grid-cols-[auto_1fr] items-center gap-2 text-sm">
+                    <span className="font-medium text-slate-500">{card.secondary.label}:</span>
                     <span className="font-semibold text-slate-700">{card.secondary.value}</span>
-                  </p>
+                  </div>
                 )}
                 {card.helper?.map((helper) => (
-                  <p key={`${card.key}-${helper.label}`} className="text-xs text-slate-500">
-                    {helper.label}:{' '}
+                  <div key={`${card.key}-${helper.label}`} className="grid grid-cols-[auto_1fr] items-center gap-2 text-xs">
+                    <span className="text-slate-500">{helper.label}:</span>
                     <span className="font-semibold text-slate-700">{helper.value}</span>
-                  </p>
+                  </div>
                 ))}
-                {card.footnote && <p className="text-xs font-medium text-slate-500">{card.footnote}</p>}
+                {card.footnote && (
+                  <p className="border-t border-sky-100/70 pt-2 text-xs font-medium text-slate-500">
+                    {card.footnote}
+                  </p>
+                )}
               </div>
+              )}
             </div>
           </div>
         );

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { calculatePositionMetrics } from '@/lib/calculations';
-import { mapPositionRow } from '@/lib/positions';
+import {
+  calculatePortfolioSummary,
+  calculatePositionMetrics,
+  calculateRealizedTaxLiability,
+} from '@/lib/calculations';
+import { computeRealizedSalesWithFx, expandPositionActivations, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
+import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
 import { getSupabaseClient } from '@/lib/supabase';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
 import { Position, PositionMetrics } from '@/types';
@@ -16,6 +21,7 @@ export const revalidate = 0;
 interface PortfolioRequestBody {
   includeWeightedPrice?: boolean;
   targetCurrency?: string;
+  includeClosed?: boolean;
 }
 
 interface WeightedPortfolioPrices {
@@ -105,9 +111,17 @@ export async function POST(request: NextRequest) {
     }
 
     const rawPositions = Array.isArray(positionsData) ? positionsData : [];
-    const positions: Position[] = rawPositions
-      .map(mapPositionRow)
-      .filter(position => isFiniteNumber(position.quantity) && position.quantity > 0);
+    const mappedPositions: Position[] = rawPositions.map(mapPositionRow);
+    const activationPositions = mappedPositions.flatMap((position) =>
+      expandPositionActivations(position),
+    );
+    const includeClosed = Boolean(body?.includeClosed);
+    const positions: Position[] = activationPositions.filter((position) => {
+      if (isFiniteNumber(position.quantity) && position.quantity > 0) {
+        return true;
+      }
+      return includeClosed;
+    });
 
     const usdToIlsRate = await getUsdToIlsRate();
 
@@ -133,6 +147,85 @@ export async function POST(request: NextRequest) {
       }),
     );
 
+    const allTimestamps = mappedPositions.flatMap((position) =>
+      (position.lots ?? [])
+        .map((lot) => new Date(lot.executedAt).getTime())
+        .filter((timestamp) => Number.isFinite(timestamp)),
+    );
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const minFxTimestamp = allTimestamps.reduce<number | null>(
+      (min, value) => (min === null ? value : Math.min(min, value)),
+      null,
+    );
+    const fxFrom = Math.max(
+      0,
+      Math.floor(((minFxTimestamp ?? Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000) - 2 * 24 * 60 * 60),
+    );
+    const fxHistoryPoints = await fetchUsdIlsHistoricalPoints(fxFrom, nowSeconds);
+    const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, usdToIlsRate);
+
+    const realizedSales = mappedPositions.flatMap((position) =>
+      computeRealizedSalesWithFx(position, getFxRateAt),
+    );
+    const realizedTotals = realizedSales.reduce(
+      (acc, sale) => {
+        const holdingYears = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
+        const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
+        const expectedProfitUsd = sale.costBasisUsd * (expectedFactor - 1);
+
+        acc.profitUsd += sale.profitUsd;
+        acc.profitIls += sale.profitIls ?? sale.profitUsd * usdToIlsRate;
+        acc.expectedProfitUsd += expectedProfitUsd;
+        acc.expectedProfitIls += expectedProfitUsd * getFxRateAt(new Date(sale.sellDate).getTime());
+        return acc;
+      },
+      { profitUsd: 0, profitIls: 0, expectedProfitUsd: 0, expectedProfitIls: 0 },
+    );
+
+    const chronologicalSales = realizedSales
+      .slice()
+      .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
+    const taxSummary = calculateRealizedTaxLiability(
+      chronologicalSales.map((sale) => ({
+        profitUsd: sale.profitUsd,
+        profitIls: sale.profitIls ?? sale.profitUsd * usdToIlsRate,
+        timestamp: new Date(sale.sellDate).getTime(),
+      })),
+    );
+
+    const baseSummary = calculatePortfolioSummary(metrics, usdToIlsRate);
+    const totalCurrentPnLUsd = baseSummary.totalCurrentPnLUsd + realizedTotals.profitUsd;
+    const totalCurrentPnLIls = baseSummary.totalCurrentPnLIls + realizedTotals.profitIls;
+    const totalProjectedPnLUsd = Math.max(
+      baseSummary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd,
+      0,
+    );
+    const totalProjectedPnLIls = Math.max(
+      baseSummary.totalProjectedPnLIls + realizedTotals.expectedProfitIls,
+      0,
+    );
+    const totalCombinedUsd = totalCurrentPnLUsd - totalProjectedPnLUsd;
+    const totalCombinedIls = totalCurrentPnLIls - totalProjectedPnLIls;
+
+    const summary = {
+      ...baseSummary,
+      totalCurrentPnLUsd: toFixedNumber(totalCurrentPnLUsd),
+      totalCurrentPnLIls: toFixedNumber(totalCurrentPnLIls),
+      totalProjectedPnLUsd: toFixedNumber(totalProjectedPnLUsd),
+      totalProjectedPnLIls: toFixedNumber(totalProjectedPnLIls),
+      totalCombinedUsd: toFixedNumber(totalCombinedUsd),
+      totalCombinedIls: toFixedNumber(totalCombinedIls),
+      totalRealizedProfitUsd: toFixedNumber(realizedTotals.profitUsd),
+      totalRealizedProfitIls: toFixedNumber(realizedTotals.profitIls),
+      totalTaxesPaidUsd: toFixedNumber(taxSummary.taxUsd),
+      totalTaxesPaidIls: toFixedNumber(taxSummary.taxIls),
+      totalNetPnLUsd: toFixedNumber(totalCurrentPnLUsd - taxSummary.taxUsd),
+      totalNetPnLIls: toFixedNumber(totalCurrentPnLIls - taxSummary.taxIls),
+      totalValue: toFixedNumber(baseSummary.totalValue),
+      totalCost: toFixedNumber(baseSummary.totalCost),
+      usdToIlsRate: toFixedNumber(baseSummary.usdToIlsRate),
+    };
+
     const gapCandidates = metrics
       .map((metric) => {
         const priceGap = metric.currentPrice - metric.projectedPrice;
@@ -153,17 +246,27 @@ export async function POST(request: NextRequest) {
       return value;
     };
 
-    const topStocks = gapCandidates.slice(0, 3).map(({ metric, priceGap, pnlGapUsd }) => ({
+    const mappedStocks = gapCandidates.map(({ metric, priceGap, pnlGapUsd }) => ({
       symbol: metric.position.symbol,
       display: metric.position.display,
       imageUrl: metric.position.imageUrl,
+      location: metric.position.location,
       entryPrice: toFixedNumber(metric.position.entryPrice),
       quantity: metric.position.quantity,
       entryDate: metric.position.entryDate,
       currentPrice: toFixedNumber(metric.currentPrice),
       projectedPrice: toFixedNumber(metric.projectedPrice),
       currentPnLUsd: toFixedNumber(metric.positionPnLUsd),
+      currentPnLIls: toFixedNumber(metric.positionPnLIls),
       projectedPnLUsd: toFixedNumber(metric.projectedPnLUsd),
+      projectedPnLIls: toFixedNumber(metric.projectedPnLIls),
+      totalValueUsd: toFixedNumber(metric.currentValue),
+      totalValueIls: toFixedNumber(metric.currentValueIls),
+      roiPercent: toFixedNumber(metric.roiPercent),
+      dailyChange: isFiniteNumber(metric.dailyChange) ? toFixedNumber(metric.dailyChange) : null,
+      dailyChangePercent: isFiniteNumber(metric.dailyChangePercent)
+        ? toFixedNumber(metric.dailyChangePercent)
+        : null,
       pnlDelta: {
         currency: 'USD',
         value: toFixedNumber(pnlGapUsd),
@@ -181,12 +284,16 @@ export async function POST(request: NextRequest) {
         } : {}),
       },
     }));
+    const topStocks = mappedStocks.slice(0, 3);
 
     const responsePayload: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       usdToIlsRate,
       targetCurrency,
-      stocks: topStocks,
+      summary,
+      stocks: mappedStocks,
+      topStocks,
+      realizedSalesCount: realizedSales.length,
     };
 
     if (includeWeightedPrice) {
