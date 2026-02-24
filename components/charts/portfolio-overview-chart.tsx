@@ -175,41 +175,34 @@ const ChartTooltip = ({
   const netUsd = point.netValue;
   const netIls = point.netValueIls;
 
-  const changeRows = [
-    {
-      key: 'change',
-      label: labels.change,
-      usd: changeUsd,
-      ils: changeIls,
-    },
-  ];
+  const changeClass = changeUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
   return (
-    <div className="w-72 rounded-2xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 text-xs shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-        <span>{labels.at}</span>
-        <span className="text-slate-500">{labelFormatter(label ?? '')}</span>
+    <div className="w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-3 text-[11px] shadow-xl backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 text-[10px] text-slate-500">
+        <span className="font-semibold text-slate-400">{labels.at}</span>
+        <span className="font-semibold text-slate-600">{labelFormatter(label ?? '')}</span>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{labels.net}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(netUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(netIls)}</p>
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <div className="rounded-lg bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-2.5">
+          <p className="text-[10px] font-semibold text-indigo-600">{labels.net}</p>
+          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(netUsd)}</p>
+          <p className="text-[10px] text-slate-500">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-xl border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-3 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{labels.forecast}</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
-          <p className="text-[11px] text-slate-500">{formatIls(forecastIls)}</p>
-          <div className="mt-2 space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-overlay-amber-500">{labels.projection}</p>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+        <div className="rounded-lg border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold text-amber-600">{labels.forecast}</p>
+          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
+          <p className="text-[10px] text-slate-500">{formatIls(forecastIls)}</p>
+          <div className="mt-1.5 space-y-0.5">
+            <p className="text-[10px] font-semibold text-overlay-amber-500">{labels.projection}</p>
+            <div className="flex items-center justify-between text-[10px] text-slate-500">
               <span className="font-medium">{labels.usd}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapUsd, formatUsd)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[10px] text-slate-500">
               <span className="font-medium">{labels.ils}</span>
               <span className={`font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapIls, formatIls)}
@@ -217,47 +210,36 @@ const ChartTooltip = ({
             </div>
           </div>
         </div>
-        <div className="col-span-2 rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{labels.spy}</p>
-            <div className="mt-1 flex items-center justify-between">
+        <div className="col-span-2 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
+            <p className="text-[10px] font-semibold text-slate-500">{labels.spy}</p>
+            <div className="mt-0.5 flex items-center justify-between">
                 <div>
-                    <p className="text-lg font-semibold text-slate-700">{formatUsd(spyUsd)}</p>
-                    <p className="text-[11px] text-slate-500">{formatIls(spyIls)}</p>
+                    <p className="text-base font-semibold text-slate-700">{formatUsd(spyUsd)}</p>
+                    <p className="text-[10px] text-slate-500">{formatIls(spyIls)}</p>
                 </div>
                 <div className="text-right">
-                     <p className={`text-sm font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                     <p className={`text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
                      </p>
-                     <p className="text-[11px] text-slate-400">vs S&P 500</p>
+                     <p className="text-[10px] text-slate-400">vs S&P 500</p>
                 </div>
             </div>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {changeRows.map((row) => {
-          const changeClass = row.usd >= 0 ? 'text-emerald-600' : 'text-rose-600';
-
-          return (
-            <div
-              key={row.key}
-              className="rounded-xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-3 shadow-sm"
-            >
-              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                <span>{row.label}</span>
-                <span className={`text-xs font-semibold ${changeClass}`}>
-                  {formatSignedCurrency(row.usd, formatUsd)}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                <span className="font-medium">{labels.ils}</span>
-                <span className={`font-semibold ${changeClass}`}>
-                  {formatSignedCurrency(row.ils, formatIls)}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+      <div className="mt-1.5 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
+        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+          <span>{labels.change}</span>
+          <span className={`text-[11px] font-semibold ${changeClass}`}>
+            {formatSignedCurrency(changeUsd, formatUsd)}
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between text-[10px] text-slate-500">
+          <span className="font-medium">{labels.ils}</span>
+          <span className={`font-semibold ${changeClass}`}>
+            {formatSignedCurrency(changeIls, formatIls)}
+          </span>
+        </div>
       </div>
     </div>
   );

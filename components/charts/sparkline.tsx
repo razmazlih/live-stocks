@@ -548,25 +548,58 @@ export function Sparkline({
   const activeEvent = normalizedEvents.find((event) => event.id === activeEventId) ?? null;
   const activeEventTone = activeEvent?.type === 'BUY'
     ? {
-        badge: 'text-emerald-700 bg-emerald-50',
+        badge: 'border-emerald-300/80 bg-emerald-50/95 text-emerald-700',
         border: 'border-emerald-200/90',
       }
     : {
-        badge: 'text-rose-700 bg-rose-50',
+        badge: 'border-rose-300/80 bg-rose-50/95 text-rose-700',
         border: 'border-rose-200/90',
       };
-  const eventTooltipWidth = 188;
-  const eventTooltipOffset = 14;
+  const eventTooltipWidth = 224;
+  const eventTooltipHeight = 124;
+  const eventTooltipOffset = 10;
   const eventTooltipLeft = activeEvent
-    ? (activeEvent.x > chartWidth - eventTooltipWidth - 12
-      ? Math.max(activeEvent.x - eventTooltipWidth - eventTooltipOffset, 8)
-      : Math.min(activeEvent.x + eventTooltipOffset, chartWidth - eventTooltipWidth - 8))
+    ? Math.min(
+        Math.max(activeEvent.x - (eventTooltipWidth / 2), 8),
+        Math.max(chartWidth - eventTooltipWidth - 8, 8)
+      )
     : 0;
-  const eventTooltipTop = activeEvent
-    ? (activeEvent.y < 56
-      ? Math.min(activeEvent.y + 12, Math.max(height - 92, 8))
-      : Math.max(activeEvent.y - 76, 8))
-    : 0;
+  const eventTooltipTop = -(eventTooltipHeight + eventTooltipOffset);
+  const latestClose = normalizedPoints[normalizedPoints.length - 1]?.close ?? null;
+  const isSellEvent = activeEvent?.type === 'SELL';
+  const buyReferencePrice = activeEvent?.type === 'BUY'
+    ? activeEvent.price
+    : (typeof baseline === 'number' ? baseline : null);
+  const comparisonPrice = isSellEvent
+    ? (activeEvent?.price ?? null)
+    : latestClose;
+  const changeFromEvent = buyReferencePrice !== null && comparisonPrice !== null && activeEvent
+    ? {
+        amount: (comparisonPrice - buyReferencePrice) * activeEvent.quantity,
+        percent: buyReferencePrice !== 0
+          ? ((comparisonPrice - buyReferencePrice) / buyReferencePrice) * 100
+          : null,
+      }
+    : null;
+  const changeToneClass = (changeFromEvent?.amount ?? 0) >= 0
+    ? 'text-emerald-700'
+    : 'text-rose-700';
+  const changeAmountText = changeFromEvent
+    ? new Intl.NumberFormat('he-IL', {
+        style: 'currency',
+        currency: 'USD',
+        signDisplay: 'always',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(changeFromEvent.amount)
+    : null;
+  const changePercentText = changeFromEvent && changeFromEvent.percent !== null
+    ? new Intl.NumberFormat('he-IL', {
+        signDisplay: 'always',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(changeFromEvent.percent)
+    : null;
 
   const handleWrapperClick = () => {
     setSelectedEventId(null);
@@ -709,9 +742,9 @@ export function Sparkline({
   return (
     <div className={`relative ${className}`} style={{ width: '100%', height }}>
       <div className="flex h-full w-full">
-        <div
-          ref={chartRef}
-          className="relative h-full min-w-0 flex-1"
+          <div
+            ref={chartRef}
+            className="relative h-full min-w-0 flex-1 overflow-visible"
           onPointerLeave={handleWrapperLeave}
           onTouchCancel={handleWrapperLeave}
           onTouchEnd={handleWrapperLeave}
@@ -941,29 +974,57 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className={`pointer-events-none absolute z-20 w-[188px] rounded-xl border bg-[color:var(--color-neutral-white)]/98 px-3 py-2 text-xs shadow-xl backdrop-blur-[1px] ${activeEventTone?.border ?? 'border-slate-200/90'}`}
+              className={`pointer-events-none absolute z-30 w-[224px] rounded-2xl border bg-white/72 px-3 py-2.5 text-xs text-slate-700 shadow-lg backdrop-blur-md ${activeEventTone?.border ?? 'border-slate-200/90'}`}
               style={{
                 left: eventTooltipLeft,
                 top: eventTooltipTop,
               }}
+              dir="rtl"
             >
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${activeEventTone?.badge ?? 'bg-slate-100 text-slate-700'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${activeEventTone?.badge ?? 'border-slate-300 bg-slate-100 text-slate-700'}`}>
                   {activeEvent.typeLabel ?? activeEvent.type}
                 </span>
-              </div>
-              <div className="mt-1 text-slate-500">
-                {new Date(activeEvent.timestamp).toLocaleDateString()}
-              </div>
-              <div className="mt-1.5 flex items-center gap-2 text-slate-700">
-                <span className="font-semibold text-slate-900 tabular-nums">
-                  {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
-                </span>
-                <span className="text-slate-300">•</span>
-                <span className="tabular-nums">
-                  {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
+                <span className="text-[11px] font-medium text-slate-500">
+                  {new Date(activeEvent.timestamp).toLocaleDateString('he-IL')}
                 </span>
               </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
+                    מחיר
+                  </div>
+                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
+                    {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
+                    כמות
+                  </div>
+                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
+                    {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              {changeFromEvent && (
+                <div className="mt-2 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">שינוי באחוזים</span>
+                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
+                      {changePercentText}%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">
+                      {isSellEvent ? 'רווח/הפסד במכירה' : 'שינוי בכסף'}
+                    </span>
+                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
+                      {changeAmountText}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
