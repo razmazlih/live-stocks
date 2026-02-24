@@ -809,6 +809,24 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       : dailyChangeValue >= 0
         ? 'text-emerald-600'
         : 'text-rose-600';
+  const avgCostVsNowPercent =
+    metrics && metrics.position.entryPrice > 0
+      ? ((metrics.currentPrice - metrics.position.entryPrice) / metrics.position.entryPrice) * 100
+      : undefined;
+  const avgCostVsNowLabel =
+    avgCostVsNowPercent !== undefined ? formatPercent(avgCostVsNowPercent, locale) : '--';
+  const avgCostVsNowClass =
+    avgCostVsNowPercent === undefined
+      ? 'text-slate-500'
+      : avgCostVsNowPercent >= 0
+        ? 'text-emerald-600'
+        : 'text-rose-600';
+  const profitPerShare = metrics ? metrics.currentPrice - metrics.position.entryPrice : 0;
+  const profitPerShareLabel = formatDualCurrency(profitPerShare);
+  const profitPerShareClass =
+    profitPerShare === 0 ? 'text-slate-600' : profitPerShare > 0 ? 'text-emerald-600' : 'text-rose-600';
+  const transactionsCountLabel = formatNumber(transactions.length, locale);
+  const openLotsCountLabel = formatNumber(openLots.length, locale);
 
   const quickFacts = metrics
     ? [
@@ -816,20 +834,17 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           key: 'currentValue',
           label: t.stock.detailView.quickFacts.currentValue,
           value: currentValueDisplay,
-          helper: t.stock.detailView.quickFactsHelper.currentValue,
         },
         {
           key: 'investedAmount',
           label: t.stock.detailView.quickFacts.investedAmount,
           value: investedAmountDisplay,
-          helper: t.stock.detailView.quickFactsHelper.investedAmount,
         },
         {
           key: 'totalGain',
           label: t.stock.detailView.quickFacts.totalGain,
           value: totalGainDisplay,
           secondary: totalGainPercentLabel,
-          helper: t.stock.detailView.quickFactsHelper.totalGain,
           accentClass: totalGainClass,
           secondaryClass: totalGainClass,
         },
@@ -838,7 +853,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           label: t.stock.detailView.quickFacts.dailyChange,
           value: dailyChangeDisplay,
           secondary: dailyChangePercentLabel,
-          helper: t.stock.detailView.quickFactsHelper.dailyChange,
           accentClass: dailyChangeClass,
           secondaryClass: dailyChangeClass,
         },
@@ -846,7 +860,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           key: 'holdingTime',
           label: t.stock.detailView.quickFacts.holdingTime,
           value: holdingPeriodLabel,
-          helper: t.stock.detailView.quickFactsHelper.holdingTime,
         },
       ]
     : [];
@@ -889,119 +902,69 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-2xl bg-overlay-neutral-white p-6 shadow-md backdrop-blur">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
-                    <StockAvatarImage
-                      symbol={position.symbol}
-                      display={position.display}
-                      imageUrl={position.imageUrl}
-                    />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{position.display}</h1>
-                      <Badge variant="secondary" className="text-sm uppercase">
-                        {position.symbol}
-                      </Badge>
-                      {badgeLocations.map((bank) => (
-                        <BankBadge
-                          key={`header-${bank}`}
-                          bank={bank}
-                          locale={locale}
-                          size="sm"
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                      <span>
-                        {t.dashboard.quantity}{' '}
-                        <span className="font-medium text-gray-900">
-                          {formatNumber(position.quantity, locale)}
-                        </span>
-                      </span>
-                      <span>
-                        {t.dashboard.entryPrice}{' '}
-                        <span className="font-medium text-gray-900">
-                          {formatDualCurrency(position.entryPrice)}
-                        </span>
-                      </span>
-                      <span className="inline-flex flex-wrap items-center gap-2">
-                        {t.positions.locationLabel}
-                        {badgeLocations.length === 0 && (
-                          <span className="font-medium text-gray-400">--</span>
-                        )}
-                        {badgeLocations.length > 0 && locationBreakdowns.length === 0 && position && (
-                          <span className="inline-flex items-center gap-1">
-                            <BankBadge
-                              bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
-                              locale={locale}
-                              size="sm"
-                            />
-                            <span className="font-medium text-gray-900">
-                              {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                            </span>
-                          </span>
-                        )}
-                        {locationBreakdowns.length > 0 &&
-                          locationBreakdowns.map((breakdown) => (
-                            <span
-                              key={`${breakdown.location}-label`}
-                              className="inline-flex items-center gap-1"
-                            >
-                              <BankBadge bank={breakdown.location} locale={locale} size="sm" />
-                              <span className="font-medium text-gray-900">
-                                {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                              </span>
-                            </span>
-                          ))}
-                      </span>
-                      <span>
-                        {t.dashboard.since}{' '}
-                        <span className="font-medium text-gray-900">
-                          {formatDate(position.entryDate, locale)}
-                        </span>
-                      </span>
-                    </div>
-                    {locationBreakdowns.length > 1 && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
-                        {locationBreakdowns.map((breakdown) => (
-                          <div
-                            key={`${breakdown.location}-breakdown`}
-                            className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
-                          >
-                            <span className="font-medium text-gray-700">
-                              {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                            </span>
-                            <span>
-                              {formatNumber(breakdown.quantity, locale)} · {formatDualCurrency(breakdown.averageEntryPrice)}
-                            </span>
-                          </div>
+            <Card className="overflow-hidden border-[color:var(--color-primary-200)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-blue-50)]/85 to-[color:var(--color-primary-100)]/85 shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
+                      <StockAvatarImage
+                        symbol={position.symbol}
+                        display={position.display}
+                        imageUrl={position.imageUrl}
+                      />
+                      <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                        {position.symbol.slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{position.display}</h1>
+                        <Badge variant="secondary" className="text-sm uppercase">
+                          {position.symbol}
+                        </Badge>
+                        {badgeLocations.map((bank) => (
+                          <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
                         ))}
                       </div>
-                    )}
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                        <span>
+                          {t.dashboard.quantity}{' '}
+                          <span className="font-medium text-slate-900">
+                            {formatNumber(position.quantity, locale)}
+                          </span>
+                        </span>
+                        <span>
+                          {t.dashboard.entryPrice}{' '}
+                          <span className="font-medium text-slate-900">
+                            {formatDualCurrency(position.entryPrice)}
+                          </span>
+                        </span>
+                        <span>
+                          {t.dashboard.since}{' '}
+                          <span className="font-medium text-slate-900">
+                            {formatDate(position.entryDate, locale)}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={cn('rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm', isRtl ? 'text-left' : 'text-right')}>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">{t.stock.priceToday}</div>
+                    <div className="mt-1 text-3xl font-semibold text-[var(--color-primary-900)]">
+                      {formatUsdCurrency(metrics.currentPrice)}
+                    </div>
+                    <div className={cn('mt-1 text-sm font-semibold', dailyChangeClass)}>
+                      {dailyChangeDisplay}{' '}
+                      {dailyChangePercent !== undefined && dailyChangePercentLabel !== '--'
+                        ? `(${dailyChangePercentLabel})`
+                        : ''}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">{t.stock.priceToday}</div>
-                  <div className="text-3xl font-semibold text-[var(--color-primary-900)]">
-                    {formatUsdCurrency(metrics.currentPrice)}
-                  </div>
-                  <div className={cn('text-sm font-medium', dailyChangeClass)}>
-                    {dailyChangeDisplay}{' '}
-                    {dailyChangePercent !== undefined && dailyChangePercentLabel !== '--'
-                      ? `(${dailyChangePercentLabel})`
-                      : ''}
-                  </div>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
+            <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">
                   {t.stock.detailView.quickFactsTitle}
@@ -1013,7 +976,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   {quickFacts.map((fact) => (
                     <div
                       key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)]/70 p-4 shadow-sm"
+                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)] p-4 shadow-sm"
                     >
                       <div className="text-xs uppercase tracking-wide text-gray-500">
                         {fact.label}
@@ -1026,115 +989,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           {fact.secondary}
                         </div>
                       )}
-                      <p className="mt-2 text-xs text-gray-500">{fact.helper}</p>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
-              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    {t.positions.transactionsTitle}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500">{t.stock.detailView.transactionsHelper}</p>
-                </div>
-                <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 sm:grid-cols-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.quantity}</div>
-                    <div className="font-medium text-gray-900">{formatNumber(position.quantity, locale)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.entryPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDualCurrency(position.entryPrice)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.weightedProjectedPrice}</div>
-                    <div className="font-medium text-gray-900">{formatDualCurrency(metrics.projectedPrice)}</div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-gray-600">
-                {openLots.length > 0 ? (
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {t.positions.currentHolding}
-                    </div>
-                    <div className="mt-2 grid gap-3 md:grid-cols-2">
-                      {openLots.map((lot) => (
-                        <div
-                          key={`${lot.id ?? lot.executedAt}-open`}
-                          className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
-                        >
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <span className="font-semibold text-emerald-600">{t.positions.buy}</span>
-                            <span>{formatDate(lot.executedAt, locale)}</span>
-                          </div>
-                          <div className="mt-2 text-sm font-medium text-gray-900">
-                            {formatNumber(lot.quantity, locale)} · {formatDualCurrency(lot.price)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-gray-500">
-                    {t.positions.noTransactions}
-                  </div>
-                )}
-
-                {transactions.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t.positions.transactionType}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
-                      <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((lot) => {
-                          const badgeTone = lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-                          const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                          return (
-                        <TableRow key={`${lot.id}-${lot.executedAt}`}>
-                          <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
-                              {label}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatNumber(lot.quantity, locale)}
-                          </TableCell>
-                          <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
-                          <TableCell className="text-right text-xs text-gray-500">
-                            {lot.hasCommission && lot.commissionAmount > 0
-                              ? t.positions.transactionCommissionShort(
-                                  formatDualCurrency(lot.commissionAmount),
-                                )
-                              : t.positions.transactionCommissionWaived}
-                          </TableCell>
-                          <TableCell className="text-right text-xs text-gray-500">
-                            {formatDate(lot.executedAt, locale)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[color:var(--color-neutral-white)]/85 border border-[color:var(--color-neutral-white)]/60 shadow-xl">
-              <CardHeader className="gap-2">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+                <CardHeader className="gap-2">
                   <div>
                     <CardTitle className="text-lg font-semibold text-gray-900">
                       {t.stock.detailView.chartTitle}
@@ -1162,94 +1025,219 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </label>
                     </div>
                   </div>
+                </CardHeader>
+                <CardContent>
+                  {historicalLoading ? (
+                    <Skeleton className="h-80 w-full" />
+                  ) : chartData.length === 0 ? (
+                    <div className="flex h-80 items-center justify-center text-sm text-gray-500">
+                      {t.stock.historyUnavailable}
+                    </div>
+                  ) : (
+                    <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
+                          <defs>
+                            <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.45} />
+                              <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
+                          <XAxis
+                            dataKey="timestamp"
+                            type="number"
+                            domain={xAxisDomain ?? FALLBACK_X_AXIS_DOMAIN}
+                            allowDataOverflow
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={12}
+                            minTickGap={24}
+                            tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                            tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
+                          />
+                          <YAxis
+                            yAxisId="price"
+                            domain={priceDomain}
+                            width={80}
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            padding={{ top: 12, bottom: 12 }}
+                            tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                            tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
+                          />
+                          <Tooltip
+                            cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
+                            wrapperStyle={{ outline: 'none' }}
+                            content={renderTooltip}
+                          />
+                          {showVolume && (
+                            <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
+                          )}
+                          {showVolume && (
+                            <Bar
+                              yAxisId="volume"
+                              dataKey="volume"
+                              name={t.stock.detailView.tooltip.volume}
+                              barSize={14}
+                              radius={[6, 6, 0, 0]}
+                              fill="rgba(var(--color-primary-400-rgb), 0.18)"
+                            />
+                          )}
+                          <Area
+                            type="monotone"
+                            dataKey="close"
+                            yAxisId="price"
+                            stroke="var(--color-primary-700)"
+                            strokeWidth={2.75}
+                            activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
+                            fill="url(#priceGradient)"
+                            name={t.stock.detailView.chartPriceLabel}
+                          />
+                          {tradeMarkers.length > 0 && (
+                            <Scatter
+                              data={tradeMarkers}
+                              dataKey="tradePrice"
+                              yAxisId="price"
+                              name={t.stock.detailView.tradeMarkers.seriesLabel}
+                              shape={<TradeMarkerShape />}
+                            />
+                          )}
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {locale === 'he' ? 'מצב פוזיציה' : 'Position health'}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">
+                    {locale === 'he'
+                      ? 'סיכום מהיר של נתונים קריטיים בלבד'
+                      : 'A focused summary of the most useful metrics'}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{locale === 'he' ? 'רווח למניה' : 'Profit per share'}</span>
+                      <span className={cn('font-semibold', profitPerShareClass)}>{profitPerShareLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{locale === 'he' ? 'פער מול מחיר ממוצע' : 'Move vs avg. cost'}</span>
+                      <span className={cn('font-semibold', avgCostVsNowClass)}>{avgCostVsNowLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{locale === 'he' ? 'משך החזקה' : 'Holding period'}</span>
+                      <span className="font-semibold text-slate-900">{holdingPeriodLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{locale === 'he' ? 'מספר פעולות' : 'Transactions'}</span>
+                      <span className="font-semibold text-slate-900">{transactionsCountLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{locale === 'he' ? 'לוטים פתוחים' : 'Open lots'}</span>
+                      <span className="font-semibold text-slate-900">{openLotsCountLabel}</span>
+                    </div>
+                  </div>
+                  {locationBreakdowns.length > 1 && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {locale === 'he' ? 'פיזור לפי חשבון' : 'By account'}
+                      </div>
+                      <div className="space-y-2">
+                        {locationBreakdowns.map((breakdown) => (
+                          <div key={`${breakdown.location}-breakdown`} className="flex items-center justify-between text-sm">
+                            <span className="inline-flex items-center gap-2 text-slate-700">
+                              <BankBadge bank={breakdown.location} locale={locale} size="sm" />
+                              {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                            </span>
+                            <span className="text-slate-600">
+                              {formatNumber(breakdown.quantity, locale)} · {formatDualCurrency(breakdown.averageEntryPrice)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {t.positions.transactionsTitle}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">{t.stock.detailView.transactionsHelper}</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {historicalLoading ? (
-                  <Skeleton className="h-80 w-full" />
-                ) : chartData.length === 0 ? (
-                  <div className="flex h-80 items-center justify-center text-sm text-gray-500">
-                    {t.stock.historyUnavailable}
+                {openLots.length > 0 ? (
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-800">
+                    {locale === 'he'
+                      ? `לוטים פתוחים: ${openLotsCountLabel}`
+                      : `Open lots: ${openLotsCountLabel}`}
                   </div>
                 ) : (
-                  <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
-                        <defs>
-                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.45} />
-                            <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
-                        <XAxis
-                          dataKey="timestamp"
-                          type="number"
-                          domain={xAxisDomain ?? FALLBACK_X_AXIS_DOMAIN}
-                          allowDataOverflow
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={12}
-                          minTickGap={24}
-                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
-                          tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
-                        />
-                        <YAxis
-                          yAxisId="price"
-                          domain={priceDomain}
-                          width={80}
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={8}
-                          padding={{ top: 12, bottom: 12 }}
-                          tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
-                          tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
-                        />
-                        <Tooltip
-                          cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
-                          wrapperStyle={{ outline: 'none' }}
-                          content={renderTooltip}
-                        />
-                        {showVolume && (
-                          <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
-                        )}
-                        {showVolume && (
-                          <Bar
-                            yAxisId="volume"
-                            dataKey="volume"
-                            name={t.stock.detailView.tooltip.volume}
-                            barSize={14}
-                            radius={[6, 6, 0, 0]}
-                            fill="rgba(var(--color-primary-400-rgb), 0.18)"
-                          />
-                        )}
-                        <Area
-                          type="monotone"
-                          dataKey="close"
-                          yAxisId="price"
-                          stroke="var(--color-primary-700)"
-                          strokeWidth={2.75}
-                          activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
-                          fill="url(#priceGradient)"
-                          name={t.stock.detailView.chartPriceLabel}
-                        />
-                        {tradeMarkers.length > 0 && (
-                          <Scatter
-                            data={tradeMarkers}
-                            dataKey="tradePrice"
-                            yAxisId="price"
-                            name={t.stock.detailView.tradeMarkers.seriesLabel}
-                            shape={<TradeMarkerShape />}
-                          />
-                        )}
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-gray-500">
+                    {t.positions.noTransactions}
                   </div>
                 )}
-                <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
+              </CardHeader>
+              <CardContent className="text-sm text-gray-600">
+                {transactions.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t.positions.transactionType}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
+                          <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((lot) => {
+                          const badgeTone =
+                            lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+                          const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
+                          return (
+                            <TableRow key={`${lot.id}-${lot.executedAt}`}>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                                  {label}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatNumber(lot.quantity, locale)}
+                              </TableCell>
+                              <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
+                              <TableCell className="text-right text-xs text-gray-500">
+                                {lot.hasCommission && lot.commissionAmount > 0
+                                  ? t.positions.transactionCommissionShort(
+                                      formatDualCurrency(lot.commissionAmount),
+                                    )
+                                  : t.positions.transactionCommissionWaived}
+                              </TableCell>
+                              <TableCell className="text-right text-xs text-gray-500">
+                                {formatDate(lot.executedAt, locale)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
-
           </div>
         )}
       </div>
