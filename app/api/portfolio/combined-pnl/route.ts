@@ -4,7 +4,8 @@ import {
   calculatePositionMetrics,
   calculateRealizedTaxLiability,
 } from '@/lib/calculations';
-import { computeRealizedSales, mapPositionRow } from '@/lib/positions';
+import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
+import { computeRealizedSalesWithFx, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -83,7 +84,23 @@ export async function GET() {
 
     const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
 
-    const realizedSales = mappedPositions.flatMap(computeRealizedSales);
+    const lotTimestamps = mappedPositions.flatMap((position) =>
+      (Array.isArray(position.lots) ? position.lots : [])
+        .map((lot) => new Date(lot.executedAt).getTime())
+        .filter((timestamp) => Number.isFinite(timestamp)),
+    );
+    const earliestLotTimestamp = lotTimestamps.length
+      ? Math.min(...lotTimestamps)
+      : Date.now() - 365 * 24 * 60 * 60 * 1000;
+    const fxPoints = await fetchUsdIlsHistoricalPoints(
+      Math.floor(earliestLotTimestamp / 1000),
+      Math.floor(Date.now() / 1000),
+    );
+    const getFxRateAt = buildUsdIlsRateResolver(fxPoints, usdToIlsRate);
+
+    const realizedSales = mappedPositions.flatMap((position) =>
+      computeRealizedSalesWithFx(position, getFxRateAt),
+    );
     const realizedTotals = realizedSales.reduce(
       (acc, sale) => {
         const profitUsd = isFiniteNumber(sale.profitUsd) ? sale.profitUsd : 0;
@@ -92,8 +109,10 @@ export async function GET() {
         const yearsHeld = Math.max(holdingDays / 365.25, 0);
         const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
         const expectedProfitUsd = costBasisUsd * (expectedFactor - 1);
-        const profitIls = profitUsd * usdToIlsRate;
-        const expectedProfitIls = expectedProfitUsd * usdToIlsRate;
+        const sellTimestamp = new Date(sale.sellDate).getTime();
+        const sellRate = getFxRateAt(sellTimestamp);
+        const profitIls = isFiniteNumber(sale.profitIls) ? sale.profitIls : profitUsd * sellRate;
+        const expectedProfitIls = expectedProfitUsd * sellRate;
 
         return {
           profitUsd: acc.profitUsd + profitUsd,
@@ -112,7 +131,11 @@ export async function GET() {
     const taxSummary = calculateRealizedTaxLiability(
       chronologicalSales.map((sale) => ({
         profitUsd: isFiniteNumber(sale.profitUsd) ? sale.profitUsd : 0,
-        profitIls: isFiniteNumber(sale.profitUsd) ? sale.profitUsd * usdToIlsRate : 0,
+        profitIls: isFiniteNumber(sale.profitIls)
+          ? sale.profitIls
+          : isFiniteNumber(sale.profitUsd)
+            ? sale.profitUsd * getFxRateAt(new Date(sale.sellDate).getTime())
+            : 0,
         timestamp: new Date(sale.sellDate).getTime(),
       })),
     );
