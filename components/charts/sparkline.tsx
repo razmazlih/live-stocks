@@ -546,6 +546,27 @@ export function Sparkline({
 
   const activeEventId = selectedEventId ?? hoveredEventId;
   const activeEvent = normalizedEvents.find((event) => event.id === activeEventId) ?? null;
+  const activeEventTone = activeEvent?.type === 'BUY'
+    ? {
+        badge: 'text-emerald-700 bg-emerald-50',
+        border: 'border-emerald-200/90',
+      }
+    : {
+        badge: 'text-rose-700 bg-rose-50',
+        border: 'border-rose-200/90',
+      };
+  const eventTooltipWidth = 188;
+  const eventTooltipOffset = 14;
+  const eventTooltipLeft = activeEvent
+    ? (activeEvent.x > chartWidth - eventTooltipWidth - 12
+      ? Math.max(activeEvent.x - eventTooltipWidth - eventTooltipOffset, 8)
+      : Math.min(activeEvent.x + eventTooltipOffset, chartWidth - eventTooltipWidth - 8))
+    : 0;
+  const eventTooltipTop = activeEvent
+    ? (activeEvent.y < 56
+      ? Math.min(activeEvent.y + 12, Math.max(height - 92, 8))
+      : Math.max(activeEvent.y - 76, 8))
+    : 0;
 
   const handleWrapperClick = () => {
     setSelectedEventId(null);
@@ -920,24 +941,28 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-3 rounded-xl bg-[color:var(--color-neutral-white)]/95 px-3 py-2 text-xs shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5"
+              className={`pointer-events-none absolute z-20 w-[188px] rounded-xl border bg-[color:var(--color-neutral-white)]/98 px-3 py-2 text-xs shadow-xl backdrop-blur-[1px] ${activeEventTone?.border ?? 'border-slate-200/90'}`}
               style={{
-                left: Math.min(Math.max(activeEvent.x, 60), chartWidth - 60),
-                top: Math.max(activeEvent.y - 12, 12),
+                left: eventTooltipLeft,
+                top: eventTooltipTop,
               }}
             >
-              <div className="font-semibold text-slate-800">
-                {activeEvent.typeLabel ?? activeEvent.type}
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${activeEventTone?.badge ?? 'bg-slate-100 text-slate-700'}`}>
+                  {activeEvent.typeLabel ?? activeEvent.type}
+                </span>
               </div>
-              <div className="text-slate-500">
+              <div className="mt-1 text-slate-500">
                 {new Date(activeEvent.timestamp).toLocaleDateString()}
               </div>
-              <div className="mt-1 text-slate-600">
-                <span className="font-medium text-slate-800">
+              <div className="mt-1.5 flex items-center gap-2 text-slate-700">
+                <span className="font-semibold text-slate-900 tabular-nums">
                   {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
                 </span>
-                <span className="ml-2">·</span>
-                <span>{activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}</span>
+                <span className="text-slate-300">•</span>
+                <span className="tabular-nums">
+                  {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
+                </span>
               </div>
             </div>
           )}

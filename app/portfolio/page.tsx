@@ -462,7 +462,7 @@ export default function PortfolioPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                    <div className="grid items-start gap-5">
                       <div className="space-y-4 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
                         <div>
                           <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
