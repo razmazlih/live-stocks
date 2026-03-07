@@ -1,122 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
   calculateRealizedTaxLiability,
-  mapCandleDataToPoints,
 } from '@/lib/calculations';
-import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
+import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
 import { computeRealizedSalesWithFx, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { getSupabaseClient } from '@/lib/supabase';
-import { fetchWithRetry } from '@/lib/http';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
-import { CandleData, Position } from '@/types';
+import { Position } from '@/types';
 
 const DEFAULT_GROWTH_RATE = Number.parseFloat(process.env.DEFAULT_GROWTH_RATE ?? '0.05');
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' } as const;
-const YAHOO_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
-
-interface YahooChartResponse {
-  chart?: {
-    result?: Array<{
-      timestamp?: number[];
-      indicators?: {
-        quote?: Array<{
-          open?: Array<number | null>;
-          close?: Array<number | null>;
-          high?: Array<number | null>;
-          low?: Array<number | null>;
-          volume?: Array<number | null>;
-        }>;
-      };
-    }>;
-  };
-}
-
-async function fetchUsdIlsHistoricalPoints(fromSec: number, toSec: number) {
-  if (!Number.isFinite(fromSec) || !Number.isFinite(toSec) || fromSec >= toSec) {
-    return [];
-  }
-
-  try {
-    const url =
-      `${YAHOO_BASE_URL}/${encodeURIComponent('ILS=X')}` +
-      `?period1=${fromSec}&period2=${toSec}&interval=1d&includeAdjustedClose=true`;
-
-    const response = await fetchWithRetry(
-      url,
-      { cache: 'no-store' },
-      { shouldRetry: (res) => !res.ok },
-    );
-    const data = (await response.json()) as YahooChartResponse;
-    const result = data.chart?.result?.[0];
-    const quote = result?.indicators?.quote?.[0];
-    const timestamps = result?.timestamp ?? [];
-
-    if (!timestamps.length || !quote) {
-      return [];
-    }
-
-    const entries: Array<{ t: number; o: number; h: number; l: number; c: number; v: number }> = [];
-    const length = Math.max(
-      timestamps.length,
-      quote.open?.length ?? 0,
-      quote.high?.length ?? 0,
-      quote.low?.length ?? 0,
-      quote.close?.length ?? 0,
-      quote.volume?.length ?? 0,
-    );
-
-    for (let i = 0; i < length; i += 1) {
-      const t = timestamps[i];
-      const o = quote.open?.[i] ?? null;
-      const h = quote.high?.[i] ?? null;
-      const l = quote.low?.[i] ?? null;
-      const c = quote.close?.[i] ?? null;
-      const v = quote.volume?.[i] ?? null;
-
-      if (
-        typeof t !== 'number' ||
-        t < fromSec ||
-        t > toSec ||
-        o === null ||
-        h === null ||
-        l === null ||
-        c === null ||
-        v === null
-      ) {
-        continue;
-      }
-
-      entries.push({ t, o, h, l, c, v });
-    }
-
-    if (!entries.length) {
-      return [];
-    }
-
-    const candleData: CandleData = {
-      t: entries.map((item) => item.t),
-      o: entries.map((item) => item.o),
-      h: entries.map((item) => item.h),
-      l: entries.map((item) => item.l),
-      c: entries.map((item) => item.c),
-      v: entries.map((item) => item.v),
-      s: 'ok',
-    };
-
-    return mapCandleDataToPoints(candleData);
-  } catch {
-    return [];
-  }
-}
-
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     let supabase;
     try {
@@ -193,6 +94,7 @@ export async function GET() {
     const fxPoints = await fetchUsdIlsHistoricalPoints(
       Math.floor(earliestLotTimestamp / 1000),
       Math.floor(Date.now() / 1000),
+      { baseUrl: request.nextUrl.origin },
     );
     const getFxRateAt = buildUsdIlsRateResolver(fxPoints, usdToIlsRate);
 

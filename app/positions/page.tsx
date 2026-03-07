@@ -45,7 +45,6 @@ import { QuickActionsSection } from "@/components/dashboard/quick-actions-sectio
 import { createCommonQuickActions } from "@/components/dashboard/common-quick-actions";
 import type { DashboardQuickAction } from "@/components/dashboard/quick-actions";
 import {
-  ArrowLeft,
   Plus,
   Pencil,
   Trash2,

@@ -12,11 +12,7 @@ import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { buildWeeklyActionItems, buildWeeklyMovers, buildWeeklySnapshot } from '@/lib/weekly-insights';
 import { useTranslation } from '@/lib/translations';
-
-function formatSigned(value: number, formatter: (value: number) => string): string {
-  const formatted = formatter(value);
-  return value > 0 ? `+${formatted}` : formatted;
-}
+import { formatLastUpdatedTime, formatSignedValue } from '@/lib/utils/portfolio-display';
 
 export default function InsightsPage() {
   const { locale } = useApp();
@@ -104,8 +100,8 @@ export default function InsightsPage() {
       return [labels.weeklySummaryFallback];
     }
 
-    const netChangeText = formatSigned(snapshot.netPnLDeltaUsd, (value) => formatCurrency(value, 'USD', locale));
-    const forecastGapText = formatSigned(snapshot.forecastGapDeltaUsd, (value) => formatCurrency(value, 'USD', locale));
+    const netChangeText = formatSignedValue(snapshot.netPnLDeltaUsd, (value) => formatCurrency(value, 'USD', locale));
+    const forecastGapText = formatSignedValue(snapshot.forecastGapDeltaUsd, (value) => formatCurrency(value, 'USD', locale));
     const topAction = actionItems[0];
     const topImproved = movers.improved[0];
     const topWorsened = movers.worsened[0];
@@ -118,12 +114,12 @@ export default function InsightsPage() {
               ? `דורש פעולה: ${topAction.position.display || topAction.position.symbol} נמצא מתחת לתחזית.`
               : 'אין מניות עם פער שלילי חריג מול התחזית.',
             topImproved
-              ? `שיפור בולט: ${topImproved.display} (${formatSigned(topImproved.changeUsd, (value) =>
+              ? `שיפור בולט: ${topImproved.display} (${formatSignedValue(topImproved.changeUsd, (value) =>
                   formatCurrency(value, 'USD', locale)
                 )}).`
               : 'לא זוהה שיפור בולט השבוע.',
             topWorsened
-              ? `החמרה בולטת: ${topWorsened.display} (${formatSigned(topWorsened.changeUsd, (value) =>
+              ? `החמרה בולטת: ${topWorsened.display} (${formatSignedValue(topWorsened.changeUsd, (value) =>
                   formatCurrency(value, 'USD', locale)
                 )}).`
               : 'לא זוהתה החמרה בולטת השבוע.',
@@ -134,12 +130,12 @@ export default function InsightsPage() {
               ? `Action needed: ${topAction.position.display || topAction.position.symbol} is lagging its projection.`
               : 'No position is showing a severe negative gap vs projection.',
             topImproved
-              ? `Top improvement: ${topImproved.display} (${formatSigned(topImproved.changeUsd, (value) =>
+              ? `Top improvement: ${topImproved.display} (${formatSignedValue(topImproved.changeUsd, (value) =>
                   formatCurrency(value, 'USD', locale)
                 )}).`
               : 'No standout improvement this week.',
             topWorsened
-              ? `Top deterioration: ${topWorsened.display} (${formatSigned(topWorsened.changeUsd, (value) =>
+              ? `Top deterioration: ${topWorsened.display} (${formatSignedValue(topWorsened.changeUsd, (value) =>
                   formatCurrency(value, 'USD', locale)
                 )}).`
               : 'No standout deterioration this week.',
@@ -148,12 +144,7 @@ export default function InsightsPage() {
     return messages;
   }, [summary, snapshot, actionItems, movers, labels.weeklySummaryFallback, locale]);
 
-  const updatedAtLabel = lastUpdate
-    ? lastUpdate.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  const updatedAtLabel = formatLastUpdatedTime(lastUpdate, locale);
 
   const currentRate = summary?.usdToIlsRate ?? usdToIls;
 
@@ -190,7 +181,7 @@ export default function InsightsPage() {
                         <CardHeader className="pb-2">
                           <CardDescription>{labels.weeklyChange}</CardDescription>
                           <CardTitle className={snapshot.netPnLDeltaUsd >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                            {formatSigned(snapshot.netPnLDeltaUsd, (value) => formatCurrency(value, 'USD', locale))}
+                            {formatSignedValue(snapshot.netPnLDeltaUsd, (value) => formatCurrency(value, 'USD', locale))}
                           </CardTitle>
                         </CardHeader>
                       </Card>
@@ -198,7 +189,7 @@ export default function InsightsPage() {
                         <CardHeader className="pb-2">
                           <CardDescription>{labels.forecastGap}</CardDescription>
                           <CardTitle className={snapshot.forecastGapDeltaUsd >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                            {formatSigned(snapshot.forecastGapDeltaUsd, (value) => formatCurrency(value, 'USD', locale))}
+                            {formatSignedValue(snapshot.forecastGapDeltaUsd, (value) => formatCurrency(value, 'USD', locale))}
                           </CardTitle>
                         </CardHeader>
                       </Card>
@@ -206,7 +197,7 @@ export default function InsightsPage() {
                         <CardHeader className="pb-2">
                           <CardDescription>{labels.dailyMomentum}</CardDescription>
                           <CardTitle className={snapshot.currentDailyMomentumUsd >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                            {formatSigned(snapshot.currentDailyMomentumUsd, (value) => formatCurrency(value, 'USD', locale))}
+                            {formatSignedValue(snapshot.currentDailyMomentumUsd, (value) => formatCurrency(value, 'USD', locale))}
                           </CardTitle>
                         </CardHeader>
                       </Card>
@@ -246,7 +237,7 @@ export default function InsightsPage() {
                                 </div>
                                 <Badge className="bg-rose-100 text-rose-700">
                                   {labels.laggingGap}:{' '}
-                                  {formatSigned(item.combined, (value) => formatCurrency(value, 'USD', locale))}
+                                  {formatSignedValue(item.combined, (value) => formatCurrency(value, 'USD', locale))}
                                 </Badge>
                               </div>
                             ))
@@ -274,8 +265,8 @@ export default function InsightsPage() {
                                   <span className="font-medium text-slate-800">{item.display}</span>
                                 </div>
                                 <div className="text-right text-sm text-emerald-700">
-                                  <div>{formatSigned(item.changeUsd, (value) => formatCurrency(value, 'USD', locale))}</div>
-                                  <div className="text-xs">{formatSigned(item.changePercent, (value) => formatPercent(value, locale))}</div>
+                                  <div>{formatSignedValue(item.changeUsd, (value) => formatCurrency(value, 'USD', locale))}</div>
+                                  <div className="text-xs">{formatSignedValue(item.changePercent, (value) => formatPercent(value, locale))}</div>
                                 </div>
                               </div>
                             ))
@@ -301,8 +292,8 @@ export default function InsightsPage() {
                                   <span className="font-medium text-slate-800">{item.display}</span>
                                 </div>
                                 <div className="text-right text-sm text-rose-700">
-                                  <div>{formatSigned(item.changeUsd, (value) => formatCurrency(value, 'USD', locale))}</div>
-                                  <div className="text-xs">{formatSigned(item.changePercent, (value) => formatPercent(value, locale))}</div>
+                                  <div>{formatSignedValue(item.changeUsd, (value) => formatCurrency(value, 'USD', locale))}</div>
+                                  <div className="text-xs">{formatSignedValue(item.changePercent, (value) => formatPercent(value, locale))}</div>
                                 </div>
                               </div>
                             ))

@@ -16,15 +16,19 @@ import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visual
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import {
   RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
   LayoutDashboard,
   Layers,
   LineChart,
 } from 'lucide-react';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import {
+  formatLastUpdatedTime,
+  formatSignedCurrency,
+  formatSignedPercent,
+  getTrendIcon,
+  getTrendTone,
+} from '@/lib/utils/portfolio-display';
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
@@ -35,7 +39,6 @@ export default function HomePage() {
   const {
     loading,
     refreshing,
-    positions,
     metrics,
     summary: portfolioSummary,
     openSummary,
@@ -47,59 +50,7 @@ export default function HomePage() {
     reload,
   } = usePortfolioData();
 
-  const lastUpdatedDisplay = useMemo(() => {
-    if (!lastUpdate) {
-      return null;
-    }
-
-    return lastUpdate.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }, [lastUpdate, locale]);
-
-  const formatSignedCurrency = (value: number, currency: 'USD' | 'ILS') => {
-    const formatted = formatCurrency(value, currency, locale);
-    return value > 0 ? `+${formatted}` : formatted;
-  };
-
-  const formatSignedPercent = (value: number) => {
-    const formatted = formatPercent(value, locale);
-    return value > 0 ? `+${formatted}` : formatted;
-  };
-
-  const getTrendTone = (value: number) => {
-    if (value > 0) {
-      return {
-        text: 'text-emerald-600',
-        badge: 'bg-emerald-50 text-emerald-600',
-      };
-    }
-
-    if (value < 0) {
-      return {
-        text: 'text-rose-600',
-        badge: 'bg-rose-50 text-rose-600',
-      };
-    }
-
-    return {
-      text: 'text-slate-600',
-      badge: 'bg-slate-100 text-slate-500',
-    };
-  };
-
-  const getTrendIcon = (value: number) => {
-    if (value > 0) {
-      return <ArrowUpRight className="h-4 w-4" />;
-    }
-
-    if (value < 0) {
-      return <ArrowDownRight className="h-4 w-4" />;
-    }
-
-    return <Minus className="h-4 w-4" />;
-  };
+  const lastUpdatedDisplay = formatLastUpdatedTime(lastUpdate, locale);
 
   const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
   const totalDailyChangeUsd = metrics.reduce(
@@ -152,7 +103,7 @@ export default function HomePage() {
 
   const dailyChangeData = hasDailyChange
     ? {
-        value: formatSignedCurrency(totalDailyChangeUsd, 'USD'),
+        value: formatSignedCurrency(totalDailyChangeUsd, 'USD', locale),
         toneClass: dailyChangeTone.badge,
         icon: dailyChangeIcon,
         label: t.dashboard.dailyChange,
@@ -187,10 +138,10 @@ export default function HomePage() {
           },
           helper: [
             { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD') },
+            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD', locale) },
           ],
           badge: {
-            value: formatSignedPercent(totalReturnPercent),
+            value: formatSignedPercent(totalReturnPercent, locale),
             className: getTrendTone(totalReturnUsd).badge,
             icon: getTrendIcon(totalReturnUsd),
           },
@@ -199,41 +150,41 @@ export default function HomePage() {
         {
           key: 'current',
           label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD'),
+          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
           valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS'),
+            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
           },
           helper: [
-            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS') },
-            { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS') },
+            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale) },
+            { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS', locale) },
           ],
         },
         {
           key: 'projected',
           label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD'),
+          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD', locale),
           valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS'),
+            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS', locale),
           },
         },
         {
           key: 'combined',
           label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD'),
+          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale),
           valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS'),
+            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
           },
           helper: [
-            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCombinedIls, 'ILS') },
+            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale) },
             {
               label: t.portfolio.ilsHistoricalAdjustedLabel,
-              value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS'),
+              value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale),
             },
           ],
         },

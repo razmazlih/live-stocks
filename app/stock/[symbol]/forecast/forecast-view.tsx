@@ -598,11 +598,6 @@ export function ForecastView({ symbol }: ForecastViewProps) {
     };
   }, [featureEnabled, normalizedSymbol]);
 
-  const primaryModels = useMemo(
-    () => forecastSets.map((dataset) => dataset.primary),
-    [forecastSets]
-  );
-
   const { quantileDefinitions, quantileChartData } = useMemo(() => {
     const definitionEntries = new Map<string, string>();
     const rows: QuantileChartDatum[] = [];
