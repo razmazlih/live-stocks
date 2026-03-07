@@ -259,8 +259,8 @@ y = draw_rtl_bullets(y, [
 
 y = section_title(y, '7) רשימת עמודים ונתיבי API שנמצאו')
 y = draw_rtl_bullets(y, [
-    'עמודים: /, /portfolio, /positions, /realized, /watchlist, /settings, /ai-prompts, /stock/[symbol], /stock/[symbol]/forecast.',
-    'API: /api/quote, /api/candles, /api/exchange-rate, /api/portfolio, /api/portfolio/combined-pnl, /api/forecast/[horizon]/[symbol].'
+    'עמודים: /, /portfolio, /positions, /realized, /watchlist, /settings, /ai-prompts, /stock/[symbol].',
+    'API: /api/quote, /api/candles, /api/exchange-rate, /api/portfolio, /api/portfolio/combined-pnl.'
 ], size=9.7)
 
 y = section_title(y, '8) פריטים שלא נמצאו במפורש במאגר')

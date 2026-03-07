@@ -10,7 +10,7 @@
 - עמוד Insights שבועי
 - עמוד AI Prompts ליצירת קונטקסט מוכן לניתוח חיצוני
 - המרות USD/ILS בזמן אמת + שערים היסטוריים
-- API פנימי ב-Next.js לציטוטים, נרות, פורטפוליו ותחזיות
+- API פנימי ב-Next.js לציטוטים, נרות ופורטפוליו
 
 ## Stack טכנולוגי
 - `Next.js 16` (App Router)
@@ -34,7 +34,6 @@ app/
   realized/                     # ביצועים ממומשים
   settings/                     # הגדרות שפה/מטבע/Token
   stock/[symbol]/               # דף מניה
-  stock/[symbol]/forecast/      # תחזית למניה (אופציונלי)
   watchlist/                    # רשימות מעקב
 
 components/
@@ -67,7 +66,6 @@ supabase/
 - `/ai-prompts` הפקת פרומפטים מובנים ל-AI
 - `/settings` הגדרות שפה, מטבע, אינטרוול רענון ו-Finnhub token
 - `/stock/[symbol]` פירוט מניה
-- `/stock/[symbol]/forecast` תחזית ממקור חיצוני (אם הופעל)
 
 ## API פנימי (Next.js Route Handlers)
 - `GET /api/quote?symbol=...` ציטוט למניה אחת (עם cache קצר בזיכרון)
@@ -76,7 +74,6 @@ supabase/
 - `GET /api/exchange-rate` שער USD→ILS
 - `POST /api/portfolio` חישוב summary + metrics + realized מול Supabase
 - `GET /api/portfolio/combined-pnl` סיכום משולב לתיק
-- `GET /api/forecast/[horizon]/[symbol]` proxy לשירות תחזיות חיצוני
 
 ## בסיס נתונים (Supabase)
 טבלאות עיקריות:
@@ -105,9 +102,6 @@ cp .env.exemple .env.local
 - `DEFAULT_GROWTH_RATE` אופציונלי (ברירת מחדל חישובית)
 - `DEFAULT_USD_TO_ILS_RATE` אופציונלי (fallback)
 - `EXCHANGE_RATE_URL` אופציונלי
-- `NEXT_PUBLIC_FORECAST_URL` אופציונלי
-  - ערך `1` מפעיל ברירת מחדל: `http://localhost:8080`
-  - ערך ריק מכבה פיצ'ר forecast
 - `OPENAI_API_KEY` אופציונלי (כרגע לא קריטי ל-core flow)
 
 ## התקנה והרצה מקומית
@@ -171,7 +165,5 @@ npm test
   - לבדוק `NEXT_PUBLIC_SUPABASE_URL` ו-`NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - אין ציטוטים חיים:
   - לבדוק `FINNHUB_TOKEN` ב-`.env.local` ובטבלת `settings`.
-- forecast מחזיר 503:
-  - להגדיר `NEXT_PUBLIC_FORECAST_URL` או לכבות את הפיצ'ר.
 - שגיאות טיפוסים/בנייה:
   - להריץ `npm run typecheck` ואז `npm run build`.

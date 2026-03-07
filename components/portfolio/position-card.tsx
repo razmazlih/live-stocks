@@ -15,7 +15,6 @@ import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FORECAST_FEATURE_ENABLED } from '@/lib/forecast-config';
 
 interface PositionCardProps {
   metrics: PositionMetrics;
@@ -26,7 +25,6 @@ interface PositionCardProps {
 export function PositionCard({ metrics, sparklineData, closedSelector }: PositionCardProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const forecastEnabled = FORECAST_FEATURE_ENABLED;
   const {
     position,
     currentPrice,
@@ -491,15 +489,6 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             )}
 
             <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
-              {forecastEnabled ? (
-                <Link
-                  href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-                >
-                  {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              ) : null}
               <Link
                 href={`/stock/${position.symbol}`}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
@@ -704,15 +693,6 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             )}
 
             <div className="flex flex-wrap justify-end gap-2 sm:gap-2.5">
-              {forecastEnabled ? (
-                <Link
-                  href={`/stock/${position.symbol}/forecast`}
-                  className="group inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-                >
-                  {t.dashboard.viewForecast}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              ) : null}
               <Link
                 href={`/stock/${position.symbol}`}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
