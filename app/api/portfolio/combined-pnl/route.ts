@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const [positionsResult, settingsResult] = await Promise.all([
       supabase
         .from('positions')
-        .select('*, position_lots(*), position_plans(*)')
+        .select('*, position_lots(*)')
         .order('symbol'),
       supabase
         .from('settings')

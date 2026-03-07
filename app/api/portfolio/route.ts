@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const [{ data: positionsData, error: positionsError }, { data: settingsData, error: settingsError }] = await Promise.all([
       supabase
         .from('positions')
-        .select('*, position_lots(*), position_plans(*)')
+        .select('*, position_lots(*)')
         .order('symbol'),
       supabase
         .from('settings')

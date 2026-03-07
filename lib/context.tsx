@@ -7,14 +7,10 @@ import {
   useEffect,
   ReactNode,
   useCallback,
-  useRef,
 } from 'react';
 import { Locale, Settings } from '@/types';
 import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
-import { processPendingPlans } from '@/lib/plans';
-import { useTranslation } from '@/lib/translations';
-import { toast } from 'sonner';
 
 interface AppContextType {
   locale: Locale;
@@ -24,7 +20,6 @@ interface AppContextType {
   settingsReady: boolean;
   refreshTrigger: number;
   triggerRefresh: () => void;
-  processPlans: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -39,9 +34,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [settingsReady, setSettingsReady] = useState(false);
-  const planProcessingRef = useRef(false);
-  const tokenWarningShownRef = useRef(false);
-  const { t } = useTranslation(locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,95 +102,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  const {
-    planProcessingMissingToken,
-    planProcessingTriggered,
-    planProcessingExpired,
-    planProcessingPartial,
-    planProcessingError,
-  } = t.positions;
-
-  const processPlans = useCallback(async () => {
-    if (!settingsReady) {
-      return;
-    }
-
-    if (planProcessingRef.current) {
-      return;
-    }
-
-    if (!settings.finnhubToken) {
-      if (!tokenWarningShownRef.current) {
-        toast.warning(planProcessingMissingToken);
-        tokenWarningShownRef.current = true;
-      }
-    } else {
-      tokenWarningShownRef.current = false;
-    }
-
-    planProcessingRef.current = true;
-
-    try {
-      const result = await processPendingPlans({ token: settings.finnhubToken });
-      const hadChanges = result.triggered.length > 0 || result.expired.length > 0;
-
-      if (result.triggered.length > 0) {
-        toast.success(planProcessingTriggered(result.triggered.length));
-      }
-
-      if (result.expired.length > 0) {
-        toast.info(planProcessingExpired(result.expired.length));
-      }
-
-      if (result.errors.length > 0) {
-        toast.error(planProcessingPartial(result.errors.length));
-      }
-
-      if (hadChanges) {
-        triggerRefresh();
-      }
-    } catch (error) {
-      console.error('Failed to process plans automatically:', error);
-      toast.error(planProcessingError);
-    } finally {
-      planProcessingRef.current = false;
-    }
-  }, [
-    settingsReady,
-    settings.finnhubToken,
-    planProcessingMissingToken,
-    planProcessingTriggered,
-    planProcessingExpired,
-    planProcessingPartial,
-    planProcessingError,
-    triggerRefresh,
-  ]);
-
-  useEffect(() => {
-    if (!settingsReady) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const tick = async () => {
-      if (cancelled) {
-        return;
-      }
-      await processPlans();
-    };
-
-    void tick();
-    const interval = window.setInterval(() => {
-      void tick();
-    }, 60_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [processPlans, settingsReady]);
-
   useEffect(() => {
     const updateRefreshInterval = () => {
       const newInterval = getNasdaqRefreshInterval();
@@ -233,7 +136,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         settingsReady,
         refreshTrigger,
         triggerRefresh,
-        processPlans,
       }}
     >
       {children}

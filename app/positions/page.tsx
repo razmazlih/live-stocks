@@ -9,12 +9,10 @@ import {
   PositionLocation,
   PositionLot,
   PositionLotType,
-  PositionPlan,
   StockQuote,
 } from "@/types";
 import {
   DEFAULT_COMMISSION_USD,
-  mapPositionPlanRow,
   mapPositionRow,
 } from "@/lib/positions";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/calculations";
@@ -33,14 +31,26 @@ import { BankBadge } from "@/components/branding/bank-badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StockAvatarImage } from "@/components/ui/stock-avatar-image";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { createCommonQuickActions } from "@/components/dashboard/common-quick-actions";
 import type { DashboardQuickAction } from "@/components/dashboard/quick-actions";
@@ -51,14 +61,12 @@ import {
   BarChart3,
   ArrowRightLeft,
   History,
-  CalendarPlus,
-  Ban,
   Layers,
   Package,
   CalendarClock,
-  GitBranch,
-  RefreshCw,
-  CircleDollarSign,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -75,11 +83,6 @@ interface PositionFormData {
   initialDate: string;
   initialHasCommission: boolean;
   initialCommissionAmount: number;
-  targetPrice: number;
-  targetQuantity: number;
-  targetDate: string;
-  planHasCommission: boolean;
-  planCommissionAmount: number;
 }
 
 interface TransactionFormData {
@@ -92,21 +95,37 @@ interface TransactionFormData {
   commissionAmount: number;
 }
 
-type NewPositionMode = "immediate" | "plan";
+type PositionLocationFilter = PositionLocation | "all";
+type PositionSortOption =
+  | "latest_activity"
+  | "symbol_asc"
+  | "symbol_desc"
+  | "quantity_desc"
+  | "entry_date_desc";
 
-interface PlanFormData {
-  id?: string;
-  positionId?: string | null;
-  symbol: string;
-  display: string;
-  imageUrl: string;
-  side: PositionPlan["side"];
-  targetPrice: number;
-  targetQuantity: number;
-  targetDate: string;
-  hasCommission: boolean;
-  commissionAmount: number;
-  location: PositionLocation | null;
+interface PositionListItem {
+  position: Position;
+  sortedLots: PositionLot[];
+  recentLots: PositionLot[];
+  lastActivityDate: string;
+  lastActivityTimestamp: number;
+  fallbackInitials: string;
+}
+
+function getTimestampFromIsoDate(value: string): number {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildFallbackInitials(display: string, symbol: string): string {
+  return (
+    (display || symbol || "?")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("")
+      .slice(0, 2) || "?"
+  );
 }
 
 function getTodayIsoDate(): string {
@@ -121,24 +140,6 @@ function createDefaultTransactionForm(): TransactionFormData {
     executedAt: getTodayIsoDate(),
     hasCommission: true,
     commissionAmount: DEFAULT_COMMISSION_USD,
-  };
-}
-
-function createDefaultPlanForm(
-  overrides: Partial<PlanFormData> = {},
-): PlanFormData {
-  return {
-    symbol: "",
-    display: "",
-    imageUrl: "",
-    side: "buy",
-    targetPrice: 0,
-    targetQuantity: 0,
-    targetDate: getTodayIsoDate(),
-    hasCommission: true,
-    commissionAmount: DEFAULT_COMMISSION_USD,
-    location: "bank_one",
-    ...overrides,
   };
 }
 
@@ -173,10 +174,9 @@ async function fetchQuotePrice(symbol: string): Promise<number | null> {
 }
 
 export default function PositionsPage() {
-  const { locale, triggerRefresh, processPlans, refreshTrigger } = useApp();
+  const { locale, triggerRefresh, refreshTrigger } = useApp();
   const { t } = useTranslation(locale);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
@@ -190,14 +190,7 @@ export default function PositionsPage() {
     initialDate: getTodayIsoDate(),
     initialHasCommission: true,
     initialCommissionAmount: DEFAULT_COMMISSION_USD,
-    targetPrice: 0,
-    targetQuantity: 0,
-    targetDate: getTodayIsoDate(),
-    planHasCommission: true,
-    planCommissionAmount: DEFAULT_COMMISSION_USD,
   });
-  const [newPositionMode, setNewPositionMode] =
-    useState<NewPositionMode>("immediate");
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [transactionTarget, setTransactionTarget] = useState<Position | null>(
     null,
@@ -207,30 +200,17 @@ export default function PositionsPage() {
   );
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
-  const [planDialogOpen, setPlanDialogOpen] = useState(false);
-  const [planForm, setPlanForm] = useState<PlanFormData>(
-    createDefaultPlanForm(),
-  );
-  const [planContextPosition, setPlanContextPosition] =
-    useState<Position | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [locationFilter, setLocationFilter] =
+    useState<PositionLocationFilter>("all");
+  const [sortOption, setSortOption] =
+    useState<PositionSortOption>("latest_activity");
+  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
   const lastFetchedSymbolRef = useRef<string | null>(null);
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
-  const isEditingPlan = Boolean(planForm.id);
   const isRtl = locale === "he";
-  const planStatusLabels: Record<PositionPlan["status"], string> = {
-    pending: t.positions.planStatusPending,
-    triggered: t.positions.planStatusTriggered,
-    expired: t.positions.planStatusExpired,
-    cancelled: t.positions.planStatusCancelled,
-  };
-  const planStatusClasses: Record<PositionPlan["status"], string> = {
-    pending: "bg-sky-100 text-sky-700",
-    triggered: "bg-emerald-100 text-emerald-700",
-    expired: "bg-slate-200 text-slate-600",
-    cancelled: "bg-rose-100 text-rose-700",
-  };
-  const canSelectSell = Boolean(planContextPosition?.id ?? planForm.positionId);
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -240,45 +220,6 @@ export default function PositionsPage() {
       positions.find((position) => position.id === historyTargetId) ?? null
     );
   }, [historyTargetId, positions]);
-
-  const planRecords = useMemo(
-    () => [
-      ...positions.flatMap((position) =>
-        (position.plans ?? []).map((plan) => ({ plan, position })),
-      ),
-      ...unassignedPlans.map((plan) => ({
-        plan,
-        position: null as Position | null,
-      })),
-    ],
-    [positions, unassignedPlans],
-  );
-
-  const activePlans = useMemo(
-    () =>
-      planRecords.filter(
-        ({ plan }) => plan.status !== "expired" && plan.status !== "cancelled",
-      ),
-    [planRecords],
-  );
-
-  const activeLinkedPlans = useMemo(
-    () => activePlans.filter(({ position }) => Boolean(position)),
-    [activePlans],
-  );
-
-  const activeDetachedPlans = useMemo(
-    () => activePlans.filter(({ position }) => !position),
-    [activePlans],
-  );
-
-  const closedPlans = useMemo(
-    () =>
-      planRecords.filter(
-        ({ plan }) => plan.status === "expired" || plan.status === "cancelled",
-      ),
-    [planRecords],
-  );
 
   const totalQuantity = useMemo(
     () =>
@@ -290,15 +231,111 @@ export default function PositionsPage() {
     [positions],
   );
 
-  const pendingPlansCount = useMemo(
-    () => activePlans.filter(({ plan }) => plan.status === "pending").length,
-    [activePlans],
+  const positionItems = useMemo<PositionListItem[]>(
+    () =>
+      positions.map((position) => {
+        const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
+          const aTime = getTimestampFromIsoDate(a.executedAt);
+          const bTime = getTimestampFromIsoDate(b.executedAt);
+          return bTime - aTime;
+        });
+
+        const recentLots = sortedLots.slice(0, 3);
+        const lastLotDate = sortedLots[0]?.executedAt ?? position.entryDate;
+
+        return {
+          position,
+          sortedLots,
+          recentLots,
+          lastActivityDate: lastLotDate,
+          lastActivityTimestamp: getTimestampFromIsoDate(lastLotDate),
+          fallbackInitials: buildFallbackInitials(position.display, position.symbol),
+        };
+      }),
+    [positions],
   );
 
-  const triggeredPlansCount = useMemo(
-    () => activePlans.filter(({ plan }) => plan.status === "triggered").length,
-    [activePlans],
+  const filteredPositionItems = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toUpperCase();
+
+    const filtered = positionItems.filter(({ position }) => {
+      if (
+        locationFilter !== "all" &&
+        position.location !== locationFilter
+      ) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const symbol = position.symbol.toUpperCase();
+      const display = position.display.toUpperCase();
+
+      return (
+        symbol.includes(normalizedSearch) || display.includes(normalizedSearch)
+      );
+    });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      if (sortOption === "latest_activity") {
+        return (
+          b.lastActivityTimestamp - a.lastActivityTimestamp ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      if (sortOption === "symbol_desc") {
+        return b.position.symbol.localeCompare(a.position.symbol);
+      }
+
+      if (sortOption === "quantity_desc") {
+        return (
+          b.position.quantity - a.position.quantity ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      if (sortOption === "entry_date_desc") {
+        return (
+          getTimestampFromIsoDate(b.position.entryDate) -
+            getTimestampFromIsoDate(a.position.entryDate) ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      return a.position.symbol.localeCompare(b.position.symbol);
+    });
+
+    return sorted;
+  }, [locationFilter, positionItems, searchTerm, sortOption]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, locationFilter, sortOption, pageSize]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredPositionItems.length / pageSize)),
+    [filteredPositionItems.length, pageSize],
   );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedPositionItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPositionItems.slice(start, start + pageSize);
+  }, [currentPage, filteredPositionItems, pageSize]);
+
+  const hasActiveFilters = Boolean(searchTerm.trim()) || locationFilter !== "all";
+  const displayFrom =
+    filteredPositionItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const displayTo = Math.min(currentPage * pageSize, filteredPositionItems.length);
 
   const overviewStats = [
     {
@@ -313,18 +350,6 @@ export default function PositionsPage() {
       value: formatNumber(totalQuantity, locale),
       icon: Package,
     },
-    {
-      key: "pending-plans",
-      label: t.positions.overviewPendingPlans,
-      value: formatNumber(pendingPlansCount, locale),
-      icon: CalendarClock,
-    },
-    {
-      key: "detached-plans",
-      label: t.positions.overviewDetachedPlans,
-      value: formatNumber(activeDetachedPlans.length, locale),
-      icon: GitBranch,
-    },
   ];
 
   const headerMetaBadges = [
@@ -336,23 +361,9 @@ export default function PositionsPage() {
       iconClassName: "text-blue-500",
     },
     {
-      key: "pending-plans",
+      key: "quantity",
       icon: CalendarClock,
-      label: `${t.positions.planStatusPending}: ${formatNumber(pendingPlansCount, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
-      iconClassName: "text-slate-500",
-    },
-    {
-      key: "triggered-plans",
-      icon: RefreshCw,
-      label: `${t.positions.planStatusTriggered}: ${formatNumber(triggeredPlansCount, locale)}`,
-      className: "bg-emerald-50 text-emerald-600",
-      iconClassName: "text-emerald-500",
-    },
-    {
-      key: "detached-plans",
-      icon: GitBranch,
-      label: `${t.positions.overviewDetachedPlans}: ${formatNumber(activeDetachedPlans.length, locale)}`,
+      label: `${t.positions.overviewTotalQuantity}: ${formatNumber(totalQuantity, locale)}`,
       className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
@@ -362,30 +373,15 @@ export default function PositionsPage() {
     try {
       setLoading(true);
       const supabase = getSupabaseClient();
-      const [positionsResult, unattachedPlansResult] = await Promise.all([
-        supabase
-          .from("positions")
-          .select("*, position_lots(*), position_plans(*)")
-          .order("symbol"),
-        supabase
-          .from("position_plans")
-          .select("*")
-          .is("position_id", null)
-          .order("target_date", { ascending: true }),
-      ]);
+      const { data, error } = await supabase
+        .from("positions")
+        .select("*, position_lots(*)")
+        .order("symbol");
 
-      if (positionsResult.error) throw positionsResult.error;
-      if (unattachedPlansResult.error) throw unattachedPlansResult.error;
+      if (error) throw error;
 
-      const mappedPositions: Position[] = (positionsResult.data || []).map(
-        mapPositionRow,
-      );
-      const mappedUnassignedPlans: PositionPlan[] = (
-        unattachedPlansResult.data || []
-      ).map(mapPositionPlanRow);
-
+      const mappedPositions: Position[] = (data || []).map(mapPositionRow);
       setPositions(mappedPositions);
-      setUnassignedPlans(mappedUnassignedPlans);
     } catch (error) {
       console.error("Error loading positions:", error);
       toast.error(t.common.error);
@@ -400,7 +396,6 @@ export default function PositionsPage() {
 
   const openAddDialog = useCallback(() => {
     setEditingPosition(null);
-    setNewPositionMode("immediate");
     setFormData({
       symbol: "",
       display: "",
@@ -411,11 +406,6 @@ export default function PositionsPage() {
       initialDate: getTodayIsoDate(),
       initialHasCommission: true,
       initialCommissionAmount: DEFAULT_COMMISSION_USD,
-      targetPrice: 0,
-      targetQuantity: 0,
-      targetDate: getTodayIsoDate(),
-      planHasCommission: true,
-      planCommissionAmount: DEFAULT_COMMISSION_USD,
     });
     lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
@@ -423,7 +413,6 @@ export default function PositionsPage() {
 
   function openEditDialog(position: Position) {
     setEditingPosition(position);
-    setNewPositionMode("immediate");
     setFormData({
       symbol: position.symbol,
       display: position.display,
@@ -434,11 +423,6 @@ export default function PositionsPage() {
       initialDate: position.entryDate,
       initialHasCommission: true,
       initialCommissionAmount: DEFAULT_COMMISSION_USD,
-      targetPrice: 0,
-      targetQuantity: 0,
-      targetDate: getTodayIsoDate(),
-      planHasCommission: true,
-      planCommissionAmount: DEFAULT_COMMISSION_USD,
     });
     setDialogOpen(true);
   }
@@ -475,58 +459,6 @@ export default function PositionsPage() {
     setHistoryDialogOpen(true);
   }
 
-  function openPlanDialogForPosition(position: Position) {
-    if (!position.id) {
-      return;
-    }
-    setPlanContextPosition(position);
-    setPlanForm(
-      createDefaultPlanForm({
-        positionId: position.id,
-        symbol: position.symbol,
-        display: position.display,
-        imageUrl: position.imageUrl,
-        side: "buy",
-        location: position.location,
-      }),
-    );
-    setPlanDialogOpen(true);
-  }
-
-  const openDetachedPlanDialog = useCallback(() => {
-    setPlanContextPosition(null);
-    setPlanForm(createDefaultPlanForm());
-    setPlanDialogOpen(true);
-  }, []);
-
-  function openEditPlanDialog(
-    plan: PositionPlan,
-    position: Position | null = null,
-  ) {
-    if (plan.status !== "pending") {
-      return;
-    }
-
-    setPlanContextPosition(position ?? null);
-    setPlanForm({
-      id: plan.id,
-      positionId: plan.positionId ?? null,
-      symbol: plan.symbol,
-      display: plan.display ?? "",
-      imageUrl: plan.imageUrl ?? "",
-      side: plan.side,
-      targetPrice: plan.targetPrice,
-      targetQuantity: plan.targetQuantity,
-      targetDate: plan.targetDate,
-      hasCommission: plan.hasCommission,
-      commissionAmount: plan.hasCommission ? plan.commissionAmount : 0,
-      location: plan.positionId
-        ? (position?.location ?? plan.location ?? null)
-        : (plan.location ?? "bank_one"),
-    });
-    setPlanDialogOpen(true);
-  }
-
   const quickActions = useMemo<DashboardQuickAction[]>(() => {
     const baseActions = createCommonQuickActions(t, {
       exclude: ["positions"],
@@ -548,17 +480,9 @@ export default function PositionsPage() {
         className:
           "bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]",
       },
-      {
-        key: "new-plan",
-        icon: CalendarPlus,
-        label: t.positions.addPlan,
-        onClick: openDetachedPlanDialog,
-        variant: "secondary",
-        disabled: loading,
-      },
       ...baseActions,
     ];
-  }, [t, triggerRefresh, loading, openAddDialog, openDetachedPlanDialog]);
+  }, [t, triggerRefresh, loading, openAddDialog]);
 
   useEffect(() => {
     if (!dialogOpen || isEditing) {
@@ -590,7 +514,6 @@ export default function PositionsPage() {
         setFormData((previous) => ({
           ...previous,
           initialPrice: price,
-          targetPrice: price,
         }));
       })();
     }, 600);
@@ -638,14 +561,6 @@ export default function PositionsPage() {
     };
   }, [transactionDialogOpen, transactionForm.id, transactionSymbol]);
 
-  const handlePlanDialogOpenChange = useCallback((open: boolean) => {
-    setPlanDialogOpen(open);
-    if (!open) {
-      setPlanContextPosition(null);
-      setPlanForm(createDefaultPlanForm());
-    }
-  }, []);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -657,31 +572,17 @@ export default function PositionsPage() {
     }
 
     if (!editingPosition) {
-      if (newPositionMode === "immediate") {
-        if (formData.initialPrice <= 0 || formData.initialQuantity <= 0) {
-          toast.error(
-            locale === "he"
-              ? "נדרש מחיר וכמות חיוביים לכניסה"
-              : "Positive price and quantity are required",
-          );
-          return;
-        }
-        if (
-          formData.initialHasCommission &&
-          formData.initialCommissionAmount < 0
-        ) {
-          toast.error(t.positions.transactionCommissionValidationError);
-          return;
-        }
-      } else {
-        if (formData.targetPrice <= 0 || formData.targetQuantity <= 0) {
-          toast.error(t.positions.planValidationError);
-          return;
-        }
-        if (formData.planHasCommission && formData.planCommissionAmount < 0) {
-          toast.error(t.positions.transactionCommissionValidationError);
-          return;
-        }
+      if (formData.initialPrice <= 0 || formData.initialQuantity <= 0) {
+        toast.error(
+          locale === "he"
+            ? "נדרש מחיר וכמות חיוביים לכניסה"
+            : "Positive price and quantity are required",
+        );
+        return;
+      }
+      if (formData.initialHasCommission && formData.initialCommissionAmount < 0) {
+        toast.error(t.positions.transactionCommissionValidationError);
+        return;
       }
     }
 
@@ -705,7 +606,7 @@ export default function PositionsPage() {
         toast.success(
           locale === "he" ? "הפרטים עודכנו" : "Position details updated",
         );
-      } else if (newPositionMode === "immediate") {
+      } else {
         const initialCommissionAmount = formData.initialHasCommission
           ? Math.max(formData.initialCommissionAmount, 0)
           : 0;
@@ -745,37 +646,11 @@ export default function PositionsPage() {
         }
 
         toast.success(locale === "he" ? "הפוזיציה נוספה" : "Position added");
-      } else {
-        const planCommissionAmount = formData.planHasCommission
-          ? Math.max(formData.planCommissionAmount, 0)
-          : 0;
-
-        const { error } = await supabase.from("position_plans").insert({
-          position_id: null,
-          symbol: formData.symbol,
-          display: formData.display,
-          image_url:
-            formData.imageUrl ||
-            `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
-          side: "buy",
-          target_price: formData.targetPrice,
-          target_quantity: formData.targetQuantity,
-          target_date: formData.targetDate,
-          has_commission: formData.planHasCommission,
-          commission_amount: planCommissionAmount,
-          location: formData.location,
-        });
-
-        if (error) throw error;
-
-        toast.success(t.positions.planSaved);
       }
 
       setDialogOpen(false);
-      setNewPositionMode("immediate");
       loadPositions();
       triggerRefresh();
-      void processPlans();
     } catch (error) {
       console.error("Error saving position:", error);
       toast.error(t.common.error);
@@ -887,163 +762,6 @@ export default function PositionsPage() {
       triggerRefresh();
     } catch (error) {
       console.error("Error deleting transaction:", error);
-      toast.error(t.common.error);
-    }
-  }
-
-  async function handlePlanSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    const symbol = planForm.symbol.trim().toUpperCase();
-    const display =
-      planForm.display.trim() || planContextPosition?.display || symbol;
-    const imageUrl =
-      planForm.imageUrl.trim() ||
-      planContextPosition?.imageUrl ||
-      `https://logo.clearbit.com/${symbol.toLowerCase()}.com`;
-    const side = planForm.side;
-    const targetPrice = Number.isFinite(planForm.targetPrice)
-      ? planForm.targetPrice
-      : 0;
-    const targetQuantity = Number.isFinite(planForm.targetQuantity)
-      ? planForm.targetQuantity
-      : 0;
-    const targetDate = planForm.targetDate;
-
-    if (!symbol || targetPrice <= 0 || targetQuantity <= 0 || !targetDate) {
-      toast.error(t.positions.planValidationError);
-      return;
-    }
-
-    if (planForm.hasCommission && planForm.commissionAmount < 0) {
-      toast.error(t.positions.transactionCommissionValidationError);
-      return;
-    }
-
-    const positionId = planContextPosition?.id ?? planForm.positionId ?? null;
-    const commissionAmount = planForm.hasCommission
-      ? Math.max(planForm.commissionAmount, 0)
-      : 0;
-    const resolvedLocation =
-      planContextPosition?.location ?? planForm.location ?? null;
-
-    if (side === "sell" && !positionId) {
-      toast.error(t.positions.planSellDetachedError);
-      return;
-    }
-
-    if (!positionId && !resolvedLocation) {
-      toast.error(t.positions.locationValidationError);
-      return;
-    }
-
-    try {
-      const supabase = getSupabaseClient();
-      if (isEditingPlan && planForm.id) {
-        const { error } = await supabase
-          .from("position_plans")
-          .update({
-            symbol,
-            display,
-            image_url: imageUrl,
-            side,
-            target_price: targetPrice,
-            target_quantity: targetQuantity,
-            target_date: targetDate,
-            position_id: positionId,
-            has_commission: planForm.hasCommission,
-            commission_amount: commissionAmount,
-            location: resolvedLocation,
-          })
-          .eq("id", planForm.id);
-
-        if (error) throw error;
-        toast.success(t.positions.planUpdated);
-      } else {
-        const { error } = await supabase.from("position_plans").insert({
-          symbol,
-          display,
-          image_url: imageUrl,
-          side,
-          target_price: targetPrice,
-          target_quantity: targetQuantity,
-          target_date: targetDate,
-          position_id: positionId,
-          has_commission: planForm.hasCommission,
-          commission_amount: commissionAmount,
-          location: resolvedLocation,
-        });
-
-        if (error) throw error;
-        toast.success(t.positions.planSaved);
-      }
-
-      handlePlanDialogOpenChange(false);
-      await loadPositions();
-      triggerRefresh();
-      void processPlans();
-    } catch (error) {
-      console.error("Error saving plan:", error);
-      toast.error(t.common.error);
-    }
-  }
-
-  async function handlePlanCancel(plan: PositionPlan) {
-    if (!plan.id) {
-      toast.error(t.common.error);
-      return;
-    }
-
-    if (!confirm(t.positions.planCancelConfirm)) {
-      return;
-    }
-
-    const today = getTodayIsoDate();
-
-    try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase
-        .from("position_plans")
-        .update({ status: "cancelled", expired_at: today })
-        .eq("id", plan.id);
-
-      if (error) throw error;
-
-      toast.success(t.positions.planCancelled);
-      await loadPositions();
-      triggerRefresh();
-      void processPlans();
-    } catch (error) {
-      console.error("Error cancelling plan:", error);
-      toast.error(t.common.error);
-    }
-  }
-
-  async function handlePlanDelete(plan: PositionPlan) {
-    if (!plan.id) {
-      toast.error(t.common.error);
-      return;
-    }
-
-    if (!confirm(t.positions.planDeleteConfirm)) {
-      return;
-    }
-
-    try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase
-        .from("position_plans")
-        .delete()
-        .eq("id", plan.id);
-
-      if (error) throw error;
-
-      toast.success(t.positions.planDeleted);
-      await loadPositions();
-      triggerRefresh();
-      void processPlans();
-    } catch (error) {
-      console.error("Error deleting plan:", error);
       toast.error(t.common.error);
     }
   }
@@ -1230,286 +948,118 @@ export default function PositionsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div>
-                    <Label>{t.positions.planModeLabel}</Label>
-                    <RadioGroup
-                      value={newPositionMode}
-                      onValueChange={(value) =>
-                        setNewPositionMode(value as NewPositionMode)
-                      }
-                      className="mt-2 grid gap-2 sm:grid-cols-2"
-                    >
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
-                        <RadioGroupItem
-                          value="immediate"
-                          id="position-mode-immediate"
-                          className="order-[-1]"
-                        />
-                        <span className="font-semibold text-slate-700">
-                          {t.positions.planModeImmediate}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {t.positions.planModeImmediateDescription}
-                        </span>
-                      </label>
-                      <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
-                        <RadioGroupItem
-                          value="plan"
-                          id="position-mode-plan"
-                          className="order-[-1]"
-                        />
-                        <span className="font-semibold text-slate-700">
-                          {t.positions.planModePlan}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {t.positions.planModePlanDescription}
-                        </span>
-                      </label>
-                    </RadioGroup>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                      <Input
+                        id="initialPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={
+                          Number.isFinite(formData.initialPrice)
+                            ? formData.initialPrice
+                            : 0
+                        }
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialPrice: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialQuantity">
+                        {t.positions.initialQuantity}
+                      </Label>
+                      <Input
+                        id="initialQuantity"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={
+                          Number.isFinite(formData.initialQuantity)
+                            ? formData.initialQuantity
+                            : 0
+                        }
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialQuantity: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                      <Input
+                        id="initialDate"
+                        type="date"
+                        value={formData.initialDate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialDate: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  {newPositionMode === "immediate" ? (
-                    <div className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="initialPrice">
-                            {t.positions.initialPrice}
-                          </Label>
-                          <Input
-                            id="initialPrice"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={
-                              Number.isFinite(formData.initialPrice)
-                                ? formData.initialPrice
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialPrice:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="initialQuantity">
-                            {t.positions.initialQuantity}
-                          </Label>
-                          <Input
-                            id="initialQuantity"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={
-                              Number.isFinite(formData.initialQuantity)
-                                ? formData.initialQuantity
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialQuantity:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="initialDate">
-                            {t.positions.initialDate}
-                          </Label>
-                          <Input
-                            id="initialDate"
-                            type="date"
-                            value={formData.initialDate}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialDate: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                        </div>
+                  <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label
+                          htmlFor="initial-commission-toggle"
+                          className="text-sm font-medium"
+                        >
+                          {t.positions.transactionCommissionToggle}
+                        </Label>
+                        <p className="text-xs text-slate-500">
+                          {t.positions.transactionCommissionHelper}
+                        </p>
                       </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <Label
-                              htmlFor="initial-commission-toggle"
-                              className="text-sm font-medium"
-                            >
-                              {t.positions.transactionCommissionToggle}
-                            </Label>
-                            <p className="text-xs text-slate-500">
-                              {t.positions.transactionCommissionHelper}
-                            </p>
-                          </div>
-                          <Switch
-                            id="initial-commission-toggle"
-                            checked={formData.initialHasCommission}
-                            onCheckedChange={(checked) =>
-                              setFormData((previous) => ({
-                                ...previous,
-                                initialHasCommission: checked,
-                                initialCommissionAmount: checked
-                                  ? previous.initialCommissionAmount > 0
-                                    ? previous.initialCommissionAmount
-                                    : DEFAULT_COMMISSION_USD
-                                  : 0,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="mt-3">
-                          <Label htmlFor="initial-commission-amount">
-                            {t.positions.transactionCommissionAmount}
-                          </Label>
-                          <Input
-                            id="initial-commission-amount"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.initialCommissionAmount}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialCommissionAmount:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            disabled={!formData.initialHasCommission}
-                            required={formData.initialHasCommission}
-                          />
-                        </div>
-                      </div>
+                      <Switch
+                        id="initial-commission-toggle"
+                        checked={formData.initialHasCommission}
+                        onCheckedChange={(checked) =>
+                          setFormData((previous) => ({
+                            ...previous,
+                            initialHasCommission: checked,
+                            initialCommissionAmount: checked
+                              ? previous.initialCommissionAmount > 0
+                                ? previous.initialCommissionAmount
+                                : DEFAULT_COMMISSION_USD
+                              : 0,
+                          }))
+                        }
+                      />
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="targetPrice">
-                            {t.positions.planTargetPrice}
-                          </Label>
-                          <Input
-                            id="targetPrice"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={
-                              Number.isFinite(formData.targetPrice)
-                                ? formData.targetPrice
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                targetPrice:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="targetQuantity">
-                            {t.positions.planTargetQuantity}
-                          </Label>
-                          <Input
-                            id="targetQuantity"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={
-                              Number.isFinite(formData.targetQuantity)
-                                ? formData.targetQuantity
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                targetQuantity:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <Label htmlFor="targetDate">
-                            {t.positions.planTargetDate}
-                          </Label>
-                          <Input
-                            id="targetDate"
-                            type="date"
-                            value={formData.targetDate}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                targetDate: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <Label
-                              htmlFor="plan-commission-toggle-inline"
-                              className="text-sm font-medium"
-                            >
-                              {t.positions.transactionCommissionToggle}
-                            </Label>
-                            <p className="text-xs text-slate-500">
-                              {t.positions.transactionCommissionHelper}
-                            </p>
-                          </div>
-                          <Switch
-                            id="plan-commission-toggle-inline"
-                            checked={formData.planHasCommission}
-                            onCheckedChange={(checked) =>
-                              setFormData((previous) => ({
-                                ...previous,
-                                planHasCommission: checked,
-                                planCommissionAmount: checked
-                                  ? previous.planCommissionAmount > 0
-                                    ? previous.planCommissionAmount
-                                    : DEFAULT_COMMISSION_USD
-                                  : 0,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="mt-3">
-                          <Label htmlFor="plan-commission-amount-inline">
-                            {t.positions.transactionCommissionAmount}
-                          </Label>
-                          <Input
-                            id="plan-commission-amount-inline"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.planCommissionAmount}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                planCommissionAmount:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            disabled={!formData.planHasCommission}
-                            required={formData.planHasCommission}
-                          />
-                        </div>
-                      </div>
+                    <div className="mt-3">
+                      <Label htmlFor="initial-commission-amount">
+                        {t.positions.transactionCommissionAmount}
+                      </Label>
+                      <Input
+                        id="initial-commission-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.initialCommissionAmount}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialCommissionAmount:
+                              Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        disabled={!formData.initialHasCommission}
+                        required={formData.initialHasCommission}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
               <div className="flex gap-2">
@@ -1695,308 +1245,6 @@ export default function PositionsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={planDialogOpen} onOpenChange={handlePlanDialogOpenChange}>
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>
-                {isEditingPlan
-                  ? t.positions.planEdit
-                  : planContextPosition
-                    ? t.positions.planAddFor(planContextPosition.display)
-                    : t.positions.planAddDialog}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handlePlanSubmit} className="space-y-4">
-              {planContextPosition ? (
-                <div className="rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3 text-xs text-slate-600">
-                  <p className="font-semibold text-slate-700">
-                    {planContextPosition.display}
-                  </p>
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                    <Badge
-                      variant="secondary"
-                      className="bg-slate-200 text-slate-700"
-                    >
-                      {planContextPosition.symbol}
-                    </Badge>
-                    <BankBadge
-                      bank={
-                        planContextPosition.location === "bank_two"
-                          ? "bank_two"
-                          : "bank_one"
-                      }
-                      locale={locale}
-                      size="sm"
-                    />
-                    {t.positions.planLinkedHelper}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <Label>{t.positions.locationLabel}</Label>
-                  <RadioGroup
-                    value={planForm.location ?? "bank_one"}
-                    onValueChange={(value) =>
-                      setPlanForm({
-                        ...planForm,
-                        location: value as PositionLocation,
-                      })
-                    }
-                    className="mt-2 grid gap-2 sm:grid-cols-2"
-                  >
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
-                      <RadioGroupItem
-                        value="bank_one"
-                        id="plan-location-one"
-                        className="order-[-1]"
-                      />
-                      <BankBadge
-                        bank="bank_one"
-                        locale={locale}
-                        className="mt-1 self-start"
-                      />
-                      <span className="text-xs text-slate-500">
-                        {t.positions.bankOneHelper}
-                      </span>
-                    </label>
-                    <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
-                      <RadioGroupItem
-                        value="bank_two"
-                        id="plan-location-two"
-                        className="order-[-1]"
-                      />
-                      <BankBadge
-                        bank="bank_two"
-                        locale={locale}
-                        className="mt-1 self-start"
-                      />
-                      <span className="text-xs text-slate-500">
-                        {t.positions.bankTwoHelper}
-                      </span>
-                    </label>
-                  </RadioGroup>
-                </div>
-              )}
-              <div>
-                <Label>{t.positions.planSideLabel}</Label>
-                <RadioGroup
-                  value={planForm.side}
-                  onValueChange={(value) =>
-                    setPlanForm({
-                      ...planForm,
-                      side: value as PlanFormData["side"],
-                    })
-                  }
-                  className="mt-2 grid gap-2 sm:grid-cols-2"
-                >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
-                    <RadioGroupItem
-                      value="buy"
-                      id="plan-side-buy"
-                      className="order-[-1]"
-                    />
-                    <span className="font-semibold text-slate-700">
-                      {t.positions.planSideBuy}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {t.positions.planSideBuyShort}
-                    </span>
-                  </label>
-                  <label
-                    className={`flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm ${
-                      canSelectSell ? "text-slate-600" : "text-slate-400"
-                    }`}
-                  >
-                    <RadioGroupItem
-                      value="sell"
-                      id="plan-side-sell"
-                      className="order-[-1]"
-                      disabled={!canSelectSell}
-                    />
-                    <span className="font-semibold text-slate-700">
-                      {t.positions.planSideSell}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {t.positions.planSideSellShort}
-                    </span>
-                  </label>
-                </RadioGroup>
-                {!canSelectSell && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t.positions.planSellDetachedHelper}
-                  </p>
-                )}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <Label htmlFor="plan-symbol">{t.positions.symbol}</Label>
-                  <Input
-                    id="plan-symbol"
-                    value={planForm.symbol}
-                    onChange={(e) =>
-                      setPlanForm({
-                        ...planForm,
-                        symbol: e.target.value.toUpperCase(),
-                      })
-                    }
-                    placeholder="AAPL"
-                    required
-                    disabled={Boolean(planContextPosition)}
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <Label htmlFor="plan-display">{t.positions.display}</Label>
-                  <Input
-                    id="plan-display"
-                    value={planForm.display}
-                    onChange={(e) =>
-                      setPlanForm({ ...planForm, display: e.target.value })
-                    }
-                    placeholder="Apple Inc."
-                    required={!planContextPosition}
-                    disabled={Boolean(planContextPosition)}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="plan-image">{t.positions.imageUrl}</Label>
-                <Input
-                  id="plan-image"
-                  value={planForm.imageUrl}
-                  onChange={(e) =>
-                    setPlanForm({ ...planForm, imageUrl: e.target.value })
-                  }
-                  placeholder="https://logo.clearbit.com/apple.com"
-                  disabled={Boolean(planContextPosition)}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="sm:col-span-1">
-                  <Label htmlFor="plan-target-price">
-                    {t.positions.planTargetPrice}
-                  </Label>
-                  <Input
-                    id="plan-target-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={
-                      Number.isFinite(planForm.targetPrice)
-                        ? planForm.targetPrice
-                        : 0
-                    }
-                    onChange={(e) =>
-                      setPlanForm({
-                        ...planForm,
-                        targetPrice: Number.parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <Label htmlFor="plan-target-quantity">
-                    {t.positions.planTargetQuantity}
-                  </Label>
-                  <Input
-                    id="plan-target-quantity"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={
-                      Number.isFinite(planForm.targetQuantity)
-                        ? planForm.targetQuantity
-                        : 0
-                    }
-                    onChange={(e) =>
-                      setPlanForm({
-                        ...planForm,
-                        targetQuantity: Number.parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <Label htmlFor="plan-target-date">
-                    {t.positions.planTargetDate}
-                  </Label>
-                  <Input
-                    id="plan-target-date"
-                    type="date"
-                    value={planForm.targetDate}
-                    onChange={(e) =>
-                      setPlanForm({ ...planForm, targetDate: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <Label
-                      htmlFor="plan-commission-toggle"
-                      className="text-sm font-medium"
-                    >
-                      {t.positions.transactionCommissionToggle}
-                    </Label>
-                    <p className="text-xs text-slate-500">
-                      {t.positions.transactionCommissionHelper}
-                    </p>
-                  </div>
-                  <Switch
-                    id="plan-commission-toggle"
-                    checked={planForm.hasCommission}
-                    onCheckedChange={(checked) =>
-                      setPlanForm((previous) => ({
-                        ...previous,
-                        hasCommission: checked,
-                        commissionAmount: checked
-                          ? previous.commissionAmount > 0
-                            ? previous.commissionAmount
-                            : DEFAULT_COMMISSION_USD
-                          : 0,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="mt-3">
-                  <Label htmlFor="plan-commission-amount">
-                    {t.positions.transactionCommissionAmount}
-                  </Label>
-                  <Input
-                    id="plan-commission-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={planForm.commissionAmount}
-                    onChange={(e) =>
-                      setPlanForm({
-                        ...planForm,
-                        commissionAmount:
-                          Number.parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    disabled={!planForm.hasCommission}
-                    required={planForm.hasCommission}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit">{t.positions.save}</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handlePlanDialogOpenChange(false)}
-                >
-                  {t.positions.cancel}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         <Dialog
           open={historyDialogOpen}
           onOpenChange={(open) => {
@@ -2148,805 +1396,524 @@ export default function PositionsPage() {
           <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
             <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
             <div className="relative z-10">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(320px,1fr)]">
+              {loading ? (
+                <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                  <CardContent className="py-16 text-center text-slate-500">
+                    {t.common.loading}
+                  </CardContent>
+                </Card>
+              ) : positions.length === 0 ? (
+                <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                  <CardContent className="flex flex-col items-center gap-4 py-12">
+                    <p className="text-base font-semibold text-slate-700">
+                      {t.dashboard.noPositions}
+                    </p>
+                    <p className="max-w-sm text-sm text-slate-500">
+                      {t.positions.emptyStateDescription}
+                    </p>
+                    <Button onClick={openAddDialog} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      {t.positions.add}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
                 <div className="space-y-4">
-                  {loading ? (
-                    <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
-                      <CardContent className="py-16 text-center text-slate-500">
-                        {t.common.loading}
-                      </CardContent>
-                    </Card>
-                  ) : positions.length === 0 ? (
-                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
-                      <CardContent className="flex flex-col items-center gap-4 py-12">
-                        <p className="text-base font-semibold text-slate-700">
-                          {t.dashboard.noPositions}
-                        </p>
-                        <p className="max-w-sm text-sm text-slate-500">
-                          {t.positions.emptyStateDescription}
-                        </p>
-                        <Button onClick={openAddDialog} className="gap-2">
-                          <Plus className="h-4 w-4" />
-                          {t.positions.add}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="space-y-4">
-                      {positions.map((position) => {
-                        const sortedLots = [...(position.lots ?? [])].sort(
-                          (a, b) => {
-                            const aTime = new Date(a.executedAt).getTime();
-                            const bTime = new Date(b.executedAt).getTime();
-                            return Number.isNaN(bTime) || Number.isNaN(aTime)
-                              ? 0
-                              : bTime - aTime;
-                          },
-                        );
-                        const recentLots = sortedLots.slice(0, 3);
-                        const positionActivePlans = (
-                          position.plans ?? []
-                        ).filter(
-                          (plan) =>
-                            plan.status !== "expired" &&
-                            plan.status !== "cancelled",
-                        );
-
-                        const fallbackInitials =
-                          (position.display || position.symbol || "?")
-                            .split(/\s+/)
-                            .filter(Boolean)
-                            .map((part) => part[0]?.toUpperCase() ?? "")
-                            .join("")
-                            .slice(0, 2) || "?";
-
-                        return (
-                          <Card
-                            key={position.id ?? position.symbol}
-                            className="group rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                  <Card className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                      <div className="grid gap-3 lg:grid-cols-12">
+                        <div className="relative lg:col-span-5">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            placeholder={t.positions.searchPlaceholder}
+                            className="pl-9"
+                          />
+                        </div>
+                        <div className="lg:col-span-3">
+                          <Select
+                            value={locationFilter}
+                            onValueChange={(value) =>
+                              setLocationFilter(value as PositionLocationFilter)
+                            }
                           >
-                            <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-12 w-12 border border-slate-200 bg-slate-50">
-                                  <StockAvatarImage
-                                    symbol={position.symbol}
-                                    display={`${position.display} logo`}
-                                    imageUrl={position.imageUrl}
-                                  />
-                                  <AvatarFallback className="text-sm font-medium text-slate-600">
-                                    {fallbackInitials}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 space-y-1">
-                                  <CardTitle className="truncate text-base font-semibold text-slate-900">
-                                    {position.display}
-                                  </CardTitle>
-                                  <CardDescription className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                    <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                                      {position.symbol}
-                                    </Badge>
-                                    <BankBadge
-                                      bank={
-                                        position.location === "bank_two"
-                                          ? "bank_two"
-                                          : "bank_one"
-                                      }
-                                      locale={locale}
-                                      size="sm"
-                                    />
-                                    <span className="flex items-center gap-1">
-                                      <Package className="h-3.5 w-3.5 text-slate-400" />
-                                      {formatNumber(position.quantity, locale)}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <CircleDollarSign className="h-3.5 w-3.5 text-slate-400" />
-                                      {formatCurrency(
-                                        position.entryPrice,
-                                        "USD",
-                                        locale,
-                                      )}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
-                                      {formatDate(position.entryDate, locale)}
-                                    </span>
-                                  </CardDescription>
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1">
-                                <Link
-                                  href={`/stock/${position.symbol}`}
-                                  className="shrink-0"
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={t.dashboard.viewDetails}
-                                    className="rounded-full text-slate-500 hover:text-slate-800"
-                                  >
-                                    <BarChart3 className="h-4 w-4" />
-                                  </Button>
-                                </Link>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openHistoryDialog(position)}
-                                  aria-label={t.positions.manageHistory}
-                                  className="rounded-full text-slate-500 hover:text-slate-800"
-                                >
-                                  <History className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditDialog(position)}
-                                  aria-label={t.positions.edit}
-                                  className="rounded-full text-slate-500 hover:text-slate-800"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    position.id && handleDelete(position.id)
-                                  }
-                                  aria-label={t.positions.delete}
-                                  disabled={!position.id}
-                                  className="rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-0 text-sm text-slate-600">
-                              <div className="grid gap-4 md:grid-cols-2">
-                                <div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                      {t.positions.transactionsTitle}
-                                    </p>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 gap-1 rounded-full px-3 text-xs text-slate-500 hover:text-slate-700"
-                                      onClick={() =>
-                                        openTransactionDialog(position)
-                                      }
-                                    >
-                                      <ArrowRightLeft className="h-4 w-4" />
-                                      {t.positions.addTransaction}
-                                    </Button>
-                                  </div>
-                                  {recentLots.length > 0 ? (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      {recentLots.map((lot) => {
-                                        const typeLabel =
-                                          lot.type === "BUY"
-                                            ? t.positions.buy
-                                            : t.positions.sell;
-                                        const typeBadgeClass =
-                                          lot.type === "BUY"
-                                            ? "bg-[color:var(--color-emerald-500)]/10 text-emerald-600"
-                                            : "bg-[color:var(--color-rose-500)]/10 text-rose-600";
-                                        const commissionApplied =
-                                          lot.hasCommission &&
-                                          lot.commissionAmount > 0;
-                                        const commissionLabel =
-                                          commissionApplied
-                                            ? t.positions.transactionCommissionShort(
-                                                formatCurrency(
-                                                  lot.commissionAmount,
-                                                  "USD",
-                                                  locale,
-                                                ),
-                                              )
-                                            : t.positions
-                                                .transactionCommissionWaived;
-                                        return (
-                                          <div
-                                            key={`${lot.id}-${lot.executedAt}`}
-                                            className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-1 text-xs text-slate-600 shadow-sm"
-                                          >
-                                            <span
-                                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${typeBadgeClass}`}
-                                            >
-                                              {typeLabel}
-                                            </span>
-                                            <span className="font-medium text-slate-700">
-                                              {formatNumber(
-                                                lot.quantity,
-                                                locale,
-                                              )}
-                                            </span>
-                                            <span className="text-slate-400">
-                                              ·
-                                            </span>
-                                            <span>
-                                              {formatCurrency(
-                                                lot.price,
-                                                "USD",
-                                                locale,
-                                              )}
-                                            </span>
-                                            <span className="text-slate-400">
-                                              ·
-                                            </span>
-                                            <span>
-                                              {formatDate(
-                                                lot.executedAt,
-                                                locale,
-                                              )}
-                                            </span>
-                                            <span className="text-slate-400">
-                                              ·
-                                            </span>
-                                            <span className="text-slate-500">
-                                              {commissionLabel}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <p className="mt-3 text-xs text-slate-400">
-                                      {t.positions.noTransactions}
-                                    </p>
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                      {t.positions.activePlansTitle}
-                                    </p>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 gap-1 rounded-full px-3 text-xs text-slate-500 hover:text-slate-700 disabled:text-slate-300"
-                                      onClick={() =>
-                                        openPlanDialogForPosition(position)
-                                      }
-                                      disabled={!position.id}
-                                    >
-                                      <CalendarPlus className="h-4 w-4" />
-                                      {t.positions.addPlan}
-                                    </Button>
-                                  </div>
-                                  {positionActivePlans.length > 0 ? (
-                                    <div className="mt-2 flex flex-col gap-2">
-                                      {positionActivePlans.map((plan) => {
-                                        const statusClass =
-                                          planStatusClasses[plan.status];
-                                        const statusLabel =
-                                          planStatusLabels[plan.status];
-                                        const sideBadgeClass =
-                                          plan.side === "sell"
-                                            ? "bg-[color:var(--color-rose-500)]/10 text-rose-600"
-                                            : "bg-[color:var(--color-emerald-500)]/10 text-emerald-600";
-                                        const sideLabel =
-                                          plan.side === "sell"
-                                            ? t.positions.planSideSellShort
-                                            : t.positions.planSideBuyShort;
-                                        return (
-                                          <div
-                                            key={
-                                              plan.id ??
-                                              `${plan.symbol}-${plan.targetDate}`
-                                            }
-                                            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white px-3 py-2 text-xs text-slate-600 shadow-sm"
-                                          >
-                                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                                              <span
-                                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${sideBadgeClass}`}
-                                              >
-                                                {sideLabel}
-                                              </span>
-                                              <span
-                                                className={`${statusClass} rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase`}
-                                              >
-                                                {statusLabel}
-                                              </span>
-                                              <span className="font-semibold text-slate-700">
-                                                {plan.symbol}
-                                              </span>
-                                              <span className="text-slate-500">
-                                                {formatNumber(
-                                                  plan.targetQuantity,
-                                                  locale,
-                                                )}{" "}
-                                                ·{" "}
-                                                {formatCurrency(
-                                                  plan.targetPrice,
-                                                  "USD",
-                                                  locale,
-                                                )}
-                                              </span>
-                                              <span className="text-slate-400">
-                                                •{" "}
-                                                {formatDate(
-                                                  plan.targetDate,
-                                                  locale,
-                                                )}
-                                              </span>
-                                              {plan.status === "triggered" &&
-                                                plan.triggeredAt && (
-                                                  <span className="text-[11px] text-emerald-600">
-                                                    {t.positions.planTriggeredDetail(
-                                                      formatDate(
-                                                        plan.triggeredAt,
-                                                        locale,
-                                                      ),
-                                                      formatCurrency(
-                                                        plan.executedPrice ??
-                                                          plan.targetPrice,
-                                                        "USD",
-                                                        locale,
-                                                      ),
-                                                    )}
-                                                  </span>
-                                                )}
-                                            </div>
-                                            {plan.status === "pending" && (
-                                              <div className="flex items-center gap-1">
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  className="h-7 w-7 rounded-full text-slate-500 hover:text-slate-800"
-                                                  onClick={() =>
-                                                    openEditPlanDialog(
-                                                      plan,
-                                                      position,
-                                                    )
-                                                  }
-                                                  aria-label={t.positions.edit}
-                                                >
-                                                  <Pencil className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  className="h-7 w-7 rounded-full text-rose-500 hover:text-rose-600"
-                                                  onClick={() =>
-                                                    handlePlanCancel(plan)
-                                                  }
-                                                  aria-label={
-                                                    t.positions.planCancel
-                                                  }
-                                                >
-                                                  <Ban className="h-3.5 w-3.5" />
-                                                </Button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <p className="mt-3 text-xs text-slate-400">
-                                      {t.positions.noActivePlans}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-4">
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
-                    <CardHeader>
-                      <CardTitle>{t.positions.activePlansTitle}</CardTitle>
-                      <CardDescription>
-                        {t.positions.activePlansDescription}
-                      </CardDescription>
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                        <span>
-                          {t.positions.planStatusPending}:{" "}
-                          {formatNumber(pendingPlansCount, locale)}
-                        </span>
-                        <span>
-                          {t.positions.planStatusTriggered}:{" "}
-                          {formatNumber(triggeredPlansCount, locale)}
-                        </span>
+                            <SelectTrigger>
+                              <SelectValue placeholder={t.positions.filterByBank} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">
+                                {t.positions.filterAllBanks}
+                              </SelectItem>
+                              <SelectItem value="bank_one">
+                                {t.positions.filterBankOne}
+                              </SelectItem>
+                              <SelectItem value="bank_two">
+                                {t.positions.filterBankTwo}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="lg:col-span-3">
+                          <Select
+                            value={sortOption}
+                            onValueChange={(value) =>
+                              setSortOption(value as PositionSortOption)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t.positions.sortBy} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="latest_activity">
+                                {t.positions.sortLatestActivity}
+                              </SelectItem>
+                              <SelectItem value="symbol_asc">
+                                {t.positions.sortSymbolAsc}
+                              </SelectItem>
+                              <SelectItem value="symbol_desc">
+                                {t.positions.sortSymbolDesc}
+                              </SelectItem>
+                              <SelectItem value="quantity_desc">
+                                {t.positions.sortQuantityDesc}
+                              </SelectItem>
+                              <SelectItem value="entry_date_desc">
+                                {t.positions.sortEntryDateDesc}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="lg:col-span-1">
+                          <Select
+                            value={String(pageSize)}
+                            onValueChange={(value) =>
+                              setPageSize(Number.parseInt(value, 10))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t.positions.pageSizeLabel} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      {activePlans.length === 0 ? (
-                        <p className="text-sm text-slate-500">
-                          {t.positions.noActivePlans}
-                        </p>
-                      ) : (
-                        <ScrollArea className="max-h-[360px] pr-2">
-                          <div className="space-y-4">
-                            {activeLinkedPlans.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  {t.positions.activePlansLinked}
-                                </p>
-                                <div className="mt-2 space-y-3">
-                                  {activeLinkedPlans.map(
-                                    ({ plan, position }) => {
-                                      if (!position) {
-                                        return null;
-                                      }
-                                      const statusClass =
-                                        planStatusClasses[plan.status];
-                                      const statusLabel =
-                                        planStatusLabels[plan.status];
-                                      const sideClass =
-                                        plan.side === "sell"
-                                          ? "bg-rose-100 text-rose-700"
-                                          : "bg-emerald-100 text-emerald-700";
-                                      const sideLabel =
-                                        plan.side === "sell"
-                                          ? t.positions.planSideSellShort
-                                          : t.positions.planSideBuyShort;
-                                      return (
-                                        <div
-                                          key={
-                                            plan.id ??
-                                            `${position.id}-${plan.symbol}-${plan.targetDate}`
-                                          }
-                                          className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
-                                        >
-                                          <div className="flex flex-col gap-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <span className="text-sm font-semibold text-slate-800">
-                                                {position.display}
-                                              </span>
-                                              <Badge
-                                                variant="secondary"
-                                                className="bg-slate-100 text-slate-700"
-                                              >
-                                                {position.symbol}
-                                              </Badge>
-                                              <BankBadge
-                                                bank={
-                                                  position.location ===
-                                                  "bank_two"
-                                                    ? "bank_two"
-                                                    : "bank_one"
-                                                }
-                                                locale={locale}
-                                                size="sm"
-                                              />
-                                              <Badge
-                                                className={`${sideClass} text-[11px]`}
-                                              >
-                                                {sideLabel}
-                                              </Badge>
-                                              <Badge
-                                                className={`${statusClass} text-[11px]`}
-                                              >
-                                                {statusLabel}
-                                              </Badge>
-                                            </div>
-                                            <p className="text-sm text-slate-600">
-                                              {formatNumber(
-                                                plan.targetQuantity,
-                                                locale,
-                                              )}{" "}
-                                              ·{" "}
-                                              {formatCurrency(
-                                                plan.targetPrice,
-                                                "USD",
-                                                locale,
-                                              )}{" "}
-                                              •{" "}
-                                              {formatDate(
-                                                plan.targetDate,
-                                                locale,
-                                              )}
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                              {t.positions.planLinkedTo(
-                                                position.display,
-                                              )}
-                                            </p>
-                                            {plan.status === "triggered" &&
-                                              plan.triggeredAt && (
-                                                <p className="text-xs text-emerald-600">
-                                                  {t.positions.planTriggeredDetail(
-                                                    formatDate(
-                                                      plan.triggeredAt,
-                                                      locale,
-                                                    ),
-                                                    formatCurrency(
-                                                      plan.executedPrice ??
-                                                        plan.targetPrice,
-                                                      "USD",
-                                                      locale,
-                                                    ),
-                                                  )}
-                                                </p>
-                                              )}
-                                            {plan.status === "pending" && (
-                                              <div className="flex flex-wrap gap-2">
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-8 gap-1 px-2"
-                                                  onClick={() =>
-                                                    openEditPlanDialog(
-                                                      plan,
-                                                      position,
-                                                    )
-                                                  }
-                                                >
-                                                  <Pencil className="h-4 w-4" />
-                                                  {t.positions.edit}
-                                                </Button>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-8 gap-1 px-2"
-                                                  onClick={() =>
-                                                    handlePlanCancel(plan)
-                                                  }
-                                                >
-                                                  <Ban className="h-4 w-4" />
-                                                  {t.positions.planCancel}
-                                                </Button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    },
-                                  )}
-                                </div>
-                              </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                        <span>
+                          {t.positions.filteredResultCount(
+                            filteredPositionItems.length,
+                            positions.length,
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {t.positions.rangeSummary(
+                              displayFrom,
+                              displayTo,
+                              filteredPositionItems.length,
                             )}
-                            {activeDetachedPlans.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  {t.positions.activePlansDetached}
-                                </p>
-                                <div className="mt-2 space-y-3">
-                                  {activeDetachedPlans.map(({ plan }) => {
-                                    const displayName =
-                                      plan.display ?? plan.symbol;
-                                    const statusClass =
-                                      planStatusClasses[plan.status];
-                                    const statusLabel =
-                                      planStatusLabels[plan.status];
-                                    const sideClass =
-                                      plan.side === "sell"
-                                        ? "bg-rose-100 text-rose-700"
-                                        : "bg-emerald-100 text-emerald-700";
-                                    const sideLabel =
-                                      plan.side === "sell"
-                                        ? t.positions.planSideSellShort
-                                        : t.positions.planSideBuyShort;
-                                    return (
-                                      <div
-                                        key={
-                                          plan.id ??
-                                          `detached-${plan.symbol}-${plan.targetDate}`
-                                        }
-                                        className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
-                                      >
-                                        <div className="flex flex-col gap-2">
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-sm font-semibold text-slate-800">
-                                              {displayName}
-                                            </span>
-                                            <Badge
-                                              variant="secondary"
-                                              className="bg-slate-100 text-slate-700"
-                                            >
-                                              {plan.symbol}
-                                            </Badge>
-                                            {plan.location ? (
-                                              <BankBadge
-                                                bank={
-                                                  plan.location === "bank_two"
-                                                    ? "bank_two"
-                                                    : "bank_one"
-                                                }
-                                                locale={locale}
-                                                size="sm"
-                                              />
-                                            ) : null}
-                                            <Badge
-                                              className={`${sideClass} text-[11px]`}
-                                            >
-                                              {sideLabel}
-                                            </Badge>
-                                            <Badge
-                                              className={`${statusClass} text-[11px]`}
-                                            >
-                                              {statusLabel}
-                                            </Badge>
-                                          </div>
-                                          <p className="text-sm text-slate-600">
-                                            {formatNumber(
-                                              plan.targetQuantity,
-                                              locale,
-                                            )}{" "}
-                                            ·{" "}
-                                            {formatCurrency(
-                                              plan.targetPrice,
-                                              "USD",
-                                              locale,
-                                            )}{" "}
-                                            •{" "}
-                                            {formatDate(
-                                              plan.targetDate,
-                                              locale,
-                                            )}
-                                          </p>
-                                          <p className="text-xs text-slate-500">
-                                            {t.positions.planForNewPosition}
-                                          </p>
-                                          {plan.status === "pending" && (
-                                            <div className="flex flex-wrap gap-2">
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 gap-1 px-2"
-                                                onClick={() =>
-                                                  openEditPlanDialog(plan)
-                                                }
-                                              >
-                                                <Pencil className="h-4 w-4" />
-                                                {t.positions.edit}
-                                              </Button>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 gap-1 px-2"
-                                                onClick={() =>
-                                                  handlePlanCancel(plan)
-                                                }
-                                              >
-                                                <Ban className="h-4 w-4" />
-                                                {t.positions.planCancel}
-                                              </Button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </ScrollArea>
-                      )}
+                          </span>
+                          {hasActiveFilters && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setSearchTerm("");
+                                setLocationFilter("all");
+                              }}
+                            >
+                              {t.positions.clearFilters}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="border border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/90 shadow-sm backdrop-blur">
-                    <CardHeader>
-                      <CardTitle>{t.positions.closedPlansTitle}</CardTitle>
-                      <CardDescription>
-                        {t.positions.closedPlansDescription}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {closedPlans.length === 0 ? (
-                        <p className="text-sm text-slate-500">
-                          {t.positions.noClosedPlans}
+                  {filteredPositionItems.length === 0 ? (
+                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/70 shadow-none">
+                      <CardContent className="py-12 text-center">
+                        <p className="text-sm font-medium text-slate-700">
+                          {t.positions.noFilteredResults}
                         </p>
-                      ) : (
-                        <ScrollArea className="max-h-[360px] pr-2">
-                          <div className="space-y-3">
-                            {closedPlans.map(({ plan, position }) => {
-                              const displayName =
-                                position?.display ??
-                                plan.display ??
-                                plan.symbol;
-                              const symbol = position?.symbol ?? plan.symbol;
-                              const locationLabel =
-                                position?.location ?? plan.location ?? null;
-                              const statusClass =
-                                planStatusClasses[plan.status];
-                              const statusLabel = planStatusLabels[plan.status];
-                              const sideClass =
-                                plan.side === "sell"
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-emerald-100 text-emerald-700";
-                              const sideLabel =
-                                plan.side === "sell"
-                                  ? t.positions.planSideSellShort
-                                  : t.positions.planSideBuyShort;
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      <div className="hidden overflow-hidden rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm md:block">
+                        <Table className="min-w-[920px]">
+                          <TableHeader className="bg-slate-50/90">
+                            <TableRow className="hover:bg-slate-50/90">
+                              <TableHead>{t.positions.columnAsset}</TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.quantity}
+                              </TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.entryPrice}
+                              </TableHead>
+                              <TableHead>{t.positions.entryDate}</TableHead>
+                              <TableHead>{t.positions.lastActivity}</TableHead>
+                              <TableHead>{t.positions.transactionsTitle}</TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.columnActions}
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedPositionItems.map((item) => {
+                              const { position, sortedLots, recentLots } = item;
+
                               return (
-                                <div
-                                  key={
-                                    plan.id ??
-                                    `closed-${symbol}-${plan.targetDate}`
-                                  }
-                                  className="rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3"
+                                <TableRow
+                                  key={position.id ?? `${position.symbol}-${position.entryDate}`}
+                                  className="hover:bg-slate-50/60"
                                 >
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="text-sm font-semibold text-slate-800">
-                                        {displayName}
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-10 w-10 border border-slate-200 bg-slate-50">
+                                        <StockAvatarImage
+                                          symbol={position.symbol}
+                                          display={`${position.display} logo`}
+                                          imageUrl={position.imageUrl}
+                                        />
+                                        <AvatarFallback className="text-xs font-medium text-slate-600">
+                                          {item.fallbackInitials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-slate-900">
+                                          {position.display}
+                                        </p>
+                                        <div className="mt-1 flex items-center gap-2">
+                                          <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                            {position.symbol}
+                                          </Badge>
+                                          <BankBadge
+                                            bank={
+                                              position.location === "bank_two"
+                                                ? "bank_two"
+                                                : "bank_one"
+                                            }
+                                            locale={locale}
+                                            size="sm"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium text-slate-700">
+                                    {formatNumber(position.quantity, locale)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium text-slate-700">
+                                    {formatCurrency(position.entryPrice, "USD", locale)}
+                                  </TableCell>
+                                  <TableCell className="text-slate-600">
+                                    {formatDate(position.entryDate, locale)}
+                                  </TableCell>
+                                  <TableCell className="text-slate-600">
+                                    {formatDate(item.lastActivityDate, locale)}
+                                  </TableCell>
+                                  <TableCell>
+                                    {sortedLots.length > 0 ? (
+                                      <div className="space-y-1">
+                                        <p className="text-xs text-slate-500">
+                                          {t.positions.transactionCount(sortedLots.length)}
+                                        </p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {recentLots.map((lot) => (
+                                            <span
+                                              key={`${lot.id}-${lot.executedAt}`}
+                                              className={cn(
+                                                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                                lot.type === "BUY"
+                                                  ? "bg-emerald-50 text-emerald-700"
+                                                  : "bg-rose-50 text-rose-700",
+                                              )}
+                                            >
+                                              {lot.type === "BUY"
+                                                ? t.positions.buy
+                                                : t.positions.sell}{" "}
+                                              · {formatDate(lot.executedAt, locale)}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-slate-400">
+                                        {t.positions.noTransactions}
                                       </span>
-                                      <Badge
-                                        variant="secondary"
-                                        className="bg-slate-100 text-slate-700"
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Link
+                                        href={`/stock/${position.symbol}`}
+                                        className="shrink-0"
                                       >
-                                        {symbol}
-                                      </Badge>
-                                      {locationLabel ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label={t.dashboard.viewDetails}
+                                          className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                        >
+                                          <BarChart3 className="h-4 w-4" />
+                                        </Button>
+                                      </Link>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openTransactionDialog(position)}
+                                        aria-label={t.positions.addTransaction}
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                      >
+                                        <ArrowRightLeft className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openHistoryDialog(position)}
+                                        aria-label={t.positions.manageHistory}
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                      >
+                                        <History className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openEditDialog(position)}
+                                        aria-label={t.positions.edit}
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          position.id && handleDelete(position.id)
+                                        }
+                                        aria-label={t.positions.delete}
+                                        disabled={!position.id}
+                                        className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      <div className="space-y-3 md:hidden">
+                        {paginatedPositionItems.map((item) => {
+                          const { position, sortedLots, recentLots } = item;
+
+                          return (
+                            <Card
+                              key={position.id ?? `${position.symbol}-${position.entryDate}`}
+                              className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm"
+                            >
+                              <CardHeader className="space-y-3 pb-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <Avatar className="h-11 w-11 border border-slate-200 bg-slate-50">
+                                      <StockAvatarImage
+                                        symbol={position.symbol}
+                                        display={`${position.display} logo`}
+                                        imageUrl={position.imageUrl}
+                                      />
+                                      <AvatarFallback className="text-xs font-medium text-slate-600">
+                                        {item.fallbackInitials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-slate-900">
+                                        {position.display}
+                                      </p>
+                                      <div className="mt-1 flex items-center gap-2">
+                                        <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                          {position.symbol}
+                                        </Badge>
                                         <BankBadge
                                           bank={
-                                            locationLabel === "bank_two"
+                                            position.location === "bank_two"
                                               ? "bank_two"
                                               : "bank_one"
                                           }
                                           locale={locale}
                                           size="sm"
                                         />
-                                      ) : null}
-                                      <Badge
-                                        className={`${sideClass} text-[11px]`}
-                                      >
-                                        {sideLabel}
-                                      </Badge>
-                                      <Badge
-                                        className={`${statusClass} text-[11px]`}
-                                      >
-                                        {statusLabel}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-slate-600">
-                                      {formatNumber(
-                                        plan.targetQuantity,
-                                        locale,
-                                      )}{" "}
-                                      ·{" "}
-                                      {formatCurrency(
-                                        plan.targetPrice,
-                                        "USD",
-                                        locale,
-                                      )}{" "}
-                                      • {formatDate(plan.targetDate, locale)}
-                                    </p>
-                                    {plan.status === "expired" &&
-                                      plan.expiredAt && (
-                                        <p className="text-xs text-slate-500">
-                                          {t.positions.planExpiredDetail(
-                                            formatDate(plan.expiredAt, locale),
-                                          )}
-                                        </p>
-                                      )}
-                                    {plan.status === "cancelled" &&
-                                      plan.expiredAt && (
-                                        <p className="text-xs text-slate-500">
-                                          {t.positions.planCancelledDetail(
-                                            formatDate(plan.expiredAt, locale),
-                                          )}
-                                        </p>
-                                      )}
-                                    <div className="flex flex-wrap gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 gap-1 px-2"
-                                        onClick={() => handlePlanDelete(plan)}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                        {t.positions.planDelete}
-                                      </Button>
+                                      </div>
                                     </div>
                                   </div>
+                                  <Link href={`/stock/${position.symbol}`}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      aria-label={t.dashboard.viewDetails}
+                                      className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                    >
+                                      <BarChart3 className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </ScrollArea>
-                      )}
-                    </CardContent>
-                  </Card>
+                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.quantity}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatNumber(position.quantity, locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.entryPrice}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatCurrency(position.entryPrice, "USD", locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.entryDate}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatDate(position.entryDate, locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.lastActivity}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatDate(item.lastActivityDate, locale)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-3 pt-0">
+                                <div>
+                                  <p className="text-xs text-slate-500">
+                                    {sortedLots.length > 0
+                                      ? t.positions.transactionCount(sortedLots.length)
+                                      : t.positions.noTransactions}
+                                  </p>
+                                  {recentLots.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                      {recentLots.map((lot) => (
+                                        <span
+                                          key={`${lot.id}-${lot.executedAt}`}
+                                          className={cn(
+                                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                            lot.type === "BUY"
+                                              ? "bg-emerald-50 text-emerald-700"
+                                              : "bg-rose-50 text-rose-700",
+                                          )}
+                                        >
+                                          {lot.type === "BUY"
+                                            ? t.positions.buy
+                                            : t.positions.sell}{" "}
+                                          · {formatDate(lot.executedAt, locale)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openTransactionDialog(position)}
+                                    className="h-8 text-xs"
+                                  >
+                                    {t.positions.addTransaction}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openHistoryDialog(position)}
+                                    className="h-8 text-xs"
+                                  >
+                                    {t.positions.manageHistory}
+                                  </Button>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openEditDialog(position)}
+                                      aria-label={t.positions.edit}
+                                      className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        position.id && handleDelete(position.id)
+                                      }
+                                      aria-label={t.positions.delete}
+                                      disabled={!position.id}
+                                      className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 text-xs text-slate-500">
+                        <span>
+                          {t.positions.pageIndicator(currentPage, totalPages)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={currentPage <= 1}
+                            onClick={() =>
+                              setCurrentPage((previous) => Math.max(1, previous - 1))
+                            }
+                            aria-label={t.positions.previousPage}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={currentPage >= totalPages}
+                            onClick={() =>
+                              setCurrentPage((previous) =>
+                                Math.min(totalPages, previous + 1),
+                              )
+                            }
+                            aria-label={t.positions.nextPage}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </section>
         </main>

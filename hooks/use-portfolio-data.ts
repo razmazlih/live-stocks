@@ -2,31 +2,25 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import {
   computeRealizedSalesWithFx,
   expandPositionActivations,
-  mapPositionPlanRow,
-  mapPositionRow,
 } from '@/lib/positions';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
-  mapCandleDataToPoints,
   calculateRealizedTaxLiability,
 } from '@/lib/calculations';
 import {
-  CandleData,
   HistoricalPoint,
   Position,
   PositionMetrics,
   PortfolioSummary,
   PortfolioTimelinePoint,
-  PositionPlan,
   RealizedSale,
 } from '@/types';
-import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
+import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
 
 interface SparklineResult {
   key: string;
@@ -46,6 +40,21 @@ interface LoadOptions {
   forceQuoteRefresh?: boolean;
 }
 
+interface LoadSparklinesOptions {
+  candlesByKey: Record<string, HistoricalPoint[]>;
+  spyPoints: HistoricalPoint[];
+}
+
+interface PortfolioDashboardPayload {
+  positions?: Position[];
+  activationPositions?: Position[];
+  usdToIls?: number;
+  fxHistoryPoints?: HistoricalPoint[];
+  quotes?: Record<string, { c?: number; d?: number }>;
+  candlesByKey?: Record<string, HistoricalPoint[]>;
+  spyPoints?: HistoricalPoint[];
+}
+
 type NormalizedLot = {
   type: 'BUY' | 'SELL';
   price: number;
@@ -54,6 +63,119 @@ type NormalizedLot = {
 };
 
 type FxRateResolver = (timestamp: number) => number;
+const msPerDay = 24 * 60 * 60 * 1000;
+
+function parseTimestamp(value?: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function buildZeroTimelinePoint(timestamp: number): PortfolioTimelinePoint {
+  return {
+    timestamp,
+    totalPnLUsd: 0,
+    totalPnLIls: 0,
+    netPnLUsd: 0,
+    netPnLIls: 0,
+    expectedNetPnLUsd: 0,
+    expectedNetPnLIls: 0,
+    spyNetPnLUsd: 0,
+    spyNetPnLIls: 0,
+  };
+}
+
+function toUtcDayStart(timestamp: number): number {
+  const date = new Date(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function resolveEarliestPortfolioActivityTimestamp(positions: Position[]): number | null {
+  const timestamps: number[] = [];
+
+  positions.forEach((position) => {
+    const entryTimestamp = parseTimestamp(position.entryDate);
+    if (entryTimestamp !== null) {
+      timestamps.push(entryTimestamp);
+    }
+
+    const activationStartTimestamp = parseTimestamp(position.activationStart ?? null);
+    if (activationStartTimestamp !== null) {
+      timestamps.push(activationStartTimestamp);
+    }
+
+    (position.lots ?? []).forEach((lot) => {
+      const lotTimestamp = parseTimestamp(lot.executedAt);
+      if (lotTimestamp !== null) {
+        timestamps.push(lotTimestamp);
+      }
+    });
+  });
+
+  if (!timestamps.length) {
+    return null;
+  }
+
+  return Math.min(...timestamps);
+}
+
+function buildContinuousTimeline(
+  timeline: PortfolioTimelinePoint[],
+  earliestActivityTimestamp: number | null,
+): PortfolioTimelinePoint[] {
+  const sortedTimeline = timeline
+    .filter((point) => Number.isFinite(point.timestamp))
+    .slice()
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (!sortedTimeline.length) {
+    return [];
+  }
+
+  const points: PortfolioTimelinePoint[] = [];
+  const pushPoint = (point: PortfolioTimelinePoint) => {
+    const last = points[points.length - 1];
+    if (last && last.timestamp === point.timestamp) {
+      points[points.length - 1] = point;
+      return;
+    }
+    points.push(point);
+  };
+
+  const firstPoint = sortedTimeline[0];
+  if (
+    earliestActivityTimestamp !== null &&
+    earliestActivityTimestamp < firstPoint.timestamp &&
+    sortedTimeline.length > 1
+  ) {
+    pushPoint(buildZeroTimelinePoint(earliestActivityTimestamp));
+  }
+
+  pushPoint(firstPoint);
+
+  for (let index = 1; index < sortedTimeline.length; index += 1) {
+    const currentPoint = sortedTimeline[index];
+    let previousPoint = points[points.length - 1];
+    let previousDay = toUtcDayStart(previousPoint.timestamp);
+    const currentDay = toUtcDayStart(currentPoint.timestamp);
+
+    while (previousDay + msPerDay < currentDay) {
+      previousDay += msPerDay;
+      pushPoint({
+        ...previousPoint,
+        timestamp: previousDay,
+      });
+      previousPoint = points[points.length - 1];
+    }
+
+    pushPoint(currentPoint);
+  }
+
+  return points;
+}
 
 function buildPositionTimeline(
   position: Position,
@@ -116,7 +238,7 @@ function buildPositionTimeline(
     const entryTimestamp = new Date(position.entryDate).getTime();
     const baselineTimestamp = Number.isFinite(entryTimestamp) ? entryTimestamp : points[0]?.timestamp ?? 0;
 
-    return points.map((point) => {
+    const timeline = points.map((point) => {
       const openPnL = (point.close - position.entryPrice) * position.quantity;
       const fxAtPoint = getFxRateAt(point.timestamp);
       const fxAtEntry = getFxRateAt(baselineTimestamp);
@@ -151,6 +273,12 @@ function buildPositionTimeline(
         spyNetPnLIls: spyPnL * fxAtPoint,
       };
     });
+
+    if (Number.isFinite(baselineTimestamp) && baselineTimestamp < (timeline[0]?.timestamp ?? baselineTimestamp)) {
+      timeline.unshift(buildZeroTimelinePoint(baselineTimestamp));
+    }
+
+    return timeline;
   }
 
   // Create SPY price map for O(1) lookup
@@ -178,6 +306,16 @@ function buildPositionTimeline(
 
   const openLots: Array<{ quantity: number; price: number; timestamp: number; fxAtBuy: number }> = [];
   const timeline: PortfolioTimelinePoint[] = [];
+  const firstBuyTimestamp = normalizedLots.find((lot) => lot.type === 'BUY')?.timestamp ?? null;
+  const firstPointTimestamp = points[0]?.timestamp ?? null;
+  if (
+    firstBuyTimestamp !== null &&
+    firstPointTimestamp !== null &&
+    Number.isFinite(firstBuyTimestamp) &&
+    firstBuyTimestamp < firstPointTimestamp
+  ) {
+    timeline.push(buildZeroTimelinePoint(firstBuyTimestamp));
+  }
   let realizedPnL = 0;
   let realizedPnLIls = 0;
   let expectedRealizedPnL = 0;
@@ -291,7 +429,6 @@ export function usePortfolioData() {
   const [loading, setLoading] = useState(true);
   const [refreshingCount, setRefreshingCount] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [unassignedPlans, setUnassignedPlans] = useState<PositionPlan[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [openSummary, setOpenSummary] = useState<PortfolioSummary | null>(null);
@@ -307,200 +444,36 @@ export function usePortfolioData() {
     async (
       positionsList: Position[],
       getFxRateAt: FxRateResolver,
+      options: LoadSparklinesOptions,
     ): Promise<LoadSparklinesResult> => {
       if (positionsList.length === 0) {
         return { sparklineData: {}, portfolioTimeline: [] };
       }
 
-      interface IntermediateSparklineResult extends SparklineResult {
-        from?: number;
-        to?: number;
-        position?: Position;
-      }
+      const spyPoints = options.spyPoints ?? [];
+      const results: SparklineResult[] = positionsList.map((position) => {
+        const key = position.activationId ?? position.id ?? position.symbol;
+        const points = options.candlesByKey[key] ?? [];
+        const timeline = buildPositionTimeline(
+          position,
+          points,
+          settings.annualGrowthRate,
+          spyPoints,
+          getFxRateAt,
+        );
 
-      const results = await Promise.all<IntermediateSparklineResult>(
-        positionsList.map(async (position) => {
-            let from = 0;
-            let to = 0;
-
-            try {
-            const key = position.activationId ?? position.id ?? position.symbol;
-            const now = Math.floor(Date.now() / 1000);
-            const activationStartMsRaw = position.activationStart
-              ? new Date(position.activationStart).getTime()
-              : undefined;
-            const activationEndMsRaw = position.activationEnd
-              ? new Date(position.activationEnd).getTime()
-              : undefined;
-            const activationStartMs =
-              typeof activationStartMsRaw === 'number' && Number.isFinite(activationStartMsRaw)
-                ? activationStartMsRaw
-                : null;
-            const activationEndMs =
-              typeof activationEndMsRaw === 'number' && Number.isFinite(activationEndMsRaw)
-                ? activationEndMsRaw
-                : null;
-            const activationStartBoundaryMs =
-              activationStartMs !== null
-                ? (() => {
-                    const startOfDay = new Date(activationStartMs);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    return startOfDay.getTime();
-                  })()
-                : null;
-            const activationEndBoundaryMs =
-              activationEndMs !== null
-                ? (() => {
-                    const endOfDay = new Date(activationEndMs);
-                    endOfDay.setHours(23, 59, 59, 999);
-                    return endOfDay.getTime();
-                  })()
-                : null;
-            const entryDate = position.entryDate ? new Date(position.entryDate) : null;
-            const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
-              ? Math.floor(entryDate.getTime() / 1000)
-              : null;
-            const lotTimestamps = (position.lots ?? [])
-              .map((lot) => Math.floor(new Date(lot.executedAt).getTime() / 1000))
-              .filter((timestamp): timestamp is number => Number.isFinite(timestamp));
-            const earliestLotTimestamp = lotTimestamps.length > 0 ? Math.min(...lotTimestamps) : null;
-            const defaultLookback = now - 60 * 60 * 24 * 30;
-            let baselineTimestamp = activationStartBoundaryMs !== null
-              ? Math.floor(activationStartBoundaryMs / 1000)
-              : earliestLotTimestamp ?? entryTimestamp ?? defaultLookback;
-            to = activationEndBoundaryMs !== null ? Math.floor(activationEndBoundaryMs / 1000) : now;
-
-            if (!Number.isFinite(baselineTimestamp)) {
-              baselineTimestamp = defaultLookback;
-            }
-
-            if (baselineTimestamp > to) {
-              baselineTimestamp = to - 60 * 60 * 24 * 5;
-            }
-
-            from = Math.min(baselineTimestamp, to);
-            if (from === to) {
-              from = Math.max(0, to - 60 * 60 * 24 * 5);
-            }
-
-            // Fetch SPY data if needed (we'll fetch it once globally actually, but here we need the range)
-            // Wait, we need to fetch SPY globally first.
-            // Let's refactor this to calculate ranges first, then fetch SPY, then fetch positions.
-            
-            // For now, let's just fetch position candles here as before.
-            const response = await fetch(
-              `/api/candles?symbol=${encodeURIComponent(position.symbol)}&resolution=D&from=${from}&to=${to}${
-                settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-              }`
-            );
-
-            if (!response.ok) {
-              console.warn(`Failed to fetch candles for ${position.symbol}: HTTP ${response.status}`);
-              return {
-                key,
-                symbol: position.symbol,
-                points: [],
-                timeline: [],
-                isHistorical: Boolean(position.isHistoricalActivation),
-                from, // Return from/to to help with SPY fetch
-                to
-              };
-            }
-
-            const candleData = (await response.json()) as CandleData & { error?: string };
-
-            if (candleData?.error) {
-              console.warn(`Candles API error for ${position.symbol}:`, candleData.error);
-              return {
-                key,
-                symbol: position.symbol,
-                points: [],
-                timeline: [],
-                isHistorical: Boolean(position.isHistoricalActivation),
-                from,
-                to
-              };
-            }
-
-            const points = mapCandleDataToPoints(candleData);
-            const filteredPoints = points.filter((point) => {
-              if (activationStartBoundaryMs !== null && point.timestamp < activationStartBoundaryMs) {
-                return false;
-              }
-              if (activationEndBoundaryMs !== null && point.timestamp > activationEndBoundaryMs) {
-                return false;
-              }
-              return true;
-            });
-            const effectivePoints = filteredPoints.length > 0 ? filteredPoints : points;
-            
-            return {
-              key,
-              symbol: position.symbol,
-              points: effectivePoints,
-              timeline: [], // We will build timeline later after fetching SPY
-              isHistorical: Boolean(position.isHistoricalActivation),
-              position, // Pass position through
-              from,
-              to
-            };
-          } catch (error) {
-            console.error(`Failed to load sparkline for ${position.symbol}:`, error);
-            return {
-              key: position.activationId ?? position.id ?? position.symbol,
-              symbol: position.symbol,
-              points: [],
-              timeline: [],
-              isHistorical: Boolean(position.isHistoricalActivation),
-              from,
-              to
-            };
-          }
-        })
-      );
-
-      // Calculate global range for SPY
-      const validFroms = results.map((r) => r.from).filter((f): f is number => typeof f === 'number' && f > 0);
-      const validTos = results.map((r) => r.to).filter((t): t is number => typeof t === 'number' && t > 0);
-      
-      const minFrom = validFroms.length > 0 ? Math.min(...validFroms) : 0;
-      const maxTo = validTos.length > 0 ? Math.max(...validTos) : 0;
-      
-      let spyPoints: HistoricalPoint[] = [];
-      if (minFrom < Number.MAX_SAFE_INTEGER && maxTo > 0) {
-          try {
-             const spyResponse = await fetch(
-              `/api/candles?symbol=SPY&resolution=D&from=${minFrom}&to=${maxTo}${
-                settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-              }`
-            );
-            if (spyResponse.ok) {
-                const spyData = await spyResponse.json();
-                if (!spyData.error) {
-                    spyPoints = mapCandleDataToPoints(spyData);
-                }
-            }
-          } catch (e) {
-              console.error("Failed to fetch SPY data", e);
-          }
-      }
-
-      // Now build timelines
-      const finalResults = results.map((result) => {
-          if (!result.position) return result;
-          const timeline = buildPositionTimeline(
-            result.position,
-            result.points,
-            settings.annualGrowthRate,
-            spyPoints,
-            getFxRateAt,
-          );
-          return { ...result, timeline };
+        return {
+          key,
+          symbol: position.symbol,
+          points,
+          timeline,
+          isHistorical: Boolean(position.isHistoricalActivation),
+        };
       });
 
-      const sparklineEntries = finalResults.map((result) => [result.key, result.points] as const);
+      const sparklineEntries = results.map((result) => [result.key, result.points] as const);
       const sparklineData = Object.fromEntries(sparklineEntries);
-      const timelineResults = finalResults.filter((result) => result.timeline.length > 0);
+      const timelineResults = results.filter((result) => result.timeline.length > 0);
 
       if (timelineResults.length === 0) {
         return {
@@ -585,7 +558,7 @@ export function usePortfolioData() {
         portfolioTimeline: aggregatedTimelinePoints,
       };
     },
-    [settings.annualGrowthRate, settings.finnhubToken]
+    [settings.annualGrowthRate]
   );
 
   const loadData = useCallback(
@@ -601,85 +574,28 @@ export function usePortfolioData() {
         setLoading(true);
       }
 
-      const supabase = getSupabaseClient();
-      const [positionsResult, unattachedPlansResult] = await Promise.all([
-        supabase
-          .from('positions')
-            .select('*, position_lots(*), position_plans(*)')
-            .order('symbol'),
-          supabase
-            .from('position_plans')
-            .select('*')
-            .is('position_id', null),
-        ]);
+      const params = new URLSearchParams();
+      if (forceQuoteRefresh) {
+        params.set('forceQuoteRefresh', '1');
+      }
+      const query = params.toString();
+      const response = await fetch(`/api/portfolio/dashboard${query ? `?${query}` : ''}`);
+      if (!response.ok) {
+        throw new Error(`Dashboard request failed: HTTP ${response.status}`);
+      }
 
-        if (positionsResult.error) throw positionsResult.error;
-        if (unattachedPlansResult.error) throw unattachedPlansResult.error;
+      const payload = (await response.json()) as PortfolioDashboardPayload;
 
-        const mappedPositions: Position[] = (positionsResult.data || []).map(mapPositionRow);
-        const mappedUnassignedPlans: PositionPlan[] = (unattachedPlansResult.data || []).map(
-          mapPositionPlanRow,
-        );
-        const rateResponse = await fetch('/api/exchange-rate');
-        const rateData = await rateResponse.json();
-        const rate = rateData.usdToIls || 3.7;
-
-        const trimmedToken = settings.finnhubToken?.trim();
-
-        const activationPositions = mappedPositions.flatMap((position) => expandPositionActivations(position));
-        const allTimestamps = mappedPositions.flatMap((position) =>
-          (position.lots ?? [])
-            .map((lot) => new Date(lot.executedAt).getTime())
-            .filter((timestamp) => Number.isFinite(timestamp)),
-        );
-        const activationBoundaries = activationPositions
-          .flatMap((position) => [
-            position.activationStart ? new Date(position.activationStart).getTime() : Number.NaN,
-            position.activationEnd ? new Date(position.activationEnd).getTime() : Number.NaN,
-            position.entryDate ? new Date(position.entryDate).getTime() : Number.NaN,
-          ])
-          .filter((timestamp) => Number.isFinite(timestamp));
-        const nowSeconds = Math.floor(Date.now() / 1000);
-        const minFxTimestamp = [...allTimestamps, ...activationBoundaries].reduce<number | null>(
-          (min, value) => (min === null ? value : Math.min(min, value)),
-          null,
-        );
-        const fxFrom = Math.max(
-          0,
-          Math.floor(((minFxTimestamp ?? Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000) - 2 * 24 * 60 * 60),
-        );
-        const fxTo = nowSeconds;
-        const fxHistoryPoints = await fetchUsdIlsHistoricalPoints(fxFrom, fxTo);
-        const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate);
-
-        const normalizedSymbols = Array.from(
-          new Set(mappedPositions.map((position) => position.symbol.trim().toUpperCase()).filter(Boolean)),
-        );
-
-        let batchedQuotes: Record<string, { c?: number; d?: number }> = {};
-        if (trimmedToken && normalizedSymbols.length > 0) {
-          const quoteParams = new URLSearchParams({
-            symbols: normalizedSymbols.join(','),
-            token: trimmedToken,
-          });
-          if (forceQuoteRefresh) {
-            quoteParams.set('forceRefresh', '1');
-          }
-
-          try {
-            const quotesResponse = await fetch(`/api/quotes?${quoteParams.toString()}`);
-            if (quotesResponse.ok) {
-              const payload = (await quotesResponse.json()) as {
-                quotes?: Record<string, { c?: number; d?: number }>;
-              };
-              batchedQuotes = payload.quotes ?? {};
-            } else {
-              console.warn(`Quotes request failed with status ${quotesResponse.status}`);
-            }
-          } catch (error) {
-            console.error('Failed to fetch batched quotes:', error);
-          }
-        }
+      const mappedPositions = Array.isArray(payload.positions) ? payload.positions : [];
+      const activationPositions = Array.isArray(payload.activationPositions)
+        ? payload.activationPositions
+        : mappedPositions.flatMap((position) => expandPositionActivations(position));
+      const rate = Number.isFinite(payload.usdToIls) && (payload.usdToIls ?? 0) > 0
+        ? (payload.usdToIls as number)
+        : 3.7;
+      const fxHistoryPoints = Array.isArray(payload.fxHistoryPoints) ? payload.fxHistoryPoints : [];
+      const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate);
+      const batchedQuotes = payload.quotes ?? {};
 
         const quoteEntries = mappedPositions.map((position) => {
           const normalizedSymbol = position.symbol.trim().toUpperCase();
@@ -806,7 +722,10 @@ export function usePortfolioData() {
         };
 
         const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
-          await loadSparklines(activationPositions, getFxRateAt);
+          await loadSparklines(activationPositions, getFxRateAt, {
+            candlesByKey: payload.candlesByKey ?? {},
+            spyPoints: payload.spyPoints ?? [],
+          });
 
         const taxTimeline = taxSummary.timeline
           .slice()
@@ -865,16 +784,22 @@ export function usePortfolioData() {
         const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
           (a, b) => a.timestamp - b.timestamp
         );
+        const earliestActivityTimestamp =
+          nextPortfolioTimeline.length > 0
+            ? resolveEarliestPortfolioActivityTimestamp(activationPositions)
+            : null;
+        const continuousTimeline = buildContinuousTimeline(finalTimeline, earliestActivityTimestamp);
 
         setPositions(mappedPositions);
-        setUnassignedPlans(mappedUnassignedPlans);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
-        setPortfolioTimeline(finalTimeline);
-        setHistoricalIlsNetPnL(finalTimeline[finalTimeline.length - 1]?.netPnLIls ?? enrichedSummary.totalNetPnLIls);
+        setPortfolioTimeline(continuousTimeline);
+        setHistoricalIlsNetPnL(
+          continuousTimeline[continuousTimeline.length - 1]?.netPnLIls ?? enrichedSummary.totalNetPnLIls
+        );
         setHistoricalIlsRealizedPnL(realizedTotals.profitIls);
         setRealizedSales(realizedSalesWithFx);
         setLastUpdate(new Date());
@@ -888,7 +813,7 @@ export function usePortfolioData() {
         }
       }
     },
-    [loadSparklines, settings.annualGrowthRate, settings.finnhubToken, settingsReady]
+    [loadSparklines, settings.annualGrowthRate, settingsReady]
   );
 
   useEffect(() => {
@@ -921,7 +846,6 @@ export function usePortfolioData() {
     loading,
     refreshing: refreshingCount > 0,
     positions,
-    unassignedPlans,
     metrics,
     summary,
     openSummary,

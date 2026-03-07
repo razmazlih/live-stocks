@@ -100,7 +100,6 @@ function combinePositions(positions: Position[]): Position | null {
   }
 
   const combinedLots = positions.flatMap((pos) => pos.lots ?? []);
-  const combinedPlans = positions.flatMap((pos) => pos.plans ?? []);
   const summary = combinedLots.length ? summarizeLots(combinedLots) : undefined;
 
   const fallbackQuantity = positions.reduce((sum, pos) => sum + Math.max(pos.quantity, 0), 0);
@@ -125,7 +124,6 @@ function combinePositions(positions: Position[]): Position | null {
     entryDate,
     location: positions[0].location,
     lots: combinedLots,
-    plans: combinedPlans,
   };
 }
 
@@ -409,7 +407,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const supabase = getSupabaseClient();
         const { data, error: positionError } = await supabase
           .from('positions')
-          .select('*, position_lots(*), position_plans(*)')
+          .select('*, position_lots(*)')
           .eq('symbol', normalizedSymbol);
 
         if (positionError) {
