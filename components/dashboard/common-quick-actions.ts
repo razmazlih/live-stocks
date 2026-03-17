@@ -100,7 +100,7 @@ export function createCommonQuickActions(
   { include, exclude, overrides, extraActions }: CommonQuickActionsOptions = {}
 ): DashboardQuickAction[] {
   const factories = createFactories(t);
-  const keys = include ?? (Object.keys(factories) as CommonQuickActionKey[]);
+  const keys = include ?? (['reload'] as CommonQuickActionKey[]);
   const filteredKeys = keys.filter((key) => !(exclude?.includes(key)));
 
   const actions = filteredKeys

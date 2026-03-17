@@ -178,65 +178,65 @@ const ChartTooltip = ({
   const changeClass = changeUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
   return (
-    <div className="w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-3 text-[11px] shadow-xl backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 text-[10px] text-slate-500">
-        <span className="font-semibold text-slate-400">{labels.at}</span>
-        <span className="font-semibold text-slate-600">{labelFormatter(label ?? '')}</span>
+    <div className="w-[18rem] max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-3 text-[11px] shadow-xl backdrop-blur-xl sm:w-64">
+      <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-1.5 text-[10px] text-slate-500">
+        <span className="min-w-0 font-semibold text-slate-400">{labels.at}</span>
+        <span className="min-w-0 break-words text-right font-semibold leading-tight text-slate-600">{labelFormatter(label ?? '')}</span>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-1.5">
-        <div className="rounded-lg bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-2.5">
+      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        <div className="min-w-0 rounded-lg bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-2.5">
           <p className="text-[10px] font-semibold text-indigo-600">{labels.net}</p>
-          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(netUsd)}</p>
+          <p className="mt-0.5 break-words text-[0.95rem] font-semibold leading-tight text-slate-900">{formatUsd(netUsd)}</p>
           <p className="text-[10px] text-slate-500">{formatIls(netIls)}</p>
         </div>
-        <div className="rounded-lg border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-2.5 shadow-sm">
+        <div className="min-w-0 rounded-lg border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-2.5 shadow-sm">
           <p className="text-[10px] font-semibold text-amber-600">{labels.forecast}</p>
-          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
+          <p className="mt-0.5 break-words text-[0.95rem] font-semibold leading-tight text-slate-900">{formatUsd(forecastUsd)}</p>
           <p className="text-[10px] text-slate-500">{formatIls(forecastIls)}</p>
           <div className="mt-1.5 space-y-0.5">
-            <p className="text-[10px] font-semibold text-overlay-amber-500">{labels.projection}</p>
-            <div className="flex items-center justify-between text-[10px] text-slate-500">
-              <span className="font-medium">{labels.usd}</span>
-              <span className={`font-semibold ${projectionClass}`}>
+            <p className="break-words text-[10px] font-semibold text-overlay-amber-500">{labels.projection}</p>
+            <div className="flex items-start justify-between gap-2 text-[10px] text-slate-500">
+              <span className="min-w-0 break-words font-medium">{labels.usd}</span>
+              <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapUsd, formatUsd)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[10px] text-slate-500">
-              <span className="font-medium">{labels.ils}</span>
-              <span className={`font-semibold ${projectionClass}`}>
+            <div className="flex items-start justify-between gap-2 text-[10px] text-slate-500">
+              <span className="min-w-0 break-words font-medium">{labels.ils}</span>
+              <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
                 {formatSignedCurrency(projectionGapIls, formatIls)}
               </span>
             </div>
           </div>
         </div>
-        <div className="col-span-2 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
-            <p className="text-[10px] font-semibold text-slate-500">{labels.spy}</p>
-            <div className="mt-0.5 flex items-center justify-between">
-                <div>
-                    <p className="text-base font-semibold text-slate-700">{formatUsd(spyUsd)}</p>
-                    <p className="text-[10px] text-slate-500">{formatIls(spyIls)}</p>
-                </div>
-                <div className="text-right">
-                     <p className={`text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
-                     </p>
-                     <p className="text-[10px] text-slate-400">vs S&P 500</p>
-                </div>
+        <div className="col-span-1 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm sm:col-span-2">
+          <p className="break-words text-[10px] font-semibold text-slate-500">{labels.spy}</p>
+          <div className="mt-0.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="break-words text-[0.95rem] font-semibold leading-tight text-slate-700">{formatUsd(spyUsd)}</p>
+              <p className="text-[10px] text-slate-500">{formatIls(spyIls)}</p>
             </div>
+            <div className="text-left sm:text-right">
+              <p className={`break-words text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
+              </p>
+              <p className="text-[10px] text-slate-400">vs S&P 500</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="mt-1.5 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
-        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+        <div className="flex items-start justify-between gap-2 text-[10px] font-semibold text-slate-500">
           <span>{labels.change}</span>
-          <span className={`text-[11px] font-semibold ${changeClass}`}>
+          <span className={`break-words text-right text-[11px] font-semibold ${changeClass}`}>
             {formatSignedCurrency(changeUsd, formatUsd)}
           </span>
         </div>
-        <div className="mt-0.5 flex items-center justify-between text-[10px] text-slate-500">
-          <span className="font-medium">{labels.ils}</span>
-          <span className={`font-semibold ${changeClass}`}>
+        <div className="mt-0.5 flex items-start justify-between gap-2 text-[10px] text-slate-500">
+          <span className="min-w-0 break-words font-medium">{labels.ils}</span>
+          <span className={`min-w-0 break-words text-right font-semibold ${changeClass}`}>
             {formatSignedCurrency(changeIls, formatIls)}
           </span>
         </div>
@@ -248,6 +248,11 @@ const ChartTooltip = ({
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
+  const isRtl = locale === 'he';
+  const withRtlMark = (value: TooltipValueType) => {
+    const text = value?.toString?.() ?? '';
+    return isRtl ? `\u200F${text}` : text;
+  };
   const gradientReactId = useId();
   const netLineGradientId = useMemo(
     () => `portfolio-overview-gradient-${gradientReactId.replace(/[:]/g, '-')}`,
@@ -719,7 +724,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     type="number"
                     domain={['dataMin', 'dataMax']}
                     scale="time"
-                    tickFormatter={(value: number) => dateFormatter.format(new Date(value))}
+                    tickFormatter={(value: number) => withRtlMark(dateFormatter.format(new Date(value)))}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={16}
@@ -741,7 +746,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       <ChartTooltip
                         formatUsd={usdFormatter}
                         formatIls={ilsFormatter}
-                        labelFormatter={(value) => tooltipDateFormatter.format(new Date(Number(value)))}
+                        labelFormatter={(value) => withRtlMark(tooltipDateFormatter.format(new Date(Number(value))))}
                         labels={{
                           at: t.dashboard.timelineTooltipMoment,
                           net: t.dashboard.netPnL,

@@ -58,8 +58,8 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
 
   const renderActionButton = (action: DashboardQuickAction) => {
     const Icon = action.icon;
-    const contentClassName = 'flex w-full items-center justify-center gap-2';
-    const labelBaseClassName = 'truncate text-xs font-semibold sm:text-sm';
+    const contentClassName = 'flex w-full min-w-0 items-center justify-center gap-2';
+    const labelBaseClassName = 'min-w-0 whitespace-normal break-words text-center text-xs font-semibold leading-tight sm:text-sm';
     const iconBaseClassName = 'h-4 w-4 shrink-0';
     const toneClassName =
       ACTION_TONE_BY_KEY[action.key] ??
@@ -95,7 +95,7 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
         aria-label={action.ariaLabel ?? action.label}
         className={cn(
           toneClassName,
-          'h-10 min-w-[120px] rounded-full px-3 !text-[var(--color-slate-800)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary-300)] focus-visible:ring-offset-1 disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-sm',
+          'h-auto min-w-0 w-full rounded-full px-3 py-2.5 !whitespace-normal !text-[var(--color-slate-800)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary-300)] focus-visible:ring-offset-1 disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-sm',
         )}
       >
         {buttonContent}
@@ -103,5 +103,5 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
     );
   };
 
-  return <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-3">{actions.map((action) => renderActionButton(action))}</div>;
+  return <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{actions.map((action) => renderActionButton(action))}</div>;
 }

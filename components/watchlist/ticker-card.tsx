@@ -270,11 +270,6 @@ export function TickerCard({
     return 'var(--color-primary-500)';
   }, [historical]);
 
-  const accentGradient = useMemo(() => {
-    const base = trendColor ?? 'var(--color-primary-500)';
-    return `linear-gradient(90deg, ${base} 0%, ${base}CC 45%, ${base}66 100%)`;
-  }, [trendColor]);
-
   const hoverMeta =
     effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number'
       ? `${hoverLabel} ${formatTooltipTimestamp(effectiveHoveredPoint.timestamp)}`
@@ -299,11 +294,11 @@ export function TickerCard({
   return (
     <Card
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border card-surface ring-1 ring-[color:var(--color-slate-200)]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl',
+        'relative flex h-full flex-col overflow-hidden border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm transition-shadow duration-200 hover:shadow-md',
         className
       )}
     >
-      <div className="absolute inset-x-0 top-0 h-1" aria-hidden style={{ background: accentGradient }} />
+      <div className="absolute inset-x-0 top-0 h-px bg-[color:var(--color-slate-200)]" aria-hidden />
       <div className="relative flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-5">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -311,7 +306,7 @@ export function TickerCard({
               <span className="text-base font-semibold tracking-tight text-slate-900">
                 {ticker.symbol.toUpperCase()}
               </span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
+              <span className="rounded-full border border-[color:var(--color-slate-200)] bg-slate-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
                 {range}
               </span>
             </div>
@@ -352,20 +347,20 @@ export function TickerCard({
           </div>
         </header>
 
-        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-overlay-slate-50 p-2.5 sm:col-span-2 sm:p-3">
+        <div className="grid gap-2 md:grid-cols-2 md:gap-3">
+          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 md:col-span-2 md:p-3">
             <p className={priceLabelClassName}>{priceLabel}</p>
             <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
               {priceText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
+          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
             <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
               {changeText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
+          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 sm:p-3">
             <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
             <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
               {basePriceText}
@@ -378,7 +373,7 @@ export function TickerCard({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
+        <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 sm:p-3">
           {loading ? (
             <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
               {loadingLabel}
@@ -416,7 +411,7 @@ export function TickerCard({
         </div>
 
         {ticker.note ? (
-          <div className="rounded-xl border border-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
+          <div className="rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
             <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
           </div>

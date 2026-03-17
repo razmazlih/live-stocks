@@ -183,31 +183,34 @@ export function PositionsOverview({
           <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
           <p className="text-sm text-slate-500">{sortNotice}</p>
           {hasFilterApplied && (
-            <Badge className="mt-1 inline-flex rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+            <Badge className="mt-1 inline-flex max-w-full rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
               {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
             </Badge>
           )}
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
+                className="group w-full justify-between rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600 sm:w-auto sm:justify-start"
               >
                 <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
-                <span className="text-sm font-medium">
+                <span className="min-w-0 flex-1 text-left text-sm font-medium sm:flex-none">
                   {hasFilterApplied
                     ? activeFilterOption.label
                     : t.dashboard.positionFilters.triggerLabel}
                 </span>
-                <Badge className="ml-2 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                <Badge className="ml-2 shrink-0 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
                   {filteredOpenMetrics.length}
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg backdrop-blur-xl">
+            <DropdownMenuContent
+              align="end"
+              className="w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg sm:w-80"
+            >
               <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t.dashboard.positionFilters.title}
               </DropdownMenuLabel>
@@ -248,17 +251,17 @@ export function PositionsOverview({
           {t.dashboard.positionFilters.empty}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
           {filteredOpenMetrics.map((metrics) => {
             const sparklineKey =
               metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
             return (
-            <PositionCard
-              key={metrics.position.id || metrics.position.symbol}
-              metrics={metrics}
-              sparklineData={sparklineData[sparklineKey] || []}
-            />
-          );
+              <PositionCard
+                key={metrics.position.id || metrics.position.symbol}
+                metrics={metrics}
+                sparklineData={sparklineData[sparklineKey] || []}
+              />
+            );
           })}
         </div>
       )}
@@ -268,7 +271,7 @@ export function PositionsOverview({
             <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
             <p className="text-sm text-slate-500">{sortNotice}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
             {groupedClosedMetrics.map((group) => {
               return (
                 <ClosedPositionGroupCard
@@ -339,20 +342,20 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 {countLabel(group.options.length)}
               </Badge>
             </div>
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5">
+            <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-1.5">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={!previousOption}
-                className="h-9 w-9 rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40"
+                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40 sm:w-9"
                 onClick={() => previousOption && setSelectedId(previousOption.id)}
               >
                 {locale === 'he' ? '→' : '←'}
               </Button>
 
               <Select value={selectedOption.id} onValueChange={setSelectedId}>
-                <SelectTrigger className="h-9 rounded-xl border-blue-200 bg-white/95 text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
+                <SelectTrigger className="h-9 w-full rounded-xl border-blue-200 bg-white/95 text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-72 rounded-xl border-blue-100 bg-white/95">
@@ -373,7 +376,7 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 variant="outline"
                 size="sm"
                 disabled={!nextOption}
-                className="h-9 w-9 rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40"
+                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40 sm:w-9"
                 onClick={() => nextOption && setSelectedId(nextOption.id)}
               >
                 {locale === 'he' ? '←' : '→'}

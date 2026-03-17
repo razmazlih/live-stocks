@@ -6,12 +6,14 @@ import { RefreshCw, LineChart, ArrowUpRight } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import { DashboardPageShell } from '@/components/dashboard/page-shell';
+import { cn } from '@/lib/utils';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -124,11 +126,32 @@ export default function PortfolioPage() {
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
   const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
-  const averageReturnPercent = metrics.length
-    ? metrics.reduce((acc, metric) => acc + metric.roiPercent, 0) / metrics.length
-    : 0;
-
   const openPositionsCount = openMetrics.length;
+  const openValueTotal = useMemo(
+    () => openMetrics.reduce((sum, metric) => sum + metric.currentValue, 0),
+    [openMetrics]
+  );
+  const winningPositionsCount = useMemo(
+    () => openMetrics.filter((metric) => metric.positionPnLUsd >= 0).length,
+    [openMetrics]
+  );
+  const losingPositionsCount = openPositionsCount - winningPositionsCount;
+  const winRatePercent = openPositionsCount > 0 ? (winningPositionsCount / openPositionsCount) * 100 : 0;
+  const topHoldings = useMemo(
+    () =>
+      openMetrics
+        .slice()
+        .sort((a, b) => b.currentValue - a.currentValue)
+        .slice(0, 4),
+    [openMetrics]
+  );
+  const topThreeSharePercent =
+    openValueTotal > 0
+      ? (topHoldings.slice(0, 3).reduce((sum, metric) => sum + metric.currentValue, 0) / openValueTotal) * 100
+      : 0;
+  const combinedEdgeUsd = summary ? summary.totalCombinedUsd - summary.totalProjectedPnLUsd : 0;
+  const combinedEdgeIls = summary ? summary.totalCombinedIls - summary.totalProjectedPnLIls : 0;
+  const combinedEdgeTone = getTrendTone(combinedEdgeUsd);
 
   const bestMetric = metrics.reduce((best, metric) => {
     if (!best || metric.positionPnLUsd > best.positionPnLUsd) {
@@ -143,30 +166,6 @@ export default function PortfolioPage() {
     }
     return worst;
   }, undefined as typeof metrics[number] | undefined);
-
-  type GeneralStat = {
-    key: string;
-    label: string;
-    value: string;
-    helper?: string;
-    toneClass?: string;
-  };
-
-  const generalStats: GeneralStat[] = summary
-    ? [
-        {
-          key: 'openPositions',
-          label: t.portfolio.openPositions,
-          value: openPositionsCount.toString(),
-        },
-        {
-          key: 'averageReturn',
-          label: t.portfolio.averageReturn,
-          value: formatSignedPercent(averageReturnPercent, locale),
-          toneClass: getTrendTone(averageReturnPercent).text,
-        },
-      ]
-    : [];
 
   type SummaryCardHelper = {
     label: string;
@@ -185,6 +184,15 @@ export default function PortfolioPage() {
     helper?: SummaryCardHelper[];
     badge?: { value: string; tone: { text: string; badge: string }; icon: JSX.Element };
     footnote?: string;
+    featured?: boolean;
+  };
+
+  type GeneralStat = {
+    key: string;
+    label: string;
+    value: string;
+    helper?: string;
+    toneClass?: string;
   };
 
   const summaryCards: SummaryCard[] = [];
@@ -201,7 +209,7 @@ export default function PortfolioPage() {
         key: 'value',
         label: t.dashboard.totalValue,
         value: formatCurrency(summary.totalValue, 'USD', locale),
-        valueClass: 'text-3xl font-semibold text-slate-900',
+        valueClass: 'text-[clamp(2rem,3.4vw,3.35rem)] font-semibold tracking-tight text-slate-900',
         secondary: {
           label: 'ILS',
           value: formatCurrency(totalValueIls, 'ILS', locale),
@@ -215,12 +223,13 @@ export default function PortfolioPage() {
           tone: getTrendTone(totalReturnUsd),
           icon: getTrendIcon(totalReturnUsd),
         },
+        featured: true,
       },
       {
         key: 'net',
         label: t.dashboard.netPnL,
         value: formatSignedCurrency(summary.totalNetPnLUsd, 'USD', locale),
-        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalNetPnLUsd).text}`,
+        valueClass: `text-[clamp(2rem,3.4vw,3.35rem)] font-semibold tracking-tight ${getTrendTone(summary.totalNetPnLUsd).text}`,
         secondary: {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS', locale),
@@ -244,12 +253,13 @@ export default function PortfolioPage() {
             icon: getTrendIcon(netForecastGapUsd),
           },
         ],
+        featured: true,
       },
       {
         key: 'current',
         label: t.dashboard.currentPnL,
         value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
-        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+        valueClass: `text-2xl font-semibold tracking-tight ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
         secondary: {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
@@ -259,7 +269,7 @@ export default function PortfolioPage() {
         key: 'projected',
         label: t.dashboard.projectedPnL,
         value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD', locale),
-        valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+        valueClass: `text-2xl font-semibold tracking-tight ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
         secondary: {
           label: 'ILS',
           value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS', locale),
@@ -269,7 +279,7 @@ export default function PortfolioPage() {
         key: 'taxes',
         label: t.dashboard.taxesPaid,
         value: formatSignedCurrency(taxesUsdDisplay, 'USD', locale),
-        valueClass: `text-3xl font-semibold ${getTrendTone(taxesUsdDisplay).text}`,
+        valueClass: `text-2xl font-semibold tracking-tight ${getTrendTone(taxesUsdDisplay).text}`,
         secondary: {
           label: 'ILS',
           value: formatSignedCurrency(taxesIlsDisplay, 'ILS', locale),
@@ -283,7 +293,7 @@ export default function PortfolioPage() {
       key: 'realized',
       label: t.portfolio.realizedPnLCard,
       value: formatSignedCurrency(closedSummary.totalProfitUsd, 'USD', locale),
-      valueClass: `text-3xl font-semibold ${getTrendTone(closedSummary.totalProfitUsd).text}`,
+      valueClass: `text-2xl font-semibold tracking-tight ${getTrendTone(closedSummary.totalProfitUsd).text}`,
       secondary: {
         label: 'ILS',
         value: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS', locale),
@@ -312,6 +322,7 @@ export default function PortfolioPage() {
         icon: getTrendIcon(closedSummary.performanceDeltaUsd),
       },
       footnote: t.portfolio.closedPositionsFootnote(closedSummary.uniqueSymbols),
+      featured: false,
     });
   }
 
@@ -335,7 +346,7 @@ export default function PortfolioPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['portfolio'],
+        include: ['reload'],
         overrides: {
           reload: {
             onClick: reload,
@@ -348,196 +359,234 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
-                    <LineChart className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{t.portfolio.title}</h1>
-                    <p className="mt-1 max-w-xl text-sm text-slate-600 sm:text-base">{t.portfolio.subtitle}</p>
-                  </div>
+    <DashboardPageShell direction={locale === 'he' ? 'rtl' : 'ltr'}>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                <LineChart className="h-3.5 w-3.5" />
+                {t.portfolio.title}
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 text-blue-600">
+                  <LineChart className="h-5 w-5" />
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-                    {t.app.updated} {lastUpdatedDisplay ?? '—'}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
-                    <LineChart className="h-4 w-4 text-blue-500" />
-                    1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
-                  </span>
-                  {hasDailyChange && (
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
-                    >
-                      {dailyChangeIcon}
-                      {formatSignedCurrency(totalDailyChangeUsd, 'USD', locale)}
-                      <span className="text-xs font-medium text-overlay-slate-600">{t.dashboard.dailyChange}</span>
-                    </span>
-                  )}
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-[var(--color-primary-900)] sm:text-3xl">
+                    {t.portfolio.title}
+                  </h1>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                    {t.portfolio.subtitle}
+                  </p>
                 </div>
               </div>
-              <QuickActionsSection title={t.portfolio.actions} actions={quickActions} />
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-blue-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-400" />
+                  {t.app.updated} {lastUpdatedDisplay ?? '—'}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-600">
+                  <LineChart className="h-4 w-4 text-blue-500" />
+                  1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
+                </span>
+                {hasDailyChange && (
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
+                  >
+                    {dailyChangeIcon}
+                    {formatSignedCurrency(totalDailyChangeUsd, 'USD', locale)}
+                    <span className="text-xs font-medium text-overlay-slate-600">{t.dashboard.dailyChange}</span>
+                  </span>
+                )}
+              </div>
             </div>
-          </header>
 
-          <main className="mt-6">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-6">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
-              <div className="relative z-10">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
-                    <p>{t.common.loading}</p>
+            <QuickActionsSection
+              title={t.portfolio.actions}
+              actions={quickActions}
+              className="lg:sticky lg:top-6 lg:self-start"
+            />
+          </div>
+        </header>
+
+        <main className="mt-8 space-y-6">
+          {summary && (
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  key: 'open',
+                  label: t.portfolio.openPositions,
+                  value: openPositionsCount.toString(),
+                  helper:
+                    locale === 'he'
+                      ? `${winningPositionsCount} ברווח, ${losingPositionsCount} בירידה`
+                      : `${winningPositionsCount} winners, ${losingPositionsCount} lagging`,
+                  tone: 'text-slate-900',
+                },
+                {
+                  key: 'winRate',
+                  label: locale === 'he' ? 'שיעור מנצחים' : 'Win rate',
+                  value: formatPercent(winRatePercent, locale),
+                  helper:
+                    locale === 'he'
+                      ? 'מבוסס על פוזיציות פתוחות בלבד'
+                      : 'Based on open positions only',
+                  tone: getTrendTone(winRatePercent).text,
+                },
+                {
+                  key: 'concentration',
+                  label: locale === 'he' ? 'ריכוז 3 הגדולים' : 'Top 3 concentration',
+                  value: formatPercent(topThreeSharePercent, locale),
+                  helper:
+                    locale === 'he'
+                      ? formatCurrency(openValueTotal, 'USD', locale)
+                      : formatCurrency(openValueTotal, 'USD', locale),
+                  tone: 'text-slate-900',
+                },
+                {
+                  key: 'edge',
+                  label: locale === 'he' ? 'יתרון משולב' : 'Combined edge',
+                  value: formatSignedCurrency(combinedEdgeUsd, 'USD', locale),
+                  helper: formatSignedCurrency(combinedEdgeIls, 'ILS', locale),
+                  tone: combinedEdgeTone.text,
+                },
+              ].map((tile) => (
+                <div
+                  key={tile.key}
+                  className="rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-white p-4 shadow-sm transition-shadow duration-300 hover:shadow-md"
+                >
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{tile.label}</p>
+                    <p className={`text-2xl font-semibold tracking-tight ${tile.tone}`}>{tile.value}</p>
+                    <p className="text-sm leading-5 text-slate-500">{tile.helper}</p>
                   </div>
-                ) : positions.length === 0 || !summary ? (
-                  <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-                    <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner">
-                      <LineChart className="h-6 w-6" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-slate-800">{t.portfolio.emptyTitle}</p>
-                      <p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p>
-                    </div>
-                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
-                      <Link href="/positions">
-                        <ArrowUpRight className="h-4 w-4" />
-                        <span>{t.positions.add}</span>
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="grid items-start gap-5">
-                      <div className="space-y-4 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
-                        <div>
-                          <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
-                          <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
-                        </div>
-                        {portfolioTimeline.length > 0 ? (
-                          <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-overlay-neutral-white py-14 text-center text-slate-500">
-                            <LineChart className="h-6 w-6 text-slate-400" />
-                            <p>{t.portfolio.timelineEmpty}</p>
-                          </div>
-                        )}
-                      </div>
+                </div>
+              ))}
+            </section>
+          )}
 
-                      <aside className="space-y-4">
-                        {generalStats.length > 0 && (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {generalStats.map((stat) => (
-                              <div
-                                key={stat.key}
-                                className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
-                              >
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
-                                <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
-                                  {stat.value}
-                                </p>
-                                {stat.helper && <p className="text-xs font-medium text-slate-500">{stat.helper}</p>}
-                              </div>
-                            ))}
+          {loading ? (
+            <section className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 px-4 py-12 shadow-sm sm:px-6">
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+                <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
+                <p>{t.common.loading}</p>
+              </div>
+            </section>
+          ) : positions.length === 0 || !summary ? (
+            <section className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 px-4 py-12 shadow-sm sm:px-6">
+              <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                <div className="rounded-full border border-slate-200 bg-slate-50 p-3 text-blue-600">
+                  <LineChart className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-lg font-semibold text-slate-800">{t.portfolio.emptyTitle}</p>
+                  <p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p>
+                </div>
+                <Button
+                  asChild
+                  size="sm"
+                  className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                >
+                  <Link href="/positions">
+                    <ArrowUpRight className="h-4 w-4" />
+                    <span>{t.positions.add}</span>
+                  </Link>
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <>
+              <section className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(340px,0.7fr)] xl:items-start">
+                <div className="space-y-6">
+                  <div className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+                    <div className="space-y-5">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                            {locale === 'he' ? 'תצוגת תנועה' : 'Performance view'}
                           </div>
-                        )}
-
-                        <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
-                          <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 px-4 py-3.5 shadow-inner">
-                              <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
-                              {bestMetric ? (
-                                <div className="mt-2.5 space-y-1 text-sm text-slate-600">
-                                  <p className="text-lg font-semibold text-slate-900">
-                                    {bestMetric.position.display || bestMetric.position.symbol}
-                                  </p>
-                                  <p>
-                                    {formatSignedCurrency(bestMetric.positionPnLUsd, 'USD', locale)}{' '}
-                                    <span className="text-xs text-slate-500">
-                                      ({formatSignedPercent(bestMetric.roiPercent, locale)})
-                                    </span>
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
-                              )}
-                            </div>
-                            <div className="rounded-2xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 px-4 py-3.5 shadow-inner">
-                              <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
-                              {worstMetric ? (
-                                <div className="mt-2.5 space-y-1 text-sm text-slate-600">
-                                  <p className="text-lg font-semibold text-slate-900">
-                                    {worstMetric.position.display || worstMetric.position.symbol}
-                                  </p>
-                                  <p>
-                                    {formatSignedCurrency(worstMetric.positionPnLUsd, 'USD', locale)}{' '}
-                                    <span className="text-xs text-slate-500">
-                                      ({formatSignedPercent(worstMetric.roiPercent, locale)})
-                                    </span>
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
-                              )}
-                            </div>
-                          </div>
+                          <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+                            {t.portfolio.timelineTitle}
+                          </h2>
+                          <p className="max-w-2xl text-sm leading-6 text-slate-500">
+                            {t.portfolio.overviewDescription}
+                          </p>
                         </div>
 
-                        {closedSummary && closedStats.length > 0 && (
-                          <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
-                            <div>
-                              <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
-                              <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {closedStats.map((stat) => (
-                                <div
-                                  key={stat.key}
-                                  className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
-                                >
-                                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
-                                  <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
-                                    {stat.value}
-                                  </p>
-                                  {stat.helper && <p className="text-xs font-medium text-slate-500">{stat.helper}</p>}
-                                </div>
-                              ))}
-                            </div>
-                            <p className="text-xs font-medium text-slate-500">
-                              {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white px-4 py-3 shadow-sm">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              {t.dashboard.currentPnL}
+                            </p>
+                            <p className={`mt-1 text-lg font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`}>
+                              {formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale)}
                             </p>
                           </div>
-                        )}
-                      </aside>
-                    </div>
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white px-4 py-3 shadow-sm">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              {t.dashboard.projectedPnL}
+                            </p>
+                            <p className={`mt-1 text-lg font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`}>
+                              {formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD', locale)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white px-4 py-3 shadow-sm">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              {t.dashboard.combinedPnL}
+                            </p>
+                            <p className={`mt-1 text-lg font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`}>
+                              {formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-                    {summaryCards.length > 0 && (
-                      <div className="space-y-3">
-                        <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                          {summaryCards.map((card) => (
+                      {portfolioTimeline.length > 0 ? (
+                        <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-200 bg-slate-50 py-14 text-center text-slate-500">
+                          <LineChart className="h-6 w-6 text-slate-400" />
+                          <p>{t.portfolio.timelineEmpty}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {summaryCards.length > 0 && (
+                    <section className="space-y-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            {locale === 'he' ? 'סיכום תיק' : 'Portfolio snapshot'}
+                          </p>
+                          <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+                            {t.portfolio.overviewTitle}
+                          </h2>
+                        </div>
+                        <p className="max-w-xl text-sm leading-6 text-slate-500">
+                          {locale === 'he'
+                            ? 'הכרטיסים החשובים ביותר מובלטים, והפריסה שומרת על קריאות גם כשיש הרבה מדדים.'
+                            : 'The most important cards are emphasized while keeping the grid readable under density.'}
+                        </p>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        {summaryCards.map((card) => {
+                          const toneBadge = card.badge?.tone.badge ?? 'bg-slate-100 text-slate-500';
+
+                          return (
                             <div
                               key={card.key}
-                              className="relative overflow-hidden rounded-3xl border card-surface p-4 transition-shadow duration-300"
-                            >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full card-glow blur-3xl" />
-                              <div className="relative z-10 space-y-2.5">
-                                <div className="flex items-center justify-between">
+                            className={cn(
+                                'rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-white p-4 shadow-sm transition-shadow duration-300 hover:shadow-md',
+                                card.featured && 'sm:col-span-2 xl:col-span-2 p-5'
+                              )}
+                          >
+                              <div className="space-y-2.5">
+                                <div className="flex items-start justify-between gap-3">
                                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
                                   {card.badge && (
-                                    <span
-                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${card.badge.tone.badge}`}
-                                    >
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${toneBadge}`}>
                                       {card.badge.icon}
                                       {card.badge.value}
                                     </span>
@@ -553,7 +602,7 @@ export default function PortfolioPage() {
                                 {card.helper?.map((helper) => (
                                   <div
                                     key={`${card.key}-${helper.label}`}
-                                    className="mt-2.5 rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-primary-025)] px-3 py-2 text-xs text-slate-500"
+                                    className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"
                                   >
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2">
@@ -568,11 +617,7 @@ export default function PortfolioPage() {
                                         )}
                                         <span className="font-medium">{helper.label}</span>
                                       </div>
-                                      <span
-                                        className={`font-semibold ${
-                                          helper.tone?.text ?? 'text-slate-700'
-                                        }`}
-                                      >
+                                      <span className={`font-semibold ${helper.tone?.text ?? 'text-slate-700'}`}>
                                         {helper.value}
                                       </span>
                                     </div>
@@ -586,17 +631,178 @@ export default function PortfolioPage() {
                                 {card.footnote && <p className="text-xs font-medium text-slate-500">{card.footnote}</p>}
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-          </main>
-        </div>
+                    </section>
+                  )}
+                </div>
+
+                <aside className="space-y-4 xl:sticky xl:top-6">
+                  <section className="space-y-4 rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 p-5 shadow-sm">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        {locale === 'he' ? 'ריכוז תיק' : 'Allocation snapshot'}
+                      </p>
+                      <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                        {locale === 'he' ? 'החזקות מובילות' : 'Leading holdings'}
+                      </h2>
+                      <p className="text-sm leading-6 text-slate-500">
+                        {locale === 'he'
+                          ? `שלושת הגדולים מחזיקים ${formatPercent(topThreeSharePercent, locale)} מהערך הפתוח.`
+                          : `The top three positions hold ${formatPercent(topThreeSharePercent, locale)} of open value.`}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {topHoldings.length > 0 ? (
+                        topHoldings.map((metric) => {
+                          const tone = getTrendTone(metric.positionPnLUsd);
+                          const percent = openValueTotal > 0 ? (metric.currentValue / openValueTotal) * 100 : 0;
+
+                          return (
+                            <div
+                              key={metric.position.activationId ?? metric.position.id ?? metric.position.symbol}
+                            className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white p-4 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold text-slate-900">
+                                    {metric.position.display || metric.position.symbol}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    {formatCurrency(metric.currentValue, 'USD', locale)}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-semibold text-slate-900">{formatPercent(percent, locale)}</p>
+                                  <p className={`text-xs font-medium ${tone.text}`}>
+                                    {formatSignedCurrency(metric.positionPnLUsd, 'USD', locale)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-3 h-2 rounded-full bg-slate-100">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    metric.positionPnLUsd >= 0 ? 'bg-emerald-400' : 'bg-rose-400'
+                                  }`}
+                                  style={{ width: `${Math.max(percent, 6)}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/82 px-4 py-8 text-center text-sm text-slate-500">
+                          {t.portfolio.timelineEmpty}
+                        </p>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="space-y-4 rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 p-5 shadow-sm">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        {t.portfolio.moversTitle}
+                      </p>
+                      <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                        {locale === 'he' ? 'מובילים מול מפגרים' : 'Leaders vs laggards'}
+                      </h2>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-[24px] border border-emerald-100 bg-emerald-50/60 p-4">
+                        <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
+                        {bestMetric ? (
+                          <div className="mt-2.5 space-y-1 text-sm text-slate-600">
+                            <p className="text-lg font-semibold text-slate-900">
+                              {bestMetric.position.display || bestMetric.position.symbol}
+                            </p>
+                            <p>
+                              {formatSignedCurrency(bestMetric.positionPnLUsd, 'USD', locale)}{' '}
+                              <span className="text-xs text-slate-500">
+                                ({formatSignedPercent(bestMetric.roiPercent, locale)})
+                              </span>
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                        )}
+                      </div>
+                      <div className="rounded-[24px] border border-rose-100 bg-rose-50/60 p-4">
+                        <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
+                        {worstMetric ? (
+                          <div className="mt-2.5 space-y-1 text-sm text-slate-600">
+                            <p className="text-lg font-semibold text-slate-900">
+                              {worstMetric.position.display || worstMetric.position.symbol}
+                            </p>
+                            <p>
+                              {formatSignedCurrency(worstMetric.positionPnLUsd, 'USD', locale)}{' '}
+                              <span className="text-xs text-slate-500">
+                                ({formatSignedPercent(worstMetric.roiPercent, locale)})
+                              </span>
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500">
+                      <span>
+                        {locale === 'he' ? `רווחיות: ${winningPositionsCount}` : `Winning positions: ${winningPositionsCount}`}
+                      </span>
+                      <span>
+                        {locale === 'he' ? `הפסד: ${losingPositionsCount}` : `Losing positions: ${losingPositionsCount}`}
+                      </span>
+                    </div>
+                  </section>
+
+                  {closedSummary && closedStats.length > 0 && (
+                    <section className="space-y-4 rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-white/92 p-5 shadow-sm">
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          {locale === 'he' ? 'מימושים' : 'Realized cycle'}
+                        </p>
+                        <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                          {t.portfolio.closedOverviewTitle}
+                        </h2>
+                        <p className="text-sm leading-6 text-slate-500">{t.portfolio.closedOverviewDescription}</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {closedStats.map((stat) => (
+                          <div key={stat.key} className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white px-4 py-3.5 shadow-sm">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
+                            <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
+                              {stat.value}
+                            </p>
+                            {stat.helper && <p className="text-xs font-medium text-slate-500">{stat.helper}</p>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-medium text-slate-700">
+                            {t.portfolio.performanceVsExpectedShort}
+                          </span>
+                          <span className={`font-semibold ${getTrendTone(closedSummary.performanceDeltaUsd).text}`}>
+                            {formatSignedCurrency(closedSummary.performanceDeltaUsd, 'USD', locale)}{' '}
+                            <span className="text-xs font-medium text-slate-500">
+                              ({formatSignedPercent(closedSummary.performanceDeltaPercent, locale)})
+                            </span>
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                          {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
+                        </p>
+                      </div>
+                    </section>
+                  )}
+                </aside>
+              </section>
+            </>
+          )}
+        </main>
       </div>
-    </div>
+    </DashboardPageShell>
   );
 }
