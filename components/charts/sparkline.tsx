@@ -555,16 +555,24 @@ export function Sparkline({
         badge: 'border-rose-300/80 bg-rose-50/95 text-rose-700',
         border: 'border-rose-200/90',
       };
-  const eventTooltipWidth = 224;
-  const eventTooltipHeight = 124;
+  const eventTooltipWidth = Math.min(224, Math.max(156, Math.floor(chartWidth - 16)));
+  const eventTooltipHeight = eventTooltipWidth < 200 ? 152 : 124;
   const eventTooltipOffset = 10;
+  const eventTooltipCompact = eventTooltipWidth < 200;
   const eventTooltipLeft = activeEvent
     ? Math.min(
         Math.max(activeEvent.x - (eventTooltipWidth / 2), 8),
         Math.max(chartWidth - eventTooltipWidth - 8, 8)
       )
     : 0;
-  const eventTooltipTop = -(eventTooltipHeight + eventTooltipOffset);
+  const eventTooltipTop = activeEvent
+    ? (() => {
+        const desiredTop = activeEvent.y - eventTooltipHeight - eventTooltipOffset;
+        const fallbackTop = activeEvent.y + eventTooltipOffset;
+        const maxTop = Math.max(height - eventTooltipHeight - 8, 8);
+        return desiredTop >= 8 ? Math.min(desiredTop, maxTop) : Math.min(fallbackTop, maxTop);
+      })()
+    : 0;
   const latestClose = normalizedPoints[normalizedPoints.length - 1]?.close ?? null;
   const isSellEvent = activeEvent?.type === 'SELL';
   const buyReferencePrice = activeEvent?.type === 'BUY'
@@ -974,52 +982,53 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className={`pointer-events-none absolute z-30 w-[224px] rounded-2xl border bg-white/72 px-3 py-2.5 text-xs text-slate-700 shadow-lg backdrop-blur-md ${activeEventTone?.border ?? 'border-slate-200/90'}`}
+              className={`pointer-events-none absolute z-30 rounded-2xl border bg-white/72 px-3 py-2.5 text-xs text-slate-700 shadow-lg backdrop-blur-md ${activeEventTone?.border ?? 'border-slate-200/90'}`}
               style={{
                 left: eventTooltipLeft,
                 top: eventTooltipTop,
+                width: eventTooltipWidth,
               }}
               dir="rtl"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${activeEventTone?.badge ?? 'border-slate-300 bg-slate-100 text-slate-700'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <span className={`min-w-0 rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${activeEventTone?.badge ?? 'border-slate-300 bg-slate-100 text-slate-700'}`}>
                   {activeEvent.typeLabel ?? activeEvent.type}
                 </span>
-                <span className="text-[11px] font-medium text-slate-500">
+                <span className="min-w-0 break-words text-right text-[11px] font-medium leading-tight text-slate-500">
                   {new Date(activeEvent.timestamp).toLocaleDateString('he-IL')}
                 </span>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+              <div className={`mt-2 grid gap-2 ${eventTooltipCompact ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                <div className="min-w-0 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
                   <div className="text-[10px] font-medium tracking-wide text-slate-500">
                     מחיר
                   </div>
-                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
+                  <div className="mt-0.5 break-words text-[15px] font-semibold leading-tight text-slate-800 tabular-nums" dir="ltr">
                     {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
                   </div>
                 </div>
-                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                <div className="min-w-0 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
                   <div className="text-[10px] font-medium tracking-wide text-slate-500">
                     כמות
                   </div>
-                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
+                  <div className="mt-0.5 break-words text-[15px] font-semibold leading-tight text-slate-800 tabular-nums" dir="ltr">
                     {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
                   </div>
                 </div>
               </div>
               {changeFromEvent && (
                 <div className="mt-2 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-slate-600">שינוי באחוזים</span>
-                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-[11px] font-medium leading-tight text-slate-600">שינוי באחוזים</span>
+                    <span className={`min-w-0 break-words text-right text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
                       {changePercentText}%
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-slate-600">
+                  <div className="mt-1 flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-[11px] font-medium leading-tight text-slate-600">
                       {isSellEvent ? 'רווח/הפסד במכירה' : 'שינוי בכסף'}
                     </span>
-                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
+                    <span className={`min-w-0 break-words text-right text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
                       {changeAmountText}
                     </span>
                   </div>

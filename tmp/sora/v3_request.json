@@ -1,0 +1,10 @@
+{
+  "dry_run": true,
+  "request": {
+    "endpoint": "/v1/videos",
+    "model": "sora-2",
+    "prompt": "Use case: app store social teaser for a stock tracking app\nPrimary request: same shot plan as v2, but make readability and premium clarity the priority\nScene/background: simplified trading-inspired studio set with fewer floating panels and more negative space\nSubject: a stylized smartphone displaying a generic watchlist UI with clear card hierarchy\nAction: smooth push-in, minimal rotation, one key chart card appears, final hold on title card for readability\nCamera: 35mm lens look, controlled slow dolly-in, stabilized framing\nLighting/mood: clean soft key with restrained rim light, calm and premium\nColor palette: navy, cyan, emerald, soft gray\nStyle/format: premium product ad, realistic CGI, clarity-first composition\nTiming/beats: beat 1 establish, beat 2 single UI reveal, beat 3 extended title hold\nAudio: restrained electronic bed with subtle pulse, no vocals\nText (verbatim): \"Track smarter. Move faster.\"\nConstraints: keep same subject and brand message, suitable for audiences under 18, no real people, no copyrighted logos, no copyrighted music\nAvoid: dense data overlays, motion blur on text, micro-jitter, over-saturated highlights",
+    "seconds": "8",
+    "size": "1280x720"
+  }
+}

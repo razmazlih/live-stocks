@@ -172,9 +172,14 @@ export default function AiPromptsPage() {
     [t.aiPrompts.copyError, t.aiPrompts.copySuccess]
   );
 
+  const copyContext = useCallback(() => {
+    void handleCopy(positionsContext);
+  }, [handleCopy, positionsContext]);
+
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
+        exclude: ['dashboard', 'insights', 'portfolio', 'realized', 'watchlist', 'positions', 'aiPrompts', 'settings'],
         overrides: {
           reload: {
             onClick: reload,
@@ -225,177 +230,380 @@ export default function AiPromptsPage() {
     [allTags.length, lastUpdate, locale, openMetrics.length]
   );
 
+  const templateNotes = useMemo(
+    () =>
+      locale === 'he'
+        ? {
+            quick: {
+              badge: 'מהיר',
+              detail: 'מתאים כשצריך תשובת כיוון קצרה על מחיר, פער ויעד.',
+            },
+            risk: {
+              badge: 'איזון סיכון',
+              detail: 'מסדר את התמונה בין הזדמנות, סיכון ודחיפות מעקב.',
+            },
+            research: {
+              badge: 'מחקר עמוק',
+              detail: 'מכין פרומפט עבודה מפורט לתחקיר והכנה לדיון.',
+            },
+          }
+        : {
+            quick: {
+              badge: 'Fast',
+              detail: 'Use when you need a quick direction on price, gap, and target.',
+            },
+            risk: {
+              badge: 'Risk frame',
+              detail: 'Balances opportunity, risk, and urgency in one pass.',
+            },
+            research: {
+              badge: 'Deep research',
+              detail: 'Prepares a detailed working prompt for analysis and review.',
+            },
+          },
+    [locale]
+  );
+
   return (
     <DashboardPageShell direction={direction}>
-      <div className="mx-auto max-w-6xl px-4 pb-14 pt-10">
-        <div className="flex flex-col gap-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--color-primary-900)] via-[var(--color-primary-700)] to-[var(--color-primary-500)] p-6 shadow-xl ring-1 ring-black/5">
-            <div className="absolute inset-y-0 left-0 w-1/3 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_55%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-                <Sparkles className="h-4 w-4" />
-                <span>{t.aiPrompts.quickAction}</span>
+      <div className="mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">
+        <div className="space-y-6">
+          <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-6 shadow-sm sm:p-8">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--color-primary-500)] via-[var(--color-sky-600)] to-[var(--color-emerald-500)]" />
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.75fr)]">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 self-start rounded-full border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-primary-050)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                  <Sparkles className="h-4 w-4" />
+                  <span>{t.aiPrompts.quickAction}</span>
+                </div>
+                <div className="space-y-3">
+                  <h1 className="text-3xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-4xl">
+                    {t.aiPrompts.title}
+                  </h1>
+                  <p className="max-w-3xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
+                    {t.aiPrompts.subtitle}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-medium text-[var(--color-slate-600)]">
+                  {statChips.map((chip) => (
+                    <span
+                      key={chip.label}
+                      className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 text-[var(--color-slate-600)] shadow-sm"
+                    >
+                      <span>{chip.label}</span>
+                      <span className="font-semibold text-[var(--color-primary-900)]">{chip.value}</span>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--color-slate-600)]">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 shadow-sm">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {locale === 'he' ? 'מבוסס נתונים אמיתיים בלבד' : 'Source-backed only'}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 shadow-sm">
+                    <Globe2 className="h-3.5 w-3.5" />
+                    {locale === 'he' ? 'מוכן להדבקה ולשימוש חוזר' : 'Ready to paste and reuse'}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col gap-2 text-white">
-                <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{t.aiPrompts.title}</h1>
-                <p className="max-w-3xl text-sm text-white/80">{t.aiPrompts.subtitle}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {statChips.map((chip) => (
-                  <div
-                    key={chip.label}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur ring-1 ring-white/20"
-                  >
-                    <span className="text-white/80">{chip.label}</span>
-                    <span className="text-white">{chip.value}</span>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-[1.5rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/88 p-4 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-slate-500)]">
+                    {locale === 'he' ? 'פוזיציות פעילות' : 'Active positions'}
+                  </p>
+                  <p className="mt-2 text-3xl font-black tracking-tight text-[var(--color-primary-900)]">
+                    {openMetrics.length}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--color-slate-600)]">
+                    {hasPositions
+                      ? locale === 'he'
+                        ? 'זו נקודת ההתחלה ליצירת כל פרומפט.'
+                        : 'This is the starting point for every prompt.'
+                      : locale === 'he'
+                        ? 'אין כרגע פוזיציות פעילות.'
+                        : 'No active positions are available right now.'}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/88 p-4 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-slate-500)]">
+                    {locale === 'he' ? 'טאגים מאוגדים' : 'Curated tags'}
+                  </p>
+                  <p className="mt-2 text-3xl font-black tracking-tight text-[var(--color-primary-900)]">
+                    {allTags.length}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--color-slate-600)]">
+                    {locale === 'he'
+                      ? 'מקטין רעש ומייצר קונספט עבודה יציב.'
+                      : 'Keeps noise down and gives the model a stable work frame.'}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/88 p-4 shadow-sm sm:col-span-2 xl:col-span-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-slate-500)]">
+                        {locale === 'he' ? 'רענון אחרון' : 'Last refresh'}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-[var(--color-slate-700)]">
+                        {lastUpdate
+                          ? lastUpdate.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : locale === 'he'
+                            ? 'עדיין לא עודכן'
+                          : 'Not updated yet'}
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-[color:var(--color-primary-050)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-700)]">
+                      {loading || refreshing
+                        ? locale === 'he'
+                          ? 'מתעדכן'
+                          : 'Refreshing'
+                        : locale === 'he'
+                          ? 'מוכן'
+                        : 'Ready'}
+                    </div>
                   </div>
-                ))}
+                  <p className="mt-3 text-sm leading-6 text-[var(--color-slate-600)]">
+                    {locale === 'he'
+                      ? 'בלוק ההקשר נשמר עקבי בין כל התבניות, ולכן קל לשחזר פרומפטים טובים.'
+                      : 'The context block stays consistent across templates, which makes good prompts easy to reuse.'}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
           <QuickActionsSection
             title={t.dashboard.quickActions}
-            description={t.positions.quickActionsDescription}
+            description={locale === 'he' ? 'קיצורי דרך לזרימת הפרומפטים.' : 'Shortcuts for the prompt workflow.'}
             actions={quickActions}
           />
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-sm">
-              <CardHeader>
-                <CardTitle>{t.aiPrompts.contextTitle}</CardTitle>
-                <CardDescription>
-                  {loading ? t.aiPrompts.loading : t.aiPrompts.contextHelper}
-                </CardDescription>
+          <section className="grid gap-4 lg:grid-cols-3">
+            {infoItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <Card
+                  key={item.title}
+                  className="overflow-hidden border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm"
+                >
+                  <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)] shadow-sm">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{item.title}</CardTitle>
+                      <CardDescription className="text-sm leading-6 text-[var(--color-slate-600)]">
+                        {item.desc}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </section>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.85fr)]">
+            <Card className="overflow-hidden border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm">
+              <CardHeader className="space-y-4 border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <CardTitle>{t.aiPrompts.contextTitle}</CardTitle>
+                    <CardDescription className="max-w-2xl">
+                      {loading ? t.aiPrompts.loading : t.aiPrompts.contextHelper}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-primary-200)] bg-[color:var(--color-primary-050)] px-3 py-1 text-xs font-medium text-[var(--color-primary-700)]">
+                      <span className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
+                      {hasPositions
+                        ? locale === 'he'
+                          ? `${openMetrics.length} פוזיציות פעילות`
+                          : `${openMetrics.length} active positions`
+                        : t.aiPrompts.empty}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyContext}
+                      className="w-full rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/80 text-[var(--color-slate-700)] shadow-sm hover:bg-[color:var(--color-primary-050)] sm:w-auto"
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      {locale === 'he' ? 'העתק בלוק' : 'Copy block'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-medium text-[var(--color-slate-500)]">
+                  <span className="w-full rounded-full bg-[color:var(--color-primary-050)] px-3 py-1 text-center text-[var(--color-primary-700)] sm:w-auto">
+                    {locale === 'he' ? 'מקור נתונים' : 'Source data'}
+                  </span>
+                  <span className="w-full rounded-full bg-[color:var(--color-slate-100)] px-3 py-1 text-center text-[var(--color-slate-600)] sm:w-auto">
+                    {locale === 'he' ? 'טקסט מוכן להדבקה' : 'Paste-ready text'}
+                  </span>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4 p-5 sm:p-6">
                 <Textarea
                   value={positionsContext}
                   readOnly
-                  className="min-h-[200px] resize-none border-[var(--color-primary-100)] bg-white/70 shadow-inner"
+                  className="min-h-[260px] resize-none border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 font-mono text-[13px]"
                 />
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-slate-600)]">
+                <div className="flex flex-col gap-2 border-t border-[color:var(--color-slate-200)]/70 pt-4 text-xs text-[var(--color-slate-600)] sm:flex-row sm:items-center sm:justify-between">
                   <span className="inline-flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
+                    <span className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
                     {lastUpdate
                       ? `${t.app.updated}: ${lastUpdate.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`
                       : t.app.updated}
                   </span>
                   <span>
                     {hasPositions
-                      ? (locale === 'he'
-                          ? `${openMetrics.length} פוזיציות פעילות בפרומפט`
-                          : `${openMetrics.length} active positions in prompt`)
-                      : t.aiPrompts.empty}
+                      ? locale === 'he'
+                        ? 'העתק את הבלוק הזה לכל תבנית כדי לשמור על עקביות.'
+                        : 'Reuse this block across templates to keep prompts consistent.'
+                      : locale === 'he'
+                        ? 'אין פוזיציות פעילות כרגע.'
+                        : 'No active positions right now.'}
                   </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>{t.aiPrompts.tagsTitle}</CardTitle>
-                <CardDescription>{t.aiPrompts.tagsHelper}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                {allTags.length === 0 ? (
-                  <p className="text-sm text-[var(--color-slate-600)]">{t.aiPrompts.tagsEmpty}</p>
-                ) : (
-                  allTags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="bg-white text-[var(--color-primary-900)] ring-1 ring-[var(--color-primary-100)]"
-                    >
-                      {tag}
-                    </Badge>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-sm">
-              <CardHeader>
-                <CardTitle>{locale === 'he' ? 'איך להשתמש בפרומפט' : 'How to use these prompts'}</CardTitle>
-                <CardDescription>{locale === 'he' ? 'שמור על טבלאות נקיות ומקורות בדוקים.' : 'Keep outputs clean tables with verified sources.'}</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-3">
-                {infoItems.map((item) => (
-                  <div
-                    key={item.title}
-                    className="flex flex-col gap-1 rounded-xl border border-[var(--color-primary-100)] bg-white/80 p-3 shadow-inner"
-                  >
-                    <item.icon className="h-5 w-5 text-[var(--color-primary-700)]" />
-                    <div className="text-sm font-semibold text-[var(--color-primary-950)]">{item.title}</div>
-                    <div className="text-xs text-[var(--color-slate-600)]">{item.desc}</div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>{locale === 'he' ? 'מה ייכנס ל-AI' : 'What the AI receives'}</CardTitle>
-                <CardDescription>
-                  {locale === 'he'
-                    ? 'רק מחיר כניסה, מחיר נוכחי, תאריך כניסה וטאגים מעובדים.'
-                    : 'Only entry price, current price, entry date, and curated tags.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-[var(--color-slate-700)]">
-                <div className="rounded-lg bg-[var(--color-primary-050)] px-3 py-2 text-xs text-[var(--color-primary-900)]">
-                  {tagLine}
-                </div>
-                <p className="text-xs text-[var(--color-slate-600)]">
-                  {locale === 'he'
-                    ? 'העתק את הבלוק למטה ואז בחר את תבנית הפרומפט המתאימה.'
-                    : 'Copy the block below, then choose a prompt template.'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-3 shadow-sm">
-              <CardHeader>
-                <CardTitle>{t.aiPrompts.templatesTitle}</CardTitle>
-                <CardDescription>{t.aiPrompts.subtitle}</CardDescription>
-              </CardHeader>
-            </Card>
-
-            {aiTemplates.map((template) => (
-              <Card key={template.key} className="flex flex-col shadow-sm ring-1 ring-[var(--color-primary-050)]">
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div>
-                    <CardTitle className="text-lg">{template.title}</CardTitle>
-                    <CardDescription className="mt-1 text-sm text-[var(--color-slate-600)]">
-                      {template.key === 'quick'
-                        ? t.aiPrompts.templates.quickForecast
-                        : template.key === 'risk'
-                          ? t.aiPrompts.templates.riskFocus
-                          : t.aiPrompts.templates.research}
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCopy(template.prompt)}
-                    aria-label={t.aiPrompts.copy}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+            <div className="space-y-4">
+              <Card className="overflow-hidden border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm">
+                <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70">
+                  <CardTitle>{t.aiPrompts.tagsTitle}</CardTitle>
+                  <CardDescription>{t.aiPrompts.tagsHelper}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-1 flex-col gap-3">
-                  <Textarea value={template.prompt} readOnly className="min-h-[240px] resize-none" />
-                  <Button onClick={() => handleCopy(template.prompt)} className="w-full">
-                    {t.aiPrompts.copy}
-                  </Button>
+                <CardContent className="flex flex-wrap gap-2 p-5 sm:p-6">
+                  {allTags.length === 0 ? (
+                    <p className="text-sm text-[var(--color-slate-600)]">{t.aiPrompts.tagsEmpty}</p>
+                  ) : (
+                    allTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="border border-[color:var(--color-primary-100)] bg-[color:var(--color-neutral-white)] text-[var(--color-primary-900)] shadow-sm"
+                      >
+                        {tag}
+                      </Badge>
+                    ))
+                  )}
                 </CardContent>
               </Card>
-            ))}
+
+              <Card className="overflow-hidden border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm">
+                <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70">
+                  <CardTitle>{locale === 'he' ? 'מה ייכנס ל-AI' : 'What the AI receives'}</CardTitle>
+                  <CardDescription>
+                    {locale === 'he'
+                      ? 'רק מחיר כניסה, מחיר נוכחי, תאריך כניסה וטאגים מעובדים.'
+                      : 'Only entry price, current price, entry date, and curated tags.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 p-5 text-sm text-[var(--color-slate-700)] sm:p-6">
+                  <div className="rounded-2xl border border-[color:var(--color-primary-100)] bg-[color:var(--color-primary-050)] px-4 py-3 text-xs font-medium text-[var(--color-primary-900)] shadow-inner">
+                    {tagLine}
+                  </div>
+                  <p className="text-xs leading-5 text-[var(--color-slate-600)]">
+                    {locale === 'he'
+                      ? 'הבלוק נשאר קצר, עקבי ונוח להדבקה בכל פרומפט.'
+                      : 'The block stays short, consistent, and easy to paste into every prompt.'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+
+          <section className="space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-[var(--color-primary-900)]">
+                  {t.aiPrompts.templatesTitle}
+                </h2>
+                <p className="text-sm leading-6 text-[var(--color-slate-600)]">
+                  {locale === 'he'
+                    ? 'כל תבנית כבר בנויה עם הקשר, הגבלות פלט, ומבנה מוכן.'
+                    : 'Each template is already built with context, output constraints, and a ready-made structure.'}
+                </p>
+              </div>
+              <Badge
+                variant="secondary"
+                className="w-fit border border-[color:var(--color-primary-100)] bg-[color:var(--color-neutral-white)] text-[var(--color-primary-700)] shadow-sm"
+              >
+                {aiTemplates.length} {locale === 'he' ? 'תבניות' : 'templates'}
+              </Badge>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {aiTemplates.map((template) => (
+                <Card
+                  key={template.key}
+                  className="group relative flex flex-col overflow-hidden border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm"
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--color-primary-500)] via-[var(--color-sky-600)] to-[var(--color-emerald-500)]" />
+                  <CardHeader className="flex flex-col gap-3 border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-2">
+                      <Badge
+                        variant="secondary"
+                        className="w-fit border border-[color:var(--color-primary-100)] bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)] shadow-sm"
+                      >
+                        {templateNotes[template.key as keyof typeof templateNotes].badge}
+                      </Badge>
+                      <div>
+                        <CardTitle className="text-lg">{template.title}</CardTitle>
+                        <CardDescription className="mt-1 text-sm leading-6 text-[var(--color-slate-600)]">
+                          {templateNotes[template.key as keyof typeof templateNotes].detail}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleCopy(template.prompt)}
+                      aria-label={t.aiPrompts.copy}
+                      className="shrink-0 self-start rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/80 shadow-sm"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
+                    <Textarea
+                      value={template.prompt}
+                      readOnly
+                      className="min-h-[260px] resize-none border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 font-mono text-[13px]"
+                    />
+                    <div className="flex flex-col gap-2 text-xs text-[var(--color-slate-500)] sm:flex-row sm:items-center sm:justify-between">
+                      <span>
+                        {template.key === 'quick'
+                          ? locale === 'he'
+                            ? 'הכי טוב להתחלה מהירה.'
+                            : 'Best for a fast start.'
+                          : template.key === 'risk'
+                            ? locale === 'he'
+                              ? 'מסמן מה לבדוק קודם.'
+                              : 'Highlights what to inspect first.'
+                            : locale === 'he'
+                              ? 'בנוי לתחקיר עמוק ומסודר.'
+                              : 'Built for deep, structured research.'}
+                      </span>
+                      <span className="rounded-full bg-[color:var(--color-slate-100)] px-2.5 py-1 font-medium text-[var(--color-slate-600)]">
+                        {locale === 'he' ? 'מוכן לשימוש' : 'Ready'}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={() => handleCopy(template.prompt)}
+                      className="w-full rounded-full bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                    >
+                      {t.aiPrompts.copy}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </DashboardPageShell>

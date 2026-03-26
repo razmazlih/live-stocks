@@ -1,0 +1,10 @@
+{
+  "dry_run": true,
+  "request": {
+    "endpoint": "/v1/videos",
+    "model": "sora-2",
+    "prompt": "Use case: app store social teaser for a stock tracking app\nPrimary request: a cinematic 8-second teaser of a fictional mobile app called LiveStocks, showing abstract market motion with no real company logos\nScene/background: modern trading-inspired studio set with floating translucent data panels, pre-market dawn atmosphere\nSubject: a stylized smartphone displaying a generic watchlist UI with green and red candlestick movement\nAction: camera pushes in, phone rotates slightly, two chart cards slide in, final hold on a clean app title card\nCamera: 35mm lens look, slow dolly-in, slight parallax, no sudden cuts\nLighting/mood: cool morning key light with subtle rim highlights, confident and focused tone\nColor palette: deep navy, cyan, emerald, slate gray\nStyle/format: premium product ad, realistic CGI, clean compositing\nTiming/beats: beat 1 establish phone, beat 2 UI animates, beat 3 title card locks\nAudio: soft electronic pulse with light riser, no vocals\nText (verbatim): \"Track smarter. Move faster.\"\nConstraints: suitable for audiences under 18, no real people, no copyrighted logos, no copyrighted music\nAvoid: jitter, unreadable UI text, over-dense charts, flicker",
+    "seconds": "8",
+    "size": "1280x720"
+  }
+}

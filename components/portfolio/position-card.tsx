@@ -266,12 +266,12 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       : null;
   const dailyChangeBannerClassName =
     dailyChangeAmount === null
-      ? 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95'
+      ? 'border-slate-200/80 bg-slate-50'
       : dailyChangeAmount > 0
-        ? 'border-emerald-200/75 bg-gradient-to-r from-emerald-100/80 via-emerald-50/55 to-white'
+        ? 'border-emerald-200/75 bg-emerald-50/70'
         : dailyChangeAmount < 0
-          ? 'border-rose-200/75 bg-gradient-to-r from-rose-100/80 via-rose-50/55 to-white'
-          : 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95';
+          ? 'border-rose-200/75 bg-rose-50/70'
+          : 'border-slate-200/80 bg-slate-50';
   const dailyChangeIcon = dailyChangeAmount !== null
     ? dailyChangeAmount > 0
       ? <ArrowUpRight className="h-3.5 w-3.5" />
@@ -368,10 +368,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow duration-200 ease-out',
         isHovered
-          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
-          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
+          ? 'shadow-md'
+          : 'shadow-sm'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -384,19 +384,19 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       <div
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
-          isHovered ? 'opacity-90' : 'opacity-0'
+          'pointer-events-none absolute inset-x-10 top-0 h-24 rounded-full bg-blue-100/30 transition-opacity duration-300',
+          isHovered ? 'opacity-100' : 'opacity-0'
         )}
       />
 
       <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
                     <StockAvatarImage
                       symbol={position.symbol}
                       display={position.display}
@@ -455,12 +455,12 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             </div>
 
             {closedStats.length > 0 && (
-              <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm md:grid-cols-3">
+              <div className="grid gap-2.5 text-xs text-slate-600 md:grid-cols-2 md:gap-3 md:text-sm xl:grid-cols-3">
                 {closedStats.map((stat) => (
                   <div
                     key={stat.key}
                     className={cn(
-                      'rounded-2xl border p-2.5 shadow-sm sm:p-3',
+                      'rounded-2xl border p-2.5 sm:p-3',
                       stat.tone?.surface ?? 'border-slate-100 bg-overlay-slate-50'
                     )}
                   >
@@ -529,7 +529,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
                     <StockAvatarImage
                       symbol={position.symbol}
                       display={position.display}
@@ -543,7 +543,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   {changeFromEntryPercent !== null && (
                     <Badge
                       variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
                     >
                       {percentText(changeFromEntryPercent)}
                     </Badge>
@@ -576,12 +576,12 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:gap-2.5 sm:text-sm">
+            <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2 sm:gap-2.5 sm:text-sm">
               {openSnapshotCards.map((stat) => (
                 <div
                   key={stat.key}
                   className={cn(
-                    'rounded-2xl border p-2 shadow-sm sm:p-2.5',
+                    'rounded-2xl border p-2 sm:p-2.5',
                     stat.isPrimary
                       ? 'border-blue-100 bg-blue-50/70'
                       : 'border-slate-100 bg-overlay-slate-50'
@@ -607,8 +607,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               ))}
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-2.5 shadow-inner sm:p-3">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-blue-100/35 blur-2xl" />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3">
               <div className="relative space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
@@ -619,8 +618,8 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   </Badge>
                 </div>
 
-                <div className="grid gap-2 md:grid-cols-2">
-                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-2.5">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-2.5">
                     <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
@@ -646,7 +645,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     </dl>
                   </section>
 
-                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-2.5">
+                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-2.5">
                     <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
