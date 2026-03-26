@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -280,18 +280,10 @@ export default function HomePage() {
     },
   ];
   const availableSectionTabs = sectionTabs.filter((tab) => tab.available);
+  const resolvedActiveSection = sectionTabs.some((tab) => tab.key === activeSection && tab.available)
+    ? activeSection
+    : availableSectionTabs[0]?.key ?? 'positions';
   const shouldShowMobileSectionNav = availableSectionTabs.length > 1;
-
-  useEffect(() => {
-    if (sectionTabs.some((tab) => tab.key === activeSection && tab.available)) {
-      return;
-    }
-
-    const firstAvailableSection = availableSectionTabs[0]?.key;
-    if (firstAvailableSection) {
-      setActiveSection(firstAvailableSection);
-    }
-  }, [activeSection, availableSectionTabs, sectionTabs]);
 
   const renderSectionPlaceholder = (message: string) => (
     <div className={`${sectionSurfaceClass} border-dashed px-6 py-10 text-center text-sm leading-6 text-slate-500`}>
@@ -570,7 +562,7 @@ export default function HomePage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {sectionTabs.map(({ key, label, available }) => {
-                          const isActive = activeSection === key;
+                          const isActive = resolvedActiveSection === key;
 
                           return (
                             <button
@@ -595,9 +587,9 @@ export default function HomePage() {
                   </section>
 
                   <div className="space-y-6 sm:hidden">
-                    {activeSection === 'summary' && renderSummarySection()}
-                    {activeSection === 'positions' && renderPositionsSection()}
-                    {activeSection === 'visualizations' && renderVisualizationsSection()}
+                    {resolvedActiveSection === 'summary' && renderSummarySection()}
+                    {resolvedActiveSection === 'positions' && renderPositionsSection()}
+                    {resolvedActiveSection === 'visualizations' && renderVisualizationsSection()}
                   </div>
 
                   <div className="hidden space-y-6 sm:block">

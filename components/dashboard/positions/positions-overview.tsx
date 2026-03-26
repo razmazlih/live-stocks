@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertTriangle,
@@ -307,14 +307,10 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
   countLabel,
 }: ClosedPositionGroupCardProps) {
   const [selectedId, setSelectedId] = useState(group.options[0]?.id ?? '');
-
-  useEffect(() => {
-    if (!group.options.some((option) => option.id === selectedId)) {
-      setSelectedId(group.options[0]?.id ?? '');
-    }
-  }, [group.options, selectedId]);
-
-  const selectedOption = group.options.find((option) => option.id === selectedId) ?? group.options[0];
+  const resolvedSelectedId = group.options.some((option) => option.id === selectedId)
+    ? selectedId
+    : group.options[0]?.id ?? '';
+  const selectedOption = group.options.find((option) => option.id === resolvedSelectedId) ?? group.options[0];
   if (!selectedOption) {
     return null;
   }
@@ -354,7 +350,7 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 {locale === 'he' ? '→' : '←'}
               </Button>
 
-              <Select value={selectedOption.id} onValueChange={setSelectedId}>
+              <Select value={resolvedSelectedId} onValueChange={setSelectedId}>
                 <SelectTrigger className="h-9 w-full rounded-xl border-blue-200 bg-white/95 text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
                   <SelectValue />
                 </SelectTrigger>

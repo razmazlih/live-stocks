@@ -410,7 +410,7 @@ export default function PositionsPage() {
             : t.positions.noTransactions,
       },
     ];
-  }, [locale, positionItems, t.positions, formatDate, formatNumber]);
+  }, [locale, positionItems, t.positions]);
 
   const overviewStats = [
     {
