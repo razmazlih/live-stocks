@@ -5,26 +5,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-[color,background-color,border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] active:translate-y-0 disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none touch-manipulation select-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+          "border border-transparent bg-[linear-gradient(135deg,var(--color-blue-700),var(--color-blue-500))] text-[color:var(--color-neutral-white)] shadow-[0_16px_28px_-18px_rgba(37,99,235,0.62)] hover:bg-[linear-gradient(135deg,var(--color-blue-700),var(--color-blue-600))] hover:shadow-[0_18px_30px_-18px_rgba(37,99,235,0.7)]",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "border border-transparent bg-[linear-gradient(135deg,var(--color-red-600),var(--color-rose-600))] text-[color:var(--color-neutral-white)] shadow-[0_16px_28px_-18px_rgba(220,38,38,0.58)] hover:shadow-[0_18px_30px_-16px_rgba(220,38,38,0.68)]",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "border border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.84)] text-[var(--color-slate-700)] shadow-[0_10px_24px_-20px_rgba(15,23,42,0.5)] hover:border-[color:var(--color-blue-200)]/90 hover:bg-[rgba(255,255,255,0.96)] hover:text-[var(--color-primary-900)]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-[color:var(--color-slate-200)]/90 bg-[color:var(--color-slate-50)]/90 text-[var(--color-slate-700)] shadow-[0_10px_24px_-20px_rgba(15,23,42,0.5)] hover:bg-[color:var(--color-slate-100)]/88 hover:text-[var(--color-primary-900)]",
+        ghost:
+          "text-[var(--color-slate-700)] hover:bg-[color:var(--color-blue-50)]/72 hover:text-[var(--color-blue-700)] hover:shadow-none",
+        link: "rounded-none p-0 text-[var(--color-blue-700)] underline-offset-4 hover:underline hover:text-[var(--color-blue-600)]",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-lg px-3 text-xs",
+        lg: "h-11 rounded-xl px-8 text-base",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {

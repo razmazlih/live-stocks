@@ -287,6 +287,18 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   const closedStats = closedSummary
     ? [
         {
+          key: 'profit',
+          label: t.dashboard.closedTotalProfit,
+          value: formatCurrency(closedSummary.totalProfitUsd, 'USD', locale),
+          tone: getTrendStyles(closedSummary.totalProfitUsd),
+        },
+        {
+          key: 'return',
+          label: t.dashboard.closedTotalReturn,
+          value: percentText(closedSummary.totalReturnPercent),
+          tone: getTrendStyles(closedSummary.totalReturnPercent),
+        },
+        {
           key: 'quantity',
           label: t.dashboard.closedQuantitySold,
           value: formatNumber(closedSummary.totalQuantity, locale),
@@ -305,18 +317,6 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
           key: 'proceeds',
           label: t.dashboard.closedTotalProceeds,
           value: formatCurrency(closedSummary.totalProceedsUsd, 'USD', locale),
-        },
-        {
-          key: 'profit',
-          label: t.dashboard.closedTotalProfit,
-          value: formatCurrency(closedSummary.totalProfitUsd, 'USD', locale),
-          tone: getTrendStyles(closedSummary.totalProfitUsd),
-        },
-        {
-          key: 'return',
-          label: t.dashboard.closedTotalReturn,
-          value: percentText(closedSummary.totalReturnPercent),
-          tone: getTrendStyles(closedSummary.totalReturnPercent),
         },
       ]
     : [];
@@ -368,10 +368,8 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow duration-200 ease-out',
-        isHovered
-          ? 'shadow-md'
-          : 'shadow-sm'
+        'group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-[color:var(--color-neutral-white)] transition-shadow duration-200 ease-out',
+        isHovered ? 'shadow-md' : 'shadow-sm'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -384,7 +382,8 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       <div
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-10 top-0 h-24 rounded-full bg-blue-100/30 transition-opacity duration-300',
+          'pointer-events-none absolute inset-x-8 top-0 h-24 rounded-full transition-opacity duration-300',
+          isClosed ? 'bg-emerald-100/30' : 'bg-blue-100/30',
           isHovered ? 'opacity-100' : 'opacity-0'
         )}
       />
@@ -392,75 +391,111 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
-                    <StockAvatarImage
-                      symbol={position.symbol}
-                      display={position.display}
-                      imageUrl={position.imageUrl}
-                    />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+            <div className="rounded-[26px] border border-slate-200 bg-gradient-to-br from-slate-50/90 to-white p-3 sm:p-4">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                <div className="space-y-3">
+                  <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                    <div className="relative">
+                      <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
+                        <StockAvatarImage
+                          symbol={position.symbol}
+                          display={position.display}
+                          imageUrl={position.imageUrl}
+                        />
+                        <AvatarFallback className="bg-blue-100 font-semibold text-blue-600">
+                          {position.symbol.slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+
+                    <div className="min-w-0 space-y-2">
+                      <h3 className="min-w-0 text-[clamp(1rem,2vw,1.25rem)] font-semibold leading-tight text-slate-900">
+                        {position.display}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0 border border-blue-100 bg-blue-50 text-blue-700"
+                        >
+                          {position.symbol}
+                        </Badge>
+                        <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                          <BankBadge
+                            bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                            locale={locale}
+                            size="sm"
+                          />
+                          <span className="min-w-0 whitespace-nowrap text-xs font-medium leading-tight text-slate-600 sm:text-sm">
+                            {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                          </span>
+                        </span>
+                        <Badge variant="secondary" className="shrink-0 border border-emerald-100 bg-emerald-50 text-emerald-700">
+                          {t.dashboard.closedBadge}
+                        </Badge>
+                      </div>
+                      {closedSummary?.lastSaleDate && (
+                        <p className="text-xs text-slate-500 sm:text-sm">
+                          {t.dashboard.closedLastSale}:{' '}
+                          <span className="font-medium text-slate-700">
+                            {formatDate(closedSummary.lastSaleDate.toISOString(), locale)}
+                            {closedSummary.lastSalePrice !== null ? (
+                              <>
+                                {' · '}
+                                {formatCurrency(closedSummary.lastSalePrice, 'USD', locale)}
+                              </>
+                            ) : null}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {closedSelector ? <div>{closedSelector}</div> : null}
                 </div>
 
-                <div className="space-y-1.5 sm:space-y-2">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <h3 className="text-base font-semibold text-slate-900 sm:text-xl">
-                      {position.display}
-                    </h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
-                      {position.symbol}
-                    </Badge>
-                    <span className="inline-flex items-center gap-1.5">
-                      <BankBadge
-                        bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
-                        locale={locale}
-                        size="sm"
-                      />
-                      <span className="text-xs font-medium text-slate-600 sm:text-sm">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                      </span>
-                    </span>
-                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
-                      {t.dashboard.closedBadge}
-                    </Badge>
-                  </div>
-                  {closedSummary?.lastSaleDate && (
-                    <p className="text-xs text-slate-500 sm:text-sm">
-                      {t.dashboard.closedLastSale}:{' '}
-                      <span className="font-medium text-slate-700">
-                        {formatDate(closedSummary.lastSaleDate.toISOString(), locale)}
-                        {closedSummary.lastSalePrice !== null ? (
-                          <>
-                            {' · '}
-                            {formatCurrency(closedSummary.lastSalePrice, 'USD', locale)}
-                          </>
-                        ) : null}
-                      </span>
-                    </p>
-                  )}
-                  {closedSelector ? (
-                    <div className="pt-1">
-                      {closedSelector}
+                {closedSummary && (
+                  <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[15rem] xl:grid-cols-1">
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                        {t.dashboard.closedTotalProfit}
+                      </p>
+                      <p
+                        className={cn(
+                          'mt-1 text-[clamp(1rem,2vw,1.15rem)] font-black leading-tight',
+                          getTrendStyles(closedSummary.totalProfitUsd).text
+                        )}
+                      >
+                        <span className={valueDirectionClass}>
+                          {formatCurrency(closedSummary.totalProfitUsd, 'USD', locale)}
+                        </span>
+                      </p>
                     </div>
-                  ) : null}
-                </div>
-              </div>
+                    <div className="rounded-2xl border border-sky-100 bg-white p-3 shadow-sm">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                        {t.dashboard.closedTotalReturn}
+                      </p>
+                      <p
+                        className={cn(
+                          'mt-1 text-[clamp(1rem,2vw,1.15rem)] font-black leading-tight',
+                          getTrendStyles(closedSummary.totalReturnPercent).text
+                        )}
+                      >
+                        <span className={valueDirectionClass}>
+                          {percentText(closedSummary.totalReturnPercent)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {closedStats.length > 0 && (
-              <div className="grid gap-2.5 text-xs text-slate-600 md:grid-cols-2 md:gap-3 md:text-sm xl:grid-cols-3">
+              <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm xl:grid-cols-3">
                 {closedStats.map((stat) => (
                   <div
                     key={stat.key}
                     className={cn(
-                      'rounded-2xl border p-2.5 sm:p-3',
+                      'rounded-2xl border p-2.5 shadow-sm sm:p-3',
                       stat.tone?.surface ?? 'border-slate-100 bg-overlay-slate-50'
                     )}
                   >
@@ -472,10 +507,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className="relative p-1 sm:p-1.5">
+              <div className="relative rounded-[22px] border border-slate-200 bg-white p-1.5 shadow-sm sm:p-2">
                 <Sparkline
                   points={effectiveSparklineData}
-                  height={130}
+                  height={126}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
@@ -483,15 +518,15 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
                   events={effectiveSparklineEvents}
-                  className="h-32 w-full sm:h-36"
+                  className="h-28 w-full sm:h-32"
                 />
               </div>
             )}
 
-            <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
               <Link
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                className="group inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100/80 hover:text-blue-800 sm:w-auto sm:py-1.5"
               >
                 {t.dashboard.viewDetails}
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -500,25 +535,40 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-2.5 sm:gap-3">
+            <div className="rounded-[26px] border border-slate-200 bg-gradient-to-br from-slate-50/90 to-white p-3 sm:p-4">
               {dailyChangeAmount !== null && dailyChangeStyles && (
                 <div
                   className={cn(
-                    '-mx-3.5 -mt-3.5 w-[calc(100%+1.75rem)] border-x-0 border-t-0 px-3.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-4 sm:-mt-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-1.5',
+                    'rounded-2xl border px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]',
                     dailyChangeBannerClassName
                   )}
                 >
-                  <div className="flex items-center justify-center gap-2 sm:gap-3">
-                    <div className={cn('inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.11em]', dailyChangeStyles.text)}>
+                  <div className="flex flex-col items-start gap-2 text-left sm:flex-row sm:items-center sm:justify-center sm:gap-3">
+                    <div
+                      className={cn(
+                        'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.11em]',
+                        dailyChangeStyles.text
+                      )}
+                    >
                       {dailyChangeIcon}
                       <span>{t.dashboard.dailyChange}</span>
                     </div>
                     <div className="inline-flex items-center gap-1.5">
-                      <span className={cn('text-[clamp(0.98rem,1.2vw,1.08rem)] font-semibold leading-none', dailyChangeStyles.text)}>
+                      <span
+                        className={cn(
+                          'text-[clamp(0.98rem,1.2vw,1.08rem)] font-semibold leading-none',
+                          dailyChangeStyles.text
+                        )}
+                      >
                         <span className={valueDirectionClass}>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
                       </span>
                       {dailyChangePercentText && (
-                        <span className={cn('inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none', dailyChangeStyles.badge)}>
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+                            dailyChangeStyles.badge
+                          )}
+                        >
                           <span className={valueDirectionClass}>{dailyChangePercentText}</span>
                         </span>
                       )}
@@ -527,51 +577,53 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 </div>
               )}
 
-              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
-                    <StockAvatarImage
-                      symbol={position.symbol}
-                      display={position.display}
-                      imageUrl={position.imageUrl}
-                    />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {position.symbol.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+              <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                  <div className="relative">
+                    <Avatar className="h-12 w-12 rounded-2xl border border-slate-200 bg-slate-100 sm:h-14 sm:w-14">
+                      <StockAvatarImage
+                        symbol={position.symbol}
+                        display={position.display}
+                        imageUrl={position.imageUrl}
+                      />
+                      <AvatarFallback className="bg-blue-100 font-semibold text-blue-600">
+                        {position.symbol.slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  {changeFromEntryPercent !== null && (
-                    <Badge
-                      variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
-                    >
-                      {percentText(changeFromEntryPercent)}
-                    </Badge>
-                  )}
-                </div>
+                    {changeFromEntryPercent !== null && (
+                      <Badge
+                        variant="secondary"
+                        className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                      >
+                        {percentText(changeFromEntryPercent)}
+                      </Badge>
+                    )}
+                  </div>
 
-                <div className="min-w-0 space-y-1.5 sm:space-y-2">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <h3 className="min-w-0 text-base font-semibold leading-tight text-slate-900 sm:text-xl">
+                  <div className="min-w-0 space-y-2">
+                    <h3 className="min-w-0 text-[clamp(1rem,2vw,1.25rem)] font-semibold leading-tight text-slate-900">
                       {position.display}
                     </h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
-                      {position.symbol}
-                    </Badge>
-                    <span className="inline-flex items-center gap-1.5">
-                      <BankBadge
-                        bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
-                        locale={locale}
-                        size="sm"
-                      />
-                      <span className="text-xs font-medium text-slate-600 sm:text-sm">
-                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="shrink-0 border border-blue-100 bg-blue-50 text-blue-700">
+                        {position.symbol}
+                      </Badge>
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                        <BankBadge
+                          bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                          locale={locale}
+                          size="sm"
+                        />
+                        <span className="min-w-0 whitespace-nowrap text-xs font-medium leading-tight text-slate-600 sm:text-sm">
+                          {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                        </span>
                       </span>
-                    </span>
+                    </div>
+                    <p className="text-xs text-slate-500 sm:text-sm">
+                      {t.dashboard.since} {formatDate(position.entryDate, locale)}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 sm:text-sm">
-                    {t.dashboard.since} {formatDate(position.entryDate, locale)}
-                  </p>
                 </div>
               </div>
             </div>
@@ -581,15 +633,15 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 <div
                   key={stat.key}
                   className={cn(
-                    'rounded-2xl border p-2 sm:p-2.5',
+                    'rounded-2xl border p-2.5 shadow-sm sm:p-3',
                     stat.isPrimary
-                      ? 'border-blue-100 bg-blue-50/70'
-                      : 'border-slate-100 bg-overlay-slate-50'
+                      ? 'border-blue-100 bg-gradient-to-br from-blue-50/80 to-white'
+                      : 'border-slate-100 bg-white'
                   )}
                 >
                   <p
                     className={cn(
-                      'text-[11px] font-semibold uppercase tracking-wide sm:text-xs',
+                      'text-[10px] font-semibold uppercase tracking-wide sm:text-xs',
                       stat.isPrimary ? 'text-blue-700' : 'text-slate-400'
                     )}
                   >
@@ -598,7 +650,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   <p
                     className={cn(
                       'mt-1 font-semibold leading-tight text-slate-900',
-                      stat.isPrimary ? 'text-[clamp(0.9rem,2.5vw,1.15rem)]' : 'text-[clamp(0.85rem,2.3vw,1rem)]'
+                      stat.isPrimary ? 'text-[clamp(0.95rem,2.4vw,1.15rem)]' : 'text-[clamp(0.88rem,2.1vw,1rem)]'
                     )}
                   >
                     <span className={valueDirectionClass}>{stat.value}</span>
@@ -607,9 +659,9 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               ))}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3">
-              <div className="relative space-y-2">
-                <div className="flex items-center justify-between">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+              <div className="relative space-y-3">
+                <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                     {t.dashboard.current} / {t.dashboard.projected}
                   </p>
@@ -619,7 +671,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-2.5">
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-2.5 shadow-sm">
                     <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
@@ -645,7 +697,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     </dl>
                   </section>
 
-                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-2.5">
+                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-2.5 shadow-sm">
                     <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
@@ -675,10 +727,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className="relative p-0.5 sm:p-1">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-1.5 shadow-sm sm:p-2">
                 <Sparkline
                   points={effectiveSparklineData}
-                  height={108}
+                  height={106}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
@@ -691,10 +743,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               </div>
             )}
 
-            <div className="flex flex-wrap justify-end gap-2 sm:gap-2.5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-2.5">
               <Link
                 href={`/stock/${position.symbol}`}
-                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                className="group inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100/80 hover:text-blue-800 sm:w-auto sm:py-1.5"
               >
                 {t.dashboard.viewDetails}
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

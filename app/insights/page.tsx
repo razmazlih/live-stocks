@@ -55,6 +55,10 @@ export default function InsightsPage() {
             noImproved: 'לא זוהו שיפורים משמעותיים השבוע.',
             noWorsened: 'לא זוהו החמרות משמעותיות השבוע.',
             laggingGap: 'פער שלילי מול תחזית',
+            primarySignal: 'אות מרכזי',
+            supportingSignals: 'אותות תומכים',
+            lowDataTitle: 'נבנית היסטוריה',
+            lowDataBody: 'נדרש עוד עומק היסטורי כדי שההשוואה השבועית תהיה יציבה יותר.',
             updated: 'עדכון אחרון',
             weeklySummaryTitle: 'סיכום שבועי',
             weeklySummaryFallback: 'הנתונים השבועיים יתעדכנו אוטומטית ככל שיצטברו נתוני היסטוריה.',
@@ -74,6 +78,10 @@ export default function InsightsPage() {
             noImproved: 'No significant improvements this week.',
             noWorsened: 'No significant deterioration this week.',
             laggingGap: 'Negative gap vs projection',
+            primarySignal: 'Primary signal',
+            supportingSignals: 'Supporting signals',
+            lowDataTitle: 'Building history',
+            lowDataBody: 'More historical depth is needed before the weekly comparison becomes reliable.',
             updated: 'Last update',
             weeklySummaryTitle: 'Weekly summary',
             weeklySummaryFallback: 'Weekly insights update automatically as historical data accumulates.',
@@ -184,7 +192,7 @@ export default function InsightsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
         <DashboardHero
           title={labels.title}
           subtitle={labels.subtitle}
@@ -196,9 +204,9 @@ export default function InsightsPage() {
           quickActions={quickActions}
         />
 
-        <main className="mt-8 space-y-4">
-          <section className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 p-4 shadow-sm sm:p-6">
-            <div className="space-y-5">
+        <main className="mt-8 space-y-6 sm:space-y-7">
+          <section className="rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 p-4 shadow-sm sm:p-6 xl:p-7">
+            <div className="space-y-5 sm:space-y-6">
               {loading ? (
                 <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 py-12 text-slate-500">
                   <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
@@ -206,14 +214,19 @@ export default function InsightsPage() {
                 </div>
               ) : (
                 <>
-                  <section className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
-                    <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)] shadow-sm">
+                  <section className="grid gap-4 lg:grid-cols-[minmax(0,1.22fr)_minmax(0,0.78fr)] lg:items-start xl:gap-5">
+                    <Card className="min-w-0 overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-gradient-to-br from-[color:var(--color-neutral-white)] via-[color:var(--color-neutral-white)] to-[color:var(--color-slate-50)] shadow-sm">
                       <CardHeader className="flex flex-col gap-3 border-b border-[color:var(--color-slate-200)]/70 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-1">
-                          <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                            {locale === 'he' ? 'תקציר מנהלים' : 'Executive brief'}
-                          </CardDescription>
-                          <CardTitle className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                              {locale === 'he' ? 'תקציר מנהלים' : 'Executive brief'}
+                            </CardDescription>
+                            <span className="rounded-full border border-[color:var(--color-slate-200)] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              {labels.primarySignal}
+                            </span>
+                          </div>
+                          <CardTitle className="text-balance text-[clamp(1.3rem,6vw,1.75rem)] font-semibold tracking-tight text-slate-900">
                             {labels.weeklySummaryTitle}
                           </CardTitle>
                         </div>
@@ -229,17 +242,37 @@ export default function InsightsPage() {
                         </span>
                       </CardHeader>
                       <CardContent className="space-y-4 pt-5">
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)] p-4 shadow-sm">
+                        {!hasWeeklyContext ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                                <Sparkles className="h-5 w-5" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-800">{labels.lowDataTitle}</p>
+                                <p className="text-sm leading-6 text-slate-600">{labels.noData}</p>
+                                <p className="text-xs leading-5 text-slate-500">{labels.lowDataBody}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="rounded-2xl border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/70 p-4 shadow-sm">
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                               {labels.weeklyChange}
                             </p>
                             <p
-                              className={`mt-2 text-2xl font-semibold tracking-tight ${
+                              className={`mt-2 text-3xl font-semibold tracking-tight ${
                                 snapshot.netPnLDeltaUsd >= 0 ? 'text-emerald-600' : 'text-rose-600'
                               }`}
                             >
                               {formatSignedValue(snapshot.netPnLDeltaUsd, (value) => formatCurrency(value, 'USD', locale))}
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-slate-600">
+                              {locale === 'he'
+                                ? 'זהו האות המרכזי השבועי והראשון לבדיקה.'
+                                : 'This is the primary weekly signal and the first one to read.'}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)] p-4 shadow-sm">
@@ -268,13 +301,13 @@ export default function InsightsPage() {
                           </div>
                         </div>
 
-                        <div className="grid gap-3 xl:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2">
                           {summaryBullets.map((line, index) => (
                             <div
                               key={line}
                               className={`rounded-2xl border px-4 py-4 shadow-sm ${
                                 index === 0
-                                  ? 'border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/60'
+                                  ? 'border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/70 lg:col-span-2'
                                   : 'border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]'
                               }`}
                             >
@@ -294,19 +327,36 @@ export default function InsightsPage() {
                                       : 'Context note'}
                                 </span>
                               </div>
-                              <p className="text-balance text-sm leading-6 text-slate-700">{line}</p>
+                              <p
+                                className={`text-balance leading-6 ${
+                                  index === 0 ? 'text-base font-medium text-slate-800 sm:text-[15px]' : 'text-sm text-slate-700'
+                                }`}
+                              >
+                                {line}
+                              </p>
                             </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)] shadow-sm">
-                      <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 pb-4">
-                        <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                          {locale === 'he' ? 'מוכנות לקבלת החלטה' : 'Decision readiness'}
-                        </CardDescription>
-                        <CardTitle className="text-xl font-semibold tracking-tight text-slate-900">
+                    <Card className="min-w-0 overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)] shadow-sm">
+                      <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/50 pb-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                            {locale === 'he' ? 'מוכנות לקבלת החלטה' : 'Decision readiness'}
+                          </CardDescription>
+                          <span
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                              isActionableWeek
+                                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            }`}
+                          >
+                            {isActionableWeek ? labels.needsAction : locale === 'he' ? 'למעקב' : 'Monitor'}
+                          </span>
+                        </div>
+                        <CardTitle className="text-balance text-[clamp(1.3rem,6vw,1.75rem)] font-semibold tracking-tight text-slate-900">
                           {readinessLabel}
                         </CardTitle>
                       </CardHeader>
@@ -327,8 +377,8 @@ export default function InsightsPage() {
                           </div>
                         </div>
 
-                        <div className="grid gap-3">
-                          <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-4 shadow-sm">
                             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
                             <div className="min-w-0">
                               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500">
@@ -339,40 +389,48 @@ export default function InsightsPage() {
                                   ? `${topAction.position.display || topAction.position.symbol} · ${formatSignedValue(topAction.combined, (value) =>
                                       formatCurrency(value, 'USD', locale)
                                     )}`
-                                  : labels.noAction}
+                                : labels.noAction}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                            <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-500">
-                                {labels.improved}
-                              </p>
-                              <p className="mt-1 text-balance text-sm font-medium text-slate-800">
-                                {topImproved
-                                  ? `${topImproved.display} · ${formatSignedValue(topImproved.changeUsd, (value) =>
-                                      formatCurrency(value, 'USD', locale)
-                                    )}`
-                                  : labels.noImproved}
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                            <span className="h-px flex-1 bg-[color:var(--color-slate-200)]" />
+                            <span>{labels.supportingSignals}</span>
+                            <span className="h-px flex-1 bg-[color:var(--color-slate-200)]" />
                           </div>
 
-                          <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
-                            <ArrowDownRight className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500">
-                                {labels.worsened}
-                              </p>
-                              <p className="mt-1 text-balance text-sm font-medium text-slate-800">
-                                {topWorsened
-                                  ? `${topWorsened.display} · ${formatSignedValue(topWorsened.changeUsd, (value) =>
-                                      formatCurrency(value, 'USD', locale)
-                                    )}`
-                                  : labels.noWorsened}
-                              </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 shadow-sm">
+                              <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                                  {labels.improved}
+                                </p>
+                                <p className="mt-1 text-balance text-sm font-medium text-slate-800">
+                                  {topImproved
+                                    ? `${topImproved.display} · ${formatSignedValue(topImproved.changeUsd, (value) =>
+                                        formatCurrency(value, 'USD', locale)
+                                      )}`
+                                    : labels.noImproved}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-4 shadow-sm">
+                              <ArrowDownRight className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500">
+                                  {labels.worsened}
+                                </p>
+                                <p className="mt-1 text-balance text-sm font-medium text-slate-800">
+                                  {topWorsened
+                                    ? `${topWorsened.display} · ${formatSignedValue(topWorsened.changeUsd, (value) =>
+                                        formatCurrency(value, 'USD', locale)
+                                      )}`
+                                    : labels.noWorsened}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -380,7 +438,7 @@ export default function InsightsPage() {
                     </Card>
                   </section>
 
-                  <section className="grid gap-4 xl:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)]">
+                  <section className="grid gap-4 lg:grid-cols-2 xl:gap-5">
                     <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)] shadow-sm">
                       <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 pb-4">
                         <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -393,7 +451,12 @@ export default function InsightsPage() {
                       <CardContent className="space-y-3 pt-5">
                         {!actionItems.length ? (
                           <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)] px-4 py-4">
-                            <p className="text-balance text-sm leading-6 text-slate-600">{labels.noAction}</p>
+                            <p className="text-balance text-sm font-semibold leading-6 text-slate-800">{labels.noAction}</p>
+                            <p className="mt-1 text-balance text-sm leading-6 text-slate-600">
+                              {locale === 'he'
+                                ? 'המעקב נשאר זמין באותות התומכים למטה, כדי שתוכל לבדוק כיוון בלי רעש.'
+                                : 'Monitoring stays available in the supporting signals below so you can check direction without noise.'}
+                            </p>
                           </div>
                         ) : (
                           actionItems.map((item, index) => (
@@ -414,7 +477,7 @@ export default function InsightsPage() {
                                   </p>
                                 </div>
                               </div>
-                              <Badge className="w-fit bg-rose-100 text-rose-700">
+                              <Badge className="w-fit border border-rose-200 bg-rose-100 text-rose-700">
                                 {labels.laggingGap}:{' '}
                                 {formatSignedValue(item.combined, (value) => formatCurrency(value, 'USD', locale))}
                               </Badge>
@@ -483,7 +546,7 @@ export default function InsightsPage() {
                     </Card>
                   </section>
 
-                  <section className="grid gap-4 xl:grid-cols-2">
+                  <section className="grid gap-4 sm:grid-cols-2">
                     <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)] shadow-sm">
                       <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 pb-4">
                         <CardDescription className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -494,7 +557,12 @@ export default function InsightsPage() {
                       <CardContent className="space-y-3 pt-5">
                         {!movers.improved.length ? (
                           <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)] px-4 py-4">
-                            <p className="text-sm leading-6 text-slate-600">{labels.noImproved}</p>
+                            <p className="text-sm font-semibold leading-6 text-slate-800">{labels.noImproved}</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {locale === 'he'
+                                ? 'אין תזוזה חיובית ברורה שמספיקה כדי לסמן כאן מגמה.'
+                                : 'There is no clear positive move large enough to mark as a trend here.'}
+                            </p>
                           </div>
                         ) : (
                           movers.improved.map((item) => (
@@ -526,7 +594,12 @@ export default function InsightsPage() {
                       <CardContent className="space-y-3 pt-5">
                         {!movers.worsened.length ? (
                           <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)] px-4 py-4">
-                            <p className="text-sm leading-6 text-slate-600">{labels.noWorsened}</p>
+                            <p className="text-sm font-semibold leading-6 text-slate-800">{labels.noWorsened}</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {locale === 'he'
+                                ? 'אין כרגע סטייה שלילית מובהקת שדורשת תגובה.'
+                                : 'There is no clear negative deviation that needs a response right now.'}
+                            </p>
                           </div>
                         ) : (
                           movers.worsened.map((item) => (

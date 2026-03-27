@@ -49,7 +49,7 @@ const sectionClassName =
 const insetCardClassName =
   'rounded-[22px] border border-[color:var(--color-slate-200)]/75 bg-[color:var(--color-slate-50)]/85 p-4';
 const chipClassName =
-  'inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/90 px-3 py-1.5 shadow-none';
+  'inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/90 px-3 py-1.5 shadow-none';
 
 export default function RealizedPnLPage() {
   const { locale } = useApp();
@@ -335,21 +335,21 @@ export default function RealizedPnLPage() {
         <header className={`${shellClassName} px-5 py-6 sm:px-6 sm:py-7`}>
           <div
             className={cn(
-              'relative z-10 flex flex-col gap-6 lg:items-start',
+              'relative z-10 flex flex-col gap-5 lg:items-start lg:gap-8',
               isRtl ? 'lg:flex-row-reverse' : 'lg:flex-row',
             )}
           >
             <div className="min-w-0 flex-1 space-y-4">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 <div className="rounded-2xl bg-[color:var(--color-neutral-white)]/80 p-2.5 text-[var(--color-primary-700)] shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70">
                   <CircleDollarSign className="h-5 w-5" />
                 </div>
                 <div className="space-y-2">
-                <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary-700)] shadow-none">
-                  {copy.reportTag}
-                </span>
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary-700)] shadow-none">
+                    {copy.reportTag}
+                  </span>
                   <div className="space-y-2">
-                    <h1 className="text-3xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-4xl">
+                    <h1 className="text-[clamp(2rem,7vw,3.5rem)] font-black tracking-tight text-[var(--color-primary-900)]">
                       {t.realized.title}
                     </h1>
                     <p className="max-w-3xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
@@ -370,40 +370,64 @@ export default function RealizedPnLPage() {
                 </span>
                 <span className={chipClassName}>
                   <BarChart3 className="h-4 w-4 text-[var(--color-slate-500)]" />
-                  {sortedSales.length} {locale === 'he' ? 'מימושים' : 'exits'}
-                </span>
-                <span className={chipClassName}>
-                  <ShieldCheck className="h-4 w-4 text-[var(--color-emerald-500)]" />
-                  {salesBySymbol.length} {locale === 'he' ? 'סימולים' : 'symbols'}
+                  {sortedSales.length} {locale === 'he' ? 'מימושים' : 'exits'} · {salesBySymbol.length}{' '}
+                  {locale === 'he' ? 'סימולים' : 'symbols'}
                 </span>
               </div>
             </div>
 
-            <div className="w-full space-y-3 sm:max-w-[24rem] sm:shrink-0">
-              <div className={`${sectionClassName} p-5`}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
-                  {copy.netAfterTax}
-                </p>
-                <div className="mt-3 space-y-1">
-                  <p className={cn('text-3xl font-semibold tracking-tight sm:text-[2.1rem]', netTone.text)}>
-                    {formatSignedCurrency(netProfitUsd, 'USD', locale)}
-                  </p>
-                  <p className="text-sm text-[var(--color-slate-600)]">
-                    {formatSignedCurrency(netProfitIls, 'ILS', locale)}
-                  </p>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {totalNetAfterTaxTiles.map((tile) => (
-                    <div key={tile.label} className="rounded-[18px] border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/85 px-3 py-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                        {tile.label}
+            <div className="w-full space-y-3 sm:max-w-[28rem] sm:shrink-0">
+              <div className={`${sectionClassName} p-5 sm:p-6`}>
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
+                        {copy.netAfterTax}
                       </p>
-                      <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">{tile.value}</p>
-                      <p className="text-xs text-[var(--color-slate-500)]">{tile.subvalue}</p>
+                      <p className={cn('text-[clamp(2rem,8vw,2.25rem)] font-semibold tracking-tight', netTone.text)}>
+                        {formatSignedCurrency(netProfitUsd, 'USD', locale)}
+                      </p>
+                      <p className="text-sm text-[var(--color-slate-600)]">
+                        {formatSignedCurrency(netProfitIls, 'ILS', locale)}
+                      </p>
                     </div>
-                  ))}
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-sm',
+                        netTone.badge,
+                      )}
+                    >
+                      {getTrendIcon(netProfitUsd)}
+                      <span>{formatSignedCurrency(netProfitUsd, 'USD', locale)}</span>
+                    </span>
+                  </div>
+
+                  <div className="rounded-[20px] border border-[color:var(--color-slate-200)]/75 bg-[color:var(--color-slate-50)]/85 p-4">
+                    <div className="space-y-3">
+                      {totalNetAfterTaxTiles.map((tile) => (
+                        <div key={tile.label} className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                              {tile.label}
+                            </p>
+                            <p className="mt-1 text-sm text-[var(--color-slate-500)]">{tile.subvalue}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-[var(--color-primary-900)]">{tile.value}</p>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between border-t border-[color:var(--color-slate-200)]/70 pt-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                          {copy.relativeStrength}
+                        </p>
+                        <p className="text-sm font-semibold text-[var(--color-primary-900)]">
+                          {formatPercent(profitMarginPercent, locale)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs leading-5 text-[var(--color-slate-500)]">{copy.taxNote}</p>
                 </div>
-                <p className="mt-4 text-xs leading-5 text-[var(--color-slate-500)]">{copy.taxNote}</p>
               </div>
 
               <QuickActionsSection title={t.realized.actions} actions={quickActions} />
@@ -445,25 +469,27 @@ export default function RealizedPnLPage() {
             </section>
           ) : (
             <>
-              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
                 {summaryTiles.map((tile) => {
                   const Icon = tile.icon;
 
                   return (
-                    <article key={tile.key} className={`${sectionClassName} p-5`}>
-                      <div className={cn('absolute right-4 top-4 rounded-[16px] p-2.5', tile.accentClass)}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="relative z-10 space-y-3 pr-12">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
-                          {tile.label}
-                        </p>
-                        <div className="space-y-1">
-                          <p className={cn('text-2xl font-semibold tracking-tight sm:text-[2rem]', tile.valueClass)}>
-                            {tile.valueUsd}
-                          </p>
-                          <p className="text-sm text-[var(--color-slate-600)]">{tile.valueIls}</p>
+                    <article key={tile.key} className={`${sectionClassName} min-w-0 p-4 sm:p-5`}>
+                      <div className="relative z-10 flex h-full flex-col gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
+                              {tile.label}
+                            </p>
+                            <p className={cn('text-[clamp(1.45rem,5vw,2rem)] font-semibold tracking-tight', tile.valueClass)}>
+                              {tile.valueUsd}
+                            </p>
+                          </div>
+                          <div className={cn('shrink-0 rounded-[16px] p-2.5', tile.accentClass)}>
+                            <Icon className="h-4 w-4" />
+                          </div>
                         </div>
+                        <p className="text-sm text-[var(--color-slate-600)]">{tile.valueIls}</p>
                         <p className="text-xs leading-5 text-[var(--color-slate-500)]">{tile.helper}</p>
                       </div>
                     </article>
@@ -471,7 +497,7 @@ export default function RealizedPnLPage() {
                 })}
               </section>
 
-              <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr] xl:items-start xl:gap-5">
                 <article className={`${shellClassName} px-5 py-6 sm:px-6 sm:py-7`}>
                   <div className="relative z-10 space-y-6">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -489,7 +515,7 @@ export default function RealizedPnLPage() {
                       </span>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-3 xl:gap-4">
                       <div className={insetCardClassName}>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           {copy.grossProfit}
@@ -558,12 +584,12 @@ export default function RealizedPnLPage() {
 
                     <p className="text-sm leading-6 text-[var(--color-slate-600)]">{copy.qualityNote}</p>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:gap-4">
                       <div className={insetCardClassName}>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           {locale === 'he' ? 'שיעור רווחיות' : 'Win rate'}
                         </p>
-                        <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-3xl">
                           {formatPercent(winRate, locale)}
                         </p>
                         <p className="mt-2 text-sm text-[var(--color-slate-500)]">
@@ -575,7 +601,7 @@ export default function RealizedPnLPage() {
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           {copy.averageHold}
                         </p>
-                        <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-3xl">
                           {Math.round(averageHoldingDays).toLocaleString(locale)}
                         </p>
                         <p className="mt-2 text-sm text-[var(--color-slate-500)]">
@@ -584,7 +610,7 @@ export default function RealizedPnLPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:gap-4">
                       <div className={insetCardClassName}>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           {copy.averageProfitPerExit}
@@ -601,7 +627,7 @@ export default function RealizedPnLPage() {
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           {copy.profitPool}
                         </p>
-                        <p className="mt-3 text-xl font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="mt-3 text-lg font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                           {formatPercent(totals.costUsd > 0 ? (Math.abs(totals.profitUsd) / totals.costUsd) * 100 : 0, locale)}
                         </p>
                         <p className="text-sm text-[var(--color-slate-500)]">
@@ -630,7 +656,7 @@ export default function RealizedPnLPage() {
 
               {salesBySymbol.length > 0 && (
                 <section className={`${shellClassName} px-5 py-6 sm:px-6 sm:py-7`}>
-                  <div className="relative z-10 space-y-5">
+                  <div className="relative z-10 space-y-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
@@ -647,7 +673,7 @@ export default function RealizedPnLPage() {
                       </p>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-5">
                       {salesBySymbol.map((item) => {
                         const tone = getTrendTone(item.profitUsd);
                         const contributionShare =
@@ -657,11 +683,11 @@ export default function RealizedPnLPage() {
                           <article
                             key={item.symbol}
                             className={cn(
-                              `${sectionClassName} p-5`,
+                              `${sectionClassName} p-4 sm:p-5`,
                               tone.border,
                             )}
                           >
-                            <div className="relative z-10 space-y-4">
+                            <div className="relative z-10 space-y-5">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-sm font-semibold text-[var(--color-primary-900)]">
@@ -677,7 +703,7 @@ export default function RealizedPnLPage() {
                                 </span>
                               </div>
 
-                              <div className="grid gap-3 sm:grid-cols-3">
+                              <div className="grid gap-3 sm:grid-cols-3 xl:gap-4">
                                 <div className="rounded-[18px] border border-[color:var(--color-slate-200)]/75 bg-[color:var(--color-slate-50)]/85 px-3 py-3">
                                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                     {locale === 'he' ? 'עסקאות' : 'Trades'}
@@ -722,7 +748,7 @@ export default function RealizedPnLPage() {
                                 </div>
                               </div>
 
-                              <div className="grid gap-3 text-sm text-[var(--color-slate-600)] sm:grid-cols-2">
+                              <div className="grid gap-3 text-sm text-[var(--color-slate-600)] sm:grid-cols-2 xl:gap-4">
                                 <div>
                                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                     {t.realized.totalProceeds}
@@ -756,7 +782,7 @@ export default function RealizedPnLPage() {
               )}
 
               <section className={`${shellClassName} px-5 py-6 sm:px-6 sm:py-7`}>
-                <div className="relative z-10 space-y-5">
+                  <div className="relative z-10 space-y-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
@@ -781,7 +807,7 @@ export default function RealizedPnLPage() {
                     <div>{locale === 'he' ? 'משך' : 'Duration'}</div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {sortedSales.map((sale) => {
                       const tone = getTrendTone(sale.profitUsd);
                       const formattedDate = formatSaleDate(sale.sellDate, locale);
@@ -789,31 +815,34 @@ export default function RealizedPnLPage() {
                       return (
                         <article
                           key={`${sale.id ?? sale.symbol}-${sale.sellDate}`}
-                          className={cn(
-                            'grid gap-4 rounded-[22px] border border-[color:var(--color-slate-200)]/75 bg-[color:var(--color-neutral-white)]/94 p-4 shadow-none xl:grid-cols-[minmax(220px,1.15fr)_minmax(180px,0.9fr)_minmax(180px,0.9fr)_minmax(180px,0.9fr)_minmax(150px,0.75fr)]',
-                            tone.border,
-                          )}
+                        className={cn(
+                          'grid gap-4 rounded-[22px] border border-[color:var(--color-slate-200)]/75 bg-[color:var(--color-neutral-white)]/94 p-4 shadow-none xl:grid-cols-[minmax(220px,1.15fr)_minmax(180px,0.9fr)_minmax(180px,0.9fr)_minmax(180px,0.9fr)_minmax(150px,0.75fr)] xl:gap-5',
+                          tone.border,
+                        )}
                         >
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-sm', tone.badge)}>
                                 {getTrendIcon(sale.profitUsd)}
                                 <span>{formatSignedCurrency(sale.profitUsd, 'USD', locale)}</span>
                               </span>
-                              <span className="text-sm font-semibold text-[var(--color-primary-900)]">
-                                {sale.display}
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-[var(--color-primary-900)]">{sale.display}</p>
+                                <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                  {sale.symbol}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-slate-500)] sm:text-sm">
+                              <span>{formattedDate}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>
+                                {sale.quantity.toLocaleString(locale)} {t.realized.quantity}
                               </span>
                             </div>
-                            <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                              {sale.symbol}
-                            </p>
-                            <p className="text-sm text-[var(--color-slate-600)]">{formattedDate}</p>
-                            <p className="text-xs text-[var(--color-slate-500)]">
-                              {sale.quantity.toLocaleString(locale)} {t.realized.quantity}
-                            </p>
                           </div>
 
-                          <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                 {t.realized.sellPrice}
@@ -832,7 +861,7 @@ export default function RealizedPnLPage() {
                             </div>
                           </div>
 
-                          <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                 {t.realized.proceeds}
@@ -857,7 +886,7 @@ export default function RealizedPnLPage() {
                             </div>
                           </div>
 
-                          <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                 {t.realized.profit}
@@ -879,7 +908,7 @@ export default function RealizedPnLPage() {
                             </div>
                           </div>
 
-                          <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-2">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                                 {t.realized.holdingPeriod}

@@ -114,16 +114,31 @@ interface PositionListItem {
 }
 
 const sectionShellClass =
-  "rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
+  "rounded-[30px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
 
 const cardShellClass =
-  "rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
+  "rounded-[26px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
 
 const chipShellClass =
   "inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1.5 shadow-sm";
 
 const dialogShellClass =
-  "flex w-[calc(100vw-1rem)] max-h-[calc(100svh-1rem)] max-w-2xl flex-col overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-sm sm:w-[calc(100vw-2rem)] sm:max-h-[calc(100svh-3rem)]";
+  "flex w-[min(42rem,calc(100vw-1rem))] max-h-[calc(100dvh-1rem)] max-w-none flex-col overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-sm sm:w-[min(42rem,calc(100vw-2rem))] sm:max-h-[calc(100dvh-2rem)]";
+
+const dialogSectionClass =
+  "space-y-3 rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 sm:space-y-4 sm:p-5";
+
+const dialogFooterClass =
+  "border-t border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/95 px-4 py-4 backdrop-blur-sm sm:px-6";
+
+const dialogActionButtonClass =
+  "h-11 w-full rounded-2xl sm:h-10 sm:w-auto";
+
+const panelLabelClass =
+  "block text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]";
+
+const controlLabelClass =
+  "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]";
 
 function getTimestampFromIsoDate(value: string): number {
   const timestamp = new Date(value).getTime();
@@ -224,6 +239,7 @@ export default function PositionsPage() {
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
   const isRtl = locale === "he";
+  const searchIconClassName = isRtl ? "right-3" : "left-3";
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -938,9 +954,9 @@ export default function PositionsPage() {
                     return (
                       <div
                         key={signal.key}
-                        className={`${cardShellClass} p-3`}
+                        className={`${cardShellClass} overflow-hidden p-4`}
                       >
-                        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                           <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--color-primary-050)] text-[var(--color-primary-600)]">
                             <Icon className="h-3.5 w-3.5" />
                           </span>
@@ -975,7 +991,7 @@ export default function PositionsPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className={dialogShellClass}>
             <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
-              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
+              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                 {editingPosition ? t.positions.edit : t.positions.add}
               </DialogTitle>
               <p className="text-sm leading-6 text-[var(--color-slate-500)]">
@@ -989,49 +1005,78 @@ export default function PositionsPage() {
               </p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <Label htmlFor="symbol">{t.positions.symbol}</Label>
-                  <Input
-                    id="symbol"
-                    value={formData.symbol}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        symbol: e.target.value.toUpperCase(),
-                      })
-                    }
-                    placeholder="AAPL"
-                    required
-                  />
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                <div className={dialogSectionClass}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={panelLabelClass}>
+                        {locale === "he" ? "פרטי זיהוי" : "Identity details"}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-500)]">
+                        {locale === "he"
+                          ? "הזן את הסמל, השם והלוגו כך שהפוזיציה תהיה קלה לזיהוי."
+                          : "Enter the symbol, display name, and logo so the position is easy to identify."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="symbol">{t.positions.symbol}</Label>
+                      <Input
+                        id="symbol"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={formData.symbol}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            symbol: e.target.value.toUpperCase(),
+                          })
+                        }
+                        placeholder="AAPL"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="display">{t.positions.display}</Label>
+                      <Input
+                        id="display"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={formData.display}
+                        onChange={(e) =>
+                          setFormData({ ...formData, display: e.target.value })
+                        }
+                        placeholder="Apple Inc."
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
+                      <Input
+                        id="imageUrl"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={formData.imageUrl}
+                        onChange={(e) =>
+                          setFormData({ ...formData, imageUrl: e.target.value })
+                        }
+                        placeholder="https://logo.clearbit.com/apple.com"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="sm:col-span-1">
-                  <Label htmlFor="display">{t.positions.display}</Label>
-                  <Input
-                    id="display"
-                    value={formData.display}
-                    onChange={(e) =>
-                      setFormData({ ...formData, display: e.target.value })
-                    }
-                    placeholder="Apple Inc."
-                    required
-                  />
-                </div>
-                </div>
-                <div>
-                  <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
-                  <Input
-                    id="imageUrl"
-                    value={formData.imageUrl}
-                    onChange={(e) =>
-                      setFormData({ ...formData, imageUrl: e.target.value })
-                    }
-                    placeholder="https://logo.clearbit.com/apple.com"
-                  />
-                </div>
-                <div>
-                  <Label>{t.positions.locationLabel}</Label>
+
+                <div className={dialogSectionClass}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Label className={panelLabelClass}>
+                        {t.positions.locationLabel}
+                      </Label>
+                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-500)]">
+                        {locale === "he"
+                          ? "בחר היכן הפוזיציה נשמרת כדי לשמור על היסטוריה ברורה."
+                          : "Choose where the position is tracked so history stays easy to scan."}
+                      </p>
+                    </div>
+                  </div>
                   <RadioGroup
                     value={formData.location}
                     onValueChange={(value) =>
@@ -1040,9 +1085,9 @@ export default function PositionsPage() {
                         location: value as PositionLocation,
                       })
                     }
-                    className="mt-2 grid gap-2 sm:grid-cols-2"
+                    className="mt-4 grid gap-3 sm:grid-cols-2"
                   >
-                    <label className="flex min-w-0 flex-col gap-1 rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)] p-3 text-sm text-slate-600">
+                    <label className="flex min-w-0 flex-col gap-1 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 text-sm text-[var(--color-slate-600)] shadow-sm">
                       <RadioGroupItem
                         value="bank_one"
                         id="position-location-one"
@@ -1053,11 +1098,11 @@ export default function PositionsPage() {
                         locale={locale}
                         className="mt-1 self-start"
                       />
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs leading-5 text-[var(--color-slate-500)]">
                         {t.positions.bankOneHelper}
                       </span>
                     </label>
-                    <label className="flex min-w-0 flex-col gap-1 rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)] p-3 text-sm text-slate-600">
+                    <label className="flex min-w-0 flex-col gap-1 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 text-sm text-[var(--color-slate-600)] shadow-sm">
                       <RadioGroupItem
                         value="bank_two"
                         id="position-location-two"
@@ -1068,100 +1113,110 @@ export default function PositionsPage() {
                         locale={locale}
                         className="mt-1 self-start"
                       />
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs leading-5 text-[var(--color-slate-500)]">
                         {t.positions.bankTwoHelper}
                       </span>
                     </label>
                   </RadioGroup>
                 </div>
+
                 {isEditing && editingPosition ? (
-                  <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)] p-4 text-sm text-slate-600">
-                    <p className="font-semibold text-slate-700">
-                      {t.positions.currentHolding}
-                    </p>
-                    <p className="mt-2">
-                      {formatNumber(editingPosition.quantity, locale)} ·{" "}
-                      {formatCurrency(editingPosition.entryPrice, "USD", locale)}{" "}
-                      • {formatDate(editingPosition.entryDate, locale)}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {t.positions.since}{" "}
-                      {formatDate(editingPosition.entryDate, locale)}
-                    </p>
+                  <div className={dialogSectionClass}>
+                    <p className={panelLabelClass}>{t.positions.currentHolding}</p>
+                    <div className="mt-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
+                      <p className="text-sm font-semibold text-[var(--color-primary-900)]">
+                        {formatNumber(editingPosition.quantity, locale)} ·{" "}
+                        {formatCurrency(editingPosition.entryPrice, "USD", locale)}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-600)]">
+                        {formatDate(editingPosition.entryDate, locale)}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
+                        {t.positions.since} {formatDate(editingPosition.entryDate, locale)}
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="sm:col-span-1">
-                        <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
-                        <Input
-                          id="initialPrice"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={
-                            Number.isFinite(formData.initialPrice)
-                              ? formData.initialPrice
-                              : 0
-                          }
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              initialPrice: Number.parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="sm:col-span-1">
-                        <Label htmlFor="initialQuantity">
-                          {t.positions.initialQuantity}
-                        </Label>
-                        <Input
-                          id="initialQuantity"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={
-                            Number.isFinite(formData.initialQuantity)
-                              ? formData.initialQuantity
-                              : 0
-                          }
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              initialQuantity: Number.parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="sm:col-span-1">
-                        <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
-                        <Input
-                          id="initialDate"
-                          type="date"
-                          value={formData.initialDate}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              initialDate: e.target.value,
-                            })
-                          }
-                          required
-                        />
+                    <div className={dialogSectionClass}>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                          <Input
+                            id="initialPrice"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                            value={
+                              Number.isFinite(formData.initialPrice)
+                                ? formData.initialPrice
+                                : 0
+                            }
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                initialPrice:
+                                  Number.parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="initialQuantity">
+                            {t.positions.initialQuantity}
+                          </Label>
+                          <Input
+                            id="initialQuantity"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                            value={
+                              Number.isFinite(formData.initialQuantity)
+                                ? formData.initialQuantity
+                                : 0
+                            }
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                initialQuantity:
+                                  Number.parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                          <Input
+                            id="initialDate"
+                            type="date"
+                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                            value={formData.initialDate}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                initialDate: e.target.value,
+                              })
+                            }
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] p-3">
+
+                    <div className={dialogSectionClass}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <Label
                             htmlFor="initial-commission-toggle"
-                            className="text-sm font-medium"
+                            className={panelLabelClass}
                           >
                             {t.positions.transactionCommissionToggle}
                           </Label>
-                          <p className="text-xs text-slate-500">
+                          <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
                             {t.positions.transactionCommissionHelper}
                           </p>
                         </div>
@@ -1181,7 +1236,7 @@ export default function PositionsPage() {
                           }
                         />
                       </div>
-                      <div className="mt-3">
+                      <div className="mt-4 space-y-2">
                         <Label htmlFor="initial-commission-amount">
                           {t.positions.transactionCommissionAmount}
                         </Label>
@@ -1190,6 +1245,7 @@ export default function PositionsPage() {
                           type="number"
                           step="0.01"
                           min="0"
+                          className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
                           value={formData.initialCommissionAmount}
                           onChange={(e) =>
                             setFormData({
@@ -1206,17 +1262,19 @@ export default function PositionsPage() {
                   </div>
                 )}
               </div>
-              <div className="border-t border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-5 py-4 sm:px-6">
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  {t.positions.cancel}
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto">{t.positions.save}</Button>
+              <div className={dialogFooterClass}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={dialogActionButtonClass}
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    {t.positions.cancel}
+                  </Button>
+                  <Button type="submit" className={dialogActionButtonClass}>
+                    {t.positions.save}
+                  </Button>
                 </div>
               </div>
             </form>
@@ -1235,7 +1293,7 @@ export default function PositionsPage() {
         >
           <DialogContent className={dialogShellClass}>
             <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
-              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
+              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                 {isEditingTransaction
                   ? t.positions.editTransaction
                   : t.positions.addTransaction}
@@ -1247,9 +1305,9 @@ export default function PositionsPage() {
               )}
             </DialogHeader>
             <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-                <div>
-                  <Label>{t.positions.transactionType}</Label>
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                <div className={dialogSectionClass}>
+                  <Label className={panelLabelClass}>{t.positions.transactionType}</Label>
                   <RadioGroup
                     value={transactionForm.type}
                     onValueChange={(value) =>
@@ -1258,91 +1316,98 @@ export default function PositionsPage() {
                         type: value as PositionLotType,
                       })
                     }
-                    className="mt-2 grid gap-2 sm:grid-cols-2"
+                    className="mt-4 grid gap-3 sm:grid-cols-2"
                   >
-                    <label className="flex items-center gap-2 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-2 text-sm text-slate-600">
+                    <label className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-3 text-sm font-medium text-[var(--color-slate-600)] shadow-sm">
                       <RadioGroupItem value="BUY" id="transaction-buy" />
                       {t.positions.buy}
                     </label>
-                    <label className="flex items-center gap-2 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-2 text-sm text-slate-600">
+                    <label className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-3 text-sm font-medium text-[var(--color-slate-600)] shadow-sm">
                       <RadioGroupItem value="SELL" id="transaction-sell" />
                       {t.positions.sell}
                     </label>
                   </RadioGroup>
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="transactionPrice">
-                      {t.positions.transactionPrice}
-                    </Label>
-                    <Input
-                      id="transactionPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={transactionForm.price}
-                      onChange={(e) =>
-                        setTransactionForm({
-                          ...transactionForm,
-                          price: Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="transactionQuantity">
-                      {t.positions.transactionQuantity}
-                    </Label>
-                    <Input
-                      id="transactionQuantity"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={transactionForm.quantity}
-                      onChange={(e) =>
-                        setTransactionForm({
-                          ...transactionForm,
-                          quantity: Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                    />
-                    {transactionForm.type === "SELL" && transactionTarget && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        {t.positions.availableQuantity}:{" "}
-                        {formatNumber(transactionTarget.quantity, locale)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="sm:col-span-1">
-                    <Label htmlFor="transactionDate">
-                      {t.positions.transactionDate}
-                    </Label>
-                    <Input
-                      id="transactionDate"
-                      type="date"
-                      value={transactionForm.executedAt}
-                      onChange={(e) =>
-                        setTransactionForm({
-                          ...transactionForm,
-                          executedAt: e.target.value,
-                        })
-                      }
-                      required
-                    />
+
+                <div className={dialogSectionClass}>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="transactionPrice">
+                        {t.positions.transactionPrice}
+                      </Label>
+                      <Input
+                        id="transactionPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={transactionForm.price}
+                        onChange={(e) =>
+                          setTransactionForm({
+                            ...transactionForm,
+                            price: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transactionQuantity">
+                        {t.positions.transactionQuantity}
+                      </Label>
+                      <Input
+                        id="transactionQuantity"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={transactionForm.quantity}
+                        onChange={(e) =>
+                          setTransactionForm({
+                            ...transactionForm,
+                            quantity: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                      {transactionForm.type === "SELL" && transactionTarget && (
+                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                          {t.positions.availableQuantity}:{" "}
+                          {formatNumber(transactionTarget.quantity, locale)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transactionDate">
+                        {t.positions.transactionDate}
+                      </Label>
+                      <Input
+                        id="transactionDate"
+                        type="date"
+                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
+                        value={transactionForm.executedAt}
+                        onChange={(e) =>
+                          setTransactionForm({
+                            ...transactionForm,
+                            executedAt: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] p-3">
+
+                <div className={dialogSectionClass}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <Label
                         htmlFor="transaction-commission-toggle"
-                        className="text-sm font-medium"
+                        className={panelLabelClass}
                       >
                         {t.positions.transactionCommissionToggle}
                       </Label>
-                      <p className="text-xs text-slate-500">
+                      <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
                         {t.positions.transactionCommissionHelper}
                       </p>
                     </div>
@@ -1362,7 +1427,7 @@ export default function PositionsPage() {
                       }
                     />
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-4 space-y-2">
                     <Label htmlFor="transaction-commission-amount">
                       {t.positions.transactionCommissionAmount}
                     </Label>
@@ -1371,6 +1436,7 @@ export default function PositionsPage() {
                       type="number"
                       step="0.01"
                       min="0"
+                      className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
                       value={transactionForm.commissionAmount}
                       onChange={(e) =>
                         setTransactionForm({
@@ -1385,17 +1451,19 @@ export default function PositionsPage() {
                   </div>
                 </div>
               </div>
-              <div className="border-t border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-5 py-4 sm:px-6">
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => setTransactionDialogOpen(false)}
-                >
-                  {t.positions.cancel}
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto">{t.positions.saveTransaction}</Button>
+              <div className={dialogFooterClass}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={dialogActionButtonClass}
+                    onClick={() => setTransactionDialogOpen(false)}
+                  >
+                    {t.positions.cancel}
+                  </Button>
+                  <Button type="submit" className={dialogActionButtonClass}>
+                    {t.positions.saveTransaction}
+                  </Button>
                 </div>
               </div>
             </form>
@@ -1411,12 +1479,15 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="flex w-[calc(100vw-1rem)] max-h-[calc(100svh-1rem)] max-w-lg flex-col overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-lg sm:w-[calc(100vw-2rem)] sm:max-h-[calc(100svh-3rem)]">
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)] px-5 py-4 sm:px-6">
-              <DialogTitle>{t.positions.manageHistory}</DialogTitle>
+          <DialogContent className="flex w-[min(32rem,calc(100vw-1rem))] max-h-[calc(100dvh-1rem)] max-w-none flex-col overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-lg sm:w-[min(32rem,calc(100vw-2rem))] sm:max-h-[calc(100dvh-2rem)]">
+            <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
+              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
+                {t.positions.manageHistory}
+              </DialogTitle>
               {historyTarget && (
-                <p className="text-sm text-slate-500">
-                  {historyTarget.display} · {historyTarget.symbol}
+                <p className="text-sm leading-6 text-[var(--color-slate-500)]">
+                  {(historyTarget.display || historyTarget.symbol).trim()} ·{" "}
+                  {historyTarget.symbol}
                 </p>
               )}
             </DialogHeader>
@@ -1424,7 +1495,7 @@ export default function PositionsPage() {
               {historyTarget ? (
                 historyTarget.lots && historyTarget.lots.length > 0 ? (
                   <div className="space-y-3">
-                  {[...(historyTarget.lots ?? [])]
+                    {[...(historyTarget.lots ?? [])]
                     .sort((a, b) => {
                       const aTime = new Date(a.executedAt).getTime();
                       const bTime = new Date(b.executedAt).getTime();
@@ -1450,29 +1521,35 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="flex flex-col gap-2 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)] p-3 sm:flex-row sm:items-center"
+                          className="grid gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"
                         >
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}
+                            className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeTone}`}
                           >
                             {typeLabel}
                           </span>
-                          <div className="flex min-w-0 flex-1 flex-col text-sm text-slate-600">
-                            <span>
-                              {formatNumber(lot.quantity, locale)} ·{" "}
-                              {formatCurrency(lot.price, "USD", locale)}
-                            </span>
-                            <span className="text-xs text-slate-500">
+                          <div className="min-w-0 space-y-1 text-sm text-[var(--color-slate-600)]">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-semibold text-[var(--color-primary-900)]">
+                                {formatNumber(lot.quantity, locale)}
+                              </span>
+                              <span>·</span>
+                              <span className="font-semibold text-[var(--color-primary-900)]">
+                                {formatCurrency(lot.price, "USD", locale)}
+                              </span>
+                            </div>
+                            <p className="text-xs leading-5 text-[var(--color-slate-500)]">
                               {formatDate(lot.executedAt, locale)}
-                            </span>
-                            <span className="text-xs text-slate-500">
+                            </p>
+                            <p className="text-xs leading-5 text-[var(--color-slate-500)]">
                               {commissionLabel}
-                            </span>
+                            </p>
                           </div>
-                          <div className="ml-auto flex items-center gap-1 self-end sm:self-auto">
+                          <div className="flex items-center justify-start gap-1 sm:justify-end sm:self-start">
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-9 w-9 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
                               onClick={() =>
                                 historyTarget &&
                                 openEditTransactionDialog(historyTarget, lot)
@@ -1484,6 +1561,7 @@ export default function PositionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-9 w-9 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)]"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
                             >
@@ -1495,18 +1573,28 @@ export default function PositionsPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    {t.positions.noTransactions}
-                  </p>
+                  <div className="rounded-2xl border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-slate-50)]/60 p-5 text-center">
+                    <p className="text-sm font-semibold text-[var(--color-slate-700)]">
+                      {t.positions.noTransactions}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--color-slate-500)]">
+                      {locale === "he"
+                        ? "ניתן להוסיף עסקה חדשה כדי להתחיל לעקוב אחרי ההיסטוריה."
+                        : "Add a transaction to start building the history timeline."}
+                    </p>
+                  </div>
                 )
               ) : (
-                <p className="text-sm text-slate-500">{t.common.loading}</p>
+                <div className="space-y-3" aria-busy="true">
+                  <div className="h-4 w-40 rounded-full bg-[color:var(--color-slate-200)]/80 animate-pulse" />
+                  <div className="h-3 w-56 rounded-full bg-[color:var(--color-slate-100)] animate-pulse" />
+                </div>
               )}
             </div>
             {historyTarget && (
-              <div className="border-t border-[color:var(--color-slate-200)] px-5 py-4 sm:px-6">
+              <div className={dialogFooterClass}>
                 <Button
-                  className="w-full"
+                  className="h-11 w-full rounded-2xl"
                   onClick={() => openTransactionDialog(historyTarget)}
                 >
                   <Plus className="h-4 w-4" />
@@ -1525,15 +1613,15 @@ export default function PositionsPage() {
               return (
                 <div
                   key={signal.key}
-                        className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-4 py-3 shadow-sm"
+                  className="flex h-full flex-col rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-4 py-3 shadow-sm"
                 >
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                  <div className="flex min-w-0 items-start gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-primary-050)] text-[var(--color-primary-600)]">
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span>{signal.label}</span>
+                    <span className="min-w-0 truncate">{signal.label}</span>
                   </div>
-                  <div className="mt-2 flex items-baseline justify-between gap-3">
+                  <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <span className="truncate text-sm font-semibold text-[var(--color-primary-900)]">
                       {signal.value}
                     </span>
@@ -1567,15 +1655,15 @@ export default function PositionsPage() {
                     key={key}
                     className={cn(cardShellClass, tone)}
                   >
-                    <CardContent className="flex items-center gap-3 p-4">
+                    <CardContent className="flex items-center gap-3 p-4 sm:p-5">
                       <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 text-[var(--color-primary-700)]">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)] sm:text-[11px]">
                           {label}
                         </p>
-                        <p className="text-lg font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="text-[clamp(1rem,2.2vw,1.2rem)] font-semibold tracking-tight text-[var(--color-primary-900)]">
                           {value}
                         </p>
                       </div>
@@ -1589,20 +1677,62 @@ export default function PositionsPage() {
           <section className={`${sectionShellClass} px-4 py-8 sm:px-8`}>
             <div className="relative z-10">
               {loading ? (
-                <Card className={cardShellClass}>
-                  <CardContent className="py-16 text-center text-slate-500">
-                    {t.common.loading}
+                <Card className={cn(cardShellClass, "overflow-hidden")}>
+                  <CardContent className="space-y-5 p-5 sm:p-6">
+                    <div className="space-y-2">
+                      <div className="h-4 w-40 animate-pulse rounded-full bg-[color:var(--color-slate-200)]/80" />
+                      <div className="h-3 w-72 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
+                    </div>
+                    <div className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-11 w-11 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
+                              <div className="space-y-2">
+                                <div className="h-4 w-36 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
+                                <div className="h-3 w-24 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
+                              </div>
+                            </div>
+                            <div className="hidden h-8 w-24 animate-pulse rounded-full bg-[color:var(--color-slate-100)] sm:block" />
+                          </div>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {Array.from({ length: 4 }).map((__, metricIndex) => (
+                              <div
+                                key={metricIndex}
+                                className="h-16 animate-pulse rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-t border-[color:var(--color-slate-200)] pt-4">
+                      <div className="h-3 w-32 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
+                      <div className="flex items-center gap-2">
+                        <div className="h-9 w-9 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
+                        <div className="h-9 w-9 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ) : positions.length === 0 ? (
-                <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)] text-center shadow-none">
-                  <CardContent className="flex flex-col items-center gap-4 py-12">
-                    <p className="text-base font-semibold text-slate-700">
-                      {t.dashboard.noPositions}
-                    </p>
-                    <p className="max-w-sm text-sm text-slate-500">
-                      {t.positions.emptyStateDescription}
-                    </p>
+                <Card className="border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-neutral-white)] shadow-none">
+                  <CardContent className="flex flex-col items-center gap-4 px-5 py-14 text-center sm:px-6">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] text-[var(--color-primary-600)]">
+                      <Layers className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-base font-semibold text-[var(--color-slate-700)]">
+                        {t.dashboard.noPositions}
+                      </p>
+                      <p className="max-w-md text-sm leading-6 text-[var(--color-slate-500)]">
+                        {t.positions.emptyStateDescription}
+                      </p>
+                    </div>
                     <Button onClick={openAddDialog} className="gap-2">
                       <Plus className="h-4 w-4" />
                       {t.positions.add}
@@ -1610,33 +1740,47 @@ export default function PositionsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                  <div className="grid gap-6 xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] xl:items-start">
+                <div className="grid gap-6 xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] xl:items-start">
                   <Card className={`${cardShellClass} xl:sticky xl:top-6`}>
                     <CardContent className="space-y-4 p-4 sm:p-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className={panelLabelClass}>
                             {locale === "he" ? "סינון והתאמה" : "Filter and sort"}
                           </p>
-                          <p className="mt-1 text-sm text-[var(--color-slate-500)]">
+                          <p className="text-sm leading-6 text-[var(--color-slate-500)]">
                             {t.positions.quickActionsDescription}
                           </p>
                         </div>
-                        <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                        <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)] shadow-sm">
                           {formatNumber(filteredPositionItems.length, locale)}
                         </span>
                       </div>
-                      <div className="grid gap-3 lg:grid-cols-12">
-                        <div className="relative lg:col-span-5">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-slate-400)]" />
+
+                      <div className="space-y-2">
+                        <Label className={controlLabelClass} htmlFor="position-search">
+                          {locale === "he" ? "חיפוש" : "Search"}
+                        </Label>
+                        <div className="relative">
+                          <Search className={cn("pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-slate-400)]", searchIconClassName)} />
                           <Input
+                            id="position-search"
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
                             placeholder={t.positions.searchPlaceholder}
-                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] pl-9 shadow-sm"
+                            className={cn(
+                              "h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm",
+                              isRtl ? "pr-9" : "pl-9",
+                            )}
                           />
                         </div>
-                        <div className="lg:col-span-3">
+                      </div>
+
+                      <div className="grid gap-3">
+                        <div className="space-y-2">
+                          <Label className={controlLabelClass}>
+                            {t.positions.filterByBank}
+                          </Label>
                           <Select
                             value={locationFilter}
                             onValueChange={(value) =>
@@ -1659,7 +1803,11 @@ export default function PositionsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="lg:col-span-3">
+
+                        <div className="space-y-2">
+                          <Label className={controlLabelClass}>
+                            {t.positions.sortBy}
+                          </Label>
                           <Select
                             value={sortOption}
                             onValueChange={(value) =>
@@ -1688,7 +1836,11 @@ export default function PositionsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="lg:col-span-1">
+
+                        <div className="space-y-2">
+                          <Label className={controlLabelClass}>
+                            {t.positions.pageSizeLabel}
+                          </Label>
                           <Select
                             value={String(pageSize)}
                             onValueChange={(value) =>
@@ -1706,6 +1858,7 @@ export default function PositionsPage() {
                           </Select>
                         </div>
                       </div>
+
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-3 py-2 text-xs text-[var(--color-slate-500)]">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-[color:var(--color-primary-050)] px-3 py-1 font-semibold text-[var(--color-primary-700)]">
@@ -1737,7 +1890,9 @@ export default function PositionsPage() {
                           </Button>
                         ) : (
                           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-400)]">
-                            {locale === "he" ? "אין פילטרים פעילים" : "No active filters"}
+                            {locale === "he"
+                              ? "אין פילטרים פעילים"
+                              : "No active filters"}
                           </span>
                         )}
                       </div>
@@ -1747,187 +1902,209 @@ export default function PositionsPage() {
                   <div className="space-y-5">
                     {filteredPositionItems.length === 0 ? (
                       <Card className="border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-neutral-white)] shadow-none">
-                        <CardContent className="py-14 text-center">
-                          <p className="text-sm font-semibold text-[var(--color-slate-700)]">
-                            {t.positions.noFilteredResults}
-                          </p>
+                        <CardContent className="flex flex-col items-center gap-4 px-5 py-14 text-center">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--color-slate-50)] text-[var(--color-slate-500)]">
+                            <Search className="h-5 w-5" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-[var(--color-slate-700)]">
+                              {t.positions.noFilteredResults}
+                            </p>
+                            <p className="max-w-sm text-sm leading-6 text-[var(--color-slate-500)]">
+                              {locale === "he"
+                                ? "נסה לשנות את החיפוש, הבנק או המיון כדי למצוא פוזיציה."
+                                : "Try adjusting search, bank, or sort to find a position."}
+                            </p>
+                          </div>
+                          {hasActiveFilters && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setSearchTerm("");
+                                setLocationFilter("all");
+                              }}
+                            >
+                              {t.positions.clearFilters}
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     ) : (
                       <>
                         <div className="hidden overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm md:block">
-                          <Table className="min-w-[920px]">
-                            <TableHeader className="bg-[color:var(--color-slate-50)]">
-                              <TableRow className="border-b border-[color:var(--color-slate-200)]/60 hover:bg-transparent">
-                                <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.columnAsset}
-                                </TableHead>
-                                <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.quantity}
-                                </TableHead>
-                                <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.entryPrice}
-                                </TableHead>
-                                <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.entryDate}
-                                </TableHead>
-                                <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.lastActivity}
-                                </TableHead>
-                                <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.transactionsTitle}
-                                </TableHead>
-                                <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                  {t.positions.columnActions}
-                                </TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {paginatedPositionItems.map((item) => {
-                                const { position, sortedLots, recentLots } = item;
+                          <div className="overflow-x-auto">
+                            <Table className="min-w-[980px]">
+                              <TableHeader className="bg-[color:var(--color-slate-50)]">
+                                <TableRow className="border-b border-[color:var(--color-slate-200)]/60 hover:bg-transparent">
+                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.columnAsset}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.quantity}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.entryPrice}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.entryDate}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.lastActivity}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.transactionsTitle}
+                                  </TableHead>
+                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                    {t.positions.columnActions}
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {paginatedPositionItems.map((item) => {
+                                  const { position, sortedLots, recentLots } = item;
 
-                                return (
-                                  <TableRow
-                                    key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                    className="group border-b border-[color:var(--color-slate-200)]/50 transition-colors hover:bg-[color:var(--color-slate-50)]"
-                                  >
-                                    <TableCell className="py-4">
-                                      <div className="flex items-center gap-3">
-                                        <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
-                                          <StockAvatarImage
-                                            symbol={position.symbol}
-                                            display={`${position.display} logo`}
-                                            imageUrl={position.imageUrl}
-                                          />
-                                          <AvatarFallback className="text-xs font-semibold text-[var(--color-slate-600)]">
-                                            {item.fallbackInitials}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <div className="min-w-0">
-                                          <p className="truncate text-sm font-semibold tracking-tight text-[var(--color-primary-900)]">
-                                            {position.display}
-                                          </p>
-                                          <div className="mt-1 flex items-center gap-2">
-                                            <Badge className="rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-slate-600)]">
-                                              {position.symbol}
-                                            </Badge>
-                                            <BankBadge
-                                              bank={
-                                                position.location === "bank_two"
-                                                  ? "bank_two"
-                                                  : "bank_one"
-                                              }
-                                              locale={locale}
-                                              size="sm"
+                                  return (
+                                    <TableRow
+                                      key={position.id ?? `${position.symbol}-${position.entryDate}`}
+                                      className="group border-b border-[color:var(--color-slate-200)]/50 transition-colors hover:bg-[color:var(--color-slate-50)]"
+                                    >
+                                      <TableCell className="py-4">
+                                        <div className="flex items-center gap-3">
+                                          <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
+                                            <StockAvatarImage
+                                              symbol={position.symbol}
+                                              display={`${position.display} logo`}
+                                              imageUrl={position.imageUrl}
                                             />
+                                            <AvatarFallback className="text-xs font-semibold text-[var(--color-slate-600)]">
+                                              {item.fallbackInitials}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div className="min-w-0">
+                                            <p className="truncate text-sm font-semibold tracking-tight text-[var(--color-primary-900)]">
+                                              {position.display}
+                                            </p>
+                                            <div className="mt-1 flex items-center gap-2">
+                                              <Badge className="rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-slate-600)]">
+                                                {position.symbol}
+                                              </Badge>
+                                              <BankBadge
+                                                bank={
+                                                  position.location === "bank_two"
+                                                    ? "bank_two"
+                                                    : "bank_one"
+                                                }
+                                                locale={locale}
+                                                size="sm"
+                                              />
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
-                                      {formatNumber(position.quantity, locale)}
-                                    </TableCell>
-                                    <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
-                                      {formatCurrency(position.entryPrice, "USD", locale)}
-                                    </TableCell>
-                                    <TableCell className="py-4 text-[var(--color-slate-600)]">
-                                      {formatDate(position.entryDate, locale)}
-                                    </TableCell>
-                                    <TableCell className="py-4 text-[var(--color-slate-600)]">
-                                      {formatDate(item.lastActivityDate, locale)}
-                                    </TableCell>
-                                    <TableCell className="py-4">
-                                      {sortedLots.length > 0 ? (
-                                        <div className="space-y-2">
-                                          <p className="text-xs font-semibold text-[var(--color-slate-500)]">
-                                            {t.positions.transactionCount(sortedLots.length)}
-                                          </p>
-                                          <div className="flex flex-wrap gap-1">
-                                            {recentLots.map((lot) => (
-                                              <span
-                                                key={`${lot.id}-${lot.executedAt}`}
-                                                className={cn(
-                                                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                                  lot.type === "BUY"
-                                                    ? "bg-emerald-50 text-emerald-700"
-                                                    : "bg-rose-50 text-rose-700",
-                                                )}
-                                              >
-                                                {lot.type === "BUY"
-                                                  ? t.positions.buy
-                                                  : t.positions.sell}{" "}
-                                                · {formatDate(lot.executedAt, locale)}
-                                              </span>
-                                            ))}
+                                      </TableCell>
+                                      <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
+                                        {formatNumber(position.quantity, locale)}
+                                      </TableCell>
+                                      <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
+                                        {formatCurrency(position.entryPrice, "USD", locale)}
+                                      </TableCell>
+                                      <TableCell className="py-4 text-[var(--color-slate-600)]">
+                                        {formatDate(position.entryDate, locale)}
+                                      </TableCell>
+                                      <TableCell className="py-4 text-[var(--color-slate-600)]">
+                                        {formatDate(item.lastActivityDate, locale)}
+                                      </TableCell>
+                                      <TableCell className="py-4">
+                                        {sortedLots.length > 0 ? (
+                                          <div className="space-y-2">
+                                            <p className="text-xs font-semibold text-[var(--color-slate-500)]">
+                                              {t.positions.transactionCount(sortedLots.length)}
+                                            </p>
+                                            <div className="flex flex-wrap gap-1">
+                                              {recentLots.map((lot) => (
+                                                <span
+                                                  key={`${lot.id}-${lot.executedAt}`}
+                                                  className={cn(
+                                                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                                    lot.type === "BUY"
+                                                      ? "bg-emerald-50 text-emerald-700"
+                                                      : "bg-rose-50 text-rose-700",
+                                                  )}
+                                                >
+                                                  {lot.type === "BUY"
+                                                    ? t.positions.buy
+                                                    : t.positions.sell}{" "}
+                                                  · {formatDate(lot.executedAt, locale)}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <span className="text-xs text-[var(--color-slate-400)]">
+                                            {t.positions.noTransactions}
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="py-4 align-top">
+                                        <div className="flex flex-col gap-2 xl:items-end">
+                                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                            <Link
+                                              href={`/stock/${position.symbol}`}
+                                              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3.5 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm transition hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                            >
+                                              <BarChart3 className="h-4 w-4" />
+                                              <span>{t.dashboard.viewDetails}</span>
+                                            </Link>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => openTransactionDialog(position)}
+                                              className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                            >
+                                              <ArrowRightLeft className="h-4 w-4" />
+                                              <span>{t.positions.addTransaction}</span>
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => openHistoryDialog(position)}
+                                              className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                            >
+                                              <History className="h-4 w-4" />
+                                              <span>{t.positions.manageHistory}</span>
+                                            </Button>
+                                          </div>
+                                          <div className="flex items-center justify-end gap-2">
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => openEditDialog(position)}
+                                              aria-label={t.positions.edit}
+                                              className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                position.id && handleDelete(position.id)
+                                              }
+                                              aria-label={t.positions.delete}
+                                              disabled={!position.id}
+                                              className="h-8 w-8 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)] disabled:text-[var(--color-slate-300)]"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
                                           </div>
                                         </div>
-                                      ) : (
-                                        <span className="text-xs text-[var(--color-slate-400)]">
-                                          {t.positions.noTransactions}
-                                        </span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="py-4">
-                                      <div className="flex items-center justify-end gap-1 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-1.5 py-1 shadow-sm">
-                                        <Link
-                                          href={`/stock/${position.symbol}`}
-                                          className="shrink-0"
-                                        >
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label={t.dashboard.viewDetails}
-                                            className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                          >
-                                            <BarChart3 className="h-4 w-4" />
-                                          </Button>
-                                        </Link>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => openTransactionDialog(position)}
-                                          aria-label={t.positions.addTransaction}
-                                          className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                        >
-                                          <ArrowRightLeft className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => openHistoryDialog(position)}
-                                          aria-label={t.positions.manageHistory}
-                                          className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                        >
-                                          <History className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => openEditDialog(position)}
-                                          aria-label={t.positions.edit}
-                                          className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() =>
-                                            position.id && handleDelete(position.id)
-                                          }
-                                          aria-label={t.positions.delete}
-                                          disabled={!position.id}
-                                          className="h-8 w-8 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)] disabled:text-[var(--color-slate-300)]"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
                         </div>
 
                         <div className="space-y-3 md:hidden">
@@ -1940,9 +2117,9 @@ export default function PositionsPage() {
                                 className={cardShellClass}
                               >
                                 <CardHeader className="space-y-3 pb-3 pt-4">
-                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
+                                      <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
                                         <StockAvatarImage
                                           symbol={position.symbol}
                                           display={`${position.display} logo`}
@@ -1972,15 +2149,12 @@ export default function PositionsPage() {
                                         </div>
                                       </div>
                                     </div>
-                                    <Link href={`/stock/${position.symbol}`}>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        aria-label={t.dashboard.viewDetails}
-                                        className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                      >
-                                        <BarChart3 className="h-4 w-4" />
-                                      </Button>
+                                    <Link
+                                      href={`/stock/${position.symbol}`}
+                                      className="inline-flex h-9 self-start items-center gap-1.5 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm transition hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] sm:self-auto"
+                                    >
+                                      <BarChart3 className="h-4 w-4" />
+                                      <span>{t.dashboard.viewDetails}</span>
                                     </Link>
                                   </div>
                                   <div className="grid gap-2 text-xs text-[var(--color-slate-600)] sm:grid-cols-2">
@@ -2046,24 +2220,27 @@ export default function PositionsPage() {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => openTransactionDialog(position)}
-                                      className="h-9 rounded-full border-[color:var(--color-slate-200)] text-xs"
+                                      className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
                                     >
+                                      <ArrowRightLeft className="h-4 w-4" />
                                       {t.positions.addTransaction}
                                     </Button>
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => openHistoryDialog(position)}
-                                      className="h-9 rounded-full border-[color:var(--color-slate-200)] text-xs"
+                                      className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
                                     >
+                                      <History className="h-4 w-4" />
                                       {t.positions.manageHistory}
                                     </Button>
-                                    <div className="flex items-center justify-start gap-1 sm:justify-end">
+                                  </div>
+                                  <div className="flex items-center justify-start gap-1.5 sm:justify-end">
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -2086,7 +2263,6 @@ export default function PositionsPage() {
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
-                                  </div>
                                 </CardContent>
                               </Card>
                             );

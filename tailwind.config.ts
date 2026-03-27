@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
         extend: {
                 fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        sans: ['var(--font-app)', 'Rubik', 'system-ui', 'sans-serif'],
                 },
                 backgroundImage: {
                         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

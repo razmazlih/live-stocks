@@ -27,14 +27,17 @@ export function TimeRangeTabs({
       onValueChange={(next) => onChange(next as TimeRange)}
       className={cn('w-full', className)}
     >
-      <TabsList className="flex flex-wrap gap-2 rounded-none bg-transparent p-0">
+      <TabsList className="flex w-full max-w-full snap-x snap-mandatory items-stretch justify-start gap-1 overflow-x-auto rounded-[20px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/90 p-1 shadow-sm [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:justify-center md:overflow-visible">
         {ranges.map((range) => (
           <TabsTrigger
             key={range}
             value={range}
             className={cn(
-              'rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium transition-colors data-[state=active]:border-transparent data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:border-slate-700 dark:bg-slate-800 dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900',
-              'shadow-sm hover:border-slate-300 hover:bg-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-700'
+              'min-h-10 min-w-[3.25rem] shrink-0 snap-center rounded-full border border-transparent bg-transparent px-3 py-2 text-[0.78rem] font-semibold tabular-nums tracking-tight text-slate-600 transition-all touch-manipulation sm:min-h-11 sm:px-4 sm:text-sm',
+              'hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-sm',
+              'data-[state=active]:border-[color:var(--color-slate-200)] data-[state=active]:bg-[color:var(--color-neutral-white)] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-[color:var(--color-slate-200)]/70',
+              'dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100',
+              'dark:data-[state=active]:border-slate-600 dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900'
             )}
           >
             {labels?.[range] ?? range}

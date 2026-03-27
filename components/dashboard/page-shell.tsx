@@ -20,10 +20,15 @@ export const DashboardPageShell = React.forwardRef<
       <div
         ref={ref}
         dir={direction}
-        className={cn("page-shell min-h-screen", className)}
+        className={cn(
+          "page-shell min-h-dvh w-full min-w-0 overflow-x-clip overscroll-x-none",
+          className,
+        )}
         {...props}
       >
-        <div className={cn("relative z-10", contentClassName)}>{children}</div>
+        <div className={cn("relative z-10 w-full min-w-0", contentClassName)}>
+          {children}
+        </div>
       </div>
     );
   },

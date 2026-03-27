@@ -107,6 +107,7 @@ export function PositionsOverview({
   );
 
   const activeFilterOption = filterOptions.find((option) => option.key === activeFilter) ?? filterOptions[0];
+  const handleResetFilter = () => setActiveFilter('all');
 
   const filteredOpenMetrics = useMemo(
     () => openMetrics.filter(filterPredicates[activeFilter]),
@@ -175,103 +176,156 @@ export function PositionsOverview({
   const openResultLabel = t.dashboard.positionFilters.resultCount(filteredOpenMetrics.length, totalOpen);
   const showClosedSection = groupedClosedMetrics.length > 0;
   const filterEmptyState = filteredOpenMetrics.length === 0;
+  const closedGroupCountLabel = t.dashboard.closedViewCount(groupedClosedMetrics.length);
+  const clearFilterLabel = locale === 'he' ? 'נקה סינון' : 'Clear filter';
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
-          <p className="text-sm text-slate-500">{sortNotice}</p>
-          {hasFilterApplied && (
-            <Badge className="mt-1 inline-flex max-w-full rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
-              {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
-            </Badge>
-          )}
-        </div>
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
+      <section className="overflow-hidden rounded-[30px] border border-slate-200/80 bg-[color:var(--color-neutral-white)]/90 p-3 shadow-sm backdrop-blur-sm sm:p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-[clamp(1.1rem,2vw,1.5rem)] font-semibold leading-tight text-slate-900">
+                {openTitle}
+              </h2>
+              <Badge
                 variant="outline"
-                size="sm"
-                className="group w-full justify-between rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600 sm:w-auto sm:justify-start"
+                className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600"
               >
-                <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
-                <span className="min-w-0 flex-1 text-left text-sm font-medium sm:flex-none">
-                  {hasFilterApplied
-                    ? activeFilterOption.label
-                    : t.dashboard.positionFilters.triggerLabel}
-                </span>
-                <Badge className="ml-2 shrink-0 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                  {filteredOpenMetrics.length}
-                </Badge>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg sm:w-80"
-            >
-              <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t.dashboard.positionFilters.title}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="mx-2 my-2 bg-slate-100" />
-              {filterOptions.map(({ key, label, description, icon: Icon }) => {
-                const isActive = activeFilter === key;
-                return (
-                  <DropdownMenuItem
-                    key={key}
-                    onSelect={() => setActiveFilter(key)}
-                    className={cn(
-                      'group flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition focus:bg-[color:var(--color-blue-50)]/70 focus:text-blue-700',
-                      isActive ? 'bg-[color:var(--color-blue-50)]/60 text-blue-700' : 'text-slate-600'
-                    )}
-                  >
-                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-500">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-slate-900 group-focus:text-blue-700">
-                        {label}
-                      </p>
-                      <p className="text-xs text-slate-500 group-focus:text-blue-600">
-                        {description}
-                      </p>
-                    </div>
-                    {isActive && <Check className="ml-auto h-4 w-4 text-blue-500" />}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <p className="text-xs font-medium text-slate-400 sm:text-right">{openResultLabel}</p>
-        </div>
-      </div>
-      {filterEmptyState ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/60 px-6 py-10 text-center text-sm text-slate-500">
-          {t.dashboard.positionFilters.empty}
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
-          {filteredOpenMetrics.map((metrics) => {
-            const sparklineKey =
-              metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
-            return (
-              <PositionCard
-                key={metrics.position.id || metrics.position.symbol}
-                metrics={metrics}
-                sparklineData={sparklineData[sparklineKey] || []}
-              />
-            );
-          })}
-        </div>
-      )}
-      {showClosedSection && (
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
+                {openResultLabel}
+              </Badge>
+            </div>
             <p className="text-sm text-slate-500">{sortNotice}</p>
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/75 px-3 py-2">
+              {hasFilterApplied ? (
+                <>
+                  <Badge className="inline-flex max-w-full rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm">
+                    {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-full px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    onClick={handleResetFilter}
+                  >
+                    {clearFilterLabel}
+                  </Button>
+                </>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-dashed border-slate-200 bg-slate-50/70 px-3 py-1 text-xs font-medium text-slate-500"
+                >
+                  {t.dashboard.positionFilters.triggerLabel}
+                </Badge>
+              )}
+            </div>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
+          <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-[20rem] lg:items-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="group h-auto min-h-16 w-full items-center justify-between gap-3 rounded-[22px] border-slate-200 bg-[color:var(--color-neutral-white)]/95 px-4 py-3 text-left text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-700"
+                >
+                  <Filter className="mt-0.5 h-4 w-4 shrink-0 text-blue-500 transition group-hover:text-blue-600" />
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {t.dashboard.positionFilters.title}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-slate-900">
+                      {hasFilterApplied
+                        ? activeFilterOption.label
+                        : t.dashboard.positionFilters.triggerLabel}
+                    </span>
+                  </span>
+                  <Badge className="shrink-0 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2.5 py-1 text-center text-xs font-semibold tabular-nums text-blue-700">
+                    {filteredOpenMetrics.length}/{totalOpen}
+                  </Badge>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-[min(24rem,calc(100vw-1rem))] rounded-[22px] border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2.5 shadow-lg sm:w-80"
+              >
+                <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {t.dashboard.positionFilters.title}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="mx-2 my-2 bg-slate-100" />
+                {filterOptions.map(({ key, label, description, icon: Icon }) => {
+                  const isActive = activeFilter === key;
+                  return (
+                    <DropdownMenuItem
+                      key={key}
+                      onSelect={() => setActiveFilter(key)}
+                      className={cn(
+                        'group flex items-start gap-3 rounded-[18px] px-3 py-2.5 text-left text-sm leading-5 transition focus:bg-[color:var(--color-blue-50)]/70 focus:text-blue-700',
+                        isActive ? 'bg-[color:var(--color-blue-50)]/60 text-blue-700' : 'text-slate-600'
+                      )}
+                    >
+                      <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-500">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="font-medium text-slate-900 group-focus:text-blue-700">
+                          {label}
+                        </p>
+                        <p className="text-xs text-slate-500 group-focus:text-blue-600">
+                          {description}
+                        </p>
+                      </div>
+                      {isActive && <Check className="ml-auto h-4 w-4 text-blue-500" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        {filterEmptyState ? (
+          <div className="mt-4 rounded-[24px] border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/60 px-5 py-12 text-center text-sm text-slate-500">
+            {t.dashboard.positionFilters.empty}
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
+            {filteredOpenMetrics.map((metrics) => {
+              const sparklineKey =
+                metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
+              return (
+                <PositionCard
+                  key={metrics.position.id || metrics.position.symbol}
+                  metrics={metrics}
+                  sparklineData={sparklineData[sparklineKey] || []}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
+      {showClosedSection && (
+        <section className="space-y-3 rounded-[30px] border border-slate-200/80 bg-slate-50/85 p-3 shadow-sm sm:space-y-4 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[clamp(1.1rem,2vw,1.5rem)] font-semibold leading-tight text-slate-900">
+                  {closedTitle}
+                </h2>
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600"
+                >
+                  {closedGroupCountLabel}
+                </Badge>
+              </div>
+              <p className="text-sm text-slate-500">{sortNotice}</p>
+            </div>
+            <p className="text-xs font-medium text-slate-400 sm:text-right">
+              {t.dashboard.closedViewSelectorLabel}
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-5">
             {groupedClosedMetrics.map((group) => {
               return (
                 <ClosedPositionGroupCard
@@ -285,7 +339,7 @@ export function PositionsOverview({
               );
             })}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
@@ -329,22 +383,24 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
       sparklineData={sparklineData[selectedOption.sparklineKey] || []}
       closedSelector={
         hasMultipleOptions ? (
-          <div className="rounded-2xl border border-blue-100/90 bg-gradient-to-br from-blue-50/80 to-sky-50/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="rounded-2xl border border-blue-100/90 bg-gradient-to-br from-blue-50/80 to-sky-50/60 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-700">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
                 {selectorLabel}
               </p>
               <Badge className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700">
                 {countLabel(group.options.length)}
               </Badge>
             </div>
-            <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-1.5">
+            <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={!previousOption}
-                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40 sm:w-9"
+                aria-label={locale === 'he' ? 'סגירה קודמת' : 'Previous close'}
+                title={locale === 'he' ? 'סגירה קודמת' : 'Previous close'}
+                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 shadow-sm hover:bg-white disabled:opacity-40 sm:w-9"
                 onClick={() => previousOption && setSelectedId(previousOption.id)}
               >
                 {locale === 'he' ? '→' : '←'}
@@ -372,7 +428,9 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 variant="outline"
                 size="sm"
                 disabled={!nextOption}
-                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40 sm:w-9"
+                aria-label={locale === 'he' ? 'סגירה הבאה' : 'Next close'}
+                title={locale === 'he' ? 'סגירה הבאה' : 'Next close'}
+                className="h-9 w-full rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 shadow-sm hover:bg-white disabled:opacity-40 sm:w-9"
                 onClick={() => nextOption && setSelectedId(nextOption.id)}
               >
                 {locale === 'he' ? '←' : '→'}

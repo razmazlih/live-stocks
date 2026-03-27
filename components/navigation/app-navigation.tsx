@@ -7,13 +7,15 @@ import {
   BarChart3,
   BrainCircuit,
   CircleDollarSign,
+  Compass,
+  ChevronDown,
   Eye,
   Home,
-  LayoutGrid,
+  Languages,
+  Layers3,
   Menu,
   Settings,
   Sparkles,
-  Layers3,
 } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -28,11 +30,72 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+type NavTone = 'blue' | 'sky' | 'emerald' | 'amber' | 'slate';
+
 type NavItem = {
   href: string;
   label: string;
+  description: string;
   icon: LucideIcon;
+  tone: NavTone;
   exact?: boolean;
+};
+
+const NAV_TONE_STYLES: Record<
+  NavTone,
+  {
+    icon: string;
+    iconActive: string;
+    badge: string;
+    glow: string;
+    line: string;
+  }
+> = {
+  blue: {
+    icon: 'bg-[rgba(239,246,255,0.9)] text-[var(--color-blue-700)] ring-1 ring-[color:var(--color-blue-100)]/90 shadow-[0_12px_20px_-18px_rgba(37,99,235,0.8)]',
+    iconActive:
+      'bg-[rgba(219,234,254,0.95)] text-[var(--color-blue-700)] ring-1 ring-[color:var(--color-blue-200)]/90 shadow-[0_16px_24px_-16px_rgba(37,99,235,0.9)]',
+    badge:
+      'border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.94)] text-[var(--color-blue-700)]',
+    glow: 'bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12),transparent_72%)]',
+    line: 'bg-[linear-gradient(90deg,rgba(59,130,246,0),rgba(59,130,246,0.82),rgba(14,165,233,0.62),rgba(59,130,246,0))]',
+  },
+  sky: {
+    icon: 'bg-[rgba(240,249,255,0.9)] text-[var(--color-sky-700)] ring-1 ring-[color:var(--color-sky-100)]/90 shadow-[0_12px_20px_-18px_rgba(14,165,233,0.8)]',
+    iconActive:
+      'bg-[rgba(224,242,254,0.95)] text-[var(--color-sky-700)] ring-1 ring-[color:var(--color-blue-200)]/90 shadow-[0_16px_24px_-16px_rgba(14,165,233,0.9)]',
+    badge:
+      'border-[color:var(--color-sky-100)]/90 bg-[rgba(240,249,255,0.94)] text-[var(--color-sky-700)]',
+    glow: 'bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.12),transparent_72%)]',
+    line: 'bg-[linear-gradient(90deg,rgba(14,165,233,0),rgba(14,165,233,0.82),rgba(37,99,235,0.62),rgba(14,165,233,0))]',
+  },
+  emerald: {
+    icon: 'bg-[rgba(236,253,245,0.9)] text-[var(--color-emerald-700)] ring-1 ring-[color:var(--color-emerald-100)]/90 shadow-[0_12px_20px_-18px_rgba(16,185,129,0.8)]',
+    iconActive:
+      'bg-[rgba(209,250,229,0.95)] text-[var(--color-emerald-700)] ring-1 ring-[color:var(--color-emerald-200)]/90 shadow-[0_16px_24px_-16px_rgba(16,185,129,0.9)]',
+    badge:
+      'border-[color:var(--color-emerald-100)]/90 bg-[rgba(236,253,245,0.94)] text-[var(--color-emerald-700)]',
+    glow: 'bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12),transparent_72%)]',
+    line: 'bg-[linear-gradient(90deg,rgba(16,185,129,0),rgba(16,185,129,0.82),rgba(52,211,153,0.62),rgba(16,185,129,0))]',
+  },
+  amber: {
+    icon: 'bg-[rgba(255,251,235,0.92)] text-[var(--color-amber-600)] ring-1 ring-[color:var(--color-amber-200)]/90 shadow-[0_12px_20px_-18px_rgba(245,158,11,0.8)]',
+    iconActive:
+      'bg-[rgba(254,243,199,0.95)] text-[var(--color-amber-600)] ring-1 ring-[color:var(--color-amber-300)]/90 shadow-[0_16px_24px_-16px_rgba(245,158,11,0.9)]',
+    badge:
+      'border-[color:var(--color-amber-200)]/90 bg-[rgba(255,251,235,0.94)] text-[var(--color-amber-600)]',
+    glow: 'bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.1),transparent_72%)]',
+    line: 'bg-[linear-gradient(90deg,rgba(245,158,11,0),rgba(245,158,11,0.82),rgba(249,115,22,0.62),rgba(245,158,11,0))]',
+  },
+  slate: {
+    icon: 'bg-[rgba(248,250,252,0.95)] text-[var(--color-slate-600)] ring-1 ring-[color:var(--color-slate-200)]/90 shadow-[0_12px_20px_-18px_rgba(15,23,42,0.5)]',
+    iconActive:
+      'bg-[rgba(241,245,249,0.96)] text-[var(--color-primary-800)] ring-1 ring-[color:var(--color-slate-200)]/90 shadow-[0_16px_24px_-16px_rgba(15,23,42,0.6)]',
+    badge:
+      'border-[color:var(--color-slate-200)]/90 bg-[rgba(248,250,252,0.94)] text-[var(--color-slate-700)]',
+    glow: 'bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.1),transparent_72%)]',
+    line: 'bg-[linear-gradient(90deg,rgba(148,163,184,0),rgba(100,116,139,0.82),rgba(59,130,246,0.46),rgba(148,163,184,0))]',
+  },
 };
 
 function isRouteActive(pathname: string | null, item: NavItem) {
@@ -47,177 +110,495 @@ function isRouteActive(pathname: string | null, item: NavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-function navItemClasses(active: boolean, compact: boolean) {
+function desktopNavItemClasses(active: boolean) {
   return cn(
-    'app-nav-item group inline-flex min-w-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-primary-050)]',
+    'group relative inline-flex shrink-0 items-center gap-2.5 overflow-hidden rounded-[1.25rem] border px-3.5 py-2.5 text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
     active
-      ? 'app-chip app-chip-active text-[var(--color-primary-800)]'
-      : 'app-chip app-chip-muted text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-200)] hover:bg-[color:var(--color-paper-050)] hover:text-[var(--color-primary-800)]',
-    compact && 'min-h-14 flex-col justify-center gap-1 px-2 py-2 text-center text-[11px] leading-tight'
+      ? 'border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.94)] text-[var(--color-primary-900)] shadow-[0_20px_32px_-24px_rgba(15,23,42,0.55)]'
+      : 'border-transparent bg-[rgba(255,255,255,0.52)] text-[var(--color-slate-600)] hover:-translate-y-0.5 hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.86)] hover:text-[var(--color-primary-800)]'
   );
 }
 
-function navIconClasses(active: boolean) {
+function desktopIconClasses(active: boolean, tone: NavTone) {
+  const styles = NAV_TONE_STYLES[tone];
+
   return cn(
-    'inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors',
-    active
-      ? 'bg-[color:var(--color-primary-100)] text-[var(--color-primary-700)]'
-      : 'bg-[color:var(--color-slate-100)] text-[var(--color-slate-500)] group-hover:bg-[color:var(--color-primary-100)] group-hover:text-[var(--color-primary-700)]'
+    'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.05rem] transition-colors duration-200',
+    active ? styles.iconActive : styles.icon
   );
 }
 
-function NavLink({
+function desktopMoreTriggerClasses(active: boolean) {
+  return cn(desktopNavItemClasses(active), 'pr-3');
+}
+
+function mobileNavItemClasses(active: boolean) {
+  return cn(
+    'group relative flex min-h-[5.2rem] w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[1.4rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.1] transition-[background-color,border-color,color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
+    active
+      ? 'border-[color:var(--color-blue-100)]/90 bg-[rgba(255,255,255,0.94)] text-[var(--color-primary-900)] shadow-[0_20px_30px_-24px_rgba(15,23,42,0.68)]'
+      : 'border-transparent bg-transparent text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.76)] hover:text-[var(--color-primary-800)]'
+  );
+}
+
+function mobileIconClasses(active: boolean, tone: NavTone) {
+  const styles = NAV_TONE_STYLES[tone];
+
+  return cn(
+    'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[1rem] transition-colors duration-200',
+    active ? styles.iconActive : styles.icon
+  );
+}
+
+function DesktopNavLink({
   item,
   active,
-  compact = false,
 }: {
   item: NavItem;
   active: boolean;
-  compact?: boolean;
 }) {
   const Icon = item.icon;
+  const toneStyles = NAV_TONE_STYLES[item.tone];
 
   return (
-    <Link href={item.href} aria-current={active ? 'page' : undefined} className={navItemClasses(active, compact)}>
-      <span className={navIconClasses(active)}>
+    <Link
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      title={`${item.label} · ${item.description}`}
+      className={desktopNavItemClasses(active)}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+          toneStyles.glow,
+          active ? 'opacity-100' : 'group-hover:opacity-80'
+        )}
+      />
+      <span className={desktopIconClasses(active, item.tone)}>
         <Icon className="h-4 w-4" />
       </span>
-      <span className={cn('min-w-0', compact ? 'text-balance whitespace-normal break-words leading-tight' : 'whitespace-nowrap')}>
+      <span className="relative min-w-0 max-w-full truncate text-[13px] font-semibold leading-tight">
         {item.label}
       </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-x-4 bottom-0.5 h-0.5 rounded-full transition-opacity',
+          toneStyles.line,
+          active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'
+        )}
+      />
     </Link>
+  );
+}
+
+function MobileNavLink({
+  item,
+  active,
+}: {
+  item: NavItem;
+  active: boolean;
+}) {
+  const Icon = item.icon;
+  const toneStyles = NAV_TONE_STYLES[item.tone];
+
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      title={`${item.label} · ${item.description}`}
+      className={mobileNavItemClasses(active)}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+          toneStyles.glow,
+          active ? 'opacity-100' : 'group-hover:opacity-70'
+        )}
+      />
+      <span className={mobileIconClasses(active, item.tone)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="relative min-w-0 max-w-full overflow-hidden text-pretty break-words leading-[1.05] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+        {item.label}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-x-3 bottom-0.5 h-0.5 rounded-full transition-opacity',
+          toneStyles.line,
+          active ? 'opacity-100' : 'opacity-0 group-hover:opacity-30'
+        )}
+      />
+    </Link>
+  );
+}
+
+function OverflowNavItem({
+  item,
+  active,
+  onNavigate,
+  activeLabel,
+}: {
+  item: NavItem;
+  active: boolean;
+  onNavigate: (href: string) => void;
+  activeLabel: string;
+}) {
+  const Icon = item.icon;
+  const toneStyles = NAV_TONE_STYLES[item.tone];
+
+  return (
+    <DropdownMenuItem
+      onSelect={(event) => {
+        event.preventDefault();
+        onNavigate(item.href);
+      }}
+      className={cn(
+        'group flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]',
+        active
+          ? 'bg-[rgba(255,255,255,0.88)] text-[var(--color-primary-900)]'
+          : 'text-[var(--color-slate-700)]'
+      )}
+    >
+      <span className={desktopIconClasses(active, item.tone)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col items-start text-start">
+        <span className="min-w-0 whitespace-normal break-words text-sm font-semibold leading-snug">
+          {item.label}
+        </span>
+        <span className="mt-1 whitespace-normal break-words text-xs leading-snug text-[var(--color-slate-500)]">
+          {item.description}
+        </span>
+      </span>
+      {active ? (
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
+            toneStyles.badge
+          )}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[currentColor] opacity-70" />
+          {activeLabel}
+        </span>
+      ) : null}
+    </DropdownMenuItem>
+  );
+}
+
+type OverflowMenuProps = {
+  items: NavItem[];
+  active: boolean;
+  label: string;
+  isRtl: boolean;
+  pathname: string | null;
+  onNavigate: (href: string) => void;
+  activeItemLabel: string;
+  switchLanguageLabel: string;
+  currentLanguageLabel: string;
+  nextLanguageShortLabel: string;
+  onToggleLocale: () => void;
+};
+
+function OverflowMenu({
+  items,
+  active,
+  label,
+  isRtl,
+  pathname,
+  onNavigate,
+  activeItemLabel,
+  switchLanguageLabel,
+  currentLanguageLabel,
+  nextLanguageShortLabel,
+  onToggleLocale,
+}: OverflowMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          aria-current={active ? 'page' : undefined}
+          className={desktopMoreTriggerClasses(active)}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+              NAV_TONE_STYLES.slate.glow,
+              active ? 'opacity-100' : 'group-hover:opacity-75'
+            )}
+          />
+          <span className={desktopIconClasses(active, 'slate')}>
+            <Menu className="h-4 w-4" />
+          </span>
+          <span className="relative whitespace-nowrap text-[13px] font-semibold">{label}</span>
+          <ChevronDown className="relative h-3.5 w-3.5 opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align={isRtl ? 'start' : 'end'}
+        sideOffset={10}
+        className="w-[min(19rem,calc(100vw-1rem))] rounded-[1.7rem] border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.97)] p-2 shadow-[0_20px_38px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+      >
+        <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+          {label}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
+        {items.map((item) => {
+          const isItemActive = isRouteActive(pathname, item);
+
+          return (
+            <OverflowNavItem
+              key={item.href}
+              item={item}
+              active={isItemActive}
+              onNavigate={onNavigate}
+              activeLabel={activeItemLabel}
+            />
+          );
+        })}
+        <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            onToggleLocale();
+          }}
+          className="flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]"
+        >
+          <span className={desktopIconClasses(false, 'slate')}>
+            <Languages className="h-4 w-4" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col items-start text-start">
+            <span className="text-sm font-semibold leading-snug text-[var(--color-primary-900)]">
+              {switchLanguageLabel}
+            </span>
+            <span className="mt-1 text-xs leading-snug text-[var(--color-slate-500)]">
+              {currentLanguageLabel}
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 rounded-full border border-[color:var(--color-slate-200)]/90 bg-[rgba(248,250,252,0.94)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-700)]">
+            {nextLanguageShortLabel}
+          </span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 export function AppNavigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const { locale } = useApp();
+  const { locale, setLocale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
 
-  const homeItem: NavItem = { href: '/', label: t.app.title, icon: Home, exact: true };
+  const toggleLocale = () => {
+    setLocale(locale === 'he' ? 'en' : 'he');
+  };
+
+  const currentLanguageLabel = locale === 'he' ? 'עברית פעילה' : 'English active';
+  const nextLanguageLabel = locale === 'he' ? 'English' : 'עברית';
+  const nextLanguageShortLabel = locale === 'he' ? 'EN' : 'עב';
+  const switchLanguageLabel = locale === 'he' ? 'מעבר לאנגלית' : 'Switch to Hebrew';
+  const activeItemLabel = isRtl ? 'כאן' : 'Now';
+  const liveLabel = isRtl ? 'חי' : 'Live';
+  const moreLabel = isRtl ? 'עוד' : 'More';
+  const primaryNavLabel = isRtl ? 'ניווט ראשי' : 'Primary navigation';
+
+  const homeItem: NavItem = {
+    href: '/',
+    label: t.app.title,
+    description: isRtl ? 'מרכז הבקרה הראשי של כל התיק' : 'Main command center for the full portfolio.',
+    icon: Home,
+    tone: 'blue',
+    exact: true,
+  };
   const desktopPrimaryItems: NavItem[] = [
-    { href: '/positions', label: t.positions.title, icon: Layers3 },
-    { href: '/portfolio', label: t.portfolio.title, icon: BarChart3 },
-    { href: '/watchlist', label: t.watchlist.title, icon: Eye },
-    { href: '/realized', label: t.realized.title, icon: CircleDollarSign },
-    { href: '/insights', label: t.dashboard.weeklyInsights, icon: BrainCircuit },
+    {
+      href: '/positions',
+      label: t.positions.title,
+      description: isRtl ? 'ניהול פוזיציות פתוחות והחלטות מהירות' : 'Manage open positions and make quick decisions.',
+      icon: Layers3,
+      tone: 'blue',
+    },
+    {
+      href: '/portfolio',
+      label: t.portfolio.title,
+      description: isRtl ? 'ביצועים, הקצאה ומגמות מצטברות' : 'Performance, allocation, and portfolio trends.',
+      icon: BarChart3,
+      tone: 'sky',
+    },
+    {
+      href: '/watchlist',
+      label: t.watchlist.title,
+      description: isRtl ? 'רשימת מעקב להזדמנויות ומעקב שוטף' : 'Track ideas and monitor potential opportunities.',
+      icon: Eye,
+      tone: 'emerald',
+    },
+    {
+      href: '/realized',
+      label: t.realized.title,
+      description: isRtl ? 'רווחים סגורים, ביצועי מכירה ומעקב מס' : 'Closed gains, exits, and tax-sensitive results.',
+      icon: CircleDollarSign,
+      tone: 'amber',
+    },
+    {
+      href: '/insights',
+      label: t.dashboard.weeklyInsights,
+      description: isRtl ? 'תובנות שבועיות שמזקקות את מה שחשוב' : 'Weekly insights distilled into the key takeaways.',
+      icon: BrainCircuit,
+      tone: 'sky',
+    },
   ];
   const desktopOverflowItems: NavItem[] = [
-    { href: '/ai-prompts', label: t.aiPrompts.title, icon: Sparkles },
-    { href: '/settings', label: t.settings.title, icon: Settings },
+    {
+      href: '/ai-prompts',
+      label: t.aiPrompts.title,
+      description: isRtl ? 'ספריית פרומפטים חכמה לעבודה מהירה' : 'Prompt library for faster AI-assisted workflows.',
+      icon: Sparkles,
+      tone: 'amber',
+    },
+    {
+      href: '/settings',
+      label: t.settings.title,
+      description: isRtl ? 'העדפות, מטבע, רענון והגדרות כלליות' : 'Preferences, currency, refresh, and global settings.',
+      icon: Settings,
+      tone: 'slate',
+    },
   ];
   const mobilePrimaryItems: NavItem[] = [
     homeItem,
-    { href: '/positions', label: t.positions.title, icon: Layers3 },
-    { href: '/portfolio', label: t.portfolio.title, icon: BarChart3 },
-    { href: '/watchlist', label: t.watchlist.title, icon: Eye },
+    desktopPrimaryItems[0],
+    desktopPrimaryItems[1],
+    desktopPrimaryItems[2],
   ];
   const mobileOverflowItems: NavItem[] = [
-    { href: '/realized', label: t.realized.title, icon: CircleDollarSign },
-    { href: '/insights', label: t.dashboard.weeklyInsights, icon: BrainCircuit },
-    { href: '/ai-prompts', label: t.aiPrompts.title, icon: Sparkles },
-    { href: '/settings', label: t.settings.title, icon: Settings },
+    desktopPrimaryItems[3],
+    desktopPrimaryItems[4],
+    desktopOverflowItems[0],
+    desktopOverflowItems[1],
   ];
+  const stockDetailItem: NavItem = {
+    href: pathname ?? '/stock',
+    label: t.stock.details,
+    description: isRtl ? 'תמונה ממוקדת של מניה בודדת עם ביצועים והקשר' : 'Focused stock view with price, performance, and context.',
+    icon: BarChart3,
+    tone: 'sky',
+    exact: true,
+  };
 
-  const primaryNavLabel = isRtl ? 'ניווט ראשי' : 'Primary navigation';
-  const moreLabel = isRtl ? 'עוד' : 'More';
   const isDesktopOverflowActive = desktopOverflowItems.some((item) => isRouteActive(pathname, item));
   const isMobileOverflowActive = mobileOverflowItems.some((item) => isRouteActive(pathname, item));
+  const activeNavItem =
+    [homeItem, ...desktopPrimaryItems, ...desktopOverflowItems].find((item) => isRouteActive(pathname, item)) ??
+    (pathname?.startsWith('/stock/') ? stockDetailItem : homeItem);
+  const activeToneStyles = NAV_TONE_STYLES[activeNavItem.tone];
 
   return (
     <>
-      <nav aria-label={primaryNavLabel} dir={isRtl ? 'rtl' : 'ltr'} className="sticky top-0 z-50 hidden md:block">
+      <nav aria-label={primaryNavLabel} dir={isRtl ? 'rtl' : 'ltr'} className="fixed inset-x-0 top-0 z-50 hidden md:block">
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
-          <div className="app-nav-shell overflow-hidden rounded-[2rem]">
-            <div className={cn('flex items-center gap-4 px-4 py-3 lg:px-5', isRtl ? 'flex-row-reverse' : 'flex-row')}>
+          <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--color-slate-200)]/75 bg-[rgba(255,255,255,0.8)] shadow-[0_28px_52px_-36px_rgba(15,23,42,0.72)] backdrop-blur-2xl">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_7%_18%,rgba(59,130,246,0.12),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(16,185,129,0.08),transparent_30%),linear-gradient(122deg,rgba(255,255,255,0.92),rgba(242,248,255,0.86))]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.95),rgba(255,255,255,0))]"
+            />
+            <div
+              className={cn(
+                'relative flex min-w-0 items-center gap-3 px-3 py-3 lg:px-4',
+                isRtl ? 'flex-row-reverse' : 'flex-row'
+              )}
+            >
               <Link
                 href="/"
                 aria-current={isRouteActive(pathname, homeItem) ? 'page' : undefined}
-                className="group flex min-w-[16rem] items-center gap-3 rounded-[1.25rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/95 px-4 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--color-blue-200)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-primary-050)]"
+                className="group flex min-w-0 shrink-0 basis-[15rem] items-center gap-3 rounded-[1.6rem] border border-[color:var(--color-slate-200)]/88 bg-[rgba(255,255,255,0.84)] px-4 py-3 text-left shadow-[0_22px_30px_-26px_rgba(15,23,42,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.94)] hover:shadow-[0_26px_34px_-24px_rgba(15,23,42,0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] lg:basis-[17rem]"
               >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-[1rem] bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)] ring-1 ring-[color:var(--color-blue-100)]/80">
-                  <LayoutGrid className="h-5 w-5" />
-                </span>
+                <span className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center">
+                  <span className="absolute inset-[-0.3rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2),transparent_72%)] transition-transform duration-300 group-hover:scale-110" />
+                    <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-[linear-gradient(145deg,rgba(255,255,255,0.96),rgba(224,242,254,0.82))] text-[var(--color-blue-700)] ring-1 ring-[color:var(--color-blue-100)]/90 shadow-[0_18px_28px_-22px_rgba(37,99,235,0.75)]">
+                      <Compass className="h-5 w-5" />
+                    </span>
+                  </span>
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-bold tracking-tight text-[var(--color-primary-900)]">{t.app.title}</span>
-                  <span className="truncate text-xs text-[var(--color-slate-500)]">{t.app.subtitle}</span>
-                </span>
-                <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-emerald-100)]/80 bg-[color:var(--color-emerald-50)]/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-emerald-700)]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-emerald-500)]" />
-                  Live
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-black tracking-tight text-[var(--color-primary-900)]">
+                      {t.app.title}
+                    </span>
+                    <span className="hidden items-center gap-1.5 rounded-full border border-[color:var(--color-emerald-100)]/90 bg-[rgba(236,253,245,0.9)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-emerald-700)] lg:inline-flex">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-emerald-500)] animate-pulse" />
+                      {liveLabel}
+                    </span>
+                  </span>
+                  <span className="mt-1 truncate text-[11px] text-[var(--color-slate-500)]">
+                    {activeNavItem.description}
+                  </span>
+                  <span
+                    className={cn(
+                      'mt-2 inline-flex max-w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
+                      activeToneStyles.badge
+                    )}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-[currentColor] opacity-70" />
+                    {activeNavItem.label}
+                  </span>
                 </span>
               </Link>
 
-              <div className="flex flex-1 items-center justify-end overflow-x-auto pr-1">
-                <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-[1.6rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.56)] px-2.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {desktopPrimaryItems.map((item) => (
-                    <NavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
+                    <DesktopNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
                   ))}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={moreLabel}
-                        aria-current={isDesktopOverflowActive ? 'page' : undefined}
-                        className={navItemClasses(isDesktopOverflowActive, false)}
-                      >
-                        <span className={navIconClasses(isDesktopOverflowActive)}>
-                          <Menu className="h-4 w-4" />
-                        </span>
-                        <span className="whitespace-nowrap">{moreLabel}</span>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align={isRtl ? 'start' : 'end'}
-                      sideOffset={10}
-                      className="w-64 rounded-[1.25rem] border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/98 p-2 shadow-lg"
-                    >
-                      <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                        {moreLabel}
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/80" />
-                      {desktopOverflowItems.map((item) => {
-                        const Icon = item.icon;
-                        const active = isRouteActive(pathname, item);
-
-                        return (
-                          <DropdownMenuItem
-                            key={item.href}
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              router.push(item.href);
-                            }}
-                            className={cn(
-                            'flex cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 text-sm outline-none transition-colors focus:bg-[color:var(--color-primary-050)]',
-                            active
-                              ? 'bg-[color:var(--color-primary-050)] text-[var(--color-primary-800)]'
-                              : 'text-[var(--color-slate-700)]'
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                'inline-flex h-9 w-9 items-center justify-center rounded-full',
-                                active
-                                  ? 'bg-[color:var(--color-primary-100)] text-[var(--color-primary-700)]'
-                                  : 'bg-[color:var(--color-slate-100)] text-[var(--color-slate-500)]'
-                              )}
-                            >
-                              <Icon className="h-4 w-4" />
-                            </span>
-                            <span className="min-w-0 whitespace-normal break-words leading-tight font-semibold">
-                              {item.label}
-                            </span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <OverflowMenu
+                    items={desktopOverflowItems}
+                    active={isDesktopOverflowActive}
+                    label={moreLabel}
+                    isRtl={isRtl}
+                    pathname={pathname}
+                    onNavigate={router.push}
+                    activeItemLabel={activeItemLabel}
+                    switchLanguageLabel={switchLanguageLabel}
+                    currentLanguageLabel={currentLanguageLabel}
+                    nextLanguageShortLabel={nextLanguageShortLabel}
+                    onToggleLocale={toggleLocale}
+                  />
                 </div>
+                <button
+                  type="button"
+                  onClick={toggleLocale}
+                  aria-label={switchLanguageLabel}
+                  title={switchLanguageLabel}
+                  className="hidden shrink-0 items-center gap-3 rounded-[1.4rem] border border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.78)] px-3.5 py-3 text-start shadow-[0_18px_24px_-20px_rgba(15,23,42,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] xl:inline-flex"
+                >
+                  <span className={desktopIconClasses(false, 'slate')}>
+                    <Languages className="h-4 w-4" />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-400)]">
+                      {isRtl ? 'שפה' : 'Language'}
+                    </span>
+                    <span className="text-sm font-semibold text-[var(--color-primary-900)]">
+                      {nextLanguageLabel}
+                    </span>
+                  </span>
+                </button>
               </div>
             </div>
-            <div className="app-nav-accent h-px w-full opacity-80" />
+            <div
+              aria-hidden="true"
+              className="h-px w-full bg-[linear-gradient(90deg,rgba(191,219,254,0),rgba(191,219,254,0.74),rgba(167,243,208,0.66),rgba(191,219,254,0))]"
+            />
           </div>
         </div>
       </nav>
@@ -225,13 +606,21 @@ export function AppNavigation() {
       <nav
         aria-label={primaryNavLabel}
         dir={isRtl ? 'rtl' : 'ltr'}
-        className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
-        <div className="mx-auto max-w-3xl">
-          <div className="app-nav-shell overflow-hidden rounded-[1.5rem] px-2 py-2">
-            <div className="grid grid-cols-5 gap-2">
+        <div className="mx-auto max-w-md">
+          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.92)] px-2 py-2 shadow-[0_24px_52px_-32px_rgba(15,23,42,0.72)] backdrop-blur-2xl">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.12),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.08),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.84),rgba(246,250,255,0.94))]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.22),transparent_72%)] blur-2xl"
+            />
+            <div className="relative grid grid-cols-5 gap-1.5">
               {mobilePrimaryItems.map((item) => (
-                <NavLink key={item.href} item={item} active={isRouteActive(pathname, item)} compact />
+                <MobileNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
               ))}
 
               <DropdownMenu>
@@ -239,59 +628,72 @@ export function AppNavigation() {
                   <button
                     type="button"
                     aria-label={moreLabel}
+                    title={moreLabel}
                     aria-current={isMobileOverflowActive ? 'page' : undefined}
-                    className={navItemClasses(isMobileOverflowActive, true)}
+                    className={mobileNavItemClasses(isMobileOverflowActive)}
                   >
-                    <span className={navIconClasses(isMobileOverflowActive)}>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+                        NAV_TONE_STYLES.slate.glow,
+                        isMobileOverflowActive ? 'opacity-100' : 'group-hover:opacity-65'
+                      )}
+                    />
+                    <span className={mobileIconClasses(isMobileOverflowActive, 'slate')}>
                       <Menu className="h-4 w-4" />
                     </span>
-                    <span className="whitespace-nowrap">{moreLabel}</span>
+                    <span className="relative min-w-0 max-w-full overflow-hidden text-pretty break-words leading-[1.05] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                      {moreLabel}
+                    </span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align={isRtl ? 'start' : 'end'}
                   side="top"
                   sideOffset={10}
-                  className="w-[min(20rem,calc(100vw-1.5rem))] rounded-[1.25rem] border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/98 p-2 shadow-lg"
+                  className="w-[min(21.5rem,calc(100vw-1.25rem))] rounded-[1.7rem] border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.97)] p-2 shadow-[0_20px_38px_rgba(15,23,42,0.16)] backdrop-blur-xl"
                 >
                   <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {moreLabel}
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/80" />
+                  <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
                   {mobileOverflowItems.map((item) => {
-                    const Icon = item.icon;
                     const active = isRouteActive(pathname, item);
 
                     return (
-                      <DropdownMenuItem
+                      <OverflowNavItem
                         key={item.href}
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          router.push(item.href);
-                        }}
-                        className={cn(
-                          'flex cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 text-sm outline-none transition-colors focus:bg-[color:var(--color-primary-050)]',
-                          active
-                            ? 'bg-[color:var(--color-primary-050)] text-[var(--color-primary-800)]'
-                            : 'text-[var(--color-slate-700)]'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'inline-flex h-9 w-9 items-center justify-center rounded-full',
-                            active
-                              ? 'bg-[color:var(--color-primary-100)] text-[var(--color-primary-700)]'
-                              : 'bg-[color:var(--color-slate-100)] text-[var(--color-slate-500)]'
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0 whitespace-normal break-words leading-tight font-semibold">
-                          {item.label}
-                        </span>
-                      </DropdownMenuItem>
+                        item={item}
+                        active={active}
+                        onNavigate={router.push}
+                        activeLabel={activeItemLabel}
+                      />
                     );
                   })}
+                  <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      toggleLocale();
+                    }}
+                    className="flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]"
+                  >
+                    <span className={desktopIconClasses(false, 'slate')}>
+                      <Languages className="h-4 w-4" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col items-start text-start">
+                      <span className="text-sm font-semibold leading-snug text-[var(--color-primary-900)]">
+                        {switchLanguageLabel}
+                      </span>
+                      <span className="mt-1 text-xs leading-snug text-[var(--color-slate-500)]">
+                        {currentLanguageLabel}
+                      </span>
+                    </span>
+                    <span className="inline-flex shrink-0 rounded-full border border-[color:var(--color-slate-200)]/90 bg-[rgba(248,250,252,0.94)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-700)]">
+                      {nextLanguageShortLabel}
+                    </span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

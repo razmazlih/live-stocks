@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -55,7 +55,7 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
   const resolvedLabel = labelFormatter ? labelFormatter(label ?? '') : label;
 
   return (
-    <div className="w-[min(16rem,calc(100vw-1.25rem))] rounded-xl border border-[color:var(--color-slate-200)] bg-white px-3.5 py-3 text-sm shadow-sm">
+    <div className="w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-[color:var(--color-slate-200)] bg-white px-3.5 py-3 text-sm shadow-sm sm:px-4 sm:py-3.5">
       {resolvedLabel && (
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{resolvedLabel}</p>
       )}
@@ -82,6 +82,26 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
     </div>
   );
 };
+
+const EmptyState = ({
+  icon,
+  title,
+  description,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) => (
+  <div className="flex min-h-44 flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-[color:var(--color-slate-200)] bg-gradient-to-br from-white to-slate-50 px-5 py-9 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:min-h-48 sm:px-6 sm:py-10">
+    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[var(--color-slate-500)]">
+      {icon}
+    </div>
+    <div className="space-y-1">
+      <p className="text-balance text-sm font-semibold text-[var(--color-primary-900)]">{title}</p>
+      <p className="text-balance text-sm leading-6 text-[var(--color-slate-500)]">{description}</p>
+    </div>
+  </div>
+);
 
 export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualizationsProps) {
   const { locale, settings } = useApp();
@@ -258,41 +278,54 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
   const holdingPeriodTotal = holdingPeriodData.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-200)] bg-slate-50 px-5 py-4">
-          <CardTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
-            {t.dashboard.topMoversTitle}
-          </CardTitle>
-          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.topMoversDescription}</p>
-        </CardHeader>
-        <CardContent className="space-y-5 px-5 py-4">
-          {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-slate-50 py-12 text-center text-sm text-[var(--color-slate-500)]">
-              <ArrowUpRight className="h-5 w-5 text-[var(--color-slate-400)]" />
-              <p>{t.dashboard.topMoversEmpty}</p>
+    <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:gap-8">
+      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm">
+        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50 px-4 py-5 sm:px-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-balance text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
+                {t.dashboard.topMoversTitle}
+              </CardTitle>
+              <p className="text-balance text-sm text-[var(--color-slate-500)]">{t.dashboard.topMoversDescription}</p>
             </div>
+            <div className="flex max-w-full flex-wrap gap-2">
+              <span className="inline-flex max-w-full items-center rounded-full border border-emerald-200/85 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-tight text-emerald-700">
+                {topMovers.gainers.length} {t.dashboard.topMoversPositiveLabel}
+              </span>
+              <span className="inline-flex max-w-full items-center rounded-full border border-rose-200/85 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold leading-tight text-rose-700">
+                {topMovers.losers.length} {t.dashboard.topMoversNegativeLabel}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5 px-4 py-4 sm:px-5">
+          {!hasMovers ? (
+            <EmptyState
+              icon={<ArrowUpRight className="h-5 w-5" />}
+              title={t.dashboard.topMoversEmpty}
+              description={t.dashboard.topMoversNoData}
+            />
           ) : (
             <div className="grid gap-4">
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
+              <div className="space-y-2.5 rounded-3xl border border-emerald-100/80 bg-emerald-50/40 p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-2">
                   <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversGainers}</h4>
-                  <span className="rounded-full border border-emerald-200/85 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <span className="rounded-full border border-emerald-200/85 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
                     {t.dashboard.topMoversPositiveLabel}
                   </span>
                 </div>
                 {topMovers.gainers.map((item, index) => (
                   <div
                     key={`gainer-${item.symbol}-${index}`}
-                    className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3"
+                    className="rounded-2xl border border-emerald-100 bg-white px-3.5 py-3 shadow-sm sm:px-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className={`min-w-0 flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>
-                        <p className="truncate text-xl leading-none font-semibold tracking-tight text-[var(--color-primary-900)]">{item.display}</p>
+                        <p className="text-balance text-[clamp(1rem,3.5vw,1.125rem)] leading-tight font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-xl">{item.display}</p>
                         <p className="mt-1 text-xs font-medium tracking-wide text-[var(--color-slate-500)]">{item.symbol}</p>
                       </div>
                       <div className="flex w-full items-center justify-between gap-3 sm:w-28 sm:flex-none sm:flex-col sm:items-center sm:justify-center sm:text-center">
-                        <p className="text-lg leading-none font-bold text-emerald-700">{formatValue(item.changeValue)}</p>
+                        <p className="text-[clamp(1rem,2.2vw,1.125rem)] leading-none font-bold text-emerald-700">{formatValue(item.changeValue)}</p>
                         {typeof item.changePercent === 'number' && Number.isFinite(item.changePercent) && (
                           <p className="mt-1 text-sm font-semibold text-emerald-600">
                             {formatPercent(item.changePercent, locale)}
@@ -306,31 +339,31 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <div className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-white/80 px-4 py-4 text-center text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
-                  </p>
+                  </div>
                 )}
               </div>
 
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
+              <div className="space-y-2.5 rounded-3xl border border-rose-100/80 bg-rose-50/40 p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-2">
                   <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversLosers}</h4>
-                  <span className="rounded-full border border-rose-200/85 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
+                  <span className="rounded-full border border-rose-200/85 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
                     {t.dashboard.topMoversNegativeLabel}
                   </span>
                 </div>
                 {topMovers.losers.map((item, index) => (
                   <div
                     key={`loser-${item.symbol}-${index}`}
-                    className="rounded-2xl border border-rose-100 bg-rose-50/60 px-3.5 py-3"
+                    className="rounded-2xl border border-rose-100 bg-white px-3.5 py-3 shadow-sm sm:px-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className={`min-w-0 flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>
-                        <p className="truncate text-xl leading-none font-semibold tracking-tight text-[var(--color-primary-900)]">{item.display}</p>
+                        <p className="text-balance text-[clamp(1rem,3.5vw,1.125rem)] leading-tight font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-xl">{item.display}</p>
                         <p className="mt-1 text-xs font-medium tracking-wide text-[var(--color-slate-500)]">{item.symbol}</p>
                       </div>
                       <div className="flex w-full items-center justify-between gap-3 sm:w-28 sm:flex-none sm:flex-col sm:items-center sm:justify-center sm:text-center">
-                        <p className="text-lg leading-none font-bold text-rose-700">{formatValue(item.changeValue)}</p>
+                        <p className="text-[clamp(1rem,2.2vw,1.125rem)] leading-none font-bold text-rose-700">{formatValue(item.changeValue)}</p>
                         {typeof item.changePercent === 'number' && Number.isFinite(item.changePercent) && (
                           <p className="mt-1 text-sm font-semibold text-rose-600">
                             {formatPercent(item.changePercent, locale)}
@@ -344,9 +377,9 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <div className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-white/80 px-4 py-4 text-center text-sm text-[var(--color-slate-500)]">
                     {t.dashboard.topMoversNoData}
-                  </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -354,28 +387,30 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm xl:col-span-6">
-        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50">
+      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm">
+        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50 px-4 py-5 sm:px-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
+            <CardTitle className="text-balance text-lg font-semibold text-[var(--color-primary-900)]">
               {t.dashboard.holdingPeriodTitle}
             </CardTitle>
             <span className="rounded-full border border-[color:var(--color-slate-200)] bg-white px-3 py-1 text-xs font-semibold text-[var(--color-primary-700)]">
               {formatValue(holdingPeriodTotal)}
             </span>
           </div>
-          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.holdingPeriodDescription}</p>
+          <p className="text-balance text-sm text-[var(--color-slate-500)]">{t.dashboard.holdingPeriodDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-5 px-4 py-4 sm:px-5">
           {!hasHoldingData ? (
-            <div className="flex h-52 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-slate-50 text-sm text-[var(--color-slate-500)]">
-              {t.dashboard.emptyChart}
-            </div>
+            <EmptyState
+              icon={<ArrowUpRight className="h-5 w-5" />}
+              title={t.dashboard.emptyChart}
+              description={t.dashboard.holdingPeriodDescription}
+            />
           ) : (
             <>
-              <div className="h-60 w-full rounded-2xl border border-[color:var(--color-slate-200)] bg-slate-50 px-2 py-2">
+              <div className="h-[clamp(16rem,28vw,18rem)] w-full rounded-3xl border border-[color:var(--color-slate-200)] bg-gradient-to-br from-slate-50 to-white px-2 py-2 shadow-inner">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 8, right: 20, bottom: 0, left: 22 }}>
+                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 8, right: 16, bottom: 0, left: 12 }}>
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
@@ -397,8 +432,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       tickFormatter={(value) => withRtlMark(value)}
                       tickLine={false}
                       axisLine={false}
-                      width={150}
-                      tickMargin={14}
+                      width={132}
+                      tickMargin={10}
                       interval={0}
                       tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 700 }}
                     />
@@ -416,11 +451,11 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 </ResponsiveContainer>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-3">
                 {holdingPeriodData.map((bucket) => (
                   <div
                     key={bucket.key}
-                    className="rounded-2xl border border-[color:var(--color-slate-200)] bg-slate-50 p-4"
+                    className="rounded-2xl border border-[color:var(--color-slate-200)] bg-white p-4 shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{bucket.label}</p>
@@ -434,7 +469,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         }`}
                       />
                     </div>
-                    <p className="mt-2 text-2xl font-bold leading-none text-[var(--color-primary-900)]">
+                    <p className="mt-2 text-[clamp(1.25rem,3vw,1.6rem)] font-bold leading-none text-[var(--color-primary-900)]">
                       {formatValue(bucket.value)}
                     </p>
                     <p className="mt-1 text-sm font-medium text-[var(--color-slate-500)]">{formatPercent(bucket.percentage, locale)}</p>
@@ -446,13 +481,13 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm xl:col-span-6">
-        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50">
+      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm">
+        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50 px-4 py-5 sm:px-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle className="text-xl font-black tracking-tight text-[var(--color-primary-900)]">
+            <CardTitle className="text-balance text-xl font-black tracking-tight text-[var(--color-primary-900)]">
               {t.dashboard.pnlChart}
             </CardTitle>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] bg-white px-3 py-1 text-xs font-semibold text-[var(--color-slate-600)]">
+            <div className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-[color:var(--color-slate-200)] bg-white px-3 py-1.5 text-xs font-semibold leading-tight text-[var(--color-slate-600)]">
               <span className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
               {t.dashboard.current}
               <span className="mx-1 h-3 w-px bg-[color:var(--color-slate-200)]" />
@@ -460,33 +495,35 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               {t.dashboard.projected}
             </div>
           </div>
-          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.pnlDescription}</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
+          <p className="text-balance text-sm text-[var(--color-slate-500)]">{t.dashboard.pnlDescription}</p>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5">
               <p className="text-xs font-semibold text-emerald-700">{t.dashboard.current}</p>
-              <p className="text-lg font-black text-emerald-700">{formatValue(pnlSnapshot.current)}</p>
+              <p className="mt-1 text-lg font-black text-emerald-700">{formatValue(pnlSnapshot.current)}</p>
               <p className="text-xs text-emerald-600/90">
                 {pnlSnapshot.currentPositive}/{pnlSnapshot.total}
               </p>
             </div>
-            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2.5">
               <p className="text-xs font-semibold text-sky-700">{t.dashboard.projected}</p>
-              <p className="text-lg font-black text-sky-700">{formatValue(pnlSnapshot.projected)}</p>
+              <p className="mt-1 text-lg font-black text-sky-700">{formatValue(pnlSnapshot.projected)}</p>
               <p className="text-xs text-sky-600/90">
                 {pnlSnapshot.projectedPositive}/{pnlSnapshot.total}
               </p>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 pt-5">
+        <CardContent className="space-y-4 px-4 py-4 sm:px-5">
           {pnlData.length === 0 ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-slate-50 text-sm text-[var(--color-slate-500)]">
-              {t.dashboard.emptyChart}
-            </div>
+            <EmptyState
+              icon={<ArrowUpRight className="h-5 w-5" />}
+              title={t.dashboard.emptyChart}
+              description={t.dashboard.pnlDescription}
+            />
           ) : (
-            <div className="h-80 rounded-2xl border border-[color:var(--color-slate-200)] bg-slate-50 p-3">
+            <div className="h-[clamp(18rem,32vw,22rem)] rounded-3xl border border-[color:var(--color-slate-200)] bg-gradient-to-br from-slate-50 to-white p-3 shadow-inner">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 8, right: 8, left: 0, bottom: 2 }}>
+                <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 8, right: 8, left: 0, bottom: 6 }}>
                   <defs>
                     <linearGradient id="pnlCurrentGainGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.96} />
@@ -564,22 +601,24 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-[color:var(--color-slate-200)] bg-slate-50">
-          <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
+      <Card className="overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)] bg-white shadow-sm">
+        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)] bg-slate-50 px-4 py-5 sm:px-5">
+          <CardTitle className="text-balance text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
           </CardTitle>
-          <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.allocationDescription}</p>
+          <p className="text-balance text-sm text-[var(--color-slate-500)]">{t.dashboard.allocationDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-5 px-4 py-4 sm:px-5">
           {allocationData.length === 0 ? (
-            <div className="flex h-72 items-center justify-center text-sm text-gray-500">
-              {t.dashboard.emptyChart}
-            </div>
+            <EmptyState
+              icon={<ArrowUpRight className="h-5 w-5" />}
+              title={t.dashboard.emptyChart}
+              description={t.dashboard.allocationDescription}
+            />
           ) : (
-            <>
-              <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-slate-50 p-3">
-                <div className="h-72 sm:h-80">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(16rem,0.92fr)] lg:items-start 2xl:gap-6">
+              <div className="rounded-3xl border border-[color:var(--color-slate-200)] bg-gradient-to-br from-slate-50 to-white p-3 shadow-inner">
+                <div className="h-[clamp(16rem,28vw,21rem)]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <defs>
@@ -641,26 +680,26 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       <Tooltip
                         cursor={{ fill: 'rgba(var(--color-slate-200-rgb), 0.16)' }}
                         content={
-                        <ChartTooltip
-                          valueFormatter={pieTooltipFormatter}
-                          labelFormatter={withRtlMark}
-                        />
-                      }
-                    />
+                          <ChartTooltip
+                            valueFormatter={pieTooltipFormatter}
+                            labelFormatter={withRtlMark}
+                          />
+                        }
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {allocationLegendData.map((entry, index) => (
                   <div
                     key={`allocation-legend-${entry.symbol}-${index}`}
-                    className="flex flex-col gap-2 rounded-2xl border border-[color:var(--color-slate-200)] bg-white px-3 py-2 shadow-sm sm:flex-row sm:items-center"
+                    className="flex flex-col gap-2.5 rounded-2xl border border-[color:var(--color-slate-200)] bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-start sm:gap-3"
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLORS[index % COLORS.length] }} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[var(--color-primary-900)]">{entry.display}</p>
-                      <p className="text-xs text-[var(--color-slate-500)]">{entry.symbol}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-balance text-sm font-semibold leading-tight text-[var(--color-primary-900)]">{entry.display}</p>
+                      <p className="mt-0.5 text-xs font-medium text-[var(--color-slate-500)]">{entry.symbol}</p>
                     </div>
                     <div className="sm:ml-auto sm:text-right">
                       <p className="text-xs font-semibold text-[var(--color-slate-700)]">{formatValue(entry.value)}</p>
@@ -669,7 +708,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

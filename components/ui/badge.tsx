@@ -4,17 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex min-h-6 max-w-full items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold leading-none tracking-wide shadow-[0_10px_18px_-14px_rgba(15,23,42,0.45)] transition-[color,background-color,border-color,box-shadow,transform] duration-200 ease-out select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+          "border-[color:var(--color-blue-200)]/80 bg-[color:var(--color-blue-50)]/86 text-[var(--color-blue-700)]",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-[color:var(--color-slate-200)]/85 bg-[color:var(--color-slate-50)]/88 text-[var(--color-slate-700)]",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
+          "border-[color:var(--color-red-200)]/85 bg-[color:var(--color-red-50)]/88 text-[var(--color-red-700)]",
+        outline: "border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.7)] text-[var(--color-slate-700)]",
       },
     },
     defaultVariants: {

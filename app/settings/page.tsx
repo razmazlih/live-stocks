@@ -122,6 +122,30 @@ export default function SettingsPage() {
     };
   }, [hasPendingChanges, locale, tokenConfigured]);
 
+  const statusFacts = useMemo(
+    () => [
+      {
+        label: locale === "he" ? "מצב השמירה" : "Save state",
+        value: hasPendingChanges
+          ? locale === "he"
+            ? "שינויים ממתינים"
+            : "Unsaved edits"
+          : locale === "he"
+            ? "מסונכרן"
+            : "Synced",
+      },
+      {
+        label: locale === "he" ? "מטבע" : "Currency",
+        value: formData.currency,
+      },
+      {
+        label: locale === "he" ? "קצב רענון" : "Refresh cadence",
+        value: `${formData.refreshInterval} ${minutesLabel}`,
+      },
+    ],
+    [formData.currency, formData.refreshInterval, hasPendingChanges, locale, minutesLabel]
+  );
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -208,16 +232,16 @@ export default function SettingsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl overflow-x-clip px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          <header className="rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 px-5 py-6 shadow-sm sm:px-6 sm:py-7">
+          <header className="overflow-hidden rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 px-5 py-6 shadow-sm sm:px-6 sm:py-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl space-y-3">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">
                   <SettingsIcon className="h-3.5 w-3.5" />
                   {locale === "he" ? "הגדרות מערכת" : "System settings"}
                 </div>
-                <h1 className="text-3xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-4xl">
+                <h1 className="text-[clamp(2rem,7vw,3.5rem)] font-black tracking-tight text-[var(--color-primary-900)]">
                   {t.settings.title}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
@@ -248,7 +272,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-2 text-xs font-medium md:grid-cols-2 xl:max-w-2xl">
+              <div className="grid gap-2 text-xs font-medium sm:grid-cols-2 2xl:grid-cols-4 2xl:max-w-none">
                 {headerMetaBadges.map((badge) => {
                   const Icon = badge.icon;
 
@@ -260,7 +284,7 @@ export default function SettingsPage() {
                         badge.className
                       )}
                     >
-                      <Icon className={cn("h-4 w-4", badge.iconClassName)} />
+                      <Icon className={cn("h-4 w-4 shrink-0", badge.iconClassName)} />
                       <span className="min-w-0 break-words leading-5">{badge.label}</span>
                     </span>
                   );
@@ -269,14 +293,14 @@ export default function SettingsPage() {
             </div>
           </header>
 
-          <main className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+          <main className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)] xl:items-start">
             <Card className="overflow-hidden rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 shadow-sm">
               <CardHeader className="space-y-4 border-b border-[color:var(--color-slate-200)]/60 bg-[color:var(--color-slate-50)]/70 px-5 py-6 sm:px-7">
                 <div className="flex flex-col gap-2">
                   <CardDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-slate-500)]">
                     {locale === "he" ? "העדפות ליבה" : "Core preferences"}
                   </CardDescription>
-                  <CardTitle className="text-2xl font-black tracking-tight text-[var(--color-primary-900)]">
+                  <CardTitle className="text-[clamp(1.45rem,5vw,2rem)] font-black tracking-tight text-[var(--color-primary-900)]">
                     {locale === "he" ? "הגדרות אישיות ומסחריות" : "Personal and market defaults"}
                   </CardTitle>
                 </div>
@@ -293,7 +317,7 @@ export default function SettingsPage() {
                     <legend className="px-2 text-sm font-semibold text-[var(--color-primary-900)]">
                       {locale === "he" ? "ברירות מחדל של התיק" : "Portfolio defaults"}
                     </legend>
-                    <div className="mt-4 grid gap-5 md:grid-cols-2">
+                    <div className="mt-4 grid gap-5 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="growthRate">{t.settings.annualGrowthRate}</Label>
                         <Input
@@ -302,6 +326,8 @@ export default function SettingsPage() {
                           step="0.01"
                           min="0"
                           max="1"
+                          inputMode="decimal"
+                          aria-describedby="growthRate-help"
                           value={formData.annualGrowthRate}
                           onChange={(e) =>
                             setFormData({
@@ -310,7 +336,7 @@ export default function SettingsPage() {
                             })
                           }
                         />
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                        <p id="growthRate-help" className="text-xs leading-5 text-[var(--color-slate-500)]">
                           {locale === "he"
                             ? "ערך בין 0 ל-1, למשל 0.05 עבור 5%."
                             : "Value between 0 and 1, for example 0.05 for 5%."}
@@ -336,7 +362,7 @@ export default function SettingsPage() {
                             <SelectItem value="ILS">ILS</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                        <p id="currency-help" className="text-xs leading-5 text-[var(--color-slate-500)]">
                           {locale === "he"
                             ? "ברירת המחדל המשפיעה על ההצגה של סכומים."
                             : "This sets the default display currency for monetary values."}
@@ -349,7 +375,7 @@ export default function SettingsPage() {
                     <legend className="px-2 text-sm font-semibold text-[var(--color-primary-900)]">
                       {locale === "he" ? "שפה וקצב עדכון" : "Language and refresh cadence"}
                     </legend>
-                    <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                    <div className="mt-4 grid gap-5 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="refreshInterval">{t.settings.refreshInterval}</Label>
                         <Input
@@ -358,8 +384,9 @@ export default function SettingsPage() {
                           value={formData.refreshInterval}
                           readOnly
                           disabled
+                          aria-describedby="refreshInterval-help"
                         />
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                        <p id="refreshInterval-help" className="text-xs leading-5 text-[var(--color-slate-500)]">
                           {t.settings.refreshIntervalDescription}
                         </p>
                         <p
@@ -383,7 +410,7 @@ export default function SettingsPage() {
                             <SelectItem value="en">English</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                        <p id="language-help" className="text-xs leading-5 text-[var(--color-slate-500)]">
                           {locale === "he"
                             ? "השינוי יחול מיד על הממשק והכיווניות."
                             : "The change applies immediately to the interface and direction."}
@@ -396,7 +423,7 @@ export default function SettingsPage() {
                     <legend className="px-2 text-sm font-semibold text-[var(--color-primary-900)]">
                       {locale === "he" ? "חיבור נתונים" : "Data connection"}
                     </legend>
-                    <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
                       <div className="space-y-2">
                         <Label htmlFor="finnhubToken">{t.settings.finnhubToken}</Label>
                         <Input
@@ -407,8 +434,9 @@ export default function SettingsPage() {
                             setFormData({ ...formData, finnhubToken: e.target.value })
                           }
                           placeholder="Enter your Finnhub API token"
+                          aria-describedby="finnhubToken-help"
                         />
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                        <p id="finnhubToken-help" className="text-xs leading-5 text-[var(--color-slate-500)]">
                           {locale === "he" ? "ניתן להשיג מפתח בחינם מ-" : "Get a free token from "}
                           <a
                             href="https://finnhub.io"
@@ -506,6 +534,22 @@ export default function SettingsPage() {
                         <p className="text-sm leading-5 text-[var(--color-slate-600)]">{readiness.title}</p>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {statusFacts.map((fact) => (
+                      <div
+                        key={fact.label}
+                        className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/85 px-4 py-3"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                          {fact.label}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--color-primary-900)]">
+                          {fact.value}
+                        </p>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="grid gap-3 text-sm">

@@ -36,6 +36,9 @@ type GradientStop = {
   color: string;
 };
 
+const TOOLTIP_CONTAINER_CLASS =
+  'w-[min(17.5rem,calc(100vw-0.75rem))] max-w-[calc(100vw-0.75rem)] space-y-2.5 rounded-[22px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/97 p-3.5 text-[11px] text-[var(--color-slate-700)] shadow-xl backdrop-blur sm:w-[240px] sm:max-w-none sm:space-y-3 sm:p-4 sm:text-sm';
+
 const trendStateColors: Record<ChartPoint['trendState'], string> = {
   loss: 'var(--color-red-450)',
   under: 'var(--color-primary-300)',
@@ -171,6 +174,10 @@ const ChartTooltip = ({
   const spyIls = point.spyValueIls;
 
   const projectionClass = projectionGapUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
+  const projectionCardClass =
+    projectionGapUsd >= 0
+      ? 'border-emerald-200/70 bg-emerald-50/70'
+      : 'border-rose-200/70 bg-rose-50/70';
 
   const netUsd = point.netValue;
   const netIls = point.netValueIls;
@@ -178,67 +185,84 @@ const ChartTooltip = ({
   const changeClass = changeUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
   return (
-    <div className="w-[18rem] max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-3 text-[11px] shadow-xl backdrop-blur-xl sm:w-64">
-      <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-1.5 text-[10px] text-slate-500">
-        <span className="min-w-0 font-semibold text-slate-400">{labels.at}</span>
-        <span className="min-w-0 break-words text-right font-semibold leading-tight text-slate-600">{labelFormatter(label ?? '')}</span>
+    <div className={TOOLTIP_CONTAINER_CLASS}>
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2">
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-[10px]">{labels.at}</p>
+          <p className="mt-1 break-words text-[11px] font-semibold leading-tight text-slate-700 sm:text-sm">{labelFormatter(label ?? '')}</p>
+        </div>
+        <span className={`shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-semibold ring-1 ring-slate-200/70 ${changeClass}`}>
+          {formatSignedCurrency(changeUsd, formatUsd)}
+        </span>
       </div>
 
-      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        <div className="min-w-0 rounded-lg bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-2.5">
-          <p className="text-[10px] font-semibold text-indigo-600">{labels.net}</p>
-          <p className="mt-0.5 break-words text-[0.95rem] font-semibold leading-tight text-slate-900">{formatUsd(netUsd)}</p>
-          <p className="text-[10px] text-slate-500">{formatIls(netIls)}</p>
+      <div className="mt-3 grid gap-2.5">
+        <div className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-indigo-600 sm:text-[10px]">{labels.net}</p>
+            <p className="break-words text-right text-[12px] font-semibold leading-tight text-slate-900 sm:text-[0.95rem]">{formatUsd(netUsd)}</p>
+          </div>
+          <p className="mt-0.5 text-[9px] text-slate-500 sm:text-[10px]">{formatIls(netIls)}</p>
         </div>
-        <div className="min-w-0 rounded-lg border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-2.5 shadow-sm">
-          <p className="text-[10px] font-semibold text-amber-600">{labels.forecast}</p>
-          <p className="mt-0.5 break-words text-[0.95rem] font-semibold leading-tight text-slate-900">{formatUsd(forecastUsd)}</p>
-          <p className="text-[10px] text-slate-500">{formatIls(forecastIls)}</p>
-          <div className="mt-1.5 space-y-0.5">
-            <p className="break-words text-[10px] font-semibold text-overlay-amber-500">{labels.projection}</p>
-            <div className="flex items-start justify-between gap-2 text-[10px] text-slate-500">
-              <span className="min-w-0 break-words font-medium">{labels.usd}</span>
-              <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
-                {formatSignedCurrency(projectionGapUsd, formatUsd)}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-2 text-[10px] text-slate-500">
-              <span className="min-w-0 break-words font-medium">{labels.ils}</span>
-              <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
-                {formatSignedCurrency(projectionGapIls, formatIls)}
-              </span>
+
+        <div className={`min-w-0 rounded-xl border p-2.5 shadow-sm ${projectionCardClass}`}>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-600 sm:text-[10px]">{labels.forecast}</p>
+            <p className="break-words text-right text-[12px] font-semibold leading-tight text-slate-900 sm:text-[0.95rem]">{formatUsd(forecastUsd)}</p>
+          </div>
+          <p className="mt-0.5 text-[9px] text-slate-500 sm:text-[10px]">{formatIls(forecastIls)}</p>
+          <div className="mt-2 border-t border-black/5 pt-2">
+            <p className="break-words text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[10px]">
+              {labels.projection}
+            </p>
+            <div className="mt-1 space-y-1">
+              <div className="flex items-start justify-between gap-2 text-[9px] text-slate-500 sm:text-[10px]">
+                <span className="min-w-0 break-words font-medium">{labels.usd}</span>
+                <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
+                  {formatSignedCurrency(projectionGapUsd, formatUsd)}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-2 text-[9px] text-slate-500 sm:text-[10px]">
+                <span className="min-w-0 break-words font-medium">{labels.ils}</span>
+                <span className={`min-w-0 break-words text-right font-semibold ${projectionClass}`}>
+                  {formatSignedCurrency(projectionGapIls, formatIls)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-span-1 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm sm:col-span-2">
-          <p className="break-words text-[10px] font-semibold text-slate-500">{labels.spy}</p>
-          <div className="mt-0.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="break-words text-[0.95rem] font-semibold leading-tight text-slate-700">{formatUsd(spyUsd)}</p>
-              <p className="text-[10px] text-slate-500">{formatIls(spyIls)}</p>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5 shadow-sm">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[10px]">{labels.spy}</p>
+              <div className="mt-1 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="break-words text-[12px] font-semibold leading-tight text-slate-700 sm:text-[0.95rem]">{formatUsd(spyUsd)}</p>
+                  <p className="text-[9px] text-slate-500 sm:text-[10px]">{formatIls(spyIls)}</p>
+                </div>
+              <div className="text-right">
+                <p className={`break-words text-[11px] font-semibold sm:text-xs ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
+                </p>
+                <p className="text-[9px] text-slate-400 sm:text-[10px]">vs S&P 500</p>
+              </div>
             </div>
-            <div className="text-left sm:text-right">
-              <p className={`break-words text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
+          </div>
+
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[10px]">{labels.change}</p>
+              <p className={`break-words text-right text-[11px] font-semibold sm:text-xs ${changeClass}`}>
+                {formatSignedCurrency(changeUsd, formatUsd)}
               </p>
-              <p className="text-[10px] text-slate-400">vs S&P 500</p>
+            </div>
+            <div className="mt-0.5 flex items-start justify-between gap-3">
+              <span className="min-w-0 break-words text-[9px] font-medium text-slate-500 sm:text-[10px]">{labels.ils}</span>
+              <span className={`min-w-0 break-words text-right text-[9px] font-semibold sm:text-[10px] ${changeClass}`}>
+                {formatSignedCurrency(changeIls, formatIls)}
+              </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-1.5 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
-        <div className="flex items-start justify-between gap-2 text-[10px] font-semibold text-slate-500">
-          <span>{labels.change}</span>
-          <span className={`break-words text-right text-[11px] font-semibold ${changeClass}`}>
-            {formatSignedCurrency(changeUsd, formatUsd)}
-          </span>
-        </div>
-        <div className="mt-0.5 flex items-start justify-between gap-2 text-[10px] text-slate-500">
-          <span className="min-w-0 break-words font-medium">{labels.ils}</span>
-          <span className={`min-w-0 break-words text-right font-semibold ${changeClass}`}>
-            {formatSignedCurrency(changeIls, formatIls)}
-          </span>
         </div>
       </div>
     </div>
@@ -560,16 +584,21 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          {t.dashboard.portfolioOverviewTitle}
-        </CardTitle>
-        <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
+    <Card className="relative z-[11] min-w-0 border-[color:var(--color-neutral-white)]/50 bg-white/94 shadow-xl glass-blur-sm">
+      <CardHeader className="space-y-3 border-b border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/72 px-6 py-6 sm:px-7 sm:py-7">
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {locale === 'he' ? 'הקשר התיק' : 'Portfolio context'}
+          </p>
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            {t.dashboard.portfolioOverviewTitle}
+          </CardTitle>
+        </div>
+        <p className="max-w-3xl text-sm leading-6 text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+      <CardContent className="min-w-0 px-4 pb-4 pt-5 sm:px-6 sm:pb-6">
+        <div className="space-y-6">
+          <div className="rounded-[30px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 shadow-lg sm:p-6">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
@@ -582,70 +611,76 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-                  <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-                  <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
-                  <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t.dashboard.netPnL}</p>
+                    <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
+                    <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+                  </div>
+                  <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-white/88 p-4 shadow-sm`}>
                     <div className="flex items-center gap-3">
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
                         aria-hidden="true"
                       >
                         {forecastGapVisuals.icon}
                       </span>
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                           {t.dashboard.forecastGap}
                         </p>
                         <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
                           {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
                         </p>
+                        <p className="text-xs text-slate-500">
+                          {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
+                        </p>
                       </div>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
-                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">{t.dashboard.currentPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">{t.dashboard.realizedPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">{t.dashboard.taxesPaid}</p>
                     <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
                     <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">{t.dashboard.projectedPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
                     <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">{t.dashboard.bestPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
                     <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedBestDate}</p>
+                    <p className="mt-1 inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                      {formattedBestDate}
+                    </p>
                   </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
+                  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">{t.dashboard.worstPnL}</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
                     <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedWorstDate}</p>
+                    <p className="mt-1 inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                      {formattedWorstDate}
+                    </p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-600 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {t.dashboard.portfolioOverviewFootnote}
                   </p>
@@ -661,33 +696,45 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
-            <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
-                  <span>{t.dashboard.timelineLegendActualLoss}</span>
+          <div className="rounded-[30px] border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
+            <div className="flex h-full flex-col gap-6 p-5 sm:p-6">
+              <div className="space-y-3 rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-4 shadow-sm">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    {locale === 'he' ? 'מקרא' : 'Legend'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {locale === 'he'
+                      ? 'צבעי הקו משתנים כשהנטו חוצה אזורי ביצוע.'
+                      : 'The net line changes color as performance crosses the loss and forecast bands.'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
-                  <span>{t.dashboard.timelineLegendActualUnder}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
-                  <span>{t.dashboard.timelineLegendActualAbove}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-overlay-amber-500" />
-                  <span>{t.dashboard.timelineLegendForecast}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-slate-400" />
-                  <span>S&P 500</span>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70">
+                    <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
+                    <span>{t.dashboard.timelineLegendActualLoss}</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70">
+                    <span className="block h-1.5 w-6 rounded-full bg-sky-500" />
+                    <span>{t.dashboard.timelineLegendActualUnder}</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70">
+                    <span className="block h-1.5 w-6 rounded-full bg-emerald-500" />
+                    <span>{t.dashboard.timelineLegendActualAbove}</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70">
+                    <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-overlay-amber-500" />
+                    <span>{t.dashboard.timelineLegendForecast}</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70">
+                    <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-slate-400" />
+                    <span>S&P 500</span>
+                  </div>
                 </div>
               </div>
-              <div className="relative h-[22rem] w-full lg:h-[24rem]">
+              <div className="relative h-[22rem] w-full lg:h-[26rem]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartPoints} margin={{ top: 12, right: -50, left: 0, bottom: 12 }}>
+                  <LineChart data={chartPoints} margin={{ top: 12, right: 18, left: 8, bottom: 12 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
                       {netLineGradientStops.length === 0 ? (
@@ -718,7 +765,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       )}
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.22)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
@@ -727,16 +774,17 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     tickFormatter={(value: number) => withRtlMark(dateFormatter.format(new Date(value)))}
                     tickLine={false}
                     axisLine={false}
-                    tickMargin={16}
-                    minTickGap={28}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    tickMargin={14}
+                    minTickGap={34}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 11, fontWeight: 600 }}
                   />
                   <YAxis
                     orientation="right"
                     tickFormatter={(value) => compactFormatter.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 600 }}
+                    width={64}
+                    tick={{ fill: 'var(--color-slate-600)', fontSize: 10, fontWeight: 600 }}
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
@@ -765,7 +813,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     type="monotone"
                     dataKey="netValue"
                     stroke={`url(#${netLineGradientId})`}
-                    strokeWidth={3.5}
+                    strokeWidth={3.25}
                     dot={false}
                     activeDot={<ActiveNetLineDot />}
                     strokeLinecap="round"
@@ -776,7 +824,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     type="monotone"
                     dataKey="forecastValueUsd"
                     stroke="var(--color-amber-500)"
-                    strokeWidth={2.5}
+                    strokeWidth={2.35}
                     strokeDasharray="6 6"
                     dot={false}
                     activeDot={{ r: 5.5, strokeWidth: 2, stroke: 'var(--color-orange-500)', fill: 'var(--color-neutral-white)' }}
@@ -788,7 +836,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     type="monotone"
                     dataKey="spyValueUsd"
                     stroke="var(--color-slate-400)"
-                    strokeWidth={2}
+                    strokeWidth={1.9}
                     strokeDasharray="5 5"
                     dot={false}
                     activeDot={{ r: 5, strokeWidth: 0 }}

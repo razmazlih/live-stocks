@@ -254,7 +254,8 @@ function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps)
       ref={setNodeRef}
       style={style}
       className={cn(
-        'h-full cursor-grab select-none touch-pan-y active:cursor-grabbing',
+        'h-full min-w-0 cursor-grab select-none touch-pan-y transition-transform active:cursor-grabbing',
+        'focus-within:ring-2 focus-within:ring-blue-200',
         isDragging ? 'z-50' : undefined,
         isActive ? 'ring-2 ring-blue-200' : undefined
       )}
@@ -301,6 +302,7 @@ export default function WatchlistPage() {
     selectedGroup?.tickers ?? []
   );
   const [activeTickerId, setActiveTickerId] = useState<string | null>(null);
+  const [freshnessTick, setFreshnessTick] = useState(0);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -342,6 +344,14 @@ export default function WatchlistPage() {
   );
   const hasCustomStartDate = customStartDate !== null;
   const [startDatePopoverOpen, setStartDatePopoverOpen] = useState(false);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setFreshnessTick((tick) => tick + 1);
+    }, 60_000);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   const minSelectableDate = useMemo(() => {
     const date = new Date();
@@ -941,7 +951,11 @@ export default function WatchlistPage() {
 
   const watchlistSignalSummary = useMemo(() => {
     const tickers = sortableTickers;
+    const now = Date.now() + freshnessTick * 0;
+    const staleThresholdMs = isNasdaqTradingHours(new Date(now)) ? 15 * 60 * 1000 : 90 * 60 * 1000;
     let loadingCount = 0;
+    let errorCount = 0;
+    let staleCount = 0;
     let noteCount = 0;
     let positiveCount = 0;
     let negativeCount = 0;
@@ -962,8 +976,24 @@ export default function WatchlistPage() {
         loadingCount += 1;
       }
 
+      if (state?.error) {
+        errorCount += 1;
+      }
+
       if (ticker.note?.trim()) {
         noteCount += 1;
+      }
+
+      const hasData = Boolean(state?.quote) || historical.length > 0;
+      const isStale =
+        !state?.loading &&
+        !state?.error &&
+        hasData &&
+        typeof state?.lastUpdated === 'number' &&
+        now - state.lastUpdated > staleThresholdMs;
+
+      if (isStale) {
+        staleCount += 1;
       }
 
       const basePrice =
@@ -998,6 +1028,9 @@ export default function WatchlistPage() {
       totalTickers: tickers.length,
       loadingCount,
       readyCount: tickers.length - loadingCount,
+      freshCount: Math.max(tickers.length - loadingCount - staleCount - errorCount, 0),
+      errorCount,
+      staleCount,
       noteCount,
       positiveCount,
       negativeCount,
@@ -1005,16 +1038,16 @@ export default function WatchlistPage() {
       samples,
       averageMomentum: samples > 0 ? momentumTotal / samples : 0,
     };
-  }, [sortableTickers, tickerStates]);
+  }, [freshnessTick, sortableTickers, tickerStates]);
 
   const activeRangeLabel = timeRangeLabels[range] ?? range;
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl overflow-x-clip px-3 py-5 sm:px-6 sm:py-6 lg:px-8">
         <div className="space-y-6">
-          <header className="rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-5 py-6 shadow-sm sm:px-7 sm:py-7">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <header className="overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-5 shadow-sm sm:px-7 sm:py-7">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="max-w-3xl space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-600)]">
                   <Eye className="h-3.5 w-3.5" />
@@ -1028,16 +1061,19 @@ export default function WatchlistPage() {
                     {t.watchlist.subtitle}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium sm:text-sm">
+                <div className="flex gap-2 overflow-x-auto pb-1 text-xs font-medium [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 2xl:grid-cols-4 2xl:max-w-none">
                   {metaBadges.map((badge) => {
                     const Icon = badge.icon;
                     return (
                       <span
                         key={badge.key}
-                        className={cn('inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] px-3 py-1.5', badge.className)}
+                        className={cn(
+                          'inline-flex min-h-11 min-w-[10rem] shrink-0 items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] px-3 py-1.5 sm:min-w-0',
+                          badge.className
+                        )}
                       >
                         <Icon className={cn('h-4 w-4', badge.iconClassName)} />
-                        <span>{badge.label}</span>
+                        <span className="min-w-0 break-words">{badge.label}</span>
                       </span>
                     );
                   })}
@@ -1047,7 +1083,7 @@ export default function WatchlistPage() {
               <QuickActionsSection
                 title={t.watchlist.actionsTitle}
                 actions={quickActions}
-                className="w-full rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] p-4 shadow-sm xl:max-w-xl"
+                className="w-full min-w-0 rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] p-4 shadow-sm xl:max-w-xl"
               >
                 <p className="mt-4 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-3 text-xs leading-5 text-slate-600">
                   {selectedGroupSummary ?? t.watchlist.status.empty}
@@ -1056,8 +1092,8 @@ export default function WatchlistPage() {
             </div>
           </header>
 
-          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm sm:p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 {locale === 'he' ? 'קבוצה פעילה' : 'Active group'}
               </p>
@@ -1074,7 +1110,7 @@ export default function WatchlistPage() {
               </p>
             </div>
 
-            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
+            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm sm:p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 {locale === 'he' ? 'טווח נוכחי' : 'Current range'}
               </p>
@@ -1089,7 +1125,7 @@ export default function WatchlistPage() {
               <p className="mt-2 text-xs leading-5 text-slate-500">{startDateSummary}</p>
             </div>
 
-            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
+            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm sm:p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 {locale === 'he' ? 'תנופת קבוצה' : 'Group momentum'}
               </p>
@@ -1116,7 +1152,7 @@ export default function WatchlistPage() {
               </p>
             </div>
 
-            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
+            <div className="rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm sm:p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 {locale === 'he' ? 'סנכרון' : 'Sync state'}
               </p>
@@ -1124,15 +1160,54 @@ export default function WatchlistPage() {
                 <span className="text-2xl font-semibold tracking-tight text-slate-900">
                   {watchlistSignalSummary.readyCount}/{watchlistSignalSummary.totalTickers}
                 </span>
-                <span className="rounded-full bg-[color:var(--color-emerald-50)] px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-1 text-xs font-semibold',
+                    watchlistSignalSummary.loadingCount > 0
+                      ? 'bg-amber-50 text-amber-700'
+                      : watchlistSignalSummary.staleCount > 0
+                        ? 'bg-rose-50 text-rose-700'
+                        : 'bg-[color:var(--color-emerald-50)] text-emerald-700'
+                  )}
+                >
                   {watchlistSignalSummary.loadingCount > 0
-                    ? (locale === 'he'
-                        ? `${watchlistSignalSummary.loadingCount} נטענים`
-                        : `${watchlistSignalSummary.loadingCount} loading`)
-                    : (locale === 'he' ? 'מעודכן' : 'Synced')}
+                    ? locale === 'he'
+                      ? `${watchlistSignalSummary.loadingCount} נטענים`
+                      : `${watchlistSignalSummary.loadingCount} loading`
+                    : watchlistSignalSummary.staleCount > 0
+                      ? locale === 'he'
+                        ? `${watchlistSignalSummary.staleCount} מיושנים`
+                        : `${watchlistSignalSummary.staleCount} stale`
+                      : locale === 'he'
+                        ? 'מעודכן'
+                        : 'Synced'}
                 </span>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                <span className="rounded-full bg-[color:var(--color-emerald-50)] px-2.5 py-1 text-emerald-700">
+                  {locale === 'he'
+                    ? `${watchlistSignalSummary.freshCount} מוכנים`
+                    : `${watchlistSignalSummary.freshCount} ready`}
+                </span>
+                <span className="rounded-full bg-[color:var(--color-amber-50)] px-2.5 py-1 text-[color:var(--color-amber-700)]">
+                  {locale === 'he'
+                    ? `${watchlistSignalSummary.loadingCount} נטענים`
+                    : `${watchlistSignalSummary.loadingCount} loading`}
+                </span>
+                <span className="rounded-full bg-[color:var(--color-rose-50)] px-2.5 py-1 text-rose-700">
+                  {locale === 'he'
+                    ? `${watchlistSignalSummary.staleCount} מיושנים`
+                    : `${watchlistSignalSummary.staleCount} stale`}
+                </span>
+                {watchlistSignalSummary.errorCount > 0 ? (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
+                    {locale === 'he'
+                      ? `${watchlistSignalSummary.errorCount} שגיאות`
+                      : `${watchlistSignalSummary.errorCount} errors`}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
                 {locale === 'he'
                   ? `${watchlistSignalSummary.noteCount} כרטיסים כוללים הערות.`
                   : `${watchlistSignalSummary.noteCount} cards include notes.`}
@@ -1178,7 +1253,7 @@ export default function WatchlistPage() {
                 renderTickerCount={renderTickerCount}
                 editLabel={t.watchlist.actions.editGroup}
                 deleteLabel={t.watchlist.actions.deleteGroup}
-                className="w-full"
+                className="w-full min-w-0 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               />
             </aside>
 
@@ -1201,7 +1276,7 @@ export default function WatchlistPage() {
 
               {selectedGroup ? (
                 <div className="space-y-6">
-                  <section className="rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+                  <section className="overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-4 shadow-sm sm:px-6 sm:py-6">
                     <div className="space-y-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-2">
@@ -1221,102 +1296,126 @@ export default function WatchlistPage() {
 
                         <div
                           className={cn(
-                            'flex w-full max-w-3xl flex-col gap-3',
+                            'flex w-full max-w-3xl min-w-0 flex-col gap-4',
                             isRtl ? 'lg:items-start' : 'lg:items-end'
                           )}
                         >
-                          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                            <TimeRangeTabs
-                              value={range}
-                              onChange={handleRangeChange}
-                              labels={timeRangeLabels}
-                              className="w-full min-w-0 sm:w-auto sm:min-w-[220px] lg:min-w-[260px]"
-                            />
-                            <Popover open={startDatePopoverOpen} onOpenChange={setStartDatePopoverOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    'flex h-auto w-full items-center gap-3 rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-[color:var(--color-slate-300)] hover:bg-[color:var(--color-slate-50)] sm:w-auto',
-                                    hasCustomStartDate ? 'ring-1 ring-[color:var(--color-slate-300)]' : undefined
-                                  )}
-                                >
-                                  <CalendarDays className="h-4 w-4 text-slate-500" />
-                                  <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                                    <span className="text-xs font-medium text-slate-500">
-                                      {t.watchlist.filters.startDateLabel}
-                                    </span>
-                                    <span
+                          <div className="w-full rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-4 shadow-sm sm:p-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                  {locale === 'he' ? 'בקרה' : 'Controls'}
+                                </p>
+                                <p className="text-sm text-slate-500">
+                                  {locale === 'he'
+                                    ? 'טווח הזמן, תאריך ההתחלה והוספת מניות נשארים ביחד.'
+                                    : 'Range, start date, and ticker actions stay grouped together.'}
+                                </p>
+                              </div>
+                              <span className="hidden rounded-full bg-[color:var(--color-neutral-white)] px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex">
+                                {startDateSummary}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 space-y-4">
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                  {locale === 'he' ? 'טווח זמן' : 'Time range'}
+                                </p>
+                                <TimeRangeTabs value={range} onChange={handleRangeChange} labels={timeRangeLabels} />
+                              </div>
+
+                              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                <Popover open={startDatePopoverOpen} onOpenChange={setStartDatePopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
                                       className={cn(
-                                        'text-sm font-semibold text-slate-700',
-                                        hasCustomStartDate ? 'text-slate-900' : undefined
+                                        'flex min-h-11 w-full items-center gap-3 rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-[color:var(--color-slate-300)] hover:bg-[color:var(--color-slate-50)]',
+                                        hasCustomStartDate
+                                          ? 'ring-1 ring-[color:var(--color-slate-300)]'
+                                          : undefined
                                       )}
                                     >
-                                      {formattedStartDate}
-                                    </span>
-                                  </div>
-                                  {hasCustomStartDate ? (
-                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                                      {t.watchlist.filters.customBadge}
-                                    </span>
-                                  ) : null}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                align={isRtl ? 'end' : 'start'}
-                                className="w-auto rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-lg"
-                              >
-                                <div className="flex flex-col gap-3">
-                                  <p className="text-sm font-medium text-slate-700">
-                                    {t.watchlist.filters.startDateDescription}
-                                  </p>
-                                  <Calendar
-                                    mode="single"
-                                    selected={customStartDate ?? effectiveStartDate}
-                                    defaultMonth={customStartDate ?? effectiveStartDate}
-                                    onSelect={(date) => {
-                                      if (!date) {
-                                        return;
-                                      }
-                                      handleStartDateChange(date);
-                                      setStartDatePopoverOpen(false);
-                                    }}
-                                    toDate={maxSelectableDate}
-                                    fromDate={minSelectableDate}
-                                    initialFocus
-                                  />
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      handleResetStartDate();
-                                      setStartDatePopoverOpen(false);
-                                    }}
-                                    className="justify-start text-slate-600 hover:text-blue-600"
+                                      <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+                                      <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                                        <span className="text-xs font-medium text-slate-500">
+                                          {t.watchlist.filters.startDateLabel}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            'text-sm font-semibold text-slate-700',
+                                            hasCustomStartDate ? 'text-slate-900' : undefined
+                                          )}
+                                        >
+                                          {formattedStartDate}
+                                        </span>
+                                      </div>
+                                      {hasCustomStartDate ? (
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                          {t.watchlist.filters.customBadge}
+                                        </span>
+                                      ) : null}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    align={isRtl ? 'end' : 'start'}
+                                    className="w-[min(22rem,calc(100vw-1rem))] rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-lg"
                                   >
-                                    {t.watchlist.filters.resetStartDate}
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                            <Button
-                              size="sm"
-                              className="w-full gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)] sm:w-auto"
-                              onClick={openCreateTickerDialog}
-                            >
-                              <Plus className="h-4 w-4" />
-                              {t.watchlist.actions.newTicker}
-                            </Button>
-                          </div>
-                          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/80 px-4 py-3 text-xs leading-5 text-slate-500">
-                            <span>
-                              {locale === 'he'
-                                ? 'טווח הזמן מחושב לכל הכרטיסים בקבוצה, והסידור נשמר בגרירה בלבד.'
-                                : 'The range applies to the whole group, and drag-and-drop only changes order.'}
-                            </span>
-                            <span className="rounded-full bg-[color:var(--color-neutral-white)] px-2.5 py-1 font-semibold text-slate-600">
-                              {startDateSummary}
-                            </span>
+                                    <div className="flex flex-col gap-3">
+                                      <p className="text-sm font-medium text-slate-700">
+                                        {t.watchlist.filters.startDateDescription}
+                                      </p>
+                                      <Calendar
+                                        mode="single"
+                                        selected={customStartDate ?? effectiveStartDate}
+                                        defaultMonth={customStartDate ?? effectiveStartDate}
+                                        onSelect={(date) => {
+                                          if (!date) {
+                                            return;
+                                          }
+                                          handleStartDateChange(date);
+                                          setStartDatePopoverOpen(false);
+                                        }}
+                                        toDate={maxSelectableDate}
+                                        fromDate={minSelectableDate}
+                                        initialFocus
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          handleResetStartDate();
+                                          setStartDatePopoverOpen(false);
+                                        }}
+                                        className="justify-start text-slate-600 hover:text-blue-600"
+                                      >
+                                        {t.watchlist.filters.resetStartDate}
+                                      </Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                                <Button
+                                  size="sm"
+                                  className="min-h-11 w-full gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)] sm:w-auto"
+                                  onClick={openCreateTickerDialog}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  {t.watchlist.actions.newTicker}
+                                </Button>
+                              </div>
+
+                              <div className="flex flex-col gap-2 rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/80 px-4 py-3 text-xs leading-5 text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                                <span>
+                                  {locale === 'he'
+                                    ? 'טווח הזמן מחושב לכל הכרטיסים בקבוצה, והסידור נשמר בגרירה בלבד.'
+                                    : 'The range applies to the whole group, and drag-and-drop only changes order.'}
+                                </span>
+                                <span className="rounded-full bg-[color:var(--color-neutral-white)] px-2.5 py-1 font-semibold text-slate-600">
+                                  {startDateSummary}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1334,7 +1433,7 @@ export default function WatchlistPage() {
                         items={sortableTickers.map((ticker) => getTickerKey(ticker))}
                         strategy={rectSortingStrategy}
                       >
-                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
                           {sortableTickers.map((ticker) => {
                             const tickerKey = getTickerKey(ticker);
                             const state = tickerStates[tickerKey];
@@ -1442,7 +1541,7 @@ export default function WatchlistPage() {
         </div>
       </div>
       <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
-        <DialogContent>
+        <DialogContent className="w-[min(34rem,calc(100vw-1rem))] max-w-none sm:w-[min(34rem,calc(100vw-2rem))]">
           <DialogHeader>
             <DialogTitle>
               {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
@@ -1488,7 +1587,7 @@ export default function WatchlistPage() {
       </Dialog>
 
       <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
-        <DialogContent>
+        <DialogContent className="w-[min(44rem,calc(100vw-1rem))] max-w-none sm:w-[min(44rem,calc(100vw-2rem))]">
           <DialogHeader>
             <DialogTitle>
               {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}
@@ -1498,7 +1597,7 @@ export default function WatchlistPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleTickerSubmit} className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="ticker-symbol">{t.watchlist.tickers.symbol}</Label>
                 <Input

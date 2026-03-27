@@ -274,7 +274,22 @@ export function TickerCard({
     effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number'
       ? `${hoverLabel} ${formatTooltipTimestamp(effectiveHoveredPoint.timestamp)}`
       : null;
-  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500';
+  const statusStripeClassName = loading
+    ? 'bg-amber-500'
+    : error
+      ? 'bg-rose-500'
+      : showSparkline
+        ? 'bg-emerald-500'
+        : 'bg-slate-300';
+  const chartSurfaceClassName = loading
+    ? 'border-amber-200 bg-amber-50/80'
+    : error
+      ? 'border-rose-200 bg-rose-50/80'
+      : showSparkline
+        ? 'border-emerald-100 bg-[color:var(--color-slate-50)]/80'
+        : 'border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80';
+  const hasActions = Boolean(onRefresh || onEdit || onDelete);
+  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500';
   const basePriceLabelText = hoverMeta ?? basePriceLabel;
   const basePriceLabelClassName = cn(
     'text-[0.65rem] font-semibold text-slate-500',
@@ -294,93 +309,113 @@ export function TickerCard({
   return (
     <Card
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm transition-shadow duration-200 hover:shadow-md',
+        'relative flex h-full min-w-0 flex-col overflow-hidden border border-[color:var(--color-slate-200)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-sm transition-shadow duration-200 hover:shadow-md focus-within:shadow-md',
         className
       )}
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-[color:var(--color-slate-200)]" aria-hidden />
-      <div className="relative flex flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold tracking-tight text-slate-900">
-                {ticker.symbol.toUpperCase()}
-              </span>
-              <span className="rounded-full border border-[color:var(--color-slate-200)] bg-slate-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
-                {range}
-              </span>
+      <div className={cn('absolute inset-x-0 top-0 h-1.5', statusStripeClassName)} aria-hidden />
+      <div className="relative flex flex-1 min-w-0 flex-col gap-3.5 p-3.5 sm:gap-5 sm:p-5">
+        <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-1 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[1.05rem] font-semibold tracking-tight text-slate-900">
+                  {ticker.symbol.toUpperCase()}
+                </span>
+                <span className="rounded-full border border-[color:var(--color-slate-200)] bg-slate-50 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                  {range}
+                </span>
+              </div>
+              {ticker.display ? (
+                <p className="text-xs leading-5 text-slate-500">{ticker.display}</p>
+              ) : null}
             </div>
-            {ticker.display ? (
-              <p className="text-xs text-slate-500">{ticker.display}</p>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-1">
-            {onRefresh ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={() => onRefresh(ticker)}
-                disabled={loading}
-              >
-                <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
-                <span className="sr-only">{refreshLabel}</span>
-              </Button>
-            ) : null}
-            {onEdit ? (
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">{editLabel}</span>
-              </Button>
-            ) : null}
-            {onDelete ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-rose-500 hover:text-rose-600"
-                onClick={() => onDelete(ticker)}
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">{deleteLabel}</span>
-              </Button>
+            {hasActions ? (
+              <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/90 p-1 shadow-sm backdrop-blur">
+                {onRefresh ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10 rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
+                    onClick={() => onRefresh(ticker)}
+                    disabled={loading}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : undefined)} />
+                    <span className="sr-only">{refreshLabel}</span>
+                  </Button>
+                ) : null}
+                {onEdit ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10 rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
+                    onClick={() => onEdit(ticker)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">{editLabel}</span>
+                  </Button>
+                ) : null}
+                {onDelete ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10 rounded-full text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                    onClick={() => onDelete(ticker)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">{deleteLabel}</span>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </header>
 
-        <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 md:col-span-2 md:p-3">
+        <div className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3">
+          <div className="min-w-0 rounded-[22px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-3 sm:col-span-2 sm:p-4">
             <p className={priceLabelClassName}>{priceLabel}</p>
-            <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
+            <p className="mt-1 break-words text-[clamp(1.2rem,1.2vw+0.95rem,1.8rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
               {priceText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 sm:p-3">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
-            <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
+          <div className="min-w-0 rounded-[22px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-3 shadow-sm">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {changeLabel}
+            </p>
+            <p
+              className={cn(
+                'mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums',
+                changeTone
+              )}
+            >
               {changeText}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 sm:p-3">
+          <div className="min-w-0 rounded-[22px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-3 shadow-sm">
             <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
             <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
               {basePriceText}
             </p>
             {hoverMeta ? null : baseDateText ? (
-              <p className="mt-1 text-[0.68rem] text-slate-400">
+              <p className="mt-1 text-[0.68rem] leading-5 text-slate-400">
                 {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 sm:p-3">
+        <div className={cn('overflow-hidden rounded-[24px] border p-2.5 sm:p-4', chartSurfaceClassName)}>
           {loading ? (
-            <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
-              {loadingLabel}
+            <div
+              className="flex items-center justify-center gap-2 text-sm text-slate-500"
+              style={{ height: chartHeight }}
+            >
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>{loadingLabel}</span>
             </div>
           ) : error ? (
             <div
-              className="flex items-center justify-center text-center text-xs text-rose-500"
+              className="flex items-center justify-center px-4 text-center text-sm text-rose-600"
               style={{ height: chartHeight }}
             >
               {error || errorLabel}
@@ -402,7 +437,7 @@ export function TickerCard({
             </div>
           ) : (
             <div
-              className="flex items-center justify-center text-center text-xs text-slate-500"
+              className="flex items-center justify-center px-4 text-center text-sm text-slate-500"
               style={{ height: chartHeight }}
             >
               {emptySeriesLabel}
@@ -411,9 +446,11 @@ export function TickerCard({
         </div>
 
         {ticker.note ? (
-          <div className="rounded-xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>
-            <p className="mt-1 whitespace-pre-line">{ticker.note}</p>
+          <div className="rounded-[22px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 p-3 text-[0.8rem] text-slate-600 shadow-sm sm:p-4">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {noteLabel}
+            </p>
+            <p className="mt-1 break-words whitespace-pre-line leading-6">{ticker.note}</p>
           </div>
         ) : null}
       </div>

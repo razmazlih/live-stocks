@@ -24,8 +24,13 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>('he');
+interface AppProviderProps {
+  children: ReactNode;
+  initialLocale?: Locale;
+}
+
+export function AppProvider({ children, initialLocale = 'he' }: AppProviderProps) {
+  const [locale, setLocale] = useState<Locale>(initialLocale);
   const [settings, setSettings] = useState<Settings>({
     annualGrowthRate: parseFloat(process.env.DEFAULT_GROWTH_RATE || '0.05'),
     currency: 'USD',
@@ -92,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('locale', locale);
     document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
+    document.cookie = `locale=${locale}; path=/; max-age=31536000; SameSite=Lax`;
   }, [locale]);
 
   useEffect(() => {

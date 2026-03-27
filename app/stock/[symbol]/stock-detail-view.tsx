@@ -61,7 +61,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'Al
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'w-[min(18rem,calc(100vw-1.25rem))] space-y-3 rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/96 p-4 text-sm text-[var(--color-slate-700)] shadow-sm sm:w-[220px] sm:max-w-none';
+  'w-[min(17rem,calc(100vw-0.75rem))] space-y-3 rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/96 p-3.5 text-[11px] text-[var(--color-slate-700)] shadow-sm sm:w-[230px] sm:max-w-none sm:p-4 sm:text-sm';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -358,7 +358,7 @@ function StockDetailSkeleton() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
           <Card className="overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/94 shadow-sm">
             <CardHeader>
               <Skeleton className="h-5 w-44" />
@@ -769,27 +769,27 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
       return (
         <div className={TOOLTIP_CONTAINER_CLASS}>
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{dateLabel}</div>
+          <div className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{dateLabel}</div>
           {priceEntry && (
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between gap-3 text-[11px] sm:text-sm">
               <span className="text-slate-400">{t.stock.detailView.chartPriceLabel}</span>
-              <span className="font-semibold text-slate-50">
+              <span className="font-semibold text-slate-900">
                 {formatDualCurrency(priceEntry.value as number)}
               </span>
             </div>
           )}
           {showVolume && volumeEntry && (
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between gap-3 text-[11px] sm:text-sm">
               <span className="text-slate-400">{t.stock.detailView.tooltip.volume}</span>
-              <span className="font-semibold text-slate-50">{formatVolume(volumeEntry.value as number)}</span>
+              <span className="font-semibold text-slate-900">{formatVolume(volumeEntry.value as number)}</span>
             </div>
           )}
           <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <div className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
               {t.stock.detailView.tooltip.tradesHeading}
             </div>
             {tradesForDay.length === 0 ? (
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mt-1 text-[11px] text-slate-500">
                 {t.stock.detailView.tooltip.noTrades}
               </div>
             ) : (
@@ -806,14 +806,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
                   return (
                     <div
-                      key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
+                    key={trade.id}
+                      className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-700 shadow-sm ring-1 ring-slate-200/70"
                     >
-                      <div className="flex items-center justify-between font-semibold">
+                      <div className="flex items-center justify-between gap-2 font-semibold">
                         <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
-                        <span className="text-slate-300">{timeLabel}</span>
+                        <span className="text-slate-500">{timeLabel}</span>
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-200">
+                      <div className="mt-1 text-[10px] text-slate-500">
                         {`${formatDualCurrency(trade.tradePrice)} · ${quantityLabel}: ${formatNumber(
                           trade.quantity,
                           locale
@@ -948,9 +948,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
       <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-        <div className="space-y-6">
+        <div className="space-y-6 sm:space-y-7">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex self-start items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-4 py-2 text-sm text-[var(--color-slate-700)] shadow-sm">
+            <div className="inline-flex items-center gap-2 self-start rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-4 py-2 text-sm font-medium text-[var(--color-slate-700)] shadow-sm">
               <ArrowLeft className="h-4 w-4 text-[var(--color-primary-600)]" />
               <span className="font-medium">{t.stock.back}</span>
             </div>
@@ -985,8 +985,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
-              <Card className="relative overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/94 shadow-sm">
+            <div className="space-y-5 sm:space-y-6">
+              <Card className="relative overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-sm">
                 <CardContent className="relative z-10 p-5 sm:p-6 lg:p-7">
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
@@ -1001,8 +1001,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h1 className="text-3xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-4xl">
+                        <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[color:var(--color-primary-100)] bg-[color:var(--color-primary-050)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                          {locale === 'he' ? 'תצוגת פוזיציה' : 'Position overview'}
+                        </div>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <h1 className="text-[clamp(2rem,7vw,3.5rem)] font-black tracking-tight text-[var(--color-primary-900)]">
                             {position.display}
                           </h1>
                           <Badge
@@ -1020,20 +1023,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             ? 'עמוד המניה מרכז מחיר חי, מסלול היסטורי, פער מול מחיר כניסה וכל העסקאות הרלוונטיות.'
                             : 'Live price, history, entry gap, and transaction context in one focused detail view.'}
                         </p>
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-slate-600)]">
-                          <span className="rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-1.5">
+                <div className="grid gap-2 text-sm text-[var(--color-slate-600)] sm:grid-cols-2 lg:grid-cols-3">
+                          <span className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-2">
                             {t.dashboard.quantity}{' '}
                             <span className="font-semibold text-[var(--color-primary-900)]">
                               {formatNumber(position.quantity, locale)}
                             </span>
                           </span>
-                          <span className="rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-1.5">
+                          <span className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-2">
                             {t.dashboard.entryPrice}{' '}
                             <span className="font-semibold text-[var(--color-primary-900)]">
                               {formatDualCurrency(position.entryPrice)}
                             </span>
                           </span>
-                          <span className="rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-1.5">
+                          <span className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-2">
                             {t.dashboard.since}{' '}
                             <span className="font-semibold text-[var(--color-primary-900)]">
                               {formatDate(position.entryDate, locale)}
@@ -1043,13 +1046,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </div>
                     </div>
 
-                    <div className="w-full max-w-none rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 p-4 shadow-sm xl:max-w-md">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
+                    <div className="w-full max-w-none rounded-[30px] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 p-4 shadow-sm xl:max-w-md">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                             {t.stock.priceToday}
                           </div>
-                          <div className="mt-1 text-3xl font-semibold text-[var(--color-primary-900)]">
+                          <div className="text-[clamp(1.9rem,8vw,2.75rem)] font-semibold text-[var(--color-primary-900)]">
                             {formatUsdCurrency(metrics.currentPrice)}
                           </div>
                         </div>
@@ -1090,14 +1093,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </CardContent>
               </Card>
 
-          <Card className="overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/94 shadow-sm">
-                <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/80">
+              <Card className="overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/94 shadow-sm">
+                <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/80 px-5 py-5 sm:px-6">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-700)] shadow-sm">
-                        <Activity className="h-3.5 w-3.5" />
-                        <span>{locale === 'he' ? 'תצוגת מצב' : 'Position snapshot'}</span>
-                      </div>
+                        <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-700)] shadow-sm">
+                          <Activity className="h-3.5 w-3.5" />
+                          <span>{locale === 'he' ? 'תצוגת מצב' : 'Position snapshot'}</span>
+                        </div>
                       <CardTitle className="mt-3 text-lg font-semibold text-[var(--color-primary-900)]">
                         {t.stock.detailView.quickFactsTitle}
                       </CardTitle>
@@ -1142,12 +1145,12 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,2.05fr)_minmax(0,0.95fr)]">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,2.05fr)_minmax(0,0.95fr)] xl:items-start">
                 <Card className="overflow-hidden border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/94 shadow-sm">
                   <CardHeader className="border-b border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/80">
                     <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                        <div>
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="min-w-0">
                           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
                             {t.stock.detailView.chartTitle}
                           </CardTitle>
@@ -1163,7 +1166,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </div>
                       </div>
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex w-full flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:overflow-visible lg:pb-0">
                           {TIME_RANGES.map((option) => (
                             <Button
                               key={option}
@@ -1172,7 +1175,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               onClick={() => setRange(option)}
                               disabled={historicalLoading && range === option}
                               className={cn(
-                                'rounded-full',
+                                'min-h-10 shrink-0 rounded-full px-3.5',
                                 range === option
                                   ? 'bg-[var(--color-primary-600)] text-white hover:bg-[var(--color-primary-700)]'
                                   : 'border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-700)] hover:border-[color:var(--color-primary-200)] hover:text-[var(--color-primary-700)]'
@@ -1182,7 +1185,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             </Button>
                           ))}
                         </div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-2 text-sm text-[var(--color-slate-700)]">
+                        <div className="inline-flex w-full items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/90 px-3 py-2 text-sm text-[var(--color-slate-700)] shadow-sm sm:w-auto">
                           <Switch checked={showVolume} onCheckedChange={setShowVolume} id="volume-toggle" />
                           <label htmlFor="volume-toggle" className="cursor-pointer">
                             {t.stock.detailView.showVolume}
@@ -1200,9 +1203,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </div>
                     ) : (
                       <>
-                        <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
+                        <div className={cn('w-full min-w-0', showVolume ? 'h-[320px] sm:h-[372px]' : 'h-[280px] sm:h-[312px]')}>
                           <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
+                            <ComposedChart data={chartData} margin={{ top: 18, right: 12, bottom: 0, left: 2 }}>
                               <defs>
                                 <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.42} />
@@ -1211,7 +1214,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               </defs>
                               <CartesianGrid
                                 strokeDasharray="4 4"
-                                stroke="rgba(var(--color-slate-400-rgb), 0.18)"
+                                stroke="rgba(var(--color-slate-400-rgb), 0.16)"
                                 vertical={false}
                               />
                               <XAxis
@@ -1221,20 +1224,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                                 allowDataOverflow
                                 tickLine={false}
                                 axisLine={false}
-                                tickMargin={12}
+                                tickMargin={10}
                                 minTickGap={24}
-                                tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                                tick={{ fill: 'var(--color-slate-600)', fontSize: 9 }}
                                 tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
                               />
                               <YAxis
                                 yAxisId="price"
                                 domain={priceDomain}
-                                width={80}
+                                width={58}
                                 tickLine={false}
                                 axisLine={false}
-                                tickMargin={8}
-                                padding={{ top: 12, bottom: 12 }}
-                                tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
+                                tickMargin={6}
+                                padding={{ top: 10, bottom: 10 }}
+                                tick={{ fill: 'var(--color-slate-600)', fontSize: 9 }}
                                 tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
                               />
                               <Tooltip
@@ -1250,8 +1253,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                                   yAxisId="volume"
                                   dataKey="volume"
                                   name={t.stock.detailView.tooltip.volume}
-                                  barSize={14}
-                                  radius={[6, 6, 0, 0]}
+                                  barSize={13}
+                                  radius={[7, 7, 0, 0]}
                                   fill="rgba(var(--color-primary-400-rgb), 0.18)"
                                 />
                               )}
@@ -1260,8 +1263,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                                 dataKey="close"
                                 yAxisId="price"
                                 stroke="var(--color-primary-700)"
-                                strokeWidth={2.75}
-                                activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
+                                strokeWidth={3}
+                                activeDot={{ r: 5, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
                                 fill="url(#priceGradient)"
                                 name={t.stock.detailView.chartPriceLabel}
                               />
@@ -1277,8 +1280,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             </ComposedChart>
                           </ResponsiveContainer>
                         </div>
-                        <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm">
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm shadow-sm">
                             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                               {locale === 'he' ? 'מחיר כניסה' : 'Entry price'}
                             </div>
@@ -1286,7 +1289,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               {formatDualCurrency(position.entryPrice)}
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm">
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm shadow-sm">
                             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                               {locale === 'he' ? 'מחיר נוכחי' : 'Current price'}
                             </div>
@@ -1294,7 +1297,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               {formatDualCurrency(metrics.currentPrice)}
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm">
+                          <div className="rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/90 px-4 py-3 text-sm shadow-sm">
                             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                               {locale === 'he' ? 'פער מול כניסה' : 'Gap vs entry'}
                             </div>
