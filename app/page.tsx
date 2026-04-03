@@ -56,6 +56,12 @@ interface SummaryTile {
   footnote?: string;
 }
 
+const dashboardSectionClassName =
+  'page-surface relative isolate overflow-hidden rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,250,255,0.94))] shadow-[0_30px_60px_-42px_rgba(15,23,42,0.68)] ring-1 ring-white/55';
+
+const dashboardCardClassName =
+  'group relative overflow-hidden rounded-[1.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.82))] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.32)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_42px_-28px_rgba(15,23,42,0.4)] motion-reduce:transform-none motion-reduce:transition-none';
+
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<SectionKey>('positions');
   const { locale } = useApp();
@@ -333,8 +339,14 @@ export default function HomePage() {
   };
 
   const renderSectionPlaceholder = (message: string) => (
-    <div className="page-surface rounded-[1.8rem] border-dashed px-5 py-10 text-center text-sm leading-6 text-slate-500 sm:px-6 sm:py-12">
-      {message}
+    <div className={`${dashboardSectionClassName} rounded-[1.8rem] border-dashed px-5 py-10 text-center text-sm leading-6 text-slate-500 sm:px-6 sm:py-12`}>
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-sky-100/60 via-white/40 to-transparent"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto max-w-2xl rounded-[1.5rem] border border-white/70 bg-white/72 px-4 py-5 shadow-[0_18px_30px_-26px_rgba(15,23,42,0.28)] backdrop-blur-sm sm:px-5 sm:py-6">
+        {message}
+      </div>
     </div>
   );
 
@@ -348,18 +360,20 @@ export default function HomePage() {
     return (
       <section
         id={sectionAnchors.pulse}
-        className="page-surface relative overflow-hidden rounded-[2rem] p-5 sm:p-6 lg:p-7"
+        className={`${dashboardSectionClassName} animate-soft-rise p-5 motion-reduce:animate-none sm:p-6 lg:p-7`}
+        style={{ animationDelay: '80ms' }}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-sky-100/65 to-transparent" />
-        <div className="relative z-10 space-y-5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-sky-100/70 via-white/35 to-transparent" />
+        <div className="pointer-events-none absolute -right-24 top-8 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl" />
+        <div className="relative z-10 space-y-5 sm:space-y-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <p className="section-kicker">{homeCopy.pulseTitle}</p>
               <h2 className="page-title text-2xl font-semibold sm:text-[1.65rem]">{homeCopy.pulseTitle}</h2>
               <p className="page-subtitle text-sm">{homeCopy.pulseSubtitle}</p>
             </div>
             {dailyChangeData ? (
-              <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-white/80 p-2 shadow-sm backdrop-blur-sm">
+              <div className="rounded-[1.4rem] border border-white/80 bg-white/78 p-2 shadow-[0_18px_32px_-28px_rgba(15,23,42,0.38)] backdrop-blur-sm">
                 <DailyChangeBadge
                   toneClass={dailyChangeData.toneClass}
                   icon={dailyChangeData.icon}
@@ -371,58 +385,86 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-            <article className="card-surface rounded-[1.4rem] border p-4 sm:p-5">
-              <p className="section-kicker">{locale === 'he' ? 'במעקב' : 'Tracked'}</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-slate-900">
-                    {movementSnapshot.tracked}
-                  </p>
-                  <p className="text-xs text-slate-500">{homeCopy.pulseTrackedHint}</p>
+            <article className={`${dashboardCardClassName} p-4 sm:p-5`}>
+              <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/80 to-transparent" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="section-kicker">{locale === 'he' ? 'במעקב' : 'Tracked'}</p>
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-100/90 bg-blue-50/90 text-blue-700 shadow-[0_14px_24px_-20px_rgba(37,99,235,0.7)]">
+                    <LayoutDashboard className="h-4.5 w-4.5" />
+                  </span>
                 </div>
-                <LayoutDashboard className="h-5 w-5 text-blue-600" />
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-slate-900">
+                      {movementSnapshot.tracked}
+                    </p>
+                    <p className="text-xs text-slate-500">{homeCopy.pulseTrackedHint}</p>
+                  </div>
+                </div>
               </div>
             </article>
 
-            <article className="card-surface rounded-[1.4rem] border p-4 sm:p-5">
-              <p className="section-kicker">{locale === 'he' ? 'עולות' : 'Gainers'}</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-emerald-600">
-                    {movementSnapshot.gainers}
-                  </p>
-                  <p className="text-xs text-slate-500">{homeCopy.pulseGainersHint}</p>
+            <article className={`${dashboardCardClassName} p-4 sm:p-5`}>
+              <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="section-kicker">{locale === 'he' ? 'עולות' : 'Gainers'}</p>
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-100/90 bg-emerald-50/90 text-emerald-700 shadow-[0_14px_24px_-20px_rgba(16,185,129,0.7)]">
+                    <ArrowUpRight className="h-4.5 w-4.5" />
+                  </span>
                 </div>
-                <ArrowUpRight className="h-5 w-5 text-emerald-500" />
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-emerald-600">
+                      {movementSnapshot.gainers}
+                    </p>
+                    <p className="text-xs text-slate-500">{homeCopy.pulseGainersHint}</p>
+                  </div>
+                </div>
               </div>
             </article>
 
-            <article className="card-surface rounded-[1.4rem] border p-4 sm:p-5">
-              <p className="section-kicker">{locale === 'he' ? 'יורדות' : 'Decliners'}</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-rose-600">
-                    {movementSnapshot.decliners}
-                  </p>
-                  <p className="text-xs text-slate-500">{homeCopy.pulseDeclinersHint}</p>
+            <article className={`${dashboardCardClassName} p-4 sm:p-5`}>
+              <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-rose-300/80 to-transparent" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="section-kicker">{locale === 'he' ? 'יורדות' : 'Decliners'}</p>
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-100/90 bg-rose-50/90 text-rose-700 shadow-[0_14px_24px_-20px_rgba(244,63,94,0.7)]">
+                    <ArrowDownRight className="h-4.5 w-4.5" />
+                  </span>
                 </div>
-                <ArrowDownRight className="h-5 w-5 text-rose-500" />
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[clamp(1.4rem,3vw,1.85rem)] font-semibold tracking-tight text-rose-600">
+                      {movementSnapshot.decliners}
+                    </p>
+                    <p className="text-xs text-slate-500">{homeCopy.pulseDeclinersHint}</p>
+                  </div>
+                </div>
               </div>
             </article>
 
-            <article className="card-surface rounded-[1.4rem] border p-4 sm:p-5">
-              <p className="section-kicker">{locale === 'he' ? 'תנועה חזקה' : 'Strongest move'}</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-slate-900 sm:text-lg">
-                    {movementSnapshot.topMover?.position.display || movementSnapshot.topMover?.position.symbol || '—'}
-                  </p>
-                  <p className="text-xs text-slate-500">{homeCopy.pulseTopHint}</p>
-                  <p className="mt-0.5 text-sm font-semibold text-slate-700">
-                    {formatSignedCurrency(movementSnapshot.topMoveUsd, 'USD', locale)}
-                  </p>
+            <article className={`${dashboardCardClassName} p-4 sm:p-5`}>
+              <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/80 to-transparent" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="section-kicker">{locale === 'he' ? 'תנועה חזקה' : 'Strongest move'}</p>
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200/90 bg-amber-50/90 text-amber-700 shadow-[0_14px_24px_-20px_rgba(245,158,11,0.72)]">
+                    <TopMoveIcon className={`h-4.5 w-4.5 ${movementSnapshot.topMoveTone.text}`} />
+                  </span>
                 </div>
-                <TopMoveIcon className={`h-5 w-5 ${movementSnapshot.topMoveTone.text}`} />
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate text-base font-semibold text-slate-900 sm:text-lg">
+                      {movementSnapshot.topMover?.position.display || movementSnapshot.topMover?.position.symbol || '—'}
+                    </p>
+                    <p className="text-xs text-slate-500">{homeCopy.pulseTopHint}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-700">
+                      {formatSignedCurrency(movementSnapshot.topMoveUsd, 'USD', locale)}
+                    </p>
+                  </div>
+                </div>
               </div>
             </article>
           </div>
@@ -435,9 +477,11 @@ export default function HomePage() {
     hasAnyPositions ? (
       <section
         id={sectionAnchors.positions}
-        className="page-surface relative overflow-hidden rounded-[2rem] p-5 sm:p-6 lg:p-7"
+        className={`${dashboardSectionClassName} animate-soft-rise p-5 motion-reduce:animate-none sm:p-6 lg:p-7`}
+        style={{ animationDelay: '120ms' }}
       >
-        <div className="space-y-4">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-blue-100/60 via-white/35 to-transparent" />
+        <div className="relative z-10 space-y-4 sm:space-y-5">
           <div className="space-y-2">
             <p className="section-kicker">{t.dashboard.sectionPositionsLabel}</p>
             <h2 className="page-title text-2xl font-semibold sm:text-[1.65rem]">{t.dashboard.positionsTitle}</h2>
@@ -460,15 +504,17 @@ export default function HomePage() {
     summary && openMetrics.length > 0 ? (
       <section
         id={sectionAnchors.visualizations}
-        className="page-surface relative overflow-hidden rounded-[2rem] p-5 sm:p-6 lg:p-7"
+        className={`${dashboardSectionClassName} animate-soft-rise p-5 motion-reduce:animate-none sm:p-6 lg:p-7`}
+        style={{ animationDelay: '160ms' }}
       >
-        <div className="space-y-4">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-indigo-100/55 via-white/35 to-transparent" />
+        <div className="relative z-10 space-y-4 sm:space-y-5">
           <div className="space-y-2">
             <p className="section-kicker">{t.dashboard.sectionVisualizationsLabel}</p>
             <h2 className="page-title text-2xl font-semibold sm:text-[1.65rem]">{t.dashboard.visualizationsTitle}</h2>
             <p className="page-subtitle text-sm">{homeCopy.visualSubtitle}</p>
           </div>
-          <div className="rounded-[1.5rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-slate-50)]/70 p-4 sm:p-5 lg:p-6">
+          <div className="rounded-[1.6rem] border border-white/75 bg-white/76 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-sm sm:p-5 lg:p-6">
             <PortfolioVisualizations metrics={openMetrics} summary={summary} />
           </div>
         </div>
@@ -479,7 +525,11 @@ export default function HomePage() {
 
   const renderSectionNavigation = () =>
     shouldShowMobileSectionNav ? (
-      <section className="nav-shell rounded-[1.8rem] p-4 sm:p-5 lg:p-6" aria-label={homeCopy.sectionNav}>
+      <section
+        className="nav-shell relative isolate overflow-hidden rounded-[1.9rem] border border-white/70 bg-[linear-gradient(165deg,rgba(255,255,255,0.96),rgba(245,249,255,0.9)_58%,rgba(224,242,254,0.55)_100%)] p-4 shadow-[0_24px_48px_-36px_rgba(15,23,42,0.56)] ring-1 ring-white/55 sm:hidden sm:p-5 lg:p-6"
+        aria-label={homeCopy.sectionNav}
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/80 to-transparent" aria-hidden="true" />
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
             <p className="section-kicker">{homeCopy.sectionNav}</p>
@@ -490,7 +540,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="relative z-10 mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {sectionTabs.map(({ key, label, description, icon: Icon, available }) => {
             const isActive = resolvedActiveSection === key;
 
@@ -501,18 +551,24 @@ export default function HomePage() {
                 onClick={() => available && setActiveSection(key)}
                 disabled={!available}
                 aria-pressed={isActive}
-                className={`group flex h-full min-h-36 min-w-0 flex-col rounded-[1.4rem] border p-4 text-left transition-all duration-200 sm:min-h-40 sm:p-5 ${
+                className={`group relative flex h-full min-h-40 min-w-0 flex-col rounded-[1.5rem] border p-4 text-left transition-all duration-300 motion-reduce:transform-none motion-reduce:transition-none sm:min-h-44 sm:p-5 ${
                   isActive
-                    ? 'border-blue-300 bg-blue-50/80 shadow-md'
-                    : 'border-[color:var(--color-slate-200)]/85 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-sm'
+                    ? 'border-blue-300/90 bg-[linear-gradient(180deg,rgba(239,246,255,0.96),rgba(255,255,255,0.92))] shadow-[0_22px_40px_-26px_rgba(37,99,235,0.38)]'
+                    : 'border-white/80 bg-white/84 hover:-translate-y-0.5 hover:border-blue-200/90 hover:bg-white hover:shadow-[0_18px_34px_-26px_rgba(15,23,42,0.32)]'
                 } ${available ? '' : 'cursor-not-allowed opacity-60'}`}
               >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent ${
+                    isActive ? 'via-blue-300/90 to-transparent' : 'via-slate-200/80 to-transparent'
+                  }`}
+                />
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border ${
+                    className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_16px_28px_-22px_rgba(15,23,42,0.25)] ${
                       isActive
-                        ? 'border-blue-200 bg-blue-100 text-blue-700'
-                        : 'border-[color:var(--color-slate-200)]/80 bg-slate-50 text-slate-500'
+                        ? 'border-blue-200 bg-blue-100/95 text-blue-700'
+                        : 'border-[color:var(--color-slate-200)]/80 bg-slate-50/95 text-slate-500'
                     }`}
                   >
                     <Icon className="h-4.5 w-4.5" />
@@ -527,9 +583,18 @@ export default function HomePage() {
                     {available ? homeCopy.available : homeCopy.locked}
                   </span>
                 </div>
-                <div className="mt-3 space-y-1.5">
-                  <p className="text-base font-semibold text-slate-900">{label}</p>
+                <div className="mt-4 space-y-2">
+                  <p className="text-base font-semibold leading-tight text-slate-900">{label}</p>
                   <p className="text-sm leading-6 text-slate-500">{description}</p>
+                </div>
+                <div className="mt-auto pt-4">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      isActive ? 'bg-blue-100/90 text-blue-700' : 'bg-slate-100/90 text-slate-600'
+                    }`}
+                  >
+                    {isActive ? label : homeCopy.sectionNav}
+                  </span>
                 </div>
               </button>
             );
@@ -542,13 +607,14 @@ export default function HomePage() {
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'} className="home-dashboard">
       <div className="page-container">
         <div className="page-stack">
-          <header className="page-header home-hero relative isolate overflow-hidden px-5 py-6 sm:px-7 sm:py-8 lg:px-8">
+          <header className="page-header home-hero relative isolate overflow-hidden px-5 py-6 shadow-[0_28px_56px_-42px_rgba(15,23,42,0.72)] animate-soft-rise motion-reduce:animate-none sm:px-7 sm:py-8 lg:px-8">
             <div className="floating-orb floating-orb-blue -left-8 top-0 h-40 w-40" aria-hidden="true" />
             <div className="floating-orb floating-orb-emerald -right-10 top-8 h-44 w-44" aria-hidden="true" />
-            <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,34rem)] xl:items-start">
+            <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-200/80 to-transparent" aria-hidden="true" />
+            <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(26.25rem,34rem)] lg:items-start">
               <div className="space-y-4 sm:space-y-5">
-                <span className="status-chip w-fit">{homeCopy.heroKicker}</span>
-                <div className="space-y-2.5">
+                <span className="status-chip w-fit shadow-[0_16px_28px_-20px_rgba(37,99,235,0.4)]">{homeCopy.heroKicker}</span>
+                <div className="max-w-3xl space-y-2.5">
                   <h1 className="page-title text-[clamp(2rem,5vw,3.2rem)] font-black leading-[1.02] tracking-tight">
                     {t.app.title}
                   </h1>
@@ -574,26 +640,47 @@ export default function HomePage() {
                     />
                   ) : null}
                 </div>
+                {availableSectionTabs.length ? (
+                  <div className="hidden gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex">
+                    {availableSectionTabs.map(({ key, label, icon: Icon }) => (
+                      <a
+                        key={key}
+                        href={`#${sectionAnchors[key]}`}
+                        className="group flex min-w-[11rem] items-center gap-3 rounded-[1.35rem] border border-white/80 bg-white/74 px-3.5 py-3 text-left shadow-[0_16px_28px_-22px_rgba(15,23,42,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_22px_36px_-24px_rgba(15,23,42,0.32)] motion-reduce:transform-none motion-reduce:transition-none"
+                      >
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-100/90 bg-blue-50/90 text-blue-700 shadow-[0_14px_24px_-20px_rgba(37,99,235,0.7)]">
+                          <Icon className="h-4.5 w-4.5" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            {homeCopy.sectionNav}
+                          </span>
+                          <span className="mt-1 block truncate text-sm font-semibold text-slate-900">{label}</span>
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <QuickActionsSection
                 title={t.dashboard.quickActions}
                 description={homeCopy.actionsDescription}
                 actions={quickActions}
-                className="w-full max-w-full xl:justify-self-end"
+                className="w-full max-w-full lg:justify-self-end"
               />
             </div>
           </header>
 
           {loading ? (
-            <section className="page-surface rounded-[1.8rem] px-5 py-14 sm:px-6 sm:py-16">
+            <section className={`${dashboardSectionClassName} rounded-[1.8rem] px-5 py-14 sm:px-6 sm:py-16`}>
               <div className="flex flex-col items-center justify-center gap-3 text-slate-500">
                 <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
                 <p>{t.common.loading}</p>
               </div>
             </section>
           ) : !hasAnyPositions ? (
-            <section className="page-surface rounded-[1.8rem] px-5 py-8 sm:px-6 sm:py-10">
+            <section className={`${dashboardSectionClassName} rounded-[1.8rem] px-5 py-8 sm:px-6 sm:py-10`}>
               <DashboardEmptyState
                 title={t.dashboard.noPositions}
                 description={t.positions.title}
@@ -605,12 +692,13 @@ export default function HomePage() {
             <>
               <section
                 id="dashboard-section-summary"
-                className="page-surface relative overflow-hidden rounded-[2rem] p-5 sm:p-6 lg:p-7 animate-soft-rise"
+                className={`${dashboardSectionClassName} animate-soft-rise p-5 motion-reduce:animate-none sm:p-6 lg:p-7`}
                 style={{ animationDelay: '40ms' }}
               >
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-blue-200/40 to-transparent blur-3xl" />
-                <div className="relative z-10 space-y-5">
-                  <div className="space-y-2">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/70 via-blue-50/40 to-transparent" />
+                <div className="relative z-10 space-y-5 sm:space-y-6">
+                  <div className="space-y-2.5">
                     <p className="section-kicker">{t.dashboard.sectionSummaryLabel}</p>
                     <h2 className="page-title text-2xl font-semibold sm:text-[1.65rem]">{homeCopy.summaryTitle}</h2>
                     <p className="page-subtitle text-sm">{homeCopy.summarySubtitle}</p>
@@ -624,29 +712,31 @@ export default function HomePage() {
                         return (
                           <article
                             key={tile.key}
-                            className={`relative overflow-hidden rounded-[1.5rem] border bg-gradient-to-br p-4 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${tile.accentClassName}`}
+                            className={`${dashboardCardClassName} border-white/85 bg-gradient-to-br p-4 sm:p-5 ${tile.accentClassName}`}
                           >
-                            <div className="space-y-4">
+                            <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent" />
+                            <div className="pointer-events-none absolute -right-16 top-4 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_70%)] blur-3xl" />
+                            <div className="relative z-10 space-y-4">
                               <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1">
+                                <div className="space-y-1.5">
                                   <p className="text-sm font-semibold text-slate-600">{tile.label}</p>
                                   <p className={`text-[clamp(1.35rem,3vw,1.9rem)] font-semibold leading-none tracking-tight ${tile.valueClassName}`}>
                                     {tile.value}
                                   </p>
                                 </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/90 bg-white/80 text-slate-700 shadow-sm">
+                                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/90 bg-white/85 text-slate-700 shadow-[0_16px_28px_-22px_rgba(15,23,42,0.28)]">
                                   <Icon className="h-5 w-5" />
                                 </span>
                               </div>
 
                               {tile.badge ? (
-                                <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm ${tile.badge.className}`}>
+                                <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-[0_14px_24px_-20px_rgba(15,23,42,0.25)] ${tile.badge.className}`}>
                                   {tile.badge.icon}
                                   <span>{tile.badge.value}</span>
                                 </span>
                               ) : null}
 
-                              <div className="space-y-1.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 text-xs sm:text-sm">
+                              <div className="space-y-2 rounded-[1.1rem] border border-white/80 bg-white/74 px-3 py-3 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:text-sm">
                                 {tile.secondary ? (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="text-slate-500">{tile.secondary.label}</span>
@@ -669,7 +759,7 @@ export default function HomePage() {
                       })}
                     </div>
                   ) : (
-                    <div className="rounded-[1.4rem] border border-dashed border-slate-200 bg-white/70 px-5 py-8 text-sm text-slate-500">
+                    <div className="rounded-[1.4rem] border border-dashed border-slate-200 bg-white/74 px-5 py-8 text-sm text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
                       {homeCopy.summaryEmpty}
                     </div>
                   )}

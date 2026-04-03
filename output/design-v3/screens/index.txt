@@ -1,0 +1,9 @@
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/dashboard.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/positions.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/portfolio.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/realized-p-l.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/watchlist.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/insights.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/ai-prompts.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/settings.png
+/Users/razmaz/Desktop/code/Projects/LiveStocks/stocks/output/design-v3/screens/stock-detail.png

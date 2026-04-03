@@ -1,22 +1,31 @@
-import * as React from "react"
+'use client';
 
-import { cn } from "@/lib/utils"
+import * as React from 'react';
+import { Input as HeroInput } from '@heroui/react';
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+import { cn } from '@/lib/utils';
+
+const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, type, ...props }, ref) => {
     return (
-      <input
+      <HeroInput
+        ref={ref as React.Ref<HTMLInputElement>}
         type={type}
-        className={cn(
-          "control-shell flex min-h-10 w-full rounded-xl border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.88)] px-3.5 py-2.5 text-base leading-5 shadow-[0_16px_28px_-26px_rgba(15,23,42,0.7)] transition-[color,background-color,border-color,box-shadow] duration-200 ease-out placeholder:text-muted-foreground/70 hover:border-[color:var(--color-blue-200)]/90 focus-visible:outline-none focus-visible:border-[color:var(--color-blue-400)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] disabled:cursor-not-allowed disabled:border-input/60 disabled:bg-muted/50 disabled:text-muted-foreground/70 disabled:opacity-60 disabled:shadow-none touch-manipulation sm:min-h-10 sm:py-2 md:text-sm",
-          className
-        )}
-        ref={ref}
-        {...props}
+        variant="bordered"
+        radius="lg"
+        classNames={{
+          inputWrapper: cn(
+            'control-shell min-h-10 border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.88)] px-3.5 shadow-[0_16px_28px_-26px_rgba(15,23,42,0.7)] transition-[color,background-color,border-color,box-shadow] duration-200 ease-out hover:border-[color:var(--color-blue-200)]/90 data-[focus=true]:border-[color:var(--color-blue-400)] data-[focus=true]:ring-2 data-[focus=true]:ring-[color:var(--color-blue-300)]/60',
+            className
+          ),
+          input:
+            'text-base leading-5 text-[var(--color-primary-900)] placeholder:text-muted-foreground/70 md:text-sm',
+        }}
+        {...(props as Record<string, unknown>)}
       />
-    )
+    );
   }
-)
-Input.displayName = "Input"
+);
+Input.displayName = 'Input';
 
-export { Input }
+export { Input };

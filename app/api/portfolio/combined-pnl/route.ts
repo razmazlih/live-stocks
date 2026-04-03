@@ -6,7 +6,7 @@ import {
 } from '@/lib/calculations';
 import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
 import { computeRealizedSalesWithFx, mapPositionRow } from '@/lib/positions';
-import { fetchFinnhubQuote } from '@/lib/services/finnhub';
+import { fetchQuotesForSymbols, FinnhubConfigError } from '@/lib/services/quote-provider';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { getSupabaseClient } from '@/lib/supabase';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
@@ -65,21 +65,39 @@ export async function GET(request: NextRequest) {
       ? settingsResult.data.annual_growth_rate
       : DEFAULT_GROWTH_RATE;
 
-    const finnhubToken = settingsResult.data?.finnhub_token || process.env.FINNHUB_TOKEN;
+    const finnhubToken = settingsResult.data?.finnhub_token ?? process.env.FINNHUB_TOKEN;
+    let quotesBySymbol: Record<string, { c?: number }> = {};
+    try {
+      const quoteMap = await fetchQuotesForSymbols(
+        openPositions.map((position) => position.symbol),
+        { token: finnhubToken, forceRefresh: false },
+      );
 
-    const metrics = await Promise.all(
-      openPositions.map(async (position) => {
-        const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
-        const currentPrice = quote?.price && quote.price > 0 ? quote.price : position.entryPrice;
+      quotesBySymbol = Object.fromEntries(
+        Object.entries(quoteMap).map(([symbol, quote]) => [symbol, { c: quote.c }]),
+      );
+    } catch (error) {
+      if (error instanceof FinnhubConfigError) {
+        console.warn('Finnhub token is not configured; using entry prices as fallback.');
+      } else {
+        console.error('Failed to fetch live quotes for combined PnL route:', error);
+      }
+    }
 
-        return calculatePositionMetrics(
-          position,
-          currentPrice,
-          usdToIlsRate,
-          annualGrowthRate,
-        );
-      }),
-    );
+    const metrics = openPositions.map((position) => {
+      const quote = quotesBySymbol[position.symbol.trim().toUpperCase()];
+      const currentPrice =
+        typeof quote?.c === 'number' && quote.c > 0
+          ? quote.c
+          : position.entryPrice;
+
+      return calculatePositionMetrics(
+        position,
+        currentPrice,
+        usdToIlsRate,
+        annualGrowthRate,
+      );
+    });
 
     const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
 

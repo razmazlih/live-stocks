@@ -9,7 +9,6 @@ import {
   PositionLocation,
   PositionLot,
   PositionLotType,
-  StockQuote,
 } from "@/types";
 import {
   DEFAULT_COMMISSION_USD,
@@ -70,136 +69,38 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/page-shell";
-
-interface PositionFormData {
-  symbol: string;
-  display: string;
-  imageUrl: string;
-  location: PositionLocation;
-  initialPrice: number;
-  initialQuantity: number;
-  initialDate: string;
-  initialHasCommission: boolean;
-  initialCommissionAmount: number;
-}
-
-interface TransactionFormData {
-  id?: string;
-  type: PositionLotType;
-  price: number;
-  quantity: number;
-  executedAt: string;
-  hasCommission: boolean;
-  commissionAmount: number;
-}
-
-type PositionLocationFilter = PositionLocation | "all";
-type PositionSortOption =
-  | "latest_activity"
-  | "symbol_asc"
-  | "symbol_desc"
-  | "quantity_desc"
-  | "entry_date_desc";
-
-interface PositionListItem {
-  position: Position;
-  sortedLots: PositionLot[];
-  recentLots: PositionLot[];
-  lastActivityDate: string;
-  lastActivityTimestamp: number;
-  fallbackInitials: string;
-}
-
-const sectionShellClass =
-  "rounded-[30px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
-
-const cardShellClass =
-  "rounded-[26px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm";
-
-const chipShellClass =
-  "inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1.5 shadow-sm";
-
-const dialogShellClass =
-  "flex w-[min(42rem,calc(100vw-1rem))] max-h-[calc(100dvh-1rem)] max-w-none flex-col overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-sm sm:w-[min(42rem,calc(100vw-2rem))] sm:max-h-[calc(100dvh-2rem)]";
-
-const dialogSectionClass =
-  "space-y-3 rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 sm:space-y-4 sm:p-5";
-
-const dialogFooterClass =
-  "border-t border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/95 px-4 py-4 backdrop-blur-sm sm:px-6";
-
-const dialogActionButtonClass =
-  "h-11 w-full rounded-2xl sm:h-10 sm:w-auto";
-
-const panelLabelClass =
-  "block text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]";
-
-const controlLabelClass =
-  "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]";
-
-function getTimestampFromIsoDate(value: string): number {
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function buildFallbackInitials(display: string, symbol: string): string {
-  return (
-    (display || symbol || "?")
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("")
-      .slice(0, 2) || "?"
-  );
-}
-
-function getTodayIsoDate(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
-function createDefaultTransactionForm(): TransactionFormData {
-  return {
-    type: "BUY",
-    price: 0,
-    quantity: 0,
-    executedAt: getTodayIsoDate(),
-    hasCommission: true,
-    commissionAmount: DEFAULT_COMMISSION_USD,
-  };
-}
-
-async function fetchQuotePrice(symbol: string): Promise<number | null> {
-  const trimmedSymbol = symbol.trim().toUpperCase();
-
-  if (!trimmedSymbol) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `/api/quote?symbol=${encodeURIComponent(trimmedSymbol)}`,
-      { cache: "no-store" },
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data: StockQuote = await response.json();
-
-    if (typeof data.c === "number" && Number.isFinite(data.c) && data.c > 0) {
-      return data.c;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Failed to fetch quote price for symbol:", symbol, error);
-    return null;
-  }
-}
+import {
+  cardShellClass,
+  chipShellClass,
+  controlLabelClass,
+  dialogActionButtonClass,
+  dialogFooterClass,
+  dialogSectionClass,
+  dialogShellClass,
+  historyDialogShellClass,
+  panelLabelClass,
+  rowActionButtonClass,
+  sectionShellClass,
+  toolbarCardClass,
+} from "@/features/positions/page-styles";
+import type {
+  PositionFormData,
+  PositionLocationFilter,
+  PositionSortOption,
+  TransactionFormData,
+} from "@/features/positions/page-types";
+import {
+  createDefaultTransactionForm,
+  fetchQuotePrice,
+  getTodayIsoDate,
+} from "@/features/positions/page-utils";
+import {
+  buildPositionItems,
+  filterAndSortPositionItems,
+} from "@/features/positions/selectors";
 
 export default function PositionsPage() {
   const { locale, triggerRefresh, refreshTrigger } = useApp();
@@ -260,86 +161,20 @@ export default function PositionsPage() {
     [positions],
   );
 
-  const positionItems = useMemo<PositionListItem[]>(
-    () =>
-      positions.map((position) => {
-        const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
-          const aTime = getTimestampFromIsoDate(a.executedAt);
-          const bTime = getTimestampFromIsoDate(b.executedAt);
-          return bTime - aTime;
-        });
-
-        const recentLots = sortedLots.slice(0, 3);
-        const lastLotDate = sortedLots[0]?.executedAt ?? position.entryDate;
-
-        return {
-          position,
-          sortedLots,
-          recentLots,
-          lastActivityDate: lastLotDate,
-          lastActivityTimestamp: getTimestampFromIsoDate(lastLotDate),
-          fallbackInitials: buildFallbackInitials(position.display, position.symbol),
-        };
-      }),
+  const positionItems = useMemo(
+    () => buildPositionItems(positions),
     [positions],
   );
 
-  const filteredPositionItems = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toUpperCase();
-
-    const filtered = positionItems.filter(({ position }) => {
-      if (
-        locationFilter !== "all" &&
-        position.location !== locationFilter
-      ) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const symbol = position.symbol.toUpperCase();
-      const display = position.display.toUpperCase();
-
-      return (
-        symbol.includes(normalizedSearch) || display.includes(normalizedSearch)
-      );
-    });
-
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
-      if (sortOption === "latest_activity") {
-        return (
-          b.lastActivityTimestamp - a.lastActivityTimestamp ||
-          a.position.symbol.localeCompare(b.position.symbol)
-        );
-      }
-
-      if (sortOption === "symbol_desc") {
-        return b.position.symbol.localeCompare(a.position.symbol);
-      }
-
-      if (sortOption === "quantity_desc") {
-        return (
-          b.position.quantity - a.position.quantity ||
-          a.position.symbol.localeCompare(b.position.symbol)
-        );
-      }
-
-      if (sortOption === "entry_date_desc") {
-        return (
-          getTimestampFromIsoDate(b.position.entryDate) -
-            getTimestampFromIsoDate(a.position.entryDate) ||
-          a.position.symbol.localeCompare(b.position.symbol)
-        );
-      }
-
-      return a.position.symbol.localeCompare(b.position.symbol);
-    });
-
-    return sorted;
-  }, [locationFilter, positionItems, searchTerm, sortOption]);
+  const filteredPositionItems = useMemo(
+    () =>
+      filterAndSortPositionItems(positionItems, {
+        searchTerm,
+        locationFilter,
+        sortOption,
+      }),
+    [locationFilter, positionItems, searchTerm, sortOption],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -489,6 +324,38 @@ export default function PositionsPage() {
     },
   ];
 
+  const positionsPageCopy =
+    locale === "he"
+      ? {
+          heroKicker: "מרכז שליטת פוזיציות",
+          heroTagline:
+            "ריכוז חד של החשיפות הפעילות, קצב הפעילות, והפעולות שצריך לבצע בלי לאבד הקשר.",
+          spotlightLabel: "אותות מובילים",
+          workspaceTitle: "מרחב ניהול",
+          workspaceSubtitle:
+            "סינון, מיון ופעולות מהירות על כל הפוזיציות הפעילות במקום אחד.",
+          filtersLabel: "פילטרים פעילים",
+          noFiltersLabel: "אין פילטרים פעילים",
+          resultsLabel: "תצוגת רשימה",
+          historySummary: "ציר עסקאות",
+        }
+      : {
+          heroKicker: "Positions command center",
+          heroTagline:
+            "A sharper read on active exposure, activity cadence, and the actions worth taking next without losing context.",
+          spotlightLabel: "Lead signals",
+          workspaceTitle: "Management workspace",
+          workspaceSubtitle:
+            "Filter, sort, and act on every tracked position from one focused surface.",
+          filtersLabel: "Active filters",
+          noFiltersLabel: "No active filters",
+          resultsLabel: "List view",
+          historySummary: "Transaction timeline",
+        };
+
+  const activeFilterCount =
+    Number(Boolean(searchTerm.trim())) + Number(locationFilter !== "all");
+
   const loadPositions = useCallback(async () => {
     try {
       setLoading(true);
@@ -598,7 +465,7 @@ export default function PositionsPage() {
         label: t.positions.add,
         onClick: openAddDialog,
         className:
-          "bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]",
+          "bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_34px_-22px_rgba(37,99,235,0.72)] hover:bg-[var(--color-primary-650)] hover:shadow-[0_22px_40px_-22px_rgba(37,99,235,0.76)]",
       },
       ...baseActions,
     ];
@@ -914,18 +781,33 @@ export default function PositionsPage() {
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <header className={`${sectionShellClass} px-5 py-5 sm:px-6 sm:py-6`}>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_34%),radial-gradient(circle_at_88%_16%,rgba(16,185,129,0.1),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_46%)]"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.95),rgba(255,255,255,0))]"
+          />
           <div className="relative z-10 flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-6">
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="rounded-[18px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] p-2.5 text-[var(--color-primary-600)]">
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="rounded-[22px] border border-[color:var(--color-blue-100)]/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(239,246,255,0.84))] p-3 text-[var(--color-primary-600)] shadow-[0_18px_30px_-24px_rgba(37,99,235,0.75)]">
                   <Layers className="h-5 w-5" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-3xl">
+                <div className="min-w-0 flex-1 space-y-2.5">
+                  <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)] shadow-[0_14px_24px_-20px_rgba(37,99,235,0.65)]">
+                    <Layers className="h-3.5 w-3.5" />
+                    {positionsPageCopy.heroKicker}
+                  </span>
+                  <h1 className="text-2xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-3xl lg:text-[2.2rem]">
                     {t.positions.title}
                   </h1>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
                     {t.positions.subtitle}
+                  </p>
+                  <p className="max-w-3xl text-sm leading-6 text-[var(--color-slate-500)]">
+                    {positionsPageCopy.heroTagline}
                   </p>
                 </div>
               </div>
@@ -947,23 +829,33 @@ export default function PositionsPage() {
                 })}
               </div>
               {prioritySignals.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[28px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.7)] p-3 shadow-[0_20px_34px_-30px_rgba(15,23,42,0.44)] backdrop-blur-sm sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                      {positionsPageCopy.spotlightLabel}
+                    </p>
+                    <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(248,250,252,0.92)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                      {formatNumber(prioritySignals.length, locale)}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   {prioritySignals.map((signal) => {
                     const Icon = signal.icon;
 
                     return (
                       <div
                         key={signal.key}
-                        className={`${cardShellClass} overflow-hidden p-4`}
+                        className="relative overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_18px_30px_-28px_rgba(15,23,42,0.38)]"
                       >
+                        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,rgba(59,130,246,0),rgba(59,130,246,0.75),rgba(59,130,246,0))]" />
                         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--color-primary-050)] text-[var(--color-primary-600)]">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.92)] text-[var(--color-primary-600)] shadow-[0_14px_22px_-18px_rgba(37,99,235,0.72)]">
                             <Icon className="h-3.5 w-3.5" />
                           </span>
                           <span>{signal.label}</span>
                         </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                          <span className="text-sm font-semibold text-[var(--color-primary-900)]">
+                        <div className="mt-3 flex items-baseline gap-2">
+                          <span className="text-base font-semibold tracking-tight text-[var(--color-primary-900)]">
                             {signal.value}
                           </span>
                         </div>
@@ -973,6 +865,7 @@ export default function PositionsPage() {
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               )}
             </div>
@@ -981,16 +874,29 @@ export default function PositionsPage() {
               actions={quickActions}
               className="lg:sticky lg:top-6 lg:self-start"
             >
-              <p className="mt-4 text-xs leading-5 text-[var(--color-slate-500)]">
-                {t.positions.quickActionsDescription}
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                  {t.positions.quickActionsDescription}
+                </p>
+                <div className="rounded-[22px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.76)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-600)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                    {positionsPageCopy.resultsLabel}
+                  </span>
+                  <span className="mt-1 block">
+                    {t.positions.filteredResultCount(
+                      filteredPositionItems.length,
+                      positions.length,
+                    )}
+                  </span>
+                </div>
+              </div>
             </QuickActionsSection>
           </div>
         </header>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className={dialogShellClass}>
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
+            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
               <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                 {editingPosition ? t.positions.edit : t.positions.add}
               </DialogTitle>
@@ -1003,6 +909,16 @@ export default function PositionsPage() {
                     ? "יצירת פוזיציה חדשה עם פרטי כניסה מלאים."
                     : "Create a new position with full entry details."}
               </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                  {editingPosition ? t.positions.edit : t.positions.add}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                  {formData.location === "bank_two"
+                    ? t.positions.filterBankTwo
+                    : t.positions.filterBankOne}
+                </span>
+              </div>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
@@ -1087,7 +1003,14 @@ export default function PositionsPage() {
                     }
                     className="mt-4 grid gap-3 sm:grid-cols-2"
                   >
-                    <label className="flex min-w-0 flex-col gap-1 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 text-sm text-[var(--color-slate-600)] shadow-sm">
+                    <label
+                      className={cn(
+                        "flex min-w-0 flex-col gap-1 rounded-2xl border p-4 text-sm shadow-sm transition",
+                        formData.location === "bank_one"
+                          ? "border-[color:var(--color-blue-200)] bg-[rgba(239,246,255,0.86)] text-[var(--color-primary-700)] shadow-[0_18px_28px_-22px_rgba(37,99,235,0.48)]"
+                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
+                      )}
+                    >
                       <RadioGroupItem
                         value="bank_one"
                         id="position-location-one"
@@ -1102,7 +1025,14 @@ export default function PositionsPage() {
                         {t.positions.bankOneHelper}
                       </span>
                     </label>
-                    <label className="flex min-w-0 flex-col gap-1 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 text-sm text-[var(--color-slate-600)] shadow-sm">
+                    <label
+                      className={cn(
+                        "flex min-w-0 flex-col gap-1 rounded-2xl border p-4 text-sm shadow-sm transition",
+                        formData.location === "bank_two"
+                          ? "border-[color:var(--color-blue-200)] bg-[rgba(239,246,255,0.86)] text-[var(--color-primary-700)] shadow-[0_18px_28px_-22px_rgba(37,99,235,0.48)]"
+                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
+                      )}
+                    >
                       <RadioGroupItem
                         value="bank_two"
                         id="position-location-two"
@@ -1236,6 +1166,11 @@ export default function PositionsPage() {
                           }
                         />
                       </div>
+                      <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-500)]">
+                        {locale === "he"
+                          ? "כאשר עמלה פעילה, היא תיכנס אוטומטית ללוט הקנייה הראשון."
+                          : "When commission is enabled, it is applied directly to the first buy lot."}
+                      </div>
                       <div className="mt-4 space-y-2">
                         <Label htmlFor="initial-commission-amount">
                           {t.positions.transactionCommissionAmount}
@@ -1272,7 +1207,10 @@ export default function PositionsPage() {
                   >
                     {t.positions.cancel}
                   </Button>
-                  <Button type="submit" className={dialogActionButtonClass}>
+                  <Button
+                    type="submit"
+                    className={`${dialogActionButtonClass} bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] hover:bg-[var(--color-primary-650)]`}
+                  >
                     {t.positions.save}
                   </Button>
                 </div>
@@ -1292,7 +1230,7 @@ export default function PositionsPage() {
           }}
         >
           <DialogContent className={dialogShellClass}>
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
+            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
               <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                 {isEditingTransaction
                   ? t.positions.editTransaction
@@ -1303,6 +1241,16 @@ export default function PositionsPage() {
                   {(transactionTarget.display || transactionTarget.symbol).trim()} · {transactionTarget.symbol}
                 </p>
               )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                  {isEditingTransaction
+                    ? t.positions.editTransaction
+                    : t.positions.addTransaction}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                  {transactionForm.type === "SELL" ? t.positions.sell : t.positions.buy}
+                </span>
+              </div>
             </DialogHeader>
             <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
@@ -1318,11 +1266,25 @@ export default function PositionsPage() {
                     }
                     className="mt-4 grid gap-3 sm:grid-cols-2"
                   >
-                    <label className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-3 text-sm font-medium text-[var(--color-slate-600)] shadow-sm">
+                    <label
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-sm transition",
+                        transactionForm.type === "BUY"
+                          ? "border-[color:var(--color-emerald-200)] bg-[rgba(236,253,245,0.88)] text-[var(--color-emerald-700)] shadow-[0_18px_30px_-24px_rgba(16,185,129,0.34)]"
+                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
+                      )}
+                    >
                       <RadioGroupItem value="BUY" id="transaction-buy" />
                       {t.positions.buy}
                     </label>
-                    <label className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-3 text-sm font-medium text-[var(--color-slate-600)] shadow-sm">
+                    <label
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-sm transition",
+                        transactionForm.type === "SELL"
+                          ? "border-[color:var(--color-rose-200)] bg-[rgba(255,241,242,0.9)] text-[var(--color-rose-700)] shadow-[0_18px_30px_-24px_rgba(244,63,94,0.3)]"
+                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
+                      )}
+                    >
                       <RadioGroupItem value="SELL" id="transaction-sell" />
                       {t.positions.sell}
                     </label>
@@ -1427,6 +1389,15 @@ export default function PositionsPage() {
                       }
                     />
                   </div>
+                  <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-500)]">
+                    {transactionForm.type === "SELL"
+                      ? locale === "he"
+                        ? "בעסקאות מכירה העמלה תופחת ישירות מתוצאת העסקה."
+                        : "For sell transactions, commission is deducted directly from the trade outcome."
+                      : locale === "he"
+                        ? "בעסקאות קנייה העמלה מצטרפת לעלות הלוט החדש."
+                        : "For buy transactions, commission is added to the cost basis of the new lot."}
+                  </div>
                   <div className="mt-4 space-y-2">
                     <Label htmlFor="transaction-commission-amount">
                       {t.positions.transactionCommissionAmount}
@@ -1461,7 +1432,10 @@ export default function PositionsPage() {
                   >
                     {t.positions.cancel}
                   </Button>
-                  <Button type="submit" className={dialogActionButtonClass}>
+                  <Button
+                    type="submit"
+                    className={`${dialogActionButtonClass} bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] hover:bg-[var(--color-primary-650)]`}
+                  >
                     {t.positions.saveTransaction}
                   </Button>
                 </div>
@@ -1479,8 +1453,8 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="flex w-[min(32rem,calc(100vw-1rem))] max-h-[calc(100dvh-1rem)] max-w-none flex-col overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-0 shadow-lg sm:w-[min(32rem,calc(100vw-2rem))] sm:max-h-[calc(100dvh-2rem)]">
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/80 px-5 py-4 sm:px-6">
+          <DialogContent className={historyDialogShellClass}>
+            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
               <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
                 {t.positions.manageHistory}
               </DialogTitle>
@@ -1489,6 +1463,16 @@ export default function PositionsPage() {
                   {(historyTarget.display || historyTarget.symbol).trim()} ·{" "}
                   {historyTarget.symbol}
                 </p>
+              )}
+              {historyTarget && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
+                    {positionsPageCopy.historySummary}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                    {t.positions.transactionCount(historyTarget.lots?.length ?? 0)}
+                  </span>
+                </div>
               )}
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
@@ -1521,7 +1505,7 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="grid gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"
+                          className="grid gap-3 rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.94))] p-4 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.38)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"
                         >
                           <span
                             className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeTone}`}
@@ -1594,7 +1578,7 @@ export default function PositionsPage() {
             {historyTarget && (
               <div className={dialogFooterClass}>
                 <Button
-                  className="h-11 w-full rounded-2xl"
+                  className="h-11 w-full rounded-2xl bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_32px_-22px_rgba(37,99,235,0.7)] hover:bg-[var(--color-primary-650)]"
                   onClick={() => openTransactionDialog(historyTarget)}
                 >
                   <Plus className="h-4 w-4" />
@@ -1606,64 +1590,48 @@ export default function PositionsPage() {
         </Dialog>
 
         <main className="mt-8 space-y-8">
-          <section className="grid gap-3 md:grid-cols-3">
-            {prioritySignals.map((signal) => {
-              const Icon = signal.icon;
-
-              return (
-                <div
-                  key={signal.key}
-                  className="flex h-full flex-col rounded-[24px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-4 py-3 shadow-sm"
-                >
-                  <div className="flex min-w-0 items-start gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-primary-050)] text-[var(--color-primary-600)]">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 truncate">{signal.label}</span>
-                  </div>
-                  <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <span className="truncate text-sm font-semibold text-[var(--color-primary-900)]">
-                      {signal.value}
-                    </span>
-                    <span className="text-xs font-medium text-[var(--color-slate-500)]">
-                      {signal.helper}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-
           <section className={`${sectionShellClass} px-4 py-6 sm:px-8`}>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_52%)]"
+            />
             <div className="relative z-10">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
+                <div className="space-y-1.5">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {t.positions.overviewTitle}
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-[var(--color-slate-500)]">
+                  <h2 className="text-xl font-semibold tracking-tight text-[var(--color-primary-900)]">
+                    {positionsPageCopy.workspaceTitle}
+                  </h2>
+                  <p className="text-sm leading-6 text-[var(--color-slate-500)]">
                     {t.positions.overviewDescription}
                   </p>
                 </div>
-                <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
-                  {locale === "he" ? "תצוגת מצב" : "Snapshot view"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--color-slate-200)] bg-[rgba(255,255,255,0.94)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                    {locale === "he" ? "תצוגת מצב" : "Snapshot view"}
+                  </span>
+                  <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">
+                    {positionsPageCopy.resultsLabel}
+                  </span>
+                </div>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {overviewStats.map(({ key, label, value, icon: Icon, tone }) => (
                   <Card
                     key={key}
-                    className={cn(cardShellClass, tone)}
+                    className={cn(cardShellClass, tone, "border-[color:var(--color-slate-200)]/75")}
                   >
                     <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                      <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-2.5 text-[var(--color-primary-700)]">
+                      <div className="rounded-[20px] border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.88)] p-2.5 text-[var(--color-primary-700)] shadow-[0_16px_24px_-20px_rgba(37,99,235,0.6)]">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)] sm:text-[11px]">
                           {label}
                         </p>
-                        <p className="text-[clamp(1rem,2.2vw,1.2rem)] font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="text-[clamp(1.05rem,2.2vw,1.3rem)] font-semibold tracking-tight text-[var(--color-primary-900)]">
                           {value}
                         </p>
                       </div>
@@ -1675,7 +1643,39 @@ export default function PositionsPage() {
           </section>
 
           <section className={`${sectionShellClass} px-4 py-8 sm:px-8`}>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(59,130,246,0.08),transparent_26%),radial-gradient(circle_at_92%_24%,rgba(16,185,129,0.06),transparent_22%)]"
+            />
             <div className="relative z-10">
+              <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                    {positionsPageCopy.workspaceTitle}
+                  </p>
+                  <h2 className="text-xl font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-2xl">
+                    {t.positions.title}
+                  </h2>
+                  <p className="max-w-2xl text-sm leading-6 text-[var(--color-slate-500)]">
+                    {positionsPageCopy.workspaceSubtitle}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">
+                    {t.positions.filteredResultCount(
+                      filteredPositionItems.length,
+                      positions.length,
+                    )}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+                    {t.positions.rangeSummary(
+                      displayFrom,
+                      displayTo,
+                      filteredPositionItems.length,
+                    )}
+                  </span>
+                </div>
+              </div>
               {loading ? (
                 <Card className={cn(cardShellClass, "overflow-hidden")}>
                   <CardContent className="space-y-5 p-5 sm:p-6">
@@ -1733,7 +1733,10 @@ export default function PositionsPage() {
                         {t.positions.emptyStateDescription}
                       </p>
                     </div>
-                    <Button onClick={openAddDialog} className="gap-2">
+                    <Button
+                      onClick={openAddDialog}
+                      className="gap-2 bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_32px_-22px_rgba(37,99,235,0.7)] hover:bg-[var(--color-primary-650)]"
+                    >
                       <Plus className="h-4 w-4" />
                       {t.positions.add}
                     </Button>
@@ -1741,7 +1744,7 @@ export default function PositionsPage() {
                 </Card>
               ) : (
                 <div className="grid gap-6 xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] xl:items-start">
-                  <Card className={`${cardShellClass} xl:sticky xl:top-6`}>
+                  <Card className={`${toolbarCardClass} xl:sticky xl:top-6`}>
                     <CardContent className="space-y-4 p-4 sm:p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
@@ -1749,10 +1752,10 @@ export default function PositionsPage() {
                             {locale === "he" ? "סינון והתאמה" : "Filter and sort"}
                           </p>
                           <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                            {t.positions.quickActionsDescription}
+                            {positionsPageCopy.workspaceSubtitle}
                           </p>
                         </div>
-                        <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)] shadow-sm">
+                        <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.92)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)] shadow-sm">
                           {formatNumber(filteredPositionItems.length, locale)}
                         </span>
                       </div>
@@ -1859,7 +1862,16 @@ export default function PositionsPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-3 py-2 text-xs text-[var(--color-slate-500)]">
+                      <div className="space-y-3 rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs text-[var(--color-slate-500)] shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                            {positionsPageCopy.filtersLabel}
+                          </span>
+                          <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(248,250,252,0.92)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                            {activeFilterCount}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-[color:var(--color-primary-050)] px-3 py-1 font-semibold text-[var(--color-primary-700)]">
                             {t.positions.filteredResultCount(
@@ -1890,11 +1902,10 @@ export default function PositionsPage() {
                           </Button>
                         ) : (
                           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-400)]">
-                            {locale === "he"
-                              ? "אין פילטרים פעילים"
-                              : "No active filters"}
+                            {positionsPageCopy.noFiltersLabel}
                           </span>
                         )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1932,7 +1943,24 @@ export default function PositionsPage() {
                       </Card>
                     ) : (
                       <>
-                        <div className="hidden overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm md:block">
+                        <div className="hidden overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] shadow-[0_24px_44px_-34px_rgba(15,23,42,0.44)] md:block">
+                          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--color-slate-200)]/70 bg-[rgba(248,250,252,0.88)] px-5 py-4">
+                            <div>
+                              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
+                                {positionsPageCopy.resultsLabel}
+                              </p>
+                              <p className="mt-1 text-sm text-[var(--color-slate-500)]">
+                                {t.positions.rangeSummary(
+                                  displayFrom,
+                                  displayTo,
+                                  filteredPositionItems.length,
+                                )}
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.92)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
+                              {formatNumber(paginatedPositionItems.length, locale)}
+                            </span>
+                          </div>
                           <div className="overflow-x-auto">
                             <Table className="min-w-[980px]">
                               <TableHeader className="bg-[color:var(--color-slate-50)]">
@@ -1967,7 +1995,7 @@ export default function PositionsPage() {
                                   return (
                                     <TableRow
                                       key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                      className="group border-b border-[color:var(--color-slate-200)]/50 transition-colors hover:bg-[color:var(--color-slate-50)]"
+                                      className="group border-b border-[color:var(--color-slate-200)]/50 transition-colors hover:bg-[rgba(248,250,252,0.92)]"
                                     >
                                       <TableCell className="py-4">
                                         <div className="flex items-center gap-3">
@@ -2050,7 +2078,7 @@ export default function PositionsPage() {
                                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                                             <Link
                                               href={`/stock/${position.symbol}`}
-                                              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3.5 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm transition hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] px-3.5 text-xs font-semibold text-[var(--color-neutral-white)] shadow-[0_16px_28px_-22px_rgba(37,99,235,0.7)] transition hover:-translate-y-0.5 hover:bg-[var(--color-primary-650)] xl:w-auto"
                                             >
                                               <BarChart3 className="h-4 w-4" />
                                               <span>{t.dashboard.viewDetails}</span>
@@ -2059,7 +2087,7 @@ export default function PositionsPage() {
                                               variant="outline"
                                               size="sm"
                                               onClick={() => openTransactionDialog(position)}
-                                              className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                              className={rowActionButtonClass}
                                             >
                                               <ArrowRightLeft className="h-4 w-4" />
                                               <span>{t.positions.addTransaction}</span>
@@ -2068,13 +2096,13 @@ export default function PositionsPage() {
                                               variant="outline"
                                               size="sm"
                                               onClick={() => openHistoryDialog(position)}
-                                              className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] xl:w-auto"
+                                              className={rowActionButtonClass}
                                             >
                                               <History className="h-4 w-4" />
                                               <span>{t.positions.manageHistory}</span>
                                             </Button>
                                           </div>
-                                          <div className="flex items-center justify-end gap-2">
+                                          <div className="flex items-center justify-end gap-2 rounded-full border border-[color:var(--color-slate-200)]/75 bg-[rgba(248,250,252,0.9)] px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
                                             <Button
                                               variant="ghost"
                                               size="icon"
@@ -2114,9 +2142,9 @@ export default function PositionsPage() {
                             return (
                               <Card
                                 key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                className={cardShellClass}
+                                className={cn(cardShellClass, "border-[color:var(--color-slate-200)]/85")}
                               >
-                                <CardHeader className="space-y-3 pb-3 pt-4">
+                                <CardHeader className="space-y-4 pb-3 pt-4">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-3">
                                       <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
@@ -2151,7 +2179,7 @@ export default function PositionsPage() {
                                     </div>
                                     <Link
                                       href={`/stock/${position.symbol}`}
-                                      className="inline-flex h-9 self-start items-center gap-1.5 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm transition hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)] sm:self-auto"
+                                      className="inline-flex h-9 self-start items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] px-3 text-xs font-semibold text-[var(--color-neutral-white)] shadow-[0_16px_28px_-22px_rgba(37,99,235,0.7)] transition hover:-translate-y-0.5 hover:bg-[var(--color-primary-650)] sm:self-auto"
                                     >
                                       <BarChart3 className="h-4 w-4" />
                                       <span>{t.dashboard.viewDetails}</span>
@@ -2225,7 +2253,7 @@ export default function PositionsPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => openTransactionDialog(position)}
-                                      className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
+                                      className={rowActionButtonClass}
                                     >
                                       <ArrowRightLeft className="h-4 w-4" />
                                       {t.positions.addTransaction}
@@ -2234,13 +2262,13 @@ export default function PositionsPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => openHistoryDialog(position)}
-                                      className="h-9 w-full rounded-full border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-3 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
+                                      className={rowActionButtonClass}
                                     >
                                       <History className="h-4 w-4" />
                                       {t.positions.manageHistory}
                                     </Button>
                                   </div>
-                                  <div className="flex items-center justify-start gap-1.5 sm:justify-end">
+                                  <div className="flex items-center justify-start gap-1.5 rounded-full border border-[color:var(--color-slate-200)]/75 bg-[rgba(248,250,252,0.9)] px-2 py-1 sm:justify-end">
                                       <Button
                                         variant="ghost"
                                         size="icon"

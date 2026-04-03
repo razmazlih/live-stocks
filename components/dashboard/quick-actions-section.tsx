@@ -30,36 +30,59 @@ export function QuickActionsSection({
   return (
     <div
       className={cn(
-        'relative isolate w-full max-w-full overflow-hidden rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(155deg,rgba(255,255,255,0.96)_0%,rgba(246,250,255,0.9)_58%,rgba(226,240,255,0.46)_100%)] p-4 shadow-[0_24px_44px_-34px_rgba(15,23,42,0.64)] backdrop-blur-md max-[480px]:p-3.5 sm:p-5 lg:min-w-[420px] lg:max-w-[560px]',
+        'relative isolate w-full max-w-full overflow-hidden rounded-[1.9rem] border border-[color:var(--color-blue-100)]/70 bg-[linear-gradient(150deg,rgba(255,255,255,0.97)_0%,rgba(248,251,255,0.96)_40%,rgba(232,243,255,0.82)_100%)] p-4 shadow-[0_30px_64px_-40px_rgba(15,23,42,0.72)] backdrop-blur-xl max-[480px]:p-3.5 sm:p-5 lg:min-w-[420px] lg:max-w-[560px]',
         className
       )}
     >
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.78),transparent_48%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.82),transparent_46%)]"
         aria-hidden="true"
       />
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
-            <p className="max-w-full text-balance text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-slate-500)]">
+      <div
+        className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_70%)] blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -bottom-20 left-[-3.5rem] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.12),transparent_72%)] blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(147,197,253,0.9),rgba(255,255,255,0))]"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <p className="max-w-full text-balance text-[10px] font-black uppercase tracking-[0.22em] text-[var(--color-slate-500)]">
               {title}
             </p>
             {description ? (
-              <p className="max-w-full text-balance text-xs leading-relaxed text-[var(--color-slate-500)]">{description}</p>
+              <p className="max-w-[30rem] text-balance text-sm leading-relaxed text-[var(--color-slate-600)]/92">
+                {description}
+              </p>
             ) : null}
           </div>
           {visibleActions.length > 0 ? (
-            <span className="inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-primary-200)]/78 bg-[color:var(--color-primary-050)]/88 px-2 text-[11px] font-semibold text-[var(--color-primary-700)] shadow-[0_12px_18px_-14px_rgba(37,99,235,0.58)]">
+            <span className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-blue-200)]/88 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(239,246,255,0.94))] px-3 text-[11px] font-semibold tabular-nums text-[var(--color-blue-700)] shadow-[0_18px_24px_-18px_rgba(37,99,235,0.64)] ring-1 ring-white/70">
               {visibleActions.length}
             </span>
           ) : null}
         </div>
         {visibleActions.length ? (
-          <div className="mt-4">
+          <div className="rounded-[1.6rem] border border-white/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.82),rgba(248,250,255,0.66))] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <DashboardQuickActions actions={visibleActions} />
           </div>
         ) : null}
-        {children ? <div className={cn(visibleActions.length ? 'mt-4' : 'mt-3')}>{children}</div> : null}
+        {children ? (
+          <div
+            className={cn(
+              'rounded-[1.45rem] border border-white/75 bg-[rgba(255,255,255,0.64)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]',
+              visibleActions.length ? 'mt-1' : 'mt-3'
+            )}
+          >
+            {children}
+          </div>
+        ) : null}
       </div>
     </div>
   );

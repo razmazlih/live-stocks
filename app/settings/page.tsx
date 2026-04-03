@@ -13,7 +13,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/translations";
 import { isNasdaqTradingHours } from "@/lib/utils/trading-hours";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   CircleDollarSign,
   Clock,

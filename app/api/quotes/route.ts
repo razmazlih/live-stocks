@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-
+import { NextRequest } from 'next/server';
 import {
-  fetchFinnhubQuoteCached,
+  errorNoStore,
+  jsonNoStore,
+  parseBooleanFlag,
+  parseSymbolsList,
+} from '@/lib/api/route';
+import {
+  fetchQuotesForSymbols,
   FinnhubConfigError,
-  resolveFinnhubToken,
-} from '@/lib/services/finnhub-cache';
-import { StockQuote } from '@/types';
-
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
+} from '@/lib/services/quote-provider';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -17,65 +18,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const symbolsParam = searchParams.get('symbols');
     const tokenParam = searchParams.get('token');
-    const forceRefresh = searchParams.get('forceRefresh') === '1';
+    const forceRefresh = parseBooleanFlag(searchParams.get('forceRefresh'));
 
     if (!symbolsParam) {
-      return NextResponse.json(
-        { error: 'Symbols parameter is required' },
-        { status: 400, headers: NO_STORE_HEADERS },
-      );
+      return errorNoStore('Symbols parameter is required', 400);
     }
 
-    const symbols = Array.from(
-      new Set(
-        symbolsParam
-          .split(',')
-          .map((symbol) => symbol.trim().toUpperCase())
-          .filter(Boolean),
-      ),
-    );
+    const symbols = parseSymbolsList(symbolsParam);
 
     if (!symbols.length) {
-      return NextResponse.json(
-        { error: 'No valid symbols were provided' },
-        { status: 400, headers: NO_STORE_HEADERS },
-      );
+      return errorNoStore('No valid symbols were provided', 400);
     }
 
-    const token = await resolveFinnhubToken(tokenParam);
-
-    const quotePairs = await Promise.all(
-      symbols.map(async (symbol) => {
-        try {
-          const quote = await fetchFinnhubQuoteCached(symbol, token, { forceRefresh });
-          return [symbol, quote] as const;
-        } catch (error) {
-          console.error(`Failed to fetch quote for ${symbol}:`, error);
-          return [symbol, null] as const;
-        }
-      }),
-    );
-
-    const quotes: Record<string, StockQuote> = {};
-    quotePairs.forEach(([symbol, quote]) => {
-      if (quote) {
-        quotes[symbol] = quote;
-      }
+    const quotes = await fetchQuotesForSymbols(symbols, {
+      token: tokenParam,
+      forceRefresh,
     });
 
-    return NextResponse.json({ quotes }, { headers: NO_STORE_HEADERS });
+    return jsonNoStore({ quotes });
   } catch (error) {
     if (error instanceof FinnhubConfigError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status, headers: NO_STORE_HEADERS },
-      );
+      return errorNoStore(error.message, error.status);
     }
 
     console.error('Quotes API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch quotes data' },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
+    return errorNoStore('Failed to fetch quotes data', 500);
   }
 }

@@ -98,6 +98,12 @@ const NAV_TONE_STYLES: Record<
   },
 };
 
+const dropdownContentClassName =
+  'w-[min(19rem,calc(100vw-1rem))] rounded-[1.7rem] border border-[color:var(--color-slate-200)]/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.985),rgba(244,248,255,0.95))] p-2 shadow-[0_28px_56px_-26px_rgba(15,23,42,0.24)] backdrop-blur-2xl';
+
+const dropdownItemClassName =
+  'group flex cursor-pointer items-start gap-3 rounded-[1.35rem] border border-transparent px-3 py-3 outline-none transition-[background-color,border-color,box-shadow,transform,color] duration-200 focus:bg-[rgba(255,255,255,0.92)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.92)]';
+
 function isRouteActive(pathname: string | null, item: NavItem) {
   if (!pathname) {
     return false;
@@ -112,10 +118,10 @@ function isRouteActive(pathname: string | null, item: NavItem) {
 
 function desktopNavItemClasses(active: boolean) {
   return cn(
-    'group relative inline-flex shrink-0 items-center gap-2.5 overflow-hidden rounded-[1.25rem] border px-3.5 py-2.5 text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
+    'group relative inline-flex min-h-[4.25rem] shrink-0 items-center gap-2.5 overflow-hidden rounded-[1.3rem] border px-3.5 py-2.5 text-sm font-semibold backdrop-blur-xl transition-[background-color,border-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
     active
-      ? 'border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.94)] text-[var(--color-primary-900)] shadow-[0_20px_32px_-24px_rgba(15,23,42,0.55)]'
-      : 'border-transparent bg-[rgba(255,255,255,0.52)] text-[var(--color-slate-600)] hover:-translate-y-0.5 hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.86)] hover:text-[var(--color-primary-800)]'
+      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] text-[var(--color-primary-900)] shadow-[0_24px_40px_-28px_rgba(15,23,42,0.72)]'
+      : 'border-[color:var(--color-neutral-white)]/28 bg-[linear-gradient(145deg,rgba(255,255,255,0.62),rgba(248,250,252,0.42))] text-[var(--color-slate-600)] hover:-translate-y-[1px] hover:border-[color:var(--color-blue-100)]/95 hover:bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(239,246,255,0.78))] hover:text-[var(--color-primary-800)] hover:shadow-[0_22px_34px_-28px_rgba(15,23,42,0.68)]'
   );
 }
 
@@ -123,7 +129,7 @@ function desktopIconClasses(active: boolean, tone: NavTone) {
   const styles = NAV_TONE_STYLES[tone];
 
   return cn(
-    'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.05rem] transition-colors duration-200',
+    'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.08rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-[transform,background-color,box-shadow,color] duration-300 group-hover:scale-[1.04]',
     active ? styles.iconActive : styles.icon
   );
 }
@@ -134,10 +140,10 @@ function desktopMoreTriggerClasses(active: boolean) {
 
 function mobileNavItemClasses(active: boolean) {
   return cn(
-    'group relative flex min-h-[5.2rem] w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[1.4rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.1] transition-[background-color,border-color,color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
+    'group relative flex min-h-[5.35rem] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.45rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.08] transition-[background-color,border-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
     active
-      ? 'border-[color:var(--color-blue-100)]/90 bg-[rgba(255,255,255,0.94)] text-[var(--color-primary-900)] shadow-[0_20px_30px_-24px_rgba(15,23,42,0.68)]'
-      : 'border-transparent bg-transparent text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.76)] hover:text-[var(--color-primary-800)]'
+      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] text-[var(--color-primary-900)] shadow-[0_22px_34px_-24px_rgba(15,23,42,0.72)]'
+      : 'border-[color:var(--color-neutral-white)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.82)] hover:text-[var(--color-primary-800)] hover:shadow-[0_18px_24px_-28px_rgba(15,23,42,0.6)]'
   );
 }
 
@@ -145,7 +151,7 @@ function mobileIconClasses(active: boolean, tone: NavTone) {
   const styles = NAV_TONE_STYLES[tone];
 
   return cn(
-    'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[1rem] transition-colors duration-200',
+    'relative inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-[1.05rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[transform,background-color,box-shadow,color] duration-300 group-hover:scale-[1.05]',
     active ? styles.iconActive : styles.icon
   );
 }
@@ -175,18 +181,37 @@ function DesktopNavLink({
           active ? 'opacity-100' : 'group-hover:opacity-80'
         )}
       />
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-x-3 top-0 h-px rounded-full bg-gradient-to-r from-transparent via-white/95 to-transparent transition-opacity duration-300',
+          active ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'
+        )}
+      />
       <span className={desktopIconClasses(active, item.tone)}>
         <Icon className="h-4 w-4" />
       </span>
-      <span className="relative min-w-0 max-w-full truncate text-[13px] font-semibold leading-tight">
+      <span
+        className={cn(
+          'relative min-w-0 max-w-full truncate text-[13px] leading-tight transition-colors duration-300',
+          active ? 'font-bold text-[var(--color-primary-900)]' : 'font-semibold text-current'
+        )}
+      >
         {item.label}
       </span>
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-4 bottom-0.5 h-0.5 rounded-full transition-opacity',
+          'relative h-2 w-2 shrink-0 rounded-full bg-[currentColor] transition-all duration-300',
+          active ? 'scale-100 opacity-70 shadow-[0_0_0_5px_rgba(59,130,246,0.08)]' : 'scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-35'
+        )}
+      />
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-x-4 bottom-0.5 h-0.5 rounded-full transition-[opacity,transform] duration-300',
           toneStyles.line,
-          active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'
+          active ? 'scale-100 opacity-100' : 'scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-40'
         )}
       />
     </Link>
@@ -221,15 +246,20 @@ function MobileNavLink({
       <span className={mobileIconClasses(active, item.tone)}>
         <Icon className="h-4 w-4" />
       </span>
-      <span className="relative min-w-0 max-w-full overflow-hidden text-pretty break-words leading-[1.05] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+      <span
+        className={cn(
+          'relative min-w-0 max-w-full overflow-hidden px-0.5 text-pretty break-words tracking-[0.01em] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]',
+          active ? 'text-[10.5px] font-bold leading-[1.1] text-[var(--color-primary-900)]' : 'text-[10px] font-semibold leading-[1.08] text-current'
+        )}
+      >
         {item.label}
       </span>
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-3 bottom-0.5 h-0.5 rounded-full transition-opacity',
+          'pointer-events-none absolute inset-x-3 bottom-0.5 h-0.5 rounded-full transition-[opacity,transform] duration-300',
           toneStyles.line,
-          active ? 'opacity-100' : 'opacity-0 group-hover:opacity-30'
+          active ? 'scale-100 opacity-100' : 'scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-30'
         )}
       />
     </Link>
@@ -257,10 +287,10 @@ function OverflowNavItem({
         onNavigate(item.href);
       }}
       className={cn(
-        'group flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]',
+        dropdownItemClassName,
         active
-          ? 'bg-[rgba(255,255,255,0.88)] text-[var(--color-primary-900)]'
-          : 'text-[var(--color-slate-700)]'
+          ? 'border-[color:var(--color-blue-100)]/90 bg-[rgba(255,255,255,0.92)] text-[var(--color-primary-900)] shadow-[0_16px_24px_-22px_rgba(15,23,42,0.38)]'
+          : 'text-[var(--color-slate-700)] hover:border-[color:var(--color-slate-200)]/90 hover:bg-[rgba(255,255,255,0.88)]'
       )}
     >
       <span className={desktopIconClasses(active, item.tone)}>
@@ -344,7 +374,7 @@ function OverflowMenu({
       <DropdownMenuContent
         align={isRtl ? 'start' : 'end'}
         sideOffset={10}
-        className="w-[min(19rem,calc(100vw-1rem))] rounded-[1.7rem] border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.97)] p-2 shadow-[0_20px_38px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+        className={dropdownContentClassName}
       >
         <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
           {label}
@@ -369,7 +399,10 @@ function OverflowMenu({
             event.preventDefault();
             onToggleLocale();
           }}
-          className="flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]"
+          className={cn(
+            dropdownItemClassName,
+            'hover:border-[color:var(--color-slate-200)]/90 hover:bg-[rgba(255,255,255,0.88)]'
+          )}
         >
           <span className={desktopIconClasses(false, 'slate')}>
             <Languages className="h-4 w-4" />
@@ -495,44 +528,49 @@ export function AppNavigation() {
 
   const isDesktopOverflowActive = desktopOverflowItems.some((item) => isRouteActive(pathname, item));
   const isMobileOverflowActive = mobileOverflowItems.some((item) => isRouteActive(pathname, item));
+  const isHomeActive = isRouteActive(pathname, homeItem);
   const activeNavItem =
     [homeItem, ...desktopPrimaryItems, ...desktopOverflowItems].find((item) => isRouteActive(pathname, item)) ??
     (pathname?.startsWith('/stock/') ? stockDetailItem : homeItem);
-  const activeToneStyles = NAV_TONE_STYLES[activeNavItem.tone];
 
   return (
     <>
       <nav aria-label={primaryNavLabel} dir={isRtl ? 'rtl' : 'ltr'} className="fixed inset-x-0 top-0 z-50 hidden md:block">
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--color-slate-200)]/75 bg-[rgba(255,255,255,0.8)] shadow-[0_28px_52px_-36px_rgba(15,23,42,0.72)] backdrop-blur-2xl">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--color-slate-200)]/78 bg-[rgba(255,255,255,0.84)] shadow-[0_30px_58px_-34px_rgba(15,23,42,0.78)] ring-1 ring-white/55 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_7%_18%,rgba(59,130,246,0.12),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(16,185,129,0.08),transparent_30%),linear-gradient(122deg,rgba(255,255,255,0.92),rgba(242,248,255,0.86))]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_7%_18%,rgba(59,130,246,0.14),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(16,185,129,0.1),transparent_30%),linear-gradient(122deg,rgba(255,255,255,0.95),rgba(242,248,255,0.9))]"
             />
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.95),rgba(255,255,255,0))]"
             />
             <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-[linear-gradient(90deg,rgba(191,219,254,0),rgba(191,219,254,0.72),rgba(167,243,208,0.62),rgba(191,219,254,0))]"
+            />
+            <div
               className={cn(
-                'relative flex min-w-0 items-center gap-3 px-3 py-3 lg:px-4',
-                isRtl ? 'flex-row-reverse' : 'flex-row'
+                'relative flex min-w-0 flex-row items-center gap-3 px-3 py-3 lg:px-4'
               )}
             >
               <Link
                 href="/"
-                aria-current={isRouteActive(pathname, homeItem) ? 'page' : undefined}
-                className="group flex min-w-0 shrink-0 basis-[15rem] items-center gap-3 rounded-[1.6rem] border border-[color:var(--color-slate-200)]/88 bg-[rgba(255,255,255,0.84)] px-4 py-3 text-left shadow-[0_22px_30px_-26px_rgba(15,23,42,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.94)] hover:shadow-[0_26px_34px_-24px_rgba(15,23,42,0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] lg:basis-[17rem]"
+                aria-current={isHomeActive ? 'page' : undefined}
+                className={cn(
+                  'group flex min-h-[4.25rem] min-w-0 shrink-0 basis-[15rem] items-center gap-3 rounded-[1.6rem] border px-4 py-2.5 text-left shadow-[0_22px_30px_-26px_rgba(15,23,42,0.7)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] lg:basis-[17rem]',
+                  isHomeActive
+                    ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] shadow-[0_26px_38px_-26px_rgba(15,23,42,0.72)]'
+                    : 'border-[color:var(--color-slate-200)]/88 bg-[rgba(255,255,255,0.84)] hover:-translate-y-[1px] hover:bg-[rgba(255,255,255,0.95)] hover:shadow-[0_26px_34px_-24px_rgba(15,23,42,0.72)]'
+                )}
               >
-                <span className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center">
-                  <span className="absolute inset-[-0.3rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2),transparent_72%)] transition-transform duration-300 group-hover:scale-110" />
-                    <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-[linear-gradient(145deg,rgba(255,255,255,0.96),rgba(224,242,254,0.82))] text-[var(--color-blue-700)] ring-1 ring-[color:var(--color-blue-100)]/90 shadow-[0_18px_28px_-22px_rgba(37,99,235,0.75)]">
-                      <Compass className="h-5 w-5" />
-                    </span>
-                  </span>
+                <span className={desktopIconClasses(isHomeActive, homeItem.tone)}>
+                  <Compass className="h-4 w-4" />
+                </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-black tracking-tight text-[var(--color-primary-900)]">
+                    <span className="truncate text-[13px] font-bold tracking-tight text-[var(--color-primary-900)]">
                       {t.app.title}
                     </span>
                     <span className="hidden items-center gap-1.5 rounded-full border border-[color:var(--color-emerald-100)]/90 bg-[rgba(236,253,245,0.9)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-emerald-700)] lg:inline-flex">
@@ -541,22 +579,13 @@ export function AppNavigation() {
                     </span>
                   </span>
                   <span className="mt-1 truncate text-[11px] text-[var(--color-slate-500)]">
-                    {activeNavItem.description}
-                  </span>
-                  <span
-                    className={cn(
-                      'mt-2 inline-flex max-w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
-                      activeToneStyles.badge
-                    )}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-[currentColor] opacity-70" />
                     {activeNavItem.label}
                   </span>
                 </span>
               </Link>
 
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-[1.6rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.56)] px-2.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-[1.6rem] border border-[color:var(--color-slate-200)]/82 bg-[linear-gradient(145deg,rgba(255,255,255,0.62),rgba(248,250,252,0.44))] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {desktopPrimaryItems.map((item) => (
                     <DesktopNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
                   ))}
@@ -579,7 +608,7 @@ export function AppNavigation() {
                   onClick={toggleLocale}
                   aria-label={switchLanguageLabel}
                   title={switchLanguageLabel}
-                  className="hidden shrink-0 items-center gap-3 rounded-[1.4rem] border border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.78)] px-3.5 py-3 text-start shadow-[0_18px_24px_-20px_rgba(15,23,42,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] xl:inline-flex"
+                  className="hidden shrink-0 items-center gap-3 rounded-[1.45rem] border border-[color:var(--color-slate-200)]/88 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(248,250,252,0.66))] px-3.5 py-3 text-start shadow-[0_20px_28px_-22px_rgba(15,23,42,0.64)] transition-all duration-300 hover:-translate-y-[1px] hover:bg-[rgba(255,255,255,0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] xl:inline-flex"
                 >
                   <span className={desktopIconClasses(false, 'slate')}>
                     <Languages className="h-4 w-4" />
@@ -609,14 +638,18 @@ export function AppNavigation() {
         className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
         <div className="mx-auto max-w-md">
-          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.92)] px-2 py-2 shadow-[0_24px_52px_-32px_rgba(15,23,42,0.72)] backdrop-blur-2xl">
+          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.12),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.08),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.84),rgba(246,250,255,0.94))]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
             />
             <div
               aria-hidden="true"
               className="pointer-events-none absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.22),transparent_72%)] blur-2xl"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.94),rgba(255,255,255,0))]"
             />
             <div className="relative grid grid-cols-5 gap-1.5">
               {mobilePrimaryItems.map((item) => (
@@ -652,7 +685,7 @@ export function AppNavigation() {
                   align={isRtl ? 'start' : 'end'}
                   side="top"
                   sideOffset={10}
-                  className="w-[min(21.5rem,calc(100vw-1.25rem))] rounded-[1.7rem] border-[color:var(--color-slate-200)]/90 bg-[rgba(255,255,255,0.97)] p-2 shadow-[0_20px_38px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+                  className={cn(dropdownContentClassName, 'w-[min(21.5rem,calc(100vw-1.25rem))]')}
                 >
                   <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {moreLabel}
@@ -677,7 +710,10 @@ export function AppNavigation() {
                       event.preventDefault();
                       toggleLocale();
                     }}
-                    className="flex cursor-pointer items-start gap-3 rounded-[1.35rem] px-3 py-3 outline-none transition-colors focus:bg-[rgba(255,255,255,0.88)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-blue-300)] data-[highlighted]:bg-[rgba(255,255,255,0.88)]"
+                    className={cn(
+                      dropdownItemClassName,
+                      'hover:border-[color:var(--color-slate-200)]/90 hover:bg-[rgba(255,255,255,0.88)]'
+                    )}
                   >
                     <span className={desktopIconClasses(false, 'slate')}>
                       <Languages className="h-4 w-4" />
