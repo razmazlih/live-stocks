@@ -779,7 +779,7 @@ export default function PositionsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="dashboard-page-container">
         <header className={`${sectionShellClass} px-5 py-5 sm:px-6 sm:py-6`}>
           <div
             aria-hidden="true"
@@ -1642,7 +1642,7 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className={`${sectionShellClass} px-4 py-8 sm:px-8`}>
+          <section className={`${sectionShellClass} px-1.5 py-6 sm:px-8 sm:py-8`}>
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(59,130,246,0.08),transparent_26%),radial-gradient(circle_at_92%_24%,rgba(16,185,129,0.06),transparent_22%)]"
@@ -2135,16 +2135,19 @@ export default function PositionsPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-3 md:hidden">
+                        <div className="-mx-2 space-y-3 md:hidden">
                           {paginatedPositionItems.map((item) => {
                             const { position, sortedLots, recentLots } = item;
 
                             return (
                               <Card
                                 key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                className={cn(cardShellClass, "border-[color:var(--color-slate-200)]/85")}
+                                className={cn(
+                                  cardShellClass,
+                                  "border-[color:var(--color-slate-200)]/85 max-[639px]:rounded-[20px]"
+                                )}
                               >
-                                <CardHeader className="space-y-4 pb-3 pt-4">
+                                <CardHeader className="space-y-4 px-2.5 pb-3 pt-4">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-3">
                                       <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
@@ -2220,7 +2223,7 @@ export default function PositionsPage() {
                                     </div>
                                   </div>
                                 </CardHeader>
-                                <CardContent className="space-y-3 pt-0">
+                                <CardContent className="space-y-3 px-2.5 pb-3 pt-0">
                                   <div>
                                     <p className="text-xs font-semibold text-[var(--color-slate-500)]">
                                       {sortedLots.length > 0

@@ -192,7 +192,7 @@ export default function InsightsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
+      <div className="dashboard-page-container dashboard-page-container-tight">
         <DashboardHero
           title={labels.title}
           subtitle={labels.subtitle}

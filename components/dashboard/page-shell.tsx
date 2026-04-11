@@ -26,7 +26,7 @@ export const DashboardPageShell = React.forwardRef<
         )}
         {...props}
       >
-        <div className={cn("relative z-10 w-full min-w-0", contentClassName)}>
+        <div className={cn("page-shell-content relative z-10 w-full min-w-0", contentClassName)}>
           {children}
         </div>
       </div>

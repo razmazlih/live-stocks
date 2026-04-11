@@ -436,7 +436,7 @@ export default function PortfolioPage() {
 
   return (
     <DashboardPageShell direction={locale === 'he' ? 'rtl' : 'ltr'}>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10 2xl:px-12">
+      <div className="dashboard-page-container dashboard-page-container-tight">
         <header className="relative isolate overflow-hidden rounded-[34px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(130deg,rgba(239,246,255,0.98),rgba(248,250,252,0.96)_38%,rgba(236,253,245,0.92)_100%)] px-5 py-6 shadow-[0_30px_60px_-38px_rgba(15,23,42,0.35)] sm:px-6 sm:py-7 lg:px-7">
           <div className={panelGlowClassName} aria-hidden="true" />
           <div
@@ -595,11 +595,7 @@ export default function PortfolioPage() {
                     </div>
 
                     {portfolioTimeline.length > 0 ? (
-                      <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] backdrop-blur-sm sm:p-3">
-                        <div className="overflow-hidden rounded-[22px] border border-slate-200/70 bg-white/94 px-2 py-2 sm:px-3">
-                          <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
-                        </div>
-                      </div>
+                      <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-200 bg-white/74 py-14 text-center text-slate-500">
                         <LineChart className="h-6 w-6 text-slate-400" />

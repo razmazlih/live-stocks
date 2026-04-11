@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-6xl overflow-x-clip px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <div className="dashboard-page-container overflow-x-clip">
         <div className="space-y-6">
           <header className="overflow-hidden rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/92 px-5 py-6 shadow-sm sm:px-6 sm:py-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

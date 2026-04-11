@@ -820,6 +820,22 @@
     min-width: 0;
   }
 
+  .dashboard-page-container {
+    position: relative;
+    z-index: 1;
+    width: min(100%, var(--page-max-width));
+    margin-inline: auto;
+    padding-inline:
+      max(var(--page-gutter), env(safe-area-inset-left))
+      max(var(--page-gutter), env(safe-area-inset-right));
+    padding-block: clamp(var(--space-sm), 2.5vw, var(--space-xl));
+    min-width: 0;
+  }
+
+  .dashboard-page-container-tight {
+    padding-block: clamp(var(--space-sm), 2.2vw, var(--space-lg));
+  }
+
   .page-stack {
     display: grid;
     gap: var(--page-stack-gap);
@@ -1329,6 +1345,24 @@
     padding-block: var(--space-sm);
   }
 
+  .dashboard-page-container {
+    width: 100%;
+    padding-inline:
+      max(0.5rem, env(safe-area-inset-left))
+      max(0.5rem, env(safe-area-inset-right));
+    padding-block: 0.75rem 1rem;
+  }
+
+  .dashboard-page-container-tight {
+    padding-block: 0.625rem 0.875rem;
+  }
+
+  .page-shell-content > [class*='max-w-'][class*='mx-auto'] {
+    padding-inline:
+      max(0.75rem, env(safe-area-inset-left))
+      max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+
   .page-stack {
     gap: var(--space-md);
   }
@@ -1381,6 +1415,58 @@
   .home-main-surface :where(.grid),
   .home-summary-card :where(.grid) {
     gap: var(--space-sm);
+  }
+
+  .dashboard-page-container :where(.viz-panel, .viz-chart-surface, .viz-tooltip-shell) {
+    border-radius: 1rem;
+  }
+
+  .dashboard-page-container :where(.viz-panel, .viz-panel-strong) {
+    --chart-panel-shadow: 0 16px 32px -24px rgba(15, 23, 42, 0.24);
+    --chart-panel-shadow-strong: 0 18px 36px -26px rgba(15, 23, 42, 0.28);
+  }
+
+  .dashboard-page-container :where(.viz-panel, .viz-chart-surface) :where(.viz-panel, .viz-chart-surface) {
+    border-radius: 0.95rem;
+    box-shadow:
+      0 12px 24px -20px rgba(15, 23, 42, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  }
+
+  .app-card-shell {
+    border-radius: 1rem;
+  }
+
+  .app-card-shell .app-card-shell {
+    border-color: rgba(var(--color-slate-200-rgb), 0.62);
+    border-radius: 0.95rem;
+    box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.2);
+  }
+
+  .quick-actions-shell {
+    border-radius: 1.15rem;
+  }
+
+  .quick-actions-body {
+    gap: 0.75rem;
+  }
+
+  .app-card-header {
+    padding: 0.875rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .app-card-content,
+  .app-card-footer {
+    padding: 0.875rem;
+  }
+
+  .app-card-content {
+    padding-top: 0;
+  }
+
+  .app-card-footer {
+    padding-top: 0;
   }
 }
 
@@ -1630,6 +1716,7 @@
   :where(
       .page-shell,
       .page-container,
+      .dashboard-page-container,
       .page-header,
       .page-surface,
       .page-surface-strong,
