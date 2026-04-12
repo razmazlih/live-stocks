@@ -140,10 +140,10 @@ function desktopMoreTriggerClasses(active: boolean) {
 
 function mobileNavItemClasses(active: boolean) {
   return cn(
-    'group relative flex min-h-[5.35rem] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.45rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.08] transition-[background-color,border-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
+    'group relative flex min-h-[5.15rem] w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[1.3rem] border px-1.5 py-2 text-center text-[10px] font-semibold leading-[1.08] transition-[background-color,border-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
     active
-      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] text-[var(--color-primary-900)] shadow-[0_22px_34px_-24px_rgba(15,23,42,0.72)]'
-      : 'border-[color:var(--color-neutral-white)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.82)] hover:text-[var(--color-primary-800)] hover:shadow-[0_18px_24px_-28px_rgba(15,23,42,0.6)]'
+      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(239,246,255,0.95))] text-[var(--color-primary-900)] shadow-[0_16px_30px_-22px_rgba(15,23,42,0.64)]'
+      : 'border-[color:var(--color-slate-200)]/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(248,250,252,0.5))] text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.92)] hover:text-[var(--color-primary-800)] hover:shadow-[0_14px_22px_-22px_rgba(15,23,42,0.45)]'
   );
 }
 
@@ -151,7 +151,7 @@ function mobileIconClasses(active: boolean, tone: NavTone) {
   const styles = NAV_TONE_STYLES[tone];
 
   return cn(
-    'relative inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-[1.05rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[transform,background-color,box-shadow,color] duration-300 group-hover:scale-[1.05]',
+    'relative inline-flex h-[2.2rem] w-[2.2rem] shrink-0 items-center justify-center rounded-[0.95rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[transform,background-color,box-shadow,color] duration-300 group-hover:scale-[1.05]',
     active ? styles.iconActive : styles.icon
   );
 }
@@ -635,10 +635,10 @@ export function AppNavigation() {
       <nav
         aria-label={primaryNavLabel}
         dir={isRtl ? 'rtl' : 'ltr'}
-        className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
         <div className="mx-auto max-w-md">
-          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
+          <div className="relative overflow-visible rounded-[1.75rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-1.5 py-1.5 shadow-[0_20px_46px_-28px_rgba(15,23,42,0.66)] ring-1 ring-white/60 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
@@ -651,7 +651,7 @@ export function AppNavigation() {
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.94),rgba(255,255,255,0))]"
             />
-            <div className="relative grid grid-cols-5 gap-1.5">
+            <div className="relative grid grid-cols-5 gap-1">
               {mobilePrimaryItems.map((item) => (
                 <MobileNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
               ))}
@@ -684,8 +684,11 @@ export function AppNavigation() {
                 <DropdownMenuContent
                   align={isRtl ? 'start' : 'end'}
                   side="top"
-                  sideOffset={10}
-                  className={cn(dropdownContentClassName, 'w-[min(21.5rem,calc(100vw-1.25rem))]')}
+                  sideOffset={14}
+                  className={cn(
+                    dropdownContentClassName,
+                    'max-h-[min(72dvh,34rem)] w-[min(22rem,calc(100vw-1rem))] rounded-[1.5rem] shadow-[0_28px_60px_-26px_rgba(15,23,42,0.45)]'
+                  )}
                 >
                   <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {moreLabel}
