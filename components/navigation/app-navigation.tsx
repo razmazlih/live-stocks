@@ -140,10 +140,10 @@ function desktopMoreTriggerClasses(active: boolean) {
 
 function mobileNavItemClasses(active: boolean) {
   return cn(
-    'group relative flex min-h-[5.35rem] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.45rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.08] transition-[background-color,border-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)]',
+    'group relative flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.35rem] border px-1.5 py-2.5 text-center text-[10px] font-semibold leading-[1.08] transition-[background-color,border-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] active:scale-[0.99]',
     active
-      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] text-[var(--color-primary-900)] shadow-[0_22px_34px_-24px_rgba(15,23,42,0.72)]'
-      : 'border-[color:var(--color-neutral-white)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.82)] hover:text-[var(--color-primary-800)] hover:shadow-[0_18px_24px_-28px_rgba(15,23,42,0.6)]'
+      ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,0.995),rgba(239,246,255,0.94))] text-[var(--color-primary-900)] shadow-[0_22px_34px_-24px_rgba(15,23,42,0.72)]'
+      : 'border-[color:var(--color-neutral-white)]/16 bg-[linear-gradient(180deg,rgba(255,255,255,0.2),rgba(255,255,255,0.08))] text-[var(--color-slate-600)] hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.86)] hover:text-[var(--color-primary-800)] hover:shadow-[0_18px_24px_-28px_rgba(15,23,42,0.6)]'
   );
 }
 
@@ -635,22 +635,27 @@ export function AppNavigation() {
       <nav
         aria-label={primaryNavLabel}
         dir={isRtl ? 'rtl' : 'ltr'}
-        className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
         <div className="mx-auto max-w-md">
-          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
+          <div className="relative overflow-visible rounded-[2rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.22),transparent_72%)] blur-2xl"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.94),rgba(255,255,255,0))]"
-            />
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+            >
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.22),transparent_72%)] blur-2xl"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.94),rgba(255,255,255,0))]"
+              />
+            </div>
             <div className="relative grid grid-cols-5 gap-1.5">
               {mobilePrimaryItems.map((item) => (
                 <MobileNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
@@ -684,8 +689,11 @@ export function AppNavigation() {
                 <DropdownMenuContent
                   align={isRtl ? 'start' : 'end'}
                   side="top"
-                  sideOffset={10}
-                  className={cn(dropdownContentClassName, 'w-[min(21.5rem,calc(100vw-1.25rem))]')}
+                  sideOffset={14}
+                  className={cn(
+                    dropdownContentClassName,
+                    'w-[min(21.5rem,calc(100vw-1.25rem))] max-h-[min(68dvh,30rem)] rounded-[1.55rem] border-[color:var(--color-slate-200)]/95 shadow-[0_32px_60px_-30px_rgba(15,23,42,0.32)]'
+                  )}
                 >
                   <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {moreLabel}
