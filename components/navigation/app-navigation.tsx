@@ -156,6 +156,20 @@ function mobileIconClasses(active: boolean, tone: NavTone) {
   );
 }
 
+function mobileMoreTriggerClasses(active: boolean) {
+  return cn(
+    mobileNavItemClasses(active),
+    'border-[color:var(--color-blue-200)]/70 bg-[linear-gradient(180deg,rgba(239,246,255,0.9),rgba(219,234,254,0.66))] text-[var(--color-primary-900)] shadow-[0_18px_28px_-24px_rgba(37,99,235,0.75)] hover:border-[color:var(--color-blue-300)]/85 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(219,234,254,0.84))]'
+  );
+}
+
+function mobileMoreContentClasses() {
+  return cn(
+    dropdownContentClassName,
+    'w-[min(23rem,calc(100vw-0.9rem))] max-h-[min(65dvh,32rem)] rounded-[1.65rem] border-[color:var(--color-blue-100)]/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.95))] p-2.5 shadow-[0_34px_64px_-30px_rgba(15,23,42,0.48)]'
+  );
+}
+
 function DesktopNavLink({
   item,
   active,
@@ -638,7 +652,7 @@ export function AppNavigation() {
         className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
         <div className="mx-auto max-w-md">
-          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
+          <div className="relative overflow-visible rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
@@ -663,7 +677,7 @@ export function AppNavigation() {
                     aria-label={moreLabel}
                     title={moreLabel}
                     aria-current={isMobileOverflowActive ? 'page' : undefined}
-                    className={mobileNavItemClasses(isMobileOverflowActive)}
+                    className={mobileMoreTriggerClasses(isMobileOverflowActive)}
                   >
                     <span
                       aria-hidden="true"
@@ -684,8 +698,8 @@ export function AppNavigation() {
                 <DropdownMenuContent
                   align={isRtl ? 'start' : 'end'}
                   side="top"
-                  sideOffset={10}
-                  className={cn(dropdownContentClassName, 'w-[min(21.5rem,calc(100vw-1.25rem))]')}
+                  sideOffset={14}
+                  className={mobileMoreContentClasses()}
                 >
                   <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
                     {moreLabel}
