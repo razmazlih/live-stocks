@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
@@ -9,6 +10,7 @@ import {
   CircleDollarSign,
   Compass,
   ChevronDown,
+  ChevronUp,
   Eye,
   Home,
   Languages,
@@ -427,6 +429,7 @@ function OverflowMenu({
 export function AppNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileMoreAnchorPath, setMobileMoreAnchorPath] = useState<string | null>(null);
   const { locale, setLocale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
@@ -529,9 +532,18 @@ export function AppNavigation() {
   const isDesktopOverflowActive = desktopOverflowItems.some((item) => isRouteActive(pathname, item));
   const isMobileOverflowActive = mobileOverflowItems.some((item) => isRouteActive(pathname, item));
   const isHomeActive = isRouteActive(pathname, homeItem);
+  const currentPath = pathname ?? '/';
+  const isMobileMoreOpen = mobileMoreAnchorPath === currentPath;
   const activeNavItem =
     [homeItem, ...desktopPrimaryItems, ...desktopOverflowItems].find((item) => isRouteActive(pathname, item)) ??
     (pathname?.startsWith('/stock/') ? stockDetailItem : homeItem);
+  const mobileActionButtonClasses =
+    'group relative flex min-h-[4.7rem] w-full items-center gap-3 overflow-hidden rounded-[1.25rem] border border-[color:var(--color-neutral-white)]/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-3 py-3 text-start text-[var(--color-primary-900)] transition-[background-color,border-color,color,transform,box-shadow] duration-300 hover:border-[color:var(--color-blue-100)]/90 hover:bg-[rgba(255,255,255,0.86)] hover:shadow-[0_20px_28px_-28px_rgba(15,23,42,0.58)]';
+
+  const handleMobileNavigate = (href: string) => {
+    setMobileMoreAnchorPath(null);
+    router.push(href);
+  };
 
   return (
     <>
@@ -637,7 +649,69 @@ export function AppNavigation() {
         dir={isRtl ? 'rtl' : 'ltr'}
         className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-md space-y-2">
+          {isMobileMoreOpen ? (
+            <div className="relative overflow-hidden rounded-[1.7rem] border border-[color:var(--color-slate-200)]/88 bg-[rgba(255,255,255,0.96)] p-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.76)] ring-1 ring-white/70 backdrop-blur-[24px]">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_16%,rgba(59,130,246,0.12),transparent_36%),radial-gradient(circle_at_84%_92%,rgba(16,185,129,0.1),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(245,249,255,0.96))]"
+              />
+              <div className="relative space-y-2">
+                <div className="grid grid-cols-1 gap-2">
+                  {mobileOverflowItems.map((item) => {
+                    const active = isRouteActive(pathname, item);
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        key={item.href}
+                        type="button"
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => handleMobileNavigate(item.href)}
+                        className={cn(
+                          mobileActionButtonClasses,
+                          active
+                            ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] shadow-[0_22px_34px_-24px_rgba(15,23,42,0.64)]'
+                            : ''
+                        )}
+                      >
+                        <span className={desktopIconClasses(active, item.tone)}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-sm font-semibold">{item.label}</span>
+                          <span className="mt-0.5 truncate text-xs text-[var(--color-slate-500)]">
+                            {item.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMoreAnchorPath(null);
+                      toggleLocale();
+                    }}
+                    className={mobileActionButtonClasses}
+                  >
+                    <span className={desktopIconClasses(false, 'slate')}>
+                      <Languages className="h-4 w-4" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-semibold">{switchLanguageLabel}</span>
+                      <span className="mt-0.5 truncate text-xs text-[var(--color-slate-500)]">
+                        {currentLanguageLabel}
+                      </span>
+                    </span>
+                    <span className="inline-flex shrink-0 rounded-full border border-[color:var(--color-slate-200)]/90 bg-[rgba(248,250,252,0.94)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-700)]">
+                      {nextLanguageShortLabel}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
@@ -656,82 +730,32 @@ export function AppNavigation() {
                 <MobileNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
               ))}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={moreLabel}
-                    title={moreLabel}
-                    aria-current={isMobileOverflowActive ? 'page' : undefined}
-                    className={mobileNavItemClasses(isMobileOverflowActive)}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
-                        NAV_TONE_STYLES.slate.glow,
-                        isMobileOverflowActive ? 'opacity-100' : 'group-hover:opacity-65'
-                      )}
-                    />
-                    <span className={mobileIconClasses(isMobileOverflowActive, 'slate')}>
-                      <Menu className="h-4 w-4" />
-                    </span>
-                    <span className="relative min-w-0 max-w-full overflow-hidden text-pretty break-words leading-[1.05] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-                      {moreLabel}
-                    </span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align={isRtl ? 'start' : 'end'}
-                  side="top"
-                  sideOffset={10}
-                  className={cn(dropdownContentClassName, 'w-[min(21.5rem,calc(100vw-1.25rem))]')}
-                >
-                  <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                    {moreLabel}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
-                  {mobileOverflowItems.map((item) => {
-                    const active = isRouteActive(pathname, item);
-
-                    return (
-                      <OverflowNavItem
-                        key={item.href}
-                        item={item}
-                        active={active}
-                        onNavigate={router.push}
-                        activeLabel={activeItemLabel}
-                      />
-                    );
-                  })}
-                  <DropdownMenuSeparator className="my-1 bg-[color:var(--color-slate-200)]/90" />
-                  <DropdownMenuItem
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      toggleLocale();
-                    }}
-                    className={cn(
-                      dropdownItemClassName,
-                      'hover:border-[color:var(--color-slate-200)]/90 hover:bg-[rgba(255,255,255,0.88)]'
-                    )}
-                  >
-                    <span className={desktopIconClasses(false, 'slate')}>
-                      <Languages className="h-4 w-4" />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col items-start text-start">
-                      <span className="text-sm font-semibold leading-snug text-[var(--color-primary-900)]">
-                        {switchLanguageLabel}
-                      </span>
-                      <span className="mt-1 text-xs leading-snug text-[var(--color-slate-500)]">
-                        {currentLanguageLabel}
-                      </span>
-                    </span>
-                    <span className="inline-flex shrink-0 rounded-full border border-[color:var(--color-slate-200)]/90 bg-[rgba(248,250,252,0.94)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-700)]">
-                      {nextLanguageShortLabel}
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                type="button"
+                aria-label={moreLabel}
+                title={moreLabel}
+                aria-current={isMobileOverflowActive ? 'page' : undefined}
+                aria-expanded={isMobileMoreOpen}
+                onClick={() =>
+                  setMobileMoreAnchorPath((prev) => (prev === currentPath ? null : currentPath))
+                }
+                className={mobileNavItemClasses(isMobileOverflowActive || isMobileMoreOpen)}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
+                    NAV_TONE_STYLES.slate.glow,
+                    isMobileOverflowActive || isMobileMoreOpen ? 'opacity-100' : 'group-hover:opacity-65'
+                  )}
+                />
+                <span className={mobileIconClasses(isMobileOverflowActive || isMobileMoreOpen, 'slate')}>
+                  {isMobileMoreOpen ? <ChevronUp className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                </span>
+                <span className="relative min-w-0 max-w-full overflow-hidden text-pretty break-words leading-[1.05] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                  {moreLabel}
+                </span>
+              </button>
             </div>
           </div>
         </div>
