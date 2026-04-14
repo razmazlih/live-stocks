@@ -1324,28 +1324,28 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div
                 ref={chartSurfaceRef}
-                className="relative h-[24rem] overflow-hidden rounded-[30px] border border-slate-900/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.93))] shadow-[0_30px_68px_-38px_rgba(2,6,23,0.92)] lg:h-[28rem]"
+                className="relative h-[24rem] overflow-hidden rounded-[30px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.95))] shadow-[0_24px_52px_-34px_rgba(15,23,42,0.28)] lg:h-[28rem]"
                 onTouchStart={handleChartSurfaceTouchStart}
                 onTouchMove={handleChartSurfaceTouchMove}
                 onTouchCancel={hideActiveInteraction}
                 onTouchEnd={hideActiveInteraction}
               >
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(52,211,153,0.14),transparent_28%)]" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-[linear-gradient(180deg,rgba(15,23,42,0),rgba(15,23,42,0.55))]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(52,211,153,0.1),transparent_28%)]" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(241,245,249,0),rgba(226,232,240,0.45))]" />
                 <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex flex-col gap-2.5 lg:left-4 lg:right-4 lg:top-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className={`max-w-xl rounded-[20px] border border-white/10 bg-white/5 px-3.5 py-2.5 backdrop-blur-sm sm:px-4 sm:py-3 ${contentAlignClass}`}>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-200">
+                  <div className={`max-w-xl rounded-[20px] border border-slate-200/80 bg-white/78 px-3.5 py-2.5 backdrop-blur-sm sm:px-4 sm:py-3 ${contentAlignClass}`}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700">
                       {locale === 'he' ? 'מסך הקריאה' : 'Reading panel'}
                     </p>
-                    <p className="mt-1.5 text-sm font-semibold text-slate-100">{t.dashboard.portfolioOverviewTitle}</p>
-                    <p className="mt-1 text-[11px] leading-5 text-slate-300 sm:text-xs sm:leading-6">{chartSectionDescription}</p>
+                    <p className="mt-1.5 text-sm font-semibold text-slate-800">{t.dashboard.portfolioOverviewTitle}</p>
+                    <p className="mt-1 text-[11px] leading-5 text-slate-600 sm:text-xs sm:leading-6">{chartSectionDescription}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-slate-200 backdrop-blur-sm [unicode-bidi:isolate]" dir="auto">
+                    <span className="rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-700 backdrop-blur-sm [unicode-bidi:isolate]" dir="auto">
                       {timelineRangeLabel}
                     </span>
-                    <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-slate-200 backdrop-blur-sm sm:inline-flex">
+                    <span className="hidden rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-700 backdrop-blur-sm sm:inline-flex">
                       {observationCountLabel}
                     </span>
                   </div>
@@ -1378,7 +1378,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={chartPoints}
-                    margin={{ top: 88, right: 16, left: 6, bottom: 20 }}
+                    margin={{ top: 88, right: 16, left: 6, bottom: 22 }}
                     onMouseDown={handleChartPointerDown}
                     onMouseEnter={handleChartPointerMove}
                     onMouseLeave={hideActiveInteraction}
@@ -1420,7 +1420,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                         <stop offset="100%" stopColor="rgba(15,23,42,0)" />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="4 8" stroke="rgba(148,163,184,0.18)" vertical={false} />
+                    <CartesianGrid strokeDasharray="4 8" stroke="rgba(148,163,184,0.22)" vertical={false} />
                     <XAxis
                       dataKey="timestamp"
                       type="number"
@@ -1431,7 +1431,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       axisLine={false}
                       tickMargin={14}
                       minTickGap={34}
-                      tick={{ fill: 'rgba(226,232,240,0.78)', fontSize: 11, fontWeight: 600 }}
+                      tick={{ fill: 'rgba(71,85,105,0.86)', fontSize: 11, fontWeight: 600 }}
                     />
                     <YAxis
                       orientation="right"
@@ -1439,7 +1439,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       tickLine={false}
                       axisLine={false}
                       width={64}
-                      tick={{ fill: 'rgba(226,232,240,0.72)', fontSize: 10, fontWeight: 600 }}
+                      tick={{ fill: 'rgba(71,85,105,0.84)', fontSize: 10, fontWeight: 600 }}
                       {...(yDomain ? { domain: yDomain } : {})}
                     />
                     <Tooltip
@@ -1448,11 +1448,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       isAnimationActive={false}
                       wrapperStyle={{ display: 'none' }}
                     />
-                    <ReferenceLine y={0} stroke="rgba(148,163,184,0.42)" strokeDasharray="5 7" strokeWidth={1.5} />
+                    <ReferenceLine y={0} stroke="rgba(148,163,184,0.48)" strokeDasharray="5 7" strokeWidth={1.5} />
                     {activeInteraction ? (
                       <ReferenceLine
                         x={activeInteraction.point.timestamp}
-                        stroke="rgba(255,255,255,0.26)"
+                        stroke="rgba(71,85,105,0.3)"
                         strokeDasharray="4 7"
                         strokeWidth={1.5}
                       />
@@ -1505,12 +1505,12 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   </LineChart>
                 </ResponsiveContainer>
 
-                <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-2 text-[11px] text-slate-300/90 md:bottom-4 md:left-4 md:right-4 md:flex-row md:items-end md:justify-between">
-                  <div className={`max-w-xl rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-sm sm:px-3.5 ${contentAlignClass}`}>
+                <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-2 text-[11px] text-slate-600/90 md:bottom-4 md:left-4 md:right-4 md:flex-row md:items-end md:justify-between">
+                  <div className={`max-w-xl rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 backdrop-blur-sm sm:px-3.5 ${contentAlignClass}`}>
                     {chartLegendDescription}
                   </div>
-                  <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/5 px-3 py-2 font-semibold text-slate-200 backdrop-blur-sm sm:px-3.5 md:self-auto">
-                    <span className="h-2.5 w-2.5 rounded-full bg-white/80" />
+                  <div className="inline-flex items-center gap-2 self-start rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 font-semibold text-slate-700 backdrop-blur-sm sm:px-3.5 md:self-auto">
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
                     <span className="[unicode-bidi:isolate]" dir="ltr">
                       {formatSignedCurrency(trendPoint?.deltaUsd ?? 0, usdFormatter)}
                     </span>

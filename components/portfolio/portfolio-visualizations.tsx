@@ -31,15 +31,15 @@ interface PortfolioVisualizationsProps {
 }
 
 const VISUALIZATION_CARD_CLASS =
-  'viz-panel viz-panel-strong group rounded-[32px] border-[color:rgba(148,163,184,0.2)] bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.12),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(15,23,42,0.08),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.99),rgba(248,250,252,0.96))] shadow-[0_30px_80px_-42px_rgba(15,23,42,0.42)]';
+  'viz-panel viz-panel-strong group rounded-[30px] border-[color:rgba(148,163,184,0.2)] bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(248,250,252,0.97))] shadow-[0_28px_72px_-46px_rgba(15,23,42,0.36)]';
 
 const VISUALIZATION_HEADER_CLASS =
   'relative space-y-4 border-b border-[color:rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.7))] px-4 py-5 sm:px-5 sm:py-6';
 
 const VISUALIZATION_CONTENT_CLASS = 'relative space-y-5 px-4 py-4 sm:px-5 sm:py-5';
 
-const DARK_CHART_SURFACE_CLASS =
-  'viz-chart-surface viz-grid-soft-strong relative overflow-hidden rounded-[30px] border-white/5 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_24%),linear-gradient(180deg,#0f172a_0%,#111827_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_30px_56px_-38px_rgba(15,23,42,0.72)]';
+const CHART_SURFACE_CLASS =
+  'viz-chart-surface viz-grid-soft relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_24px_44px_-34px_rgba(15,23,42,0.24)]';
 
 const HEADER_BADGE_CLASS =
   'viz-chip inline-flex items-center gap-2 border-[color:rgba(148,163,184,0.24)] bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-slate-500)] shadow-sm backdrop-blur';
@@ -326,8 +326,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         <text
           x={x}
           y={y}
-          fill="rgba(248,250,252,0.94)"
-          fontSize={12}
+          fill="rgba(30,41,59,0.9)"
+          fontSize={11}
           fontWeight={700}
           textAnchor="end"
           dominantBaseline="middle"
@@ -660,7 +660,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             />
           ) : (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(18rem,0.84fr)] xl:items-start">
-              <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(18rem,32vw,22rem)] w-full`}>
+              <div className={`${CHART_SURFACE_CLASS} h-[clamp(18rem,32vw,22rem)] w-full`}>
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
                 <div className="pointer-events-none absolute inset-x-6 bottom-6 h-24 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_70%)] blur-3xl" />
                 <ResponsiveContainer width="100%" height="100%">
@@ -672,20 +672,20 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         <stop offset="100%" stopColor="#818cf8" stopOpacity={0.82} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 6" stroke="rgba(148,163,184,0.18)" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 6" stroke="rgba(148,163,184,0.22)" horizontal={false} />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: 'rgba(226,232,240,0.88)', fontSize: 11, fontWeight: 600 }}
+                      tick={{ fill: 'rgba(71,85,105,0.9)', fontSize: 11, fontWeight: 600 }}
                     />
                     <YAxis
                       type="category"
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      width={148}
+                      width={136}
                       tickMargin={10}
                       interval={0}
                       tick={renderHoldingPeriodTick}
@@ -790,7 +790,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               description={t.dashboard.pnlDescription}
             />
           ) : (
-            <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(19rem,32vw,23rem)]`}>
+            <div className={`${CHART_SURFACE_CLASS} h-[clamp(19rem,32vw,23rem)]`}>
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 16, right: 8, left: 0, bottom: 10 }}>
@@ -812,23 +812,23 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       <stop offset="95%" stopColor="#fdba74" stopOpacity={0.58} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(148,163,184,0.18)" />
-                  <ReferenceLine y={0} stroke="rgba(226,232,240,0.3)" strokeDasharray="4 4" />
+                  <CartesianGrid strokeDasharray="4 6" stroke="rgba(148,163,184,0.2)" />
+                  <ReferenceLine y={0} stroke="rgba(148,163,184,0.34)" strokeDasharray="4 4" />
                   <XAxis
                     dataKey="symbol"
                     tickLine={false}
                     axisLine={false}
                     interval={0}
-                    height={36}
-                    tick={{ fill: 'rgba(248,250,252,0.92)', fontSize: 12, fontWeight: 700 }}
+                    height={48}
+                    tick={{ fill: 'rgba(30,41,59,0.9)', fontSize: 11, fontWeight: 700 }}
                   />
                   <YAxis
                     domain={pnlDomain}
                     tickFormatter={(value) => compactNumber.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    width={48}
-                    tick={{ fill: 'rgba(226,232,240,0.84)', fontSize: 11, fontWeight: 600 }}
+                    width={56}
+                    tick={{ fill: 'rgba(71,85,105,0.9)', fontSize: 11, fontWeight: 600 }}
                   />
                   <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.12)' }}
@@ -902,7 +902,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             />
           ) : (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.02fr)_minmax(16rem,0.98fr)] lg:items-start 2xl:gap-6">
-              <div className={`${DARK_CHART_SURFACE_CLASS} min-h-[22rem]`}>
+              <div className={`${CHART_SURFACE_CLASS} min-h-[22rem]`}>
                 <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
                 <div className="mx-auto flex h-[clamp(18rem,30vw,24rem)] w-full max-w-[25rem] items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -935,7 +935,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         cornerRadius={11}
                         startAngle={90}
                         endAngle={-270}
-                        stroke="rgba(15,23,42,0.45)"
+                        stroke="rgba(255,255,255,0.92)"
                         strokeWidth={3}
                       >
                         {allocationData.map((entry, index) => {
@@ -954,7 +954,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                               <tspan
                                 x="50%"
                                 dy="-0.45em"
-                                className="fill-slate-100 text-[15px] font-semibold"
+                                className="fill-slate-900 text-[15px] font-semibold"
                                 direction="ltr"
                                 style={{ unicodeBidi: 'isolate' }}
                               >
@@ -963,7 +963,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                               <tspan
                                 x="50%"
                                 dy="1.65em"
-                                className="fill-slate-400 text-[11px] font-semibold"
+                                className="fill-slate-500 text-[11px] font-semibold"
                                 direction={isRtl ? 'rtl' : 'ltr'}
                                 style={{ unicodeBidi: 'isolate' }}
                               >
