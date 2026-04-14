@@ -16,6 +16,7 @@ import type { TouchEvent as ReactTouchEvent } from 'react';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -437,6 +438,7 @@ const ChartTooltip = ({
 export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChartProps) {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
+  const isMobile = useIsMobile();
   const chartSurfaceRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const touchInteractionRef = useRef(false);
@@ -777,6 +779,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
     locale === 'he'
       ? 'צבע הקו הראשי מסמן הפסד, פיגור מול התחזית או ביצוע מעליה.'
       : 'The live line color signals loss, under-forecast performance, or outperformance.';
+  const chartMargins = useMemo(
+    () =>
+      isMobile
+        ? { top: 76, right: 8, left: 2, bottom: 20 }
+        : { top: 88, right: 22, left: 10, bottom: 26 },
+    [isMobile]
+  );
   const tooltipLabels = useMemo(
     () => ({
       at: t.dashboard.timelineTooltipMoment,
@@ -1324,7 +1333,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div
                 ref={chartSurfaceRef}
-                className="relative h-[24rem] overflow-hidden rounded-[30px] border border-[color:rgba(148,163,184,0.24)] bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(167,243,208,0.22),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.99),rgba(241,245,249,0.96))] shadow-[0_28px_58px_-40px_rgba(15,23,42,0.52)] lg:h-[28rem]"
+                className="relative h-[19rem] overflow-hidden rounded-[30px] border border-[color:rgba(148,163,184,0.24)] bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(167,243,208,0.22),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.99),rgba(241,245,249,0.96))] shadow-[0_28px_58px_-40px_rgba(15,23,42,0.52)] sm:h-[24rem] lg:h-[28rem]"
                 onTouchStart={handleChartSurfaceTouchStart}
                 onTouchMove={handleChartSurfaceTouchMove}
                 onTouchCancel={hideActiveInteraction}
@@ -1332,13 +1341,13 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               >
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.12),transparent_28%)]" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-[linear-gradient(180deg,rgba(241,245,249,0),rgba(226,232,240,0.52))]" />
-                <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex flex-col gap-2.5 lg:left-4 lg:right-4 lg:top-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className={`max-w-xl rounded-[20px] border border-white/70 bg-white/74 px-3.5 py-2.5 backdrop-blur-sm sm:px-4 sm:py-3 ${contentAlignClass}`}>
+                <div className="pointer-events-none absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-col gap-2 lg:left-4 lg:right-4 lg:top-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className={`max-w-xl rounded-[20px] border border-white/70 bg-white/74 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3 ${contentAlignClass}`}>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700">
                       {locale === 'he' ? 'מסך הקריאה' : 'Reading panel'}
                     </p>
-                    <p className="mt-1.5 text-sm font-semibold text-slate-900">{t.dashboard.portfolioOverviewTitle}</p>
-                    <p className="mt-1 text-[11px] leading-5 text-slate-600 sm:text-xs sm:leading-6">{chartSectionDescription}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-900 sm:mt-1.5 sm:text-sm">{t.dashboard.portfolioOverviewTitle}</p>
+                    <p className="mt-1 hidden text-[11px] leading-5 text-slate-600 sm:text-xs sm:leading-6 md:block">{chartSectionDescription}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -1378,7 +1387,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={chartPoints}
-                    margin={{ top: 88, right: 22, left: 10, bottom: 26 }}
+                    margin={chartMargins}
                     onMouseDown={handleChartPointerDown}
                     onMouseEnter={handleChartPointerMove}
                     onMouseLeave={hideActiveInteraction}
@@ -1430,16 +1439,16 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       tickLine={false}
                       axisLine={false}
                       tickMargin={14}
-                      minTickGap={34}
-                      tick={{ fill: 'rgba(71,85,105,0.82)', fontSize: 11, fontWeight: 700 }}
+                      minTickGap={isMobile ? 22 : 34}
+                      tick={{ fill: 'rgba(71,85,105,0.82)', fontSize: isMobile ? 10 : 11, fontWeight: 700 }}
                     />
                     <YAxis
                       orientation="right"
                       tickFormatter={(value) => compactFormatter.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      width={70}
-                      tick={{ fill: 'rgba(71,85,105,0.78)', fontSize: 11, fontWeight: 700 }}
+                      width={isMobile ? 52 : 70}
+                      tick={{ fill: 'rgba(71,85,105,0.78)', fontSize: isMobile ? 10 : 11, fontWeight: 700 }}
                       {...(yDomain ? { domain: yDomain } : {})}
                     />
                     <Tooltip
@@ -1505,8 +1514,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   </LineChart>
                 </ResponsiveContainer>
 
-                <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-2 text-[11px] text-slate-600 md:bottom-4 md:left-4 md:right-4 md:flex-row md:items-end md:justify-between">
-                  <div className={`max-w-xl rounded-full border border-white/75 bg-white/78 px-3 py-2 backdrop-blur-sm sm:px-3.5 ${contentAlignClass}`}>
+                <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 z-10 flex flex-col gap-2 text-[11px] text-slate-600 md:bottom-4 md:left-4 md:right-4 md:flex-row md:items-end md:justify-between">
+                  <div className={`hidden max-w-xl rounded-full border border-white/75 bg-white/78 px-3 py-2 backdrop-blur-sm sm:block sm:px-3.5 ${contentAlignClass}`}>
                     {chartLegendDescription}
                   </div>
                   <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/75 bg-white/78 px-3 py-2 font-semibold text-slate-700 backdrop-blur-sm sm:px-3.5 md:self-auto">
