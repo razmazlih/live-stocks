@@ -39,7 +39,7 @@ const VISUALIZATION_HEADER_CLASS =
 const VISUALIZATION_CONTENT_CLASS = 'relative space-y-5 px-4 py-4 sm:px-5 sm:py-5';
 
 const DARK_CHART_SURFACE_CLASS =
-  'viz-chart-surface viz-grid-soft-strong relative overflow-hidden rounded-[30px] border-white/5 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_24%),linear-gradient(180deg,#0f172a_0%,#111827_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_30px_56px_-38px_rgba(15,23,42,0.72)]';
+  'viz-chart-surface viz-grid-soft-strong relative overflow-hidden rounded-[30px] border-white/10 bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.24),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(52,211,153,0.18),transparent_34%),linear-gradient(180deg,#0b1120_0%,#111827_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_32px_56px_-40px_rgba(15,23,42,0.82)]';
 
 const HEADER_BADGE_CLASS =
   'viz-chip inline-flex items-center gap-2 border-[color:rgba(148,163,184,0.24)] bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-slate-500)] shadow-sm backdrop-blur';
@@ -316,6 +316,14 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
     }
 
     return lines.slice(0, 2);
+  }, []);
+  const truncateSymbol = useCallback((value: string, maxLength = 8) => {
+    const trimmed = value.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+
+    return `${trimmed.slice(0, maxLength - 1)}…`;
   }, []);
   const renderHoldingPeriodTick = useCallback(
     ({ x = 0, y = 0, payload }: { x?: number; y?: number; payload?: { value?: string } }) => {
@@ -660,11 +668,16 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             />
           ) : (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(18rem,0.84fr)] xl:items-start">
-              <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(18rem,32vw,22rem)] w-full`}>
+              <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(19rem,34vw,24rem)] w-full`}>
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
                 <div className="pointer-events-none absolute inset-x-6 bottom-6 h-24 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_70%)] blur-3xl" />
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 14, right: 20, bottom: 8, left: 6 }}>
+                  <BarChart
+                    data={holdingPeriodData}
+                    layout="vertical"
+                    barCategoryGap="24%"
+                    margin={{ top: 20, right: 28, bottom: 14, left: 18 }}
+                  >
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity={1} />
@@ -678,14 +691,15 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: 'rgba(226,232,240,0.88)', fontSize: 11, fontWeight: 600 }}
+                      tickMargin={10}
+                      tick={{ fill: 'rgba(226,232,240,0.95)', fontSize: 11, fontWeight: 700 }}
                     />
                     <YAxis
                       type="category"
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      width={148}
+                      width={172}
                       tickMargin={10}
                       interval={0}
                       tick={renderHoldingPeriodTick}
@@ -790,10 +804,10 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               description={t.dashboard.pnlDescription}
             />
           ) : (
-            <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(19rem,32vw,23rem)]`}>
+            <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(20rem,34vw,24rem)]`}>
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 16, right: 8, left: 0, bottom: 10 }}>
+                <BarChart data={pnlData} barGap={8} barCategoryGap="26%" margin={{ top: 20, right: 20, left: 8, bottom: 20 }}>
                   <defs>
                     <linearGradient id="pnlCurrentGainGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={1} />
@@ -816,19 +830,22 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   <ReferenceLine y={0} stroke="rgba(226,232,240,0.3)" strokeDasharray="4 4" />
                   <XAxis
                     dataKey="symbol"
+                    tickFormatter={(value: string) => truncateSymbol(value, 9)}
                     tickLine={false}
                     axisLine={false}
                     interval={0}
-                    height={36}
-                    tick={{ fill: 'rgba(248,250,252,0.92)', fontSize: 12, fontWeight: 700 }}
+                    height={42}
+                    tickMargin={10}
+                    tick={{ fill: 'rgba(248,250,252,0.96)', fontSize: 12, fontWeight: 700 }}
                   />
                   <YAxis
                     domain={pnlDomain}
                     tickFormatter={(value) => compactNumber.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    width={48}
-                    tick={{ fill: 'rgba(226,232,240,0.84)', fontSize: 11, fontWeight: 600 }}
+                    width={64}
+                    tickMargin={8}
+                    tick={{ fill: 'rgba(226,232,240,0.9)', fontSize: 11, fontWeight: 700 }}
                   />
                   <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.12)' }}
@@ -902,9 +919,9 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             />
           ) : (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.02fr)_minmax(16rem,0.98fr)] lg:items-start 2xl:gap-6">
-              <div className={`${DARK_CHART_SURFACE_CLASS} min-h-[22rem]`}>
+              <div className={`${DARK_CHART_SURFACE_CLASS} min-h-[23rem]`}>
                 <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
-                <div className="mx-auto flex h-[clamp(18rem,30vw,24rem)] w-full max-w-[25rem] items-center justify-center">
+                <div className="mx-auto flex h-[clamp(19rem,31vw,24.5rem)] w-full max-w-[25rem] items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <defs>

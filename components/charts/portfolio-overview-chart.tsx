@@ -1324,7 +1324,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div
                 ref={chartSurfaceRef}
-                className="relative h-[24rem] overflow-hidden rounded-[30px] border border-slate-900/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.93))] shadow-[0_30px_68px_-38px_rgba(2,6,23,0.92)] lg:h-[28rem]"
+                className="relative h-[26rem] overflow-hidden rounded-[30px] border border-slate-900/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.93))] shadow-[0_30px_68px_-38px_rgba(2,6,23,0.92)] lg:h-[30rem]"
                 onTouchStart={handleChartSurfaceTouchStart}
                 onTouchMove={handleChartSurfaceTouchMove}
                 onTouchCancel={hideActiveInteraction}
@@ -1378,7 +1378,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={chartPoints}
-                    margin={{ top: 88, right: 16, left: 6, bottom: 20 }}
+                    margin={{ top: 98, right: 28, left: 20, bottom: 28 }}
                     onMouseDown={handleChartPointerDown}
                     onMouseEnter={handleChartPointerMove}
                     onMouseLeave={hideActiveInteraction}
@@ -1427,19 +1427,21 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       domain={['dataMin', 'dataMax']}
                       scale="time"
                       tickFormatter={(value: number) => withRtlMark(dateFormatter.format(new Date(value)))}
+                      padding={{ left: 10, right: 10 }}
                       tickLine={false}
                       axisLine={false}
                       tickMargin={14}
-                      minTickGap={34}
-                      tick={{ fill: 'rgba(226,232,240,0.78)', fontSize: 11, fontWeight: 600 }}
+                      minTickGap={44}
+                      tick={{ fill: 'rgba(226,232,240,0.86)', fontSize: 11, fontWeight: 700 }}
                     />
                     <YAxis
                       orientation="right"
                       tickFormatter={(value) => compactFormatter.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      width={64}
-                      tick={{ fill: 'rgba(226,232,240,0.72)', fontSize: 10, fontWeight: 600 }}
+                      width={74}
+                      tickMargin={8}
+                      tick={{ fill: 'rgba(226,232,240,0.84)', fontSize: 11, fontWeight: 700 }}
                       {...(yDomain ? { domain: yDomain } : {})}
                     />
                     <Tooltip
