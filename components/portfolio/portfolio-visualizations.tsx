@@ -23,6 +23,7 @@ import { useTranslation } from '@/lib/translations';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
 import { buildPortfolioAllocation, buildPortfolioPnL, formatCurrency, formatPercent } from '@/lib/calculations';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { PositionMetrics, PortfolioSummary } from '@/types';
 
 interface PortfolioVisualizationsProps {
@@ -236,6 +237,7 @@ const FittedSingleLineValue = ({ value }: { value: string }) => {
 export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualizationsProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
+  const isMobile = useIsMobile();
   const isRtl = locale === 'he';
   const withRtlMark = (value: TooltipValueType) => {
     const text = value?.toString?.() ?? '';
@@ -327,7 +329,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
           x={x}
           y={y}
           fill="rgba(248,250,252,0.94)"
-          fontSize={12}
+          fontSize={isMobile ? 10 : 12}
           fontWeight={700}
           textAnchor="end"
           dominantBaseline="middle"
@@ -342,7 +344,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </text>
       );
     },
-    [isRtl, splitHoldingLabel]
+    [isMobile, isRtl, splitHoldingLabel]
   );
 
   const renderPnlSymbolTick = useCallback(
@@ -357,7 +359,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
           y={y}
           textAnchor="middle"
           fill="rgba(71,85,105,0.95)"
-          fontSize={11}
+          fontSize={isMobile ? 10 : 11}
           fontWeight={700}
           direction="ltr"
           style={{ unicodeBidi: 'isolate' }}
@@ -366,7 +368,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </text>
       );
     },
-    []
+    [isMobile]
   );
 
   const topMovers = useMemo(() => {
@@ -520,7 +522,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 <p className="max-w-2xl text-balance text-sm leading-6 text-[var(--color-slate-500)]">{t.dashboard.topMoversDescription}</p>
               </div>
             </div>
-            <div className="grid min-w-[12rem] gap-2 sm:grid-cols-2">
+            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[12rem] sm:grid-cols-2">
               <div className="rounded-[1.25rem] border border-emerald-200/75 bg-[linear-gradient(180deg,rgba(236,253,245,0.95),rgba(255,255,255,0.94))] px-3 py-2.5 shadow-[0_18px_30px_-28px_rgba(16,185,129,0.65)]">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">{t.dashboard.topMoversPositiveLabel}</p>
                 <p className="mt-1 text-2xl font-black text-emerald-700">{topMovers.gainers.length}</p>
@@ -581,9 +583,9 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                             </div>
                           </div>
                         </div>
-                        <div className={`flex items-center justify-between gap-3 rounded-[1rem] bg-white/70 px-3 py-2 sm:min-w-[8rem] sm:bg-transparent sm:px-0 sm:py-0 ${isRtl ? 'text-right sm:text-right' : 'sm:text-right'}`}>
+                        <div className={`flex flex-col items-start gap-1.5 rounded-[1rem] bg-white/70 px-3 py-2 sm:min-w-[8rem] sm:items-end sm:justify-between sm:gap-3 sm:bg-transparent sm:px-0 sm:py-0 ${isRtl ? 'text-right sm:text-right' : 'sm:text-right'}`}>
                           <p dir="ltr" className="text-[1.08rem] font-black tracking-tight text-emerald-700">{formatValue(item.changeValue)}</p>
-                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-emerald-700/75">{t.dashboard.topMoversPositiveLabel}</p>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-emerald-700/75">{t.dashboard.topMoversPositiveLabel}</p>
                         </div>
                       </div>
                     </div>
@@ -636,9 +638,9 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                             </div>
                           </div>
                         </div>
-                        <div className={`flex items-center justify-between gap-3 rounded-[1rem] bg-white/70 px-3 py-2 sm:min-w-[8rem] sm:bg-transparent sm:px-0 sm:py-0 ${isRtl ? 'text-right sm:text-right' : 'sm:text-right'}`}>
+                        <div className={`flex flex-col items-start gap-1.5 rounded-[1rem] bg-white/70 px-3 py-2 sm:min-w-[8rem] sm:items-end sm:justify-between sm:gap-3 sm:bg-transparent sm:px-0 sm:py-0 ${isRtl ? 'text-right sm:text-right' : 'sm:text-right'}`}>
                           <p dir="ltr" className="text-[1.08rem] font-black tracking-tight text-rose-700">{formatValue(item.changeValue)}</p>
-                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-rose-700/75">{t.dashboard.topMoversNegativeLabel}</p>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-rose-700/75">{t.dashboard.topMoversNegativeLabel}</p>
                         </div>
                       </div>
                     </div>
@@ -684,11 +686,11 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             />
           ) : (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(18rem,0.84fr)] xl:items-start">
-              <div className={`${CHART_SURFACE_CLASS} h-[clamp(18rem,32vw,22rem)] w-full`}>
+              <div className={`${CHART_SURFACE_CLASS} h-[clamp(16rem,48vw,22rem)] w-full`}>
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
                 <div className="pointer-events-none absolute inset-x-6 bottom-6 h-24 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_70%)] blur-3xl" />
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 14, right: 20, bottom: 8, left: 6 }}>
+                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap={isMobile ? '20%' : '26%'} margin={isMobile ? { top: 10, right: 10, bottom: 2, left: 0 } : { top: 14, right: 20, bottom: 8, left: 6 }}>
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity={1} />
@@ -702,15 +704,15 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: 'rgba(71,85,105,0.88)', fontSize: 11, fontWeight: 700 }}
+                      tick={{ fill: 'rgba(71,85,105,0.88)', fontSize: isMobile ? 10 : 11, fontWeight: 700 }}
                     />
                     <YAxis
                       type="category"
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      width={160}
-                      tickMargin={10}
+                      width={isMobile ? 112 : 160}
+                      tickMargin={isMobile ? 6 : 10}
                       interval={0}
                       tick={renderHoldingPeriodTick}
                     />
@@ -814,10 +816,10 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               description={t.dashboard.pnlDescription}
             />
           ) : (
-            <div className={`${CHART_SURFACE_CLASS} h-[clamp(20rem,34vw,24rem)]`}>
+            <div className={`${CHART_SURFACE_CLASS} h-[clamp(18rem,48vw,24rem)]`}>
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pnlData} barGap={8} barCategoryGap="22%" margin={{ top: 16, right: 12, left: 8, bottom: 26 }}>
+                <BarChart data={pnlData} barGap={isMobile ? 4 : 8} barCategoryGap={isMobile ? '16%' : '22%'} margin={isMobile ? { top: 12, right: 8, left: 0, bottom: 20 } : { top: 16, right: 12, left: 8, bottom: 26 }}>
                   <defs>
                     <linearGradient id="pnlCurrentGainGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={1} />
@@ -843,7 +845,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                     tickLine={false}
                     axisLine={false}
                     interval={0}
-                    height={44}
+                    height={isMobile ? 34 : 44}
                     tick={renderPnlSymbolTick}
                   />
                   <YAxis
@@ -851,8 +853,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                     tickFormatter={(value) => compactNumber.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    width={56}
-                    tick={{ fill: 'rgba(71,85,105,0.84)', fontSize: 11, fontWeight: 700 }}
+                    width={isMobile ? 42 : 56}
+                    tick={{ fill: 'rgba(71,85,105,0.84)', fontSize: isMobile ? 10 : 11, fontWeight: 700 }}
                   />
                   <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.12)' }}
