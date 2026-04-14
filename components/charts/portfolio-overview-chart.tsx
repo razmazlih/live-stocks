@@ -1378,7 +1378,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={chartPoints}
-                    margin={{ top: 88, right: 16, left: 6, bottom: 20 }}
+                    margin={{ top: 92, right: 22, left: 14, bottom: 26 }}
                     onMouseDown={handleChartPointerDown}
                     onMouseEnter={handleChartPointerMove}
                     onMouseLeave={hideActiveInteraction}
@@ -1430,7 +1430,8 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       tickLine={false}
                       axisLine={false}
                       tickMargin={14}
-                      minTickGap={34}
+                      minTickGap={26}
+                      interval="preserveStartEnd"
                       tick={{ fill: 'rgba(226,232,240,0.78)', fontSize: 11, fontWeight: 600 }}
                     />
                     <YAxis
@@ -1438,7 +1439,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                       tickFormatter={(value) => compactFormatter.format(value)}
                       tickLine={false}
                       axisLine={false}
-                      width={64}
+                      width={76}
                       tick={{ fill: 'rgba(226,232,240,0.72)', fontSize: 10, fontWeight: 600 }}
                       {...(yDomain ? { domain: yDomain } : {})}
                     />

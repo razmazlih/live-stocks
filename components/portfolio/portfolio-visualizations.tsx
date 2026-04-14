@@ -419,6 +419,14 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
 
   const pieTooltipFormatter = (value: number) => formatValue(value ?? 0);
   const barTooltipFormatter = (value: number) => formatValue(value ?? 0);
+  const symbolTickFormatter = useCallback((value: TooltipValueType) => {
+    const text = value?.toString?.() ?? '';
+    if (text.length <= 9) {
+      return text;
+    }
+
+    return `${text.slice(0, 8)}…`;
+  }, []);
 
   const totalAllocationValue = useMemo(
     () => allocationData.reduce((sum, item) => sum + item.value, 0),
@@ -664,7 +672,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
                 <div className="pointer-events-none absolute inset-x-6 bottom-6 h-24 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_70%)] blur-3xl" />
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 14, right: 20, bottom: 8, left: 6 }}>
+                  <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="24%" margin={{ top: 18, right: 26, bottom: 14, left: 18 }}>
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity={1} />
@@ -678,6 +686,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       tickFormatter={(value) => compactNumber.format(value)}
                       tickLine={false}
                       axisLine={false}
+                      minTickGap={18}
                       tick={{ fill: 'rgba(226,232,240,0.88)', fontSize: 11, fontWeight: 600 }}
                     />
                     <YAxis
@@ -685,8 +694,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      width={148}
-                      tickMargin={10}
+                      width={172}
+                      tickMargin={12}
                       interval={0}
                       tick={renderHoldingPeriodTick}
                     />
@@ -790,10 +799,16 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               description={t.dashboard.pnlDescription}
             />
           ) : (
-            <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(19rem,32vw,23rem)]`}>
+            <div className={`${DARK_CHART_SURFACE_CLASS} h-[clamp(20rem,35vw,25rem)]`}>
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 16, right: 8, left: 0, bottom: 10 }}>
+                <BarChart
+                  data={pnlData}
+                  layout="vertical"
+                  barGap={7}
+                  barCategoryGap="24%"
+                  margin={{ top: 18, right: 22, left: 12, bottom: 12 }}
+                >
                   <defs>
                     <linearGradient id="pnlCurrentGainGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={1} />
@@ -813,32 +828,41 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 6" stroke="rgba(148,163,184,0.18)" />
-                  <ReferenceLine y={0} stroke="rgba(226,232,240,0.3)" strokeDasharray="4 4" />
+                  <ReferenceLine x={0} stroke="rgba(226,232,240,0.3)" strokeDasharray="4 4" />
                   <XAxis
-                    dataKey="symbol"
-                    tickLine={false}
-                    axisLine={false}
-                    interval={0}
-                    height={36}
-                    tick={{ fill: 'rgba(248,250,252,0.92)', fontSize: 12, fontWeight: 700 }}
-                  />
-                  <YAxis
+                    type="number"
                     domain={pnlDomain}
                     tickFormatter={(value) => compactNumber.format(value)}
                     tickLine={false}
                     axisLine={false}
-                    width={48}
-                    tick={{ fill: 'rgba(226,232,240,0.84)', fontSize: 11, fontWeight: 600 }}
+                    tickMargin={10}
+                    tick={{ fill: 'rgba(226,232,240,0.9)', fontSize: 11, fontWeight: 600 }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="symbol"
+                    tickFormatter={(value) => withRtlMark(symbolTickFormatter(value))}
+                    tickLine={false}
+                    axisLine={false}
+                    width={74}
+                    interval={0}
+                    tickMargin={10}
+                    tick={{ fill: 'rgba(248,250,252,0.92)', fontSize: 11, fontWeight: 700 }}
                   />
                   <Tooltip
                     cursor={{ fill: 'rgba(148,163,184,0.12)' }}
-                    content={<ChartTooltip valueFormatter={barTooltipFormatter} />}
+                    content={
+                      <ChartTooltip
+                        valueFormatter={barTooltipFormatter}
+                        labelFormatter={(label) => withRtlMark(symbolTickFormatter(label))}
+                      />
+                    }
                   />
                   <Bar
                     dataKey="currentPnLDisplay"
                     name={t.dashboard.current}
-                    radius={[10, 10, 6, 6]}
-                    maxBarSize={20}
+                    radius={[999, 999, 999, 999]}
+                    maxBarSize={16}
                   >
                     {pnlData.map((entry, index) => (
                       <Cell
@@ -850,8 +874,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                   <Bar
                     dataKey="projectedPnLDisplay"
                     name={t.dashboard.projected}
-                    radius={[10, 10, 6, 6]}
-                    maxBarSize={20}
+                    radius={[999, 999, 999, 999]}
+                    maxBarSize={16}
                   >
                     {pnlData.map((entry, index) => (
                       <Cell
@@ -906,7 +930,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.62),rgba(255,255,255,0))]" />
                 <div className="mx-auto flex h-[clamp(18rem,30vw,24rem)] w-full max-w-[25rem] items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
                       <defs>
                         {allocationData.map((entry, index) => {
                           const gradientId = `allocationGradient-${entry.symbol}-${index}`;
@@ -929,8 +953,8 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         data={allocationData}
                         dataKey="value"
                         nameKey="display"
-                        innerRadius="56%"
-                        outerRadius="82%"
+                        innerRadius="58%"
+                        outerRadius="78%"
                         paddingAngle={3}
                         cornerRadius={11}
                         startAngle={90}
