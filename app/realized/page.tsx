@@ -331,7 +331,7 @@ export default function RealizedPnLPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="dashboard-page-container">
+      <div className="dashboard-page-container rebuild-page-container">
         <header className={`${shellClassName} px-5 py-6 sm:px-6 sm:py-7`}>
           <div
             className={cn(

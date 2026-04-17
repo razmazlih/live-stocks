@@ -1879,7 +1879,7 @@
   }
 
   body {
-    font-family: var(--font-app), 'Rubik', system-ui, sans-serif;
+    font-family: var(--font-app), 'Assistant', system-ui, sans-serif;
     line-height: 1.62;
     letter-spacing: -0.005em;
     background:
@@ -2006,5 +2006,101 @@
   .dark .page-shell::before,
   .dark .page-shell::after {
     opacity: 0.18;
+  }
+}
+
+@layer base {
+  :root {
+    --color-primary-900: #0b1320;
+    --color-primary-800: #111c2f;
+    --color-primary-700: #0f766e;
+    --color-primary-600: #0f5d56;
+    --color-primary-500: #0ea5a4;
+    --color-blue-50: #f2fbfa;
+    --color-blue-100: #d7f5ef;
+    --color-blue-200: #b7eadf;
+    --color-blue-500: #14b8a6;
+    --color-blue-600: #0f766e;
+    --color-blue-700: #0f4f4a;
+    --color-amber-500: #d97706;
+    --color-amber-600: #b45309;
+    --page-max-width: 86rem;
+    --page-gutter: clamp(0.85rem, 2vw, 1.4rem);
+    --page-stack-gap: clamp(1.1rem, 1.5vw, 1.7rem);
+    --page-surface-radius: 1.5rem;
+    --page-surface-radius-strong: 1.75rem;
+    --surface-border: rgba(148, 163, 184, 0.26);
+    --surface-border-strong: rgba(16, 185, 129, 0.26);
+    --surface-shadow: 0 18px 46px -38px rgba(15, 23, 42, 0.32);
+    --surface-shadow-strong: 0 26px 62px -40px rgba(15, 23, 42, 0.4);
+    --surface-shadow-hover: 0 30px 72px -44px rgba(15, 23, 42, 0.44);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 7% -4%, rgba(16, 185, 129, 0.12), transparent 33%),
+      radial-gradient(circle at 92% 2%, rgba(245, 158, 11, 0.1), transparent 30%),
+      linear-gradient(180deg, #f6faf9 0%, #f2f5f8 100%);
+  }
+
+  .app-root {
+    background:
+      radial-gradient(circle at 8% 0%, rgba(16, 185, 129, 0.14), transparent 33%),
+      radial-gradient(circle at 90% 6%, rgba(245, 158, 11, 0.11), transparent 30%),
+      radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.08), transparent 44%),
+      linear-gradient(180deg, rgba(246, 250, 249, 0.98), rgba(241, 245, 248, 0.96));
+  }
+}
+
+@layer components {
+  .page-shell {
+    background:
+      radial-gradient(circle at 8% -2%, rgba(16, 185, 129, 0.16), transparent 30%),
+      radial-gradient(circle at 90% 4%, rgba(245, 158, 11, 0.12), transparent 28%),
+      radial-gradient(circle at 50% 102%, rgba(15, 23, 42, 0.12), transparent 50%),
+      linear-gradient(180deg, rgba(247, 250, 249, 0.95), rgba(241, 245, 248, 0.96));
+  }
+
+  .dashboard-page-container,
+  .dashboard-page-container-tight {
+    padding-block: clamp(0.9rem, 2vw, 1.5rem);
+  }
+
+  .rebuild-page-container {
+    position: relative;
+    z-index: 1;
+    border-radius: 1.65rem;
+    border: 1px solid color-mix(in srgb, var(--color-slate-200) 82%, white);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.86)),
+      rgba(var(--color-neutral-white-rgb), 0.88);
+    box-shadow:
+      0 30px 64px -52px rgba(15, 23, 42, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    padding-top: clamp(0.8rem, 1.8vw, 1.3rem);
+    padding-bottom: clamp(1rem, 2vw, 1.5rem);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .home-hero--rebuild {
+    border-color: color-mix(in srgb, var(--color-emerald-200) 74%, white);
+    box-shadow:
+      0 34px 70px -52px rgba(15, 23, 42, 0.52),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .quick-actions-shell--rebuild {
+    border-color: color-mix(in srgb, var(--color-slate-200) 86%, white);
+    box-shadow:
+      0 26px 58px -44px rgba(15, 23, 42, 0.48),
+      inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  }
+
+  .app-card-shell {
+    border-color: color-mix(in srgb, var(--color-slate-200) 84%, white);
+    box-shadow:
+      0 24px 52px -40px rgba(15, 23, 42, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
   }
 }

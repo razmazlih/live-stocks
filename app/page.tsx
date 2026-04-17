@@ -57,10 +57,10 @@ interface SummaryTile {
 }
 
 const dashboardSectionClassName =
-  'page-surface relative isolate overflow-hidden rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,250,255,0.94))] shadow-[0_30px_60px_-42px_rgba(15,23,42,0.68)] ring-1 ring-white/55';
+  'page-surface relative isolate overflow-hidden rounded-[1.7rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] shadow-[0_30px_60px_-46px_rgba(15,23,42,0.52)] ring-1 ring-white/62';
 
 const dashboardCardClassName =
-  'group relative overflow-hidden rounded-[1.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.82))] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.32)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_42px_-28px_rgba(15,23,42,0.4)] motion-reduce:transform-none motion-reduce:transition-none';
+  'group relative overflow-hidden rounded-[1.25rem] border border-[color:var(--color-slate-200)]/78 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,250,252,0.88))] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_42px_-30px_rgba(15,23,42,0.36)] motion-reduce:transform-none motion-reduce:transition-none';
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<SectionKey>('positions');

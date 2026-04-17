@@ -779,7 +779,7 @@ export default function PositionsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="dashboard-page-container">
+      <div className="dashboard-page-container rebuild-page-container">
         <header className={`${sectionShellClass} px-5 py-5 sm:px-6 sm:py-6`}>
           <div
             aria-hidden="true"

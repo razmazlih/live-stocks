@@ -18,7 +18,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
       shadow="none"
       radius="lg"
       className={cn(
-        'app-card-shell min-w-0 rounded-2xl border border-[color:var(--color-slate-200)]/75 bg-[rgba(255,255,255,0.88)] text-card-foreground shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] backdrop-blur-md transition-[border-color,box-shadow,transform] duration-200 ease-out hover:border-[color:var(--color-blue-100)]/90',
+        'app-card-shell min-w-0 rounded-[1.25rem] border border-[color:var(--color-slate-200)]/78 bg-[linear-gradient(160deg,rgba(255,255,255,0.97),rgba(249,250,251,0.93))] text-card-foreground shadow-[0_22px_42px_-36px_rgba(15,23,42,0.48)] backdrop-blur-md transition-[border-color,box-shadow,transform] duration-200 ease-out hover:border-[color:var(--color-emerald-200)]/90',
         className
       )}
       {...(props as Record<string, unknown>)}

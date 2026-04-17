@@ -31,8 +31,8 @@ interface QuickActionTone {
 const ACTION_TONE_BY_KEY: Record<string, QuickActionTone> = {
   reload: {
     surfaceClassName:
-      'border-[color:var(--color-blue-200)]/82 bg-[color:var(--color-blue-50)]/78 text-[var(--color-blue-700)] hover:bg-[color:var(--color-blue-50)]/92',
-    iconClassName: 'bg-[color:var(--color-blue-100)]/90 text-[var(--color-blue-700)]',
+      'border-[color:var(--color-emerald-200)]/82 bg-[color:var(--color-emerald-50)]/78 text-[var(--color-emerald-700)] hover:bg-[color:var(--color-emerald-50)]/92',
+    iconClassName: 'bg-[color:var(--color-emerald-100)]/90 text-[var(--color-emerald-700)]',
   },
   settings: {
     surfaceClassName:
@@ -41,18 +41,18 @@ const ACTION_TONE_BY_KEY: Record<string, QuickActionTone> = {
   },
   dashboard: {
     surfaceClassName:
-      'border-[color:var(--color-primary-200)]/80 bg-[color:var(--color-primary-050)]/72 text-[var(--color-primary-900)] hover:bg-[color:var(--color-primary-050)]/90',
-    iconClassName: 'bg-[color:var(--color-primary-050)]/92 text-[var(--color-primary-700)]',
+      'border-[color:var(--color-emerald-200)]/80 bg-[color:var(--color-emerald-50)]/72 text-[var(--color-primary-900)] hover:bg-[color:var(--color-emerald-50)]/90',
+    iconClassName: 'bg-[color:var(--color-emerald-100)]/92 text-[var(--color-emerald-700)]',
   },
   insights: {
     surfaceClassName:
-      'border-[color:var(--color-blue-200)]/80 bg-[color:var(--color-primary-050)]/72 text-[var(--color-primary-900)] hover:bg-[color:var(--color-primary-050)]/92',
-    iconClassName: 'bg-[color:var(--color-blue-100)]/90 text-[var(--color-indigo-700)]',
+      'border-[color:var(--color-sky-100)]/80 bg-[color:var(--color-blue-50)]/72 text-[var(--color-primary-900)] hover:bg-[color:var(--color-blue-50)]/92',
+    iconClassName: 'bg-[color:var(--color-blue-100)]/90 text-[var(--color-sky-700)]',
   },
   portfolio: {
     surfaceClassName:
-      'border-[color:var(--color-blue-200)]/74 bg-[color:var(--color-primary-010)]/76 text-[var(--color-primary-900)] hover:bg-[color:var(--color-primary-010)]/94',
-    iconClassName: 'bg-[color:var(--color-primary-050)]/92 text-[var(--color-indigo-700)]',
+      'border-[color:var(--color-slate-200)]/74 bg-[color:var(--color-primary-010)]/76 text-[var(--color-primary-900)] hover:bg-[color:var(--color-primary-010)]/94',
+    iconClassName: 'bg-[color:var(--color-slate-100)]/92 text-[var(--color-slate-700)]',
   },
   realized: {
     surfaceClassName:
@@ -61,13 +61,13 @@ const ACTION_TONE_BY_KEY: Record<string, QuickActionTone> = {
   },
   watchlist: {
     surfaceClassName:
-      'border-[color:var(--color-sky-100)]/95 bg-[color:var(--color-blue-50)]/76 text-[var(--color-blue-700)] hover:bg-[color:var(--color-blue-50)]/92',
-    iconClassName: 'bg-[color:var(--color-sky-100)]/68 text-[var(--color-sky-700)]',
+      'border-[color:var(--color-amber-200)]/95 bg-[color:var(--color-amber-200)]/28 text-[var(--color-amber-600)] hover:bg-[color:var(--color-amber-200)]/42',
+    iconClassName: 'bg-[color:var(--color-amber-200)]/58 text-[var(--color-amber-600)]',
   },
   positions: {
     surfaceClassName:
-      'border-[color:var(--color-blue-200)]/75 bg-[color:var(--color-blue-50)]/74 text-[var(--color-blue-700)] hover:bg-[color:var(--color-blue-50)]/92',
-    iconClassName: 'bg-[color:var(--color-blue-100)]/88 text-[var(--color-blue-700)]',
+      'border-[color:var(--color-emerald-200)]/75 bg-[color:var(--color-emerald-50)]/74 text-[var(--color-emerald-700)] hover:bg-[color:var(--color-emerald-50)]/92',
+    iconClassName: 'bg-[color:var(--color-emerald-100)]/88 text-[var(--color-emerald-700)]',
   },
   aiPrompts: {
     surfaceClassName:

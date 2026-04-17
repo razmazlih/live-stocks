@@ -279,7 +279,7 @@ export default function AiPromptsPage() {
 
   return (
     <DashboardPageShell direction={direction}>
-      <div className="dashboard-page-container">
+      <div className="dashboard-page-container rebuild-page-container">
         <div className="space-y-4">
           <section className="rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

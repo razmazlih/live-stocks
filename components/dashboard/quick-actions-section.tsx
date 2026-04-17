@@ -30,7 +30,7 @@ export function QuickActionsSection({
   return (
     <div
       className={cn(
-        'quick-actions-shell relative isolate w-full max-w-full overflow-hidden rounded-[1.9rem] border border-[color:var(--color-blue-100)]/70 bg-[linear-gradient(150deg,rgba(255,255,255,0.97)_0%,rgba(248,251,255,0.96)_40%,rgba(232,243,255,0.82)_100%)] p-3 shadow-[0_30px_64px_-40px_rgba(15,23,42,0.72)] backdrop-blur-xl max-[480px]:p-3 sm:p-5 lg:min-w-[420px] lg:max-w-[560px]',
+        'quick-actions-shell quick-actions-shell--rebuild relative isolate w-full max-w-full overflow-hidden rounded-[1.55rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(150deg,rgba(255,255,255,0.98)_0%,rgba(249,250,251,0.96)_40%,rgba(241,245,249,0.88)_100%)] p-3 shadow-[0_28px_58px_-42px_rgba(15,23,42,0.52)] backdrop-blur-xl max-[480px]:p-3 sm:p-5 lg:min-w-[420px] lg:max-w-[560px]',
         className
       )}
     >
@@ -39,15 +39,15 @@ export function QuickActionsSection({
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.12),transparent_70%)] blur-3xl"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-20 left-[-3.5rem] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.12),transparent_72%)] blur-3xl"
+        className="pointer-events-none absolute -bottom-20 left-[-3.5rem] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.1),transparent_72%)] blur-3xl"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(147,197,253,0.9),rgba(255,255,255,0))]"
+        className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(167,243,208,0.9),rgba(255,255,255,0))]"
         aria-hidden="true"
       />
       <div className="quick-actions-body relative z-10 space-y-4">

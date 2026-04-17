@@ -537,10 +537,10 @@ export function AppNavigation() {
     <>
       <nav aria-label={primaryNavLabel} dir={isRtl ? 'rtl' : 'ltr'} className="fixed inset-x-0 top-0 z-50 hidden md:block">
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--color-slate-200)]/78 bg-[rgba(255,255,255,0.84)] shadow-[0_30px_58px_-34px_rgba(15,23,42,0.78)] ring-1 ring-white/55 backdrop-blur-[24px]">
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.94),rgba(249,250,251,0.9))] shadow-[0_30px_58px_-38px_rgba(15,23,42,0.62)] ring-1 ring-white/65 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_7%_18%,rgba(59,130,246,0.14),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(16,185,129,0.1),transparent_30%),linear-gradient(122deg,rgba(255,255,255,0.95),rgba(242,248,255,0.9))]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_7%_18%,rgba(16,185,129,0.12),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(245,158,11,0.08),transparent_30%),linear-gradient(122deg,rgba(255,255,255,0.96),rgba(247,250,252,0.9))]"
             />
             <div
               aria-hidden="true"
@@ -548,7 +548,7 @@ export function AppNavigation() {
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-[linear-gradient(90deg,rgba(191,219,254,0),rgba(191,219,254,0.72),rgba(167,243,208,0.62),rgba(191,219,254,0))]"
+              className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-[linear-gradient(90deg,rgba(167,243,208,0),rgba(167,243,208,0.72),rgba(253,230,138,0.62),rgba(167,243,208,0))]"
             />
             <div
               className={cn(
@@ -561,7 +561,7 @@ export function AppNavigation() {
                 className={cn(
                   'group flex min-h-[4.25rem] min-w-0 shrink-0 basis-[15rem] items-center gap-3 rounded-[1.6rem] border px-4 py-2.5 text-left shadow-[0_22px_30px_-26px_rgba(15,23,42,0.7)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] lg:basis-[17rem]',
                   isHomeActive
-                    ? 'translate-y-[-1px] border-[color:var(--color-blue-100)]/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.99),rgba(239,246,255,0.92))] shadow-[0_26px_38px_-26px_rgba(15,23,42,0.72)]'
+                    ? 'translate-y-[-1px] border-[color:var(--color-emerald-200)]/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.99),rgba(236,253,245,0.9))] shadow-[0_26px_38px_-26px_rgba(15,23,42,0.6)]'
                     : 'border-[color:var(--color-slate-200)]/88 bg-[rgba(255,255,255,0.84)] hover:-translate-y-[1px] hover:bg-[rgba(255,255,255,0.95)] hover:shadow-[0_26px_34px_-24px_rgba(15,23,42,0.72)]'
                 )}
               >
@@ -573,7 +573,7 @@ export function AppNavigation() {
                     <span className="truncate text-[13px] font-bold tracking-tight text-[var(--color-primary-900)]">
                       {t.app.title}
                     </span>
-                    <span className="hidden items-center gap-1.5 rounded-full border border-[color:var(--color-emerald-100)]/90 bg-[rgba(236,253,245,0.9)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-emerald-700)] lg:inline-flex">
+                    <span className="hidden items-center gap-1.5 rounded-full border border-[color:var(--color-amber-200)]/90 bg-[rgba(255,251,235,0.9)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-amber-600)] lg:inline-flex">
                       <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-emerald-500)] animate-pulse" />
                       {liveLabel}
                     </span>
@@ -584,8 +584,8 @@ export function AppNavigation() {
                 </span>
               </Link>
 
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-[1.6rem] border border-[color:var(--color-slate-200)]/82 bg-[linear-gradient(145deg,rgba(255,255,255,0.62),rgba(248,250,252,0.44))] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-[1.4rem] border border-[color:var(--color-slate-200)]/82 bg-[linear-gradient(145deg,rgba(255,255,255,0.7),rgba(249,250,251,0.56))] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {desktopPrimaryItems.map((item) => (
                     <DesktopNavLink key={item.href} item={item} active={isRouteActive(pathname, item)} />
                   ))}
@@ -608,7 +608,7 @@ export function AppNavigation() {
                   onClick={toggleLocale}
                   aria-label={switchLanguageLabel}
                   title={switchLanguageLabel}
-                  className="hidden shrink-0 items-center gap-3 rounded-[1.45rem] border border-[color:var(--color-slate-200)]/88 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(248,250,252,0.66))] px-3.5 py-3 text-start shadow-[0_20px_28px_-22px_rgba(15,23,42,0.64)] transition-all duration-300 hover:-translate-y-[1px] hover:bg-[rgba(255,255,255,0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-blue-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] xl:inline-flex"
+                  className="hidden shrink-0 items-center gap-3 rounded-[1.3rem] border border-[color:var(--color-slate-200)]/88 bg-[linear-gradient(145deg,rgba(255,255,255,0.88),rgba(249,250,251,0.68))] px-3.5 py-3 text-start shadow-[0_20px_28px_-22px_rgba(15,23,42,0.56)] transition-all duration-300 hover:-translate-y-[1px] hover:bg-[rgba(255,255,255,0.96)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-emerald-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-neutral-white)] xl:inline-flex"
                 >
                   <span className={desktopIconClasses(false, 'slate')}>
                     <Languages className="h-4 w-4" />
@@ -626,7 +626,7 @@ export function AppNavigation() {
             </div>
             <div
               aria-hidden="true"
-              className="h-px w-full bg-[linear-gradient(90deg,rgba(191,219,254,0),rgba(191,219,254,0.74),rgba(167,243,208,0.66),rgba(191,219,254,0))]"
+              className="h-px w-full bg-[linear-gradient(90deg,rgba(167,243,208,0),rgba(167,243,208,0.74),rgba(253,230,138,0.66),rgba(167,243,208,0))]"
             />
           </div>
         </div>
@@ -638,14 +638,14 @@ export function AppNavigation() {
         className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
       >
         <div className="mx-auto max-w-md">
-          <div className="relative overflow-hidden rounded-[1.9rem] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.94)] px-2 py-2 shadow-[0_26px_56px_-30px_rgba(15,23,42,0.74)] ring-1 ring-white/60 backdrop-blur-[24px]">
+          <div className="relative overflow-hidden rounded-[1.65rem] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(249,250,251,0.93))] px-2 py-2 shadow-[0_26px_56px_-32px_rgba(15,23,42,0.6)] ring-1 ring-white/65 backdrop-blur-[24px]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(16,185,129,0.1),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(246,250,255,0.96))]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(16,185,129,0.12),transparent_36%),radial-gradient(circle_at_82%_100%,rgba(245,158,11,0.08),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.92),rgba(249,250,251,0.96))]"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.22),transparent_72%)] blur-2xl"
+              className="pointer-events-none absolute left-1/2 top-0 h-14 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.22),transparent_72%)] blur-2xl"
             />
             <div
               aria-hidden="true"

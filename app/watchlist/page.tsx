@@ -787,7 +787,7 @@ export default function WatchlistPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="dashboard-page-container dashboard-page-container-tight overflow-x-clip">
+      <div className="dashboard-page-container rebuild-page-container dashboard-page-container-tight overflow-x-clip">
         <div className="space-y-6">
           <header className="relative isolate overflow-hidden rounded-[32px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(244,249,255,0.95)_52%,rgba(236,253,245,0.82))] px-4 py-5 shadow-[0_34px_70px_-44px_rgba(15,23,42,0.62)] sm:px-7 sm:py-7">
             <div

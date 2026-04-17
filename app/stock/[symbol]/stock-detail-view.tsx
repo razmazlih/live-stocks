@@ -1011,7 +1011,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
   return (
     <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="dashboard-page-container">
+      <div className="dashboard-page-container rebuild-page-container">
         <div className="space-y-6 sm:space-y-7">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="inline-flex items-center gap-2.5 self-start rounded-full border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] px-3.5 py-2 text-sm font-medium text-[var(--color-slate-700)] shadow-[0_14px_30px_-22px_rgba(15,23,42,0.28)]">

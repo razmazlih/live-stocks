@@ -48,13 +48,13 @@ type MetricCard = {
 };
 
 const panelShellClassName =
-  'relative overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95)_56%,rgba(239,246,255,0.84))] shadow-[0_24px_50px_-34px_rgba(15,23,42,0.3)]';
+  'relative overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95)_56%,rgba(236,253,245,0.58))] shadow-[0_24px_50px_-36px_rgba(15,23,42,0.3)]';
 
 const panelGlowClassName =
-  'pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgba(191,219,254,0),rgba(191,219,254,0.85),rgba(167,243,208,0.72),rgba(191,219,254,0))]';
+  'pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgba(167,243,208,0),rgba(167,243,208,0.85),rgba(253,230,138,0.72),rgba(167,243,208,0))]';
 
 const panelKickerClassName =
-  'inline-flex items-center gap-2 rounded-full border border-slate-200/85 bg-white/82 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.3)] backdrop-blur-sm';
+  'inline-flex items-center gap-2 rounded-full border border-slate-200/85 bg-white/88 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.26)] backdrop-blur-sm';
 
 function MetricCardTile({
   label,
@@ -436,7 +436,7 @@ export default function PortfolioPage() {
 
   return (
     <DashboardPageShell direction={locale === 'he' ? 'rtl' : 'ltr'}>
-      <div className="dashboard-page-container dashboard-page-container-tight">
+      <div className="dashboard-page-container rebuild-page-container dashboard-page-container-tight">
         <header className="relative isolate overflow-hidden rounded-[34px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(130deg,rgba(239,246,255,0.98),rgba(248,250,252,0.96)_38%,rgba(236,253,245,0.92)_100%)] px-5 py-6 shadow-[0_30px_60px_-38px_rgba(15,23,42,0.35)] sm:px-6 sm:py-7 lg:px-7">
           <div className={panelGlowClassName} aria-hidden="true" />
           <div
