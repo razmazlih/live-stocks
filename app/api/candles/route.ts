@@ -1,13 +1,9 @@
-import { NextRequest } from 'next/server';
-import { errorNoStore, jsonNoStore } from '@/lib/api/route';
+import { NextRequest, NextResponse } from 'next/server';
 import { fetchYahooCandlesData, YahooCandlesError } from '@/lib/services/yahoo-candles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-function normalizeResolution(value: string): '60' | 'D' | 'W' | 'M' {
-  return value === '60' || value === 'W' || value === 'M' ? value : 'D';
-}
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,29 +14,41 @@ export async function GET(request: NextRequest) {
     const resolution = searchParams.get('resolution') || 'D';
 
     if (!symbol || !from || !to) {
-      return errorNoStore('Symbol, from, and to parameters are required', 400);
+      return NextResponse.json(
+        { error: 'Symbol, from, and to parameters are required' },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
     }
 
     const fromSeconds = Number.parseInt(from, 10);
     const toSeconds = Number.parseInt(to, 10);
 
     if (!Number.isFinite(fromSeconds) || !Number.isFinite(toSeconds) || fromSeconds >= toSeconds) {
-      return errorNoStore('Invalid time range provided', 400);
+      return NextResponse.json(
+        { error: 'Invalid time range provided' },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
     }
 
     const candleData = await fetchYahooCandlesData(
       symbol,
       fromSeconds,
       toSeconds,
-      normalizeResolution(resolution),
+      resolution === '60' || resolution === 'W' || resolution === 'M' ? resolution : 'D',
     );
-    return jsonNoStore(candleData);
+    return NextResponse.json(candleData, { headers: NO_STORE_HEADERS });
   } catch (error) {
     if (error instanceof YahooCandlesError) {
-      return errorNoStore(error.message, error.status);
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status, headers: NO_STORE_HEADERS },
+      );
     }
 
     console.error('Candles API error:', error);
-    return errorNoStore('Failed to fetch candle data', 500);
+    return NextResponse.json(
+      { error: 'Failed to fetch candle data' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }

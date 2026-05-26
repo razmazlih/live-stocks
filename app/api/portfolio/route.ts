@@ -5,7 +5,7 @@ import {
   calculateRealizedTaxLiability,
 } from '@/lib/calculations';
 import { computeRealizedSalesWithFx, expandPositionActivations, mapPositionRow } from '@/lib/positions';
-import { fetchQuotesForSymbols, FinnhubConfigError } from '@/lib/services/quote-provider';
+import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -129,41 +129,23 @@ export async function POST(request: NextRequest) {
       ? settingsData.annual_growth_rate
       : DEFAULT_GROWTH_RATE;
 
-    const finnhubToken = settingsData?.finnhub_token ?? process.env.FINNHUB_TOKEN;
-    let quotesBySymbol: Record<string, { c?: number; d?: number }> = {};
-    try {
-      const quoteMap = await fetchQuotesForSymbols(
-        positions.map((position) => position.symbol),
-        { token: finnhubToken, forceRefresh: false },
-      );
+    const finnhubToken = settingsData?.finnhub_token || process.env.FINNHUB_TOKEN;
 
-      quotesBySymbol = Object.fromEntries(
-        Object.entries(quoteMap).map(([symbol, quote]) => [symbol, { c: quote.c, d: quote.d }]),
-      );
-    } catch (error) {
-      if (error instanceof FinnhubConfigError) {
-        console.warn('Finnhub token is not configured; using entry prices as fallback.');
-      } else {
-        console.error('Failed to fetch live quotes for portfolio route:', error);
-      }
-    }
+    const metrics = await Promise.all(
+      positions.map(async (position) => {
+        const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
+        const currentPrice = quote?.price && quote.price > 0 ? quote.price : position.entryPrice;
+        const dailyChange = quote?.dailyChange;
 
-    const metrics = positions.map((position) => {
-      const quote = quotesBySymbol[position.symbol.trim().toUpperCase()];
-      const currentPrice =
-        typeof quote?.c === 'number' && quote.c > 0
-          ? quote.c
-          : position.entryPrice;
-      const dailyChange = typeof quote?.d === 'number' ? quote.d : undefined;
-
-      return calculatePositionMetrics(
-        position,
-        currentPrice,
-        usdToIlsRate,
-        annualGrowthRate,
-        dailyChange,
-      );
-    });
+        return calculatePositionMetrics(
+          position,
+          currentPrice,
+          usdToIlsRate,
+          annualGrowthRate,
+          dailyChange,
+        );
+      }),
+    );
 
     const allTimestamps = mappedPositions.flatMap((position) =>
       (position.lots ?? [])

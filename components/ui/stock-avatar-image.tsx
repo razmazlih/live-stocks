@@ -152,10 +152,16 @@ export function StockAvatarImage({ symbol, display, imageUrl }: StockAvatarImage
   }
 
   return (
-    <AvatarImage
-      src={activeSrc}
-      alt={display}
-      className="h-full w-full rounded-[inherit] object-cover [filter:drop-shadow(0_0_1px_rgba(15,23,42,0.55))_drop-shadow(0_1px_2px_rgba(15,23,42,0.25))_drop-shadow(0_0_1px_rgba(255,255,255,0.95))]"
-    />
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_28%_24%,#f8fafc_0%,#e2e8f0_58%,#cbd5e1_100%)]"
+      />
+      <AvatarImage
+        src={activeSrc}
+        alt={display}
+        className="relative z-10 h-full w-full rounded-[inherit] object-cover [filter:drop-shadow(0_0_1px_rgba(15,23,42,0.55))_drop-shadow(0_1px_2px_rgba(15,23,42,0.25))_drop-shadow(0_0_1px_rgba(255,255,255,0.95))]"
+      />
+    </>
   );
 }

@@ -70,13 +70,6 @@ type NormalizedData = {
   range: number;
 };
 
-const SPARKLINE_FRAME_CLASS =
-  'viz-chart-surface relative overflow-hidden rounded-[1.45rem] border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(241,245,249,0.9))] shadow-[0_20px_44px_-30px_rgba(15,23,42,0.34),inset_0_1px_0_rgba(255,255,255,0.92)]';
-const SPARKLINE_EVENT_TOOLTIP_CLASS =
-  'viz-tooltip-shell rounded-[1.1rem] text-xs text-slate-700 shadow-[0_24px_48px_-28px_rgba(15,23,42,0.45)]';
-const SPARKLINE_EVENT_BADGE_CLASS =
-  'viz-chip px-2 py-1 text-[10px] leading-none shadow-none';
-
 export function Sparkline({
   points,
   width = 320,
@@ -114,10 +107,6 @@ export function Sparkline({
   const areaMaskId = `${gradientId}-fill-mask`;
   const areaOpacityGradientId = `${gradientId}-fill-opacity`;
   const strokeGradientId = `${gradientId}-stroke`;
-  const lineGlowFilterId = `${gradientId}-line-glow`;
-  const hoverDotGradientId = `${gradientId}-hover-dot`;
-  const hoverBandGradientId = `${gradientId}-hover-band`;
-  const gridLineGradientId = `${gradientId}-grid-line`;
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
@@ -510,6 +499,13 @@ export function Sparkline({
     };
   }, []);
 
+  const axisBackground = useMemo(
+    () => `linear-gradient(180deg, ${parseHexToRgba(color, 0.14)} 0%, ${parseHexToRgba(color, 0.05)} 100%)`,
+    [color, parseHexToRgba]
+  );
+  const axisBorderColor = useMemo(() => parseHexToRgba(color, 0.2), [color, parseHexToRgba]);
+  const axisTickColor = useMemo(() => parseHexToRgba(color, 0.82), [color, parseHexToRgba]);
+
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
@@ -521,16 +517,11 @@ export function Sparkline({
   const renderSkeleton = (
     <div
       ref={chartRef}
-      className="relative h-full w-full min-w-0 flex-1"
+      className="relative h-full w-full"
       onPointerLeave={handleWrapperLeave}
       onTouchCancel={handleWrapperLeave}
       onTouchEnd={handleWrapperLeave}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_42%)]" />
-      <div className="pointer-events-none absolute inset-x-2 top-[22%] h-px bg-[linear-gradient(90deg,rgba(148,163,184,0),rgba(148,163,184,0.28),rgba(148,163,184,0))]" />
-      <div className="pointer-events-none absolute inset-x-2 top-[56%] h-px bg-[linear-gradient(90deg,rgba(148,163,184,0),rgba(148,163,184,0.24),rgba(148,163,184,0))]" />
-      <div className="pointer-events-none absolute inset-[10px] animate-pulse rounded-[1rem] border border-white/65 bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(241,245,249,0.18))]" />
-    </div>
+    />
   );
 
   const normalizedPoints = normalized?.points ?? [];
@@ -538,10 +529,6 @@ export function Sparkline({
   const projectedY = normalized?.projectedY ?? null;
   const projectionPoints = normalized?.projectionPoints ?? null;
   const normalizedEvents = normalized?.events ?? [];
-  const isCompactChart = chartWidth < 196;
-  const isUltraCompactChart = chartWidth < 152;
-  const hoverChipInset = isUltraCompactChart ? 6 : isCompactChart ? 8 : 12;
-  const hoverChipOffsetY = isUltraCompactChart ? 50 : isCompactChart ? 56 : 62;
 
   const effectiveHoveredPoint =
     interactive && hoveredIndex !== null && normalizedPoints.length
@@ -551,18 +538,6 @@ export function Sparkline({
   const hoveredTimeText = effectiveHoveredPoint ? timeFormatter(effectiveHoveredPoint.timestamp) : null;
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
-  const axisTickColor = parseHexToRgba(lastSegmentColor, 0.82);
-  const hoverToneColor = effectiveHoveredPoint
-    ? (
-      typeof baseline === 'number' && effectiveHoveredPoint.close < baseline
-        ? belowEntryColor
-        : typeof projectedPrice === 'number'
-          ? effectiveHoveredPoint.close >= projectedPrice
-            ? aboveProjectedColor
-            : betweenProjectedColor
-          : color
-    )
-    : lastSegmentColor;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
@@ -573,27 +548,23 @@ export function Sparkline({
   const activeEvent = normalizedEvents.find((event) => event.id === activeEventId) ?? null;
   const activeEventTone = activeEvent?.type === 'BUY'
     ? {
-        badge: `${SPARKLINE_EVENT_BADGE_CLASS} viz-chip-emerald border-emerald-300/80 bg-emerald-50/95 text-emerald-700`,
+        badge: 'border-emerald-300/80 bg-emerald-50/95 text-emerald-700',
         border: 'border-emerald-200/90',
-        panel: 'bg-[linear-gradient(180deg,rgba(236,253,245,0.9),rgba(255,255,255,0.92))]',
-        tile: 'border-emerald-100/80 bg-white/90',
       }
     : {
-        badge: `${SPARKLINE_EVENT_BADGE_CLASS} viz-chip-rose border-rose-300/80 bg-rose-50/95 text-rose-700`,
+        badge: 'border-rose-300/80 bg-rose-50/95 text-rose-700',
         border: 'border-rose-200/90',
-        panel: 'bg-[linear-gradient(180deg,rgba(255,241,242,0.9),rgba(255,255,255,0.92))]',
-        tile: 'border-rose-100/80 bg-white/90',
       };
-  const eventTooltipSidePadding = isUltraCompactChart ? 6 : 8;
-  const eventTooltipAvailableWidth = Math.max(Math.floor(chartWidth - eventTooltipSidePadding * 2), 0);
-  const eventTooltipWidth = eventTooltipAvailableWidth < 96
-    ? eventTooltipAvailableWidth
-    : Math.min(
-        isUltraCompactChart ? 152 : isCompactChart ? 184 : 224,
-        Math.max(isUltraCompactChart ? 124 : 144, eventTooltipAvailableWidth)
-      );
-  const eventTooltipCompact = isCompactChart || eventTooltipWidth < 200;
-  const eventTooltipOffset = eventTooltipCompact ? 8 : 10;
+  const eventTooltipWidth = 224;
+  const eventTooltipHeight = 124;
+  const eventTooltipOffset = 10;
+  const eventTooltipLeft = activeEvent
+    ? Math.min(
+        Math.max(activeEvent.x - (eventTooltipWidth / 2), 8),
+        Math.max(chartWidth - eventTooltipWidth - 8, 8)
+      )
+    : 0;
+  const eventTooltipTop = -(eventTooltipHeight + eventTooltipOffset);
   const latestClose = normalizedPoints[normalizedPoints.length - 1]?.close ?? null;
   const isSellEvent = activeEvent?.type === 'SELL';
   const buyReferencePrice = activeEvent?.type === 'BUY'
@@ -629,53 +600,6 @@ export function Sparkline({
         maximumFractionDigits: 2,
       }).format(changeFromEvent.percent)
     : null;
-  const eventTooltipHeight = changeFromEvent
-    ? eventTooltipCompact
-      ? isUltraCompactChart ? 160 : 172
-      : 140
-    : eventTooltipCompact
-      ? isUltraCompactChart ? 110 : 122
-      : 98;
-  const eventTooltipLeft = activeEvent
-    ? Math.min(
-        Math.max(activeEvent.x - (eventTooltipWidth / 2), eventTooltipSidePadding),
-        Math.max(chartWidth - eventTooltipWidth - eventTooltipSidePadding, eventTooltipSidePadding)
-      )
-    : 0;
-  const eventTooltipTop = activeEvent
-    ? (() => {
-        const desiredTop = activeEvent.y - eventTooltipHeight - eventTooltipOffset;
-        const fallbackTop = activeEvent.y + eventTooltipOffset;
-        const maxTop = Math.max(height - eventTooltipHeight - eventTooltipSidePadding, eventTooltipSidePadding);
-        return desiredTop >= eventTooltipSidePadding
-          ? Math.min(desiredTop, maxTop)
-          : Math.min(Math.max(fallbackTop, eventTooltipSidePadding), maxTop);
-      })()
-    : 0;
-  const chartSurfaceStyle = {
-    background: [
-      `radial-gradient(circle at 14% 14%, ${parseHexToRgba(lastSegmentColor, 0.18)} 0%, ${parseHexToRgba(lastSegmentColor, 0.08)} 18%, rgba(255,255,255,0) 42%)`,
-      `radial-gradient(circle at 86% 18%, ${parseHexToRgba(color, 0.12)} 0%, rgba(255,255,255,0) 34%)`,
-      'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.92) 58%, rgba(241,245,249,0.94) 100%)',
-    ].join(', '),
-    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -18px 30px -24px ${parseHexToRgba(lastSegmentColor, 0.35)}`,
-  };
-  const axisPanelStyle = {
-    width: Math.max(0, yAxisWidth),
-    background: `linear-gradient(180deg, ${parseHexToRgba(lastSegmentColor, 0.16)} 0%, rgba(255,255,255,0.94) 32%, rgba(248,250,252,0.96) 72%, ${parseHexToRgba(lastSegmentColor, 0.08)} 100%)`,
-    borderLeft: `1px solid ${parseHexToRgba(lastSegmentColor, 0.18)}`,
-    boxShadow: 'inset 1px 0 0 rgba(255,255,255,0.6)',
-  };
-  const hoverSpotlightStyle = effectiveHoveredPoint
-    ? {
-        background: `radial-gradient(circle at ${Math.round(effectiveHoveredPoint.x)}px ${Math.round(effectiveHoveredPoint.y)}px, ${parseHexToRgba(hoverToneColor, 0.22)} 0%, ${parseHexToRgba(hoverToneColor, 0.1)} 16%, rgba(255,255,255,0) 44%)`,
-      }
-    : null;
-  const hoverValueStyle = {
-    borderColor: parseHexToRgba(hoverToneColor, 0.26),
-    boxShadow: `0 18px 34px -24px ${parseHexToRgba(hoverToneColor, 0.52)}`,
-    maxWidth: Math.max(chartWidth - hoverChipInset * 2, 0),
-  };
 
   const handleWrapperClick = () => {
     setSelectedEventId(null);
@@ -767,18 +691,18 @@ export function Sparkline({
   if (!normalized) {
     return (
       <div className={`relative ${className}`} style={{ width: '100%', height }}>
-        <div className={SPARKLINE_FRAME_CLASS}>
-          <div className="pointer-events-none absolute inset-0" style={chartSurfaceStyle} />
-          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.94),rgba(255,255,255,0))]" />
-          <div className="relative flex h-full w-full">
-            {renderSkeleton}
-            {showYAxis ? (
-              <div
-                className="hidden h-full flex-shrink-0 rounded-r-[1.45rem] sm:block"
-                style={axisPanelStyle}
-              />
-            ) : null}
-          </div>
+        <div className="flex h-full w-full">
+          {renderSkeleton}
+          {showYAxis ? (
+            <div
+              className="hidden h-full flex-shrink-0 sm:block"
+              style={{
+                width: Math.max(0, yAxisWidth),
+                background: axisBackground,
+                borderLeft: `1px solid ${axisBorderColor}`,
+              }}
+            />
+          ) : null}
         </div>
       </div>
     );
@@ -817,33 +741,24 @@ export function Sparkline({
 
   return (
     <div className={`relative ${className}`} style={{ width: '100%', height }}>
-      <div className={SPARKLINE_FRAME_CLASS}>
-        <div className="pointer-events-none absolute inset-0" style={chartSurfaceStyle} />
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.95),rgba(255,255,255,0))]" />
-        <div className="relative flex h-full w-full">
+      <div className="flex h-full w-full">
           <div
             ref={chartRef}
             className="relative h-full min-w-0 flex-1 overflow-visible"
-            onPointerLeave={handleWrapperLeave}
-            onTouchCancel={handleWrapperLeave}
-            onTouchEnd={handleWrapperLeave}
-            onClick={handleWrapperClick}
-            onPointerMove={handlePointerMove}
-            onPointerDown={handlePointerDown}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            role="presentation"
-          >
-            {hoverSpotlightStyle ? (
-              <div
-                className="pointer-events-none absolute inset-0 rounded-[1.45rem] transition-opacity duration-150"
-                style={hoverSpotlightStyle}
-              />
-            ) : null}
+          onPointerLeave={handleWrapperLeave}
+          onTouchCancel={handleWrapperLeave}
+          onTouchEnd={handleWrapperLeave}
+          onClick={handleWrapperClick}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          role="presentation"
+        >
           <svg
             width={chartWidth}
             height={height}
-            className="relative z-[1] h-full w-full"
+            className="h-full w-full"
             viewBox={`0 0 ${chartWidth} ${height}`}
             preserveAspectRatio="none"
             aria-hidden="true"
@@ -873,8 +788,7 @@ export function Sparkline({
                 y2={height}
                 gradientUnits="userSpaceOnUse"
               >
-                <stop offset="0%" stopColor="var(--color-neutral-white)" stopOpacity={0.54} />
-                <stop offset="48%" stopColor="var(--color-neutral-white)" stopOpacity={0.2} />
+                <stop offset="0%" stopColor="var(--color-neutral-white)" stopOpacity={0.35} />
                 <stop offset="100%" stopColor="var(--color-neutral-white)" stopOpacity={0} />
               </linearGradient>
               <mask id={areaMaskId} maskUnits="userSpaceOnUse">
@@ -885,34 +799,12 @@ export function Sparkline({
                   <stop key={`${stop.offset}-${stop.color}-${index}`} offset={`${stop.offset * 100}%`} stopColor={stop.color} />
                 ))}
               </linearGradient>
-              <radialGradient id={hoverDotGradientId} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
-                <stop offset="100%" stopColor={hoverToneColor} />
-              </radialGradient>
-              <linearGradient id={gridLineGradientId} x1={0} x2={chartWidth} y1={0} y2={0} gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="rgba(var(--color-slate-400-rgb), 0)" />
-                <stop offset="12%" stopColor={parseHexToRgba(lastSegmentColor, 0.12)} />
-                <stop offset="88%" stopColor={parseHexToRgba(lastSegmentColor, 0.12)} />
-                <stop offset="100%" stopColor="rgba(var(--color-slate-400-rgb), 0)" />
-              </linearGradient>
-              <linearGradient id={hoverBandGradientId} x1={0} x2={0} y1={0} y2={height} gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor={parseHexToRgba(hoverToneColor, 0.04)} />
-                <stop offset="50%" stopColor={parseHexToRgba(hoverToneColor, 0.18)} />
-                <stop offset="100%" stopColor={parseHexToRgba(hoverToneColor, 0.03)} />
-              </linearGradient>
-              <filter id={lineGlowFilterId} x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="1.65" result="blurred-line" />
-                <feMerge>
-                  <feMergeNode in="blurred-line" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
             </defs>
 
             {!showYAxis ? (
-              <g opacity={0.94}>
-                <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={`url(#${gridLineGradientId})`} strokeWidth="1" strokeDasharray="3 8" />
-                <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={`url(#${gridLineGradientId})`} strokeWidth="1" strokeDasharray="3 8" />
+              <g opacity={0.08}>
+                <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 7" />
+                <line x1="0" y1={height / 2} x2={chartWidth} y2={height / 2} stroke={color} strokeWidth="1" strokeDasharray="2 7" />
               </g>
             ) : null}
 
@@ -924,166 +816,99 @@ export function Sparkline({
                     x2={chartWidth}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke={`url(#${gridLineGradientId})`}
+                    stroke="rgba(var(--color-slate-400-rgb), 0.2)"
                     strokeWidth="1"
-                    strokeDasharray="3 8"
+                    strokeDasharray="2 7"
                   />
                 ))
               : null}
 
             {baselineY !== null && (
-              <>
-                <line
-                  x1={0}
-                  y1={baselineY}
-                  x2={chartWidth}
-                  y2={baselineY}
-                  stroke={parseHexToRgba(baselineColor, 0.22)}
-                  strokeWidth={3.5}
-                />
-                <line
-                  x1={0}
-                  y1={baselineY}
-                  x2={chartWidth}
-                  y2={baselineY}
-                  stroke={baselineColor}
-                  strokeWidth={1.15}
-                  strokeDasharray="4 6"
-                  strokeLinecap="round"
-                />
-              </>
+              <line
+                x1={0}
+                y1={baselineY}
+                x2={chartWidth}
+                y2={baselineY}
+                stroke={baselineColor}
+                strokeWidth="1"
+                strokeDasharray="3 6"
+              />
             )}
 
             {projectedLinePath && (
-              <>
-                <path
-                  d={projectedLinePath}
-                  fill="none"
-                  stroke={parseHexToRgba(projectedLineColor, 0.2)}
-                  strokeWidth={4.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d={projectedLinePath}
-                  fill="none"
-                  stroke={projectedLineColor}
-                  strokeWidth={1.2}
-                  strokeDasharray="4 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </>
+              <path
+                d={projectedLinePath}
+                fill="none"
+                stroke={projectedLineColor}
+                strokeWidth={1.1}
+                strokeDasharray="4 7"
+              />
             )}
 
             <path
               d={areaPath}
               fill={`url(#${areaGradientId})`}
               mask={`url(#${areaMaskId})`}
-              opacity={0.46}
+              opacity={0.34}
             />
 
             <path
               d={linePath}
               fill="none"
               stroke={`url(#${strokeGradientId})`}
-              strokeWidth={6.2}
+              strokeWidth={2.35}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={`url(#${lineGlowFilterId})`}
-              opacity={0.14}
             />
 
             <path
               d={linePath}
               fill="none"
-              stroke={`url(#${strokeGradientId})`}
-              strokeWidth={2.85}
+              stroke="rgba(var(--color-neutral-white-rgb), 0.28)"
+              strokeWidth={0.9}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={`url(#${lineGlowFilterId})`}
+              opacity={0.52}
             />
 
-            <path
-              d={linePath}
-              fill="none"
-              stroke="rgba(var(--color-neutral-white-rgb), 0.5)"
-              strokeWidth={1.05}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.58}
-            />
-
-            {interactive && effectiveHoveredPoint ? (
-              <>
-                <rect
-                  x={Math.max(effectiveHoveredPoint.x - 11, 0)}
-                  y={0}
-                  width={Math.min(22, chartWidth - Math.max(effectiveHoveredPoint.x - 11, 0))}
-                  height={height}
-                  rx={11}
-                  fill={`url(#${hoverBandGradientId})`}
-                />
-                <line
-                  x1={effectiveHoveredPoint.x}
-                  y1={0}
-                  x2={effectiveHoveredPoint.x}
-                  y2={height}
-                  stroke={parseHexToRgba(hoverToneColor, 0.34)}
-                  strokeWidth={1.2}
-                  strokeDasharray="4 4"
-                />
-                <circle
-                  cx={effectiveHoveredPoint.x}
-                  cy={effectiveHoveredPoint.y}
-                  r={10}
-                  fill={parseHexToRgba(hoverToneColor, 0.14)}
-                />
-                <circle
-                  cx={effectiveHoveredPoint.x}
-                  cy={effectiveHoveredPoint.y}
-                  r={5.5}
-                  fill={`url(#${hoverDotGradientId})`}
-                  stroke={hoverToneColor}
-                  strokeWidth={1.8}
-                />
-                <circle
-                  cx={effectiveHoveredPoint.x}
-                  cy={effectiveHoveredPoint.y}
-                  r={2.2}
-                  fill={hoverToneColor}
-                />
-              </>
-            ) : null}
+              {interactive && effectiveHoveredPoint ? (
+                <>
+                  <line
+                    x1={effectiveHoveredPoint.x}
+                    y1={0}
+                    x2={effectiveHoveredPoint.x}
+                    y2={height}
+                    stroke="rgba(var(--color-primary-900-rgb), 0.25)"
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                  />
+                  <circle
+                    cx={effectiveHoveredPoint.x}
+                    cy={effectiveHoveredPoint.y}
+                    r={4.2}
+                    fill="var(--color-neutral-white)"
+                    stroke={color}
+                    strokeWidth={1.4}
+                  />
+                </>
+              ) : null}
 
             {lastPoint ? (
               <>
                 <circle
                   cx={lastPoint.x}
                   cy={lastPoint.y}
-                  r={8.8}
+                  r={5.8}
                   fill={lastSegmentColor}
-                  opacity={0.16}
+                  opacity={0.12}
                 />
                 <circle
                   cx={lastPoint.x}
                   cy={lastPoint.y}
-                  r={5.1}
-                  fill={parseHexToRgba(lastSegmentColor, 0.18)}
-                />
-                <circle
-                  cx={lastPoint.x}
-                  cy={lastPoint.y}
-                  r={3.8}
-                  fill="rgba(255,255,255,0.95)"
+                  r={3.2}
+                  fill="var(--color-neutral-white)"
                   stroke={lastSegmentColor}
-                  strokeWidth={1.5}
-                />
-                <circle
-                  cx={lastPoint.x}
-                  cy={lastPoint.y}
-                  r={1.8}
-                  fill={lastSegmentColor}
+                  strokeWidth={1.35}
                 />
               </>
             ) : null}
@@ -1091,80 +916,57 @@ export function Sparkline({
             {normalizedEvents.map((event) => {
                 const isActive = activeEventId === event.id;
                 const tone = event.type === 'BUY'
-                  ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)', glow: 'rgba(16,185,129,0.22)' }
-                  : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)', glow: 'rgba(244,63,94,0.2)' };
+                  ? { fill: 'var(--color-green-050)', stroke: 'var(--color-green-600)' }
+                  : { fill: 'var(--color-red-050)', stroke: 'var(--color-red-600)' };
                 const labelPrice = event.priceLabel ?? event.price.toLocaleString();
-                const indicatorPath = event.type === 'BUY'
-                  ? 'M 0 -3.1 L 3.2 1.8 H -3.2 Z'
-                  : 'M 0 3.1 L 3.2 -1.8 H -3.2 Z';
 
                 return (
-                  <g key={event.id}>
-                    <circle cx={event.x} cy={event.y} r={isActive ? 10 : 7.4} fill={tone.glow} />
-                    <circle
-                      cx={event.x}
-                      cy={event.y}
-                      r={isActive ? 7.1 : 5.9}
-                      fill="rgba(255,255,255,0.95)"
-                      stroke={parseHexToRgba(tone.stroke, isActive ? 0.3 : 0.18)}
-                      strokeWidth={isActive ? 1.1 : 0.9}
-                    />
-                    <circle
-                      cx={event.x}
-                      cy={event.y}
-                      r={isActive ? 4.9 : 3.95}
-                      fill={tone.fill}
-                      stroke={tone.stroke}
-                      strokeWidth={isActive ? 1.8 : 1.2}
-                    />
-                    <path d={indicatorPath} transform={`translate(${event.x} ${event.y})`} fill={tone.stroke} />
-                    <circle
-                      cx={event.x}
-                      cy={event.y}
-                      r={isActive ? 13 : 11}
-                      fill="transparent"
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
-                      onMouseEnter={(e) => {
-                        e.stopPropagation();
-                        setHoveredEventId(event.id);
-                      }}
-                      onMouseLeave={(e) => {
-                        e.stopPropagation();
-                        setHoveredEventId((current) => (current === event.id ? null : current));
-                      }}
-                      onFocus={() => setHoveredEventId(event.id)}
-                      onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedEventId((current) => (current === event.id ? null : event.id));
-                      }}
-                      onTouchStart={(e) => {
-                        e.stopPropagation();
-                        setSelectedEventId((current) => (current === event.id ? null : event.id));
-                      }}
-                    />
-                  </g>
+                  <circle
+                    key={event.id}
+                    cx={event.x}
+                    cy={event.y}
+                    r={isActive ? 3.9 : 2.8}
+                    fill={tone.fill}
+                    stroke={tone.stroke}
+                    strokeWidth={isActive ? 1.5 : 1.05}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${event.typeLabel ?? event.type} at ${labelPrice}`}
+                    onMouseEnter={(e) => {
+                      e.stopPropagation();
+                      setHoveredEventId(event.id);
+                    }}
+                    onMouseLeave={(e) => {
+                      e.stopPropagation();
+                      setHoveredEventId((current) => (current === event.id ? null : current));
+                    }}
+                    onFocus={() => setHoveredEventId(event.id)}
+                    onBlur={() => setHoveredEventId((current) => (current === event.id ? null : current))}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId((current) => (current === event.id ? null : event.id));
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId((current) => (current === event.id ? null : event.id));
+                    }}
+                  />
                 );
               })}
           </svg>
 
           {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (
             <div
-              className={`pointer-events-none absolute z-10 flex flex-col items-center ${isCompactChart ? 'gap-0.5' : 'gap-1'}`}
+              className="pointer-events-none absolute z-10 flex flex-col items-center gap-1"
               style={{
-                left: Math.min(Math.max(effectiveHoveredPoint.x, hoverChipInset), chartWidth - hoverChipInset),
-                top: Math.max(effectiveHoveredPoint.y - hoverChipOffsetY, hoverChipInset),
+                left: Math.min(Math.max(effectiveHoveredPoint.x, 12), chartWidth - 12),
+                top: Math.max(effectiveHoveredPoint.y - 56, 8),
               }}
             >
-              <div
-                className={`max-w-full whitespace-nowrap rounded-xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] font-semibold text-slate-800 ring-1 ring-[color:var(--color-neutral-black)]/5 ${isCompactChart ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-xs'}`}
-                style={hoverValueStyle}
-              >
+              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
                 {hoveredPriceText}
               </div>
-              <div className={`max-w-full whitespace-nowrap rounded-full border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.9))] font-semibold tracking-[0.08em] text-slate-100 shadow-[0_16px_28px_-18px_rgba(15,23,42,0.72)] ${isCompactChart ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]'}`}>
+              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
                 {hoveredTimeText}
               </div>
             </div>
@@ -1172,55 +974,52 @@ export function Sparkline({
 
           {activeEvent && (
             <div
-              className={`pointer-events-none absolute z-30 ${SPARKLINE_EVENT_TOOLTIP_CLASS} ${
-                activeEventTone?.panel ?? 'bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.9))]'
-              } ${activeEventTone?.border ?? 'border-slate-200/90'} ${eventTooltipCompact ? 'px-2.5 py-2 text-[11px]' : 'px-3 py-2.5 text-xs'}`}
+              className={`pointer-events-none absolute z-30 w-[224px] rounded-2xl border bg-white/72 px-3 py-2.5 text-xs text-slate-700 shadow-lg backdrop-blur-md ${activeEventTone?.border ?? 'border-slate-200/90'}`}
               style={{
                 left: eventTooltipLeft,
                 top: eventTooltipTop,
-                width: eventTooltipWidth,
               }}
               dir="rtl"
             >
-              <div className={`flex items-start justify-between ${eventTooltipCompact ? 'gap-1.5' : 'gap-2'}`}>
-                <span className={`min-w-0 ${activeEventTone?.badge ?? `${SPARKLINE_EVENT_BADGE_CLASS} viz-chip-blue text-slate-700`} ${eventTooltipCompact ? 'px-1.5 py-0.5 text-[9px]' : ''}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${activeEventTone?.badge ?? 'border-slate-300 bg-slate-100 text-slate-700'}`}>
                   {activeEvent.typeLabel ?? activeEvent.type}
                 </span>
-                <span className={`min-w-0 break-words text-right font-medium leading-tight text-slate-500 ${eventTooltipCompact ? 'text-[10px]' : 'text-[11px]'}`}>
+                <span className="text-[11px] font-medium text-slate-500">
                   {new Date(activeEvent.timestamp).toLocaleDateString('he-IL')}
                 </span>
               </div>
-              <div className={`mt-2 grid ${eventTooltipCompact ? 'grid-cols-1 gap-1.5' : 'grid-cols-2 gap-2'}`}>
-                <div className={`min-w-0 rounded-xl border shadow-sm ${activeEventTone?.tile ?? 'border-slate-200/80 bg-white/78'} ${eventTooltipCompact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
-                  <div className={`font-semibold uppercase tracking-[0.14em] text-slate-500 ${eventTooltipCompact ? 'text-[9px]' : 'text-[10px]'}`}>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
                     מחיר
                   </div>
-                  <div className={`mt-0.5 break-words font-semibold leading-tight text-slate-800 tabular-nums ${eventTooltipCompact ? 'text-[13px]' : 'text-[15px]'}`} dir="ltr">
+                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
                     {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
                   </div>
                 </div>
-                <div className={`min-w-0 rounded-xl border shadow-sm ${activeEventTone?.tile ?? 'border-slate-200/80 bg-white/78'} ${eventTooltipCompact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
-                  <div className={`font-semibold uppercase tracking-[0.14em] text-slate-500 ${eventTooltipCompact ? 'text-[9px]' : 'text-[10px]'}`}>
+                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
                     כמות
                   </div>
-                  <div className={`mt-0.5 break-words font-semibold leading-tight text-slate-800 tabular-nums ${eventTooltipCompact ? 'text-[13px]' : 'text-[15px]'}`} dir="ltr">
+                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
                     {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
                   </div>
                 </div>
               </div>
               {changeFromEvent && (
-                <div className={`mt-2 rounded-xl border shadow-sm ${activeEventTone?.tile ?? 'border-slate-200/80 bg-white/75'} ${eventTooltipCompact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className={`min-w-0 break-words font-medium leading-tight text-slate-600 ${eventTooltipCompact ? 'text-[10px]' : 'text-[11px]'}`}>שינוי באחוזים</span>
-                    <span className={`min-w-0 break-words text-right font-semibold tabular-nums ${changeToneClass} ${eventTooltipCompact ? 'text-[11px]' : 'text-[12px]'}`} dir="ltr">
+                <div className="mt-2 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">שינוי באחוזים</span>
+                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
                       {changePercentText}%
                     </span>
                   </div>
-                  <div className="mt-1 flex items-start justify-between gap-2">
-                    <span className={`min-w-0 break-words font-medium leading-tight text-slate-600 ${eventTooltipCompact ? 'text-[10px]' : 'text-[11px]'}`}>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">
                       {isSellEvent ? 'רווח/הפסד במכירה' : 'שינוי בכסף'}
                     </span>
-                    <span className={`min-w-0 break-words text-right font-semibold tabular-nums ${changeToneClass} ${eventTooltipCompact ? 'text-[11px]' : 'text-[12px]'}`} dir="ltr">
+                    <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
                       {changeAmountText}
                     </span>
                   </div>
@@ -1232,13 +1031,17 @@ export function Sparkline({
 
         {showYAxis && axisTicks.length ? (
           <div
-            className="hidden h-full flex-shrink-0 flex-col justify-between rounded-r-[1.45rem] px-2.5 py-2.5 text-[11px] font-medium sm:flex"
-            style={axisPanelStyle}
+            className="hidden h-full flex-shrink-0 flex-col justify-between px-2 py-2 text-[11px] font-medium sm:flex"
+            style={{
+              width: Math.max(0, yAxisWidth),
+              background: axisBackground,
+              borderLeft: `1px solid ${axisBorderColor}`,
+            }}
           >
             {axisTicks.map((tick, index) => (
               <span
                 key={`axis-label-${index}`}
-                className="text-right tabular-nums tracking-tight"
+                className="text-right tabular-nums"
                 style={{ color: axisTickColor }}
               >
                 {priceFormatter(tick.value)}
@@ -1246,7 +1049,6 @@ export function Sparkline({
             ))}
           </div>
         ) : null}
-        </div>
       </div>
     </div>
   );

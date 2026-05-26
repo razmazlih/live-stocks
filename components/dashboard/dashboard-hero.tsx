@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { TrendingUp } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { DailyChangeBadge } from './daily-change-badge';
 import { DashboardQuickAction } from './quick-actions';
 import { QuickActionsSection } from './quick-actions-section';
@@ -34,57 +33,29 @@ export function DashboardHero({
   quickActions,
   dailyChange,
 }: DashboardHeroProps) {
-  const chipClassName =
-    'inline-flex min-h-10 min-w-0 w-full items-center justify-start gap-2.5 rounded-[1.15rem] border bg-[linear-gradient(160deg,rgba(255,255,255,0.92),rgba(248,250,255,0.82))] px-3 py-2 text-[var(--color-slate-600)] shadow-[0_16px_28px_-22px_rgba(15,23,42,0.72)] backdrop-blur-md sm:px-3.5 sm:justify-center';
-
   return (
-    <header className="home-hero relative isolate overflow-hidden rounded-[2.1rem] border border-[color:var(--color-slate-200)]/75 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(247,250,255,0.9)_48%,rgba(230,241,255,0.82)_100%)] px-3.5 py-4 shadow-[0_34px_72px_-46px_rgba(15,23,42,0.72)] backdrop-blur-xl sm:px-6 sm:py-6 lg:px-7 lg:py-7 xl:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.58),transparent_42%)]" aria-hidden="true" />
-      <div
-        className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.18),transparent_72%)] blur-3xl"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(191,219,254,0.92),rgba(255,255,255,0))]"
-        aria-hidden="true"
-      />
-      <div className="relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,25.5rem)] xl:items-start xl:gap-7">
-        <div className="min-w-0 space-y-4 sm:space-y-5">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <div className="mt-0.5 shrink-0 rounded-[1.35rem] border border-[color:var(--color-blue-100)]/75 bg-[linear-gradient(160deg,rgba(255,255,255,0.95),rgba(239,246,255,0.88))] p-2.5 text-[var(--color-primary-500)] shadow-[0_20px_34px_-24px_rgba(37,99,235,0.74)] backdrop-blur-md sm:p-3">
+    <header className="home-hero relative overflow-hidden rounded-[2rem] border border-[color:var(--color-neutral-white)]/70 px-5 py-6 shadow-xl glass-blur-sm sm:px-7 sm:py-7">
+      <div className="pointer-events-none absolute -right-24 -top-16 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-primary-400-rgb),0.25),_transparent_68%)] blur-2xl" />
+      <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-primary-900-rgb),0.12),_transparent_72%)] blur-2xl" />
+      <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-[color:var(--color-neutral-white)]/80 p-2.5 text-[var(--color-primary-500)] shadow-md ring-1 ring-[color:var(--color-slate-200)]/70">
               <TrendingUp className="h-5 w-5" />
             </div>
-            <div className="min-w-0 space-y-2.5">
-              <h1 className="text-balance text-[clamp(1.9rem,4vw,2.85rem)] font-black tracking-tight text-[var(--color-primary-900)] leading-[1.05]">
-                {title}
-              </h1>
-              <p className="max-w-2xl text-balance text-sm leading-relaxed text-[var(--color-slate-600)]/95 sm:text-base">
-                {subtitle}
-              </p>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-3xl">{title}</h1>
+              <p className="mt-1 max-w-2xl text-sm text-[var(--color-slate-600)] sm:text-base">{subtitle}</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2.5 text-xs font-medium text-[var(--color-slate-500)] sm:grid-cols-2 sm:text-sm xl:grid-cols-3">
-            <span
-              className={cn(
-                chipClassName,
-                'border-[color:var(--color-blue-100)]/90 text-[var(--color-primary-600)]'
-              )}
-            >
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[var(--color-slate-500)] sm:text-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 text-[var(--color-primary-600)] shadow-sm">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-primary-400)]" />
-              <span className="max-w-full text-balance leading-tight">
-                {updatedLabel} {lastUpdatedDisplay ?? '—'}
-              </span>
+              {updatedLabel} {lastUpdatedDisplay ?? '—'}
             </span>
-            <span
-              className={cn(
-                chipClassName,
-                'border-[color:var(--color-slate-200)]/90 text-[var(--color-slate-600)]'
-              )}
-            >
+            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-[color:var(--color-neutral-white)]/85 px-3 py-1.5 text-[var(--color-slate-600)] shadow-sm">
               <TrendingUp className="h-4 w-4 text-[var(--color-primary-400)]" />
-              <span className="max-w-full text-balance leading-tight">
-                {exchangeRateLabel} {exchangeRateValue}
-              </span>
+              {exchangeRateLabel} {exchangeRateValue}
             </span>
             {dailyChange && (
               <DailyChangeBadge
@@ -92,20 +63,11 @@ export function DashboardHero({
                 icon={dailyChange.icon}
                 value={dailyChange.value}
                 label={dailyChange.label}
-                className="min-h-10 w-full justify-start rounded-[1.15rem] border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.92),rgba(248,250,255,0.82))] px-3 py-2 shadow-[0_16px_28px_-22px_rgba(15,23,42,0.72)] sm:px-3.5 sm:justify-center sm:col-span-2 xl:col-span-1"
               />
             )}
           </div>
         </div>
-        <div className="w-full xl:self-stretch">
-          <div className="h-full w-full xl:[border-inline-start:1px_solid_rgba(226,232,240,0.72)] xl:ps-6">
-            <QuickActionsSection
-              title={quickActionsTitle}
-              actions={quickActions}
-              className="w-full max-w-full xl:!max-w-[32rem] xl:self-start xl:justify-self-end"
-            />
-          </div>
-        </div>
+        <QuickActionsSection title={quickActionsTitle} actions={quickActions} />
       </div>
     </header>
   );

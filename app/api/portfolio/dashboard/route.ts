@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { mapCandleDataToPoints } from '@/lib/calculations';
-import { parseBooleanFlag } from '@/lib/api/route';
 import { expandPositionActivations, mapPositionRow } from '@/lib/positions';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
 import {
-  fetchQuotesForSymbols,
+  fetchFinnhubQuoteCached,
   FinnhubConfigError,
-} from '@/lib/services/quote-provider';
+  resolveFinnhubToken,
+} from '@/lib/services/finnhub-cache';
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
 import { getSupabaseClient } from '@/lib/supabase';
 import { HistoricalPoint, Position } from '@/types';
@@ -99,7 +99,7 @@ function buildRangeInfo(position: Position): RangeInfo {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const forceQuoteRefresh = parseBooleanFlag(searchParams.get('forceQuoteRefresh'));
+    const forceQuoteRefresh = searchParams.get('forceQuoteRefresh') === '1';
 
     let supabase;
     try {
@@ -192,14 +192,9 @@ export async function GET(request: NextRequest) {
         return {};
       }
 
+      let token: string;
       try {
-        const quotes = await fetchQuotesForSymbols(normalizedSymbols, {
-          token: settingsResult.data?.finnhub_token ?? process.env.FINNHUB_TOKEN,
-          forceRefresh: forceQuoteRefresh,
-        });
-        return Object.fromEntries(
-          Object.entries(quotes).map(([symbol, quote]) => [symbol, { c: quote.c, d: quote.d }]),
-        );
+        token = await resolveFinnhubToken(settingsResult.data?.finnhub_token);
       } catch (error) {
         if (error instanceof FinnhubConfigError) {
           console.warn('Finnhub token is not configured; skipping quote fetch.');
@@ -207,6 +202,27 @@ export async function GET(request: NextRequest) {
         }
         throw error;
       }
+
+      const quotePairs = await Promise.all(
+        normalizedSymbols.map(async (symbol) => {
+          try {
+            const quote = await fetchFinnhubQuoteCached(symbol, token, { forceRefresh: forceQuoteRefresh });
+            return [symbol, { c: quote.c, d: quote.d }] as const;
+          } catch (error) {
+            console.error(`Failed to fetch quote for ${symbol}:`, error);
+            return [symbol, null] as const;
+          }
+        }),
+      );
+
+      const quotes: Record<string, { c?: number; d?: number }> = {};
+      quotePairs.forEach(([symbol, quote]) => {
+        if (quote) {
+          quotes[symbol] = quote;
+        }
+      });
+
+      return quotes;
     })();
 
     const candlesByKeyPromise = (async (): Promise<Record<string, HistoricalPoint[]>> => {

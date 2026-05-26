@@ -1,12 +1,15 @@
-'use client';
+import { cn } from "@/lib/utils"
 
-import * as React from 'react';
-import { Skeleton as HeroSkeleton } from '@heroui/react';
-
-import { cn } from '@/lib/utils';
-
-function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <HeroSkeleton className={cn('rounded-md', className)} {...props} />;
+function Skeleton({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-primary/10", className)}
+      {...props}
+    />
+  )
 }
 
-export { Skeleton };
+export { Skeleton }

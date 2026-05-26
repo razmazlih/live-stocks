@@ -1,31 +1,22 @@
-'use client';
+import * as React from "react"
 
-import * as React from 'react';
-import { Input as HeroInput } from '@heroui/react';
+import { cn } from "@/lib/utils"
 
-import { cn } from '@/lib/utils';
-
-const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     return (
-      <HeroInput
-        ref={ref as React.Ref<HTMLInputElement>}
+      <input
         type={type}
-        variant="bordered"
-        radius="lg"
-        classNames={{
-          inputWrapper: cn(
-            'control-shell min-h-10 border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.88)] px-3.5 shadow-[0_16px_28px_-26px_rgba(15,23,42,0.7)] transition-[color,background-color,border-color,box-shadow] duration-200 ease-out hover:border-[color:var(--color-blue-200)]/90 data-[focus=true]:border-[color:var(--color-blue-400)] data-[focus=true]:ring-2 data-[focus=true]:ring-[color:var(--color-blue-300)]/60',
-            className
-          ),
-          input:
-            'text-base leading-5 text-[var(--color-primary-900)] placeholder:text-muted-foreground/70 md:text-sm',
-        }}
-        {...(props as Record<string, unknown>)}
+        className={cn(
+          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          className
+        )}
+        ref={ref}
+        {...props}
       />
-    );
+    )
   }
-);
-Input.displayName = 'Input';
+)
+Input.displayName = "Input"
 
-export { Input };
+export { Input }

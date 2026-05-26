@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
@@ -9,9 +10,9 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
-import { toast } from '@/lib/toast';
+import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
@@ -19,7 +20,6 @@ import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { DashboardPageShell } from '@/components/dashboard/page-shell';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,11 +35,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { formatDate, formatPercent, mapCandleDataToPoints } from '@/lib/calculations';
+import { formatDate, mapCandleDataToPoints } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { isNasdaqTradingHours } from '@/lib/utils/trading-hours';
 import type {
   CandleData,
   HistoricalPoint,
@@ -48,18 +49,221 @@ import type {
   WatchlistGroup as WatchlistGroupType,
   WatchlistTicker as WatchlistTickerType,
 } from '@/types';
-import { createEmptyGroupForm, createEmptyTickerForm } from '@/features/watchlist/forms';
-import { getRangeParams } from '@/features/watchlist/range';
-import {
-  buildTickerCacheKey,
-  getTickerCacheTtlMs,
-  readTickerCache,
-  writeTickerCache,
-} from '@/features/watchlist/cache';
-import { SortableTickerCard } from '@/features/watchlist/sortable-ticker-card';
-import { buildWatchlistSignalSummary } from '@/features/watchlist/signals';
-import type { GroupFormState, TickerFormState, TickerState } from '@/features/watchlist/types';
-import { getWatchlistTickerKey } from '@/features/watchlist/utils';
+
+interface GroupFormState {
+  id: string | null;
+  name: string;
+  description: string;
+}
+
+interface TickerFormState {
+  id: string | null;
+  symbol: string;
+  display: string;
+  imageUrl: string;
+  note: string;
+}
+
+interface TickerState {
+  loading: boolean;
+  error: string | null;
+  quote: StockQuote | null;
+  historical: HistoricalPoint[];
+  range: TimeRange;
+  from: number | null;
+  lastUpdated: number | null;
+}
+
+const TICKER_CACHE_PREFIX = 'watchlist:ticker:';
+
+interface TickerCacheEntry {
+  quote: StockQuote | null;
+  historical: HistoricalPoint[];
+  error: string | null;
+  storedAt: number;
+  expiresAt: number;
+  range: TimeRange;
+  from: number;
+  resolution: string;
+}
+
+function getTickerCacheStorage() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch (error) {
+    console.warn('Ticker cache unavailable:', error);
+    return null;
+  }
+}
+
+function buildTickerCacheKey(
+  tickerKey: string,
+  range: TimeRange,
+  from: number,
+  resolution: string
+) {
+  return `${TICKER_CACHE_PREFIX}${tickerKey}::${range}::${from}::${resolution}`;
+}
+
+function readTickerCache(key: string): TickerCacheEntry | null {
+  const storage = getTickerCacheStorage();
+  if (!storage) {
+    return null;
+  }
+
+  const raw = storage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as TickerCacheEntry | null;
+    if (!parsed || typeof parsed !== 'object') {
+      storage.removeItem(key);
+      return null;
+    }
+
+    if (typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()) {
+      storage.removeItem(key);
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to read ticker cache entry', error);
+    storage.removeItem(key);
+    return null;
+  }
+}
+
+function writeTickerCache(key: string, entry: TickerCacheEntry) {
+  const storage = getTickerCacheStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(key, JSON.stringify(entry));
+  } catch (error) {
+    console.warn('Failed to write ticker cache entry', error);
+  }
+}
+
+function getTickerCacheTtlMs(date: Date = new Date()): number {
+  return isNasdaqTradingHours(date) ? 3 * 60 * 1000 : 60 * 60 * 1000;
+}
+
+function createEmptyGroupForm(): GroupFormState {
+  return { id: null, name: '', description: '' };
+}
+
+function createEmptyTickerForm(): TickerFormState {
+  return { id: null, symbol: '', display: '', imageUrl: '', note: '' };
+}
+
+function determineResolution(fromSeconds: number, toSeconds: number): string {
+  const day = 24 * 60 * 60;
+  const secondsRange = Math.max(toSeconds - fromSeconds, day);
+  const days = secondsRange / day;
+
+  if (days <= 3) {
+    return '15';
+  }
+
+  if (days <= 10) {
+    return '30';
+  }
+
+  if (days <= 45) {
+    return '60';
+  }
+
+  if (days <= 180) {
+    return 'D';
+  }
+
+  if (days <= 365 * 3) {
+    return 'W';
+  }
+
+  return 'M';
+}
+
+function getRangeParams(range: TimeRange, startDate?: Date | null): { from: number; resolution: string } {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const day = 24 * 60 * 60;
+
+  if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    const rawFrom = Math.floor(startDate.getTime() / 1000);
+    const maxFrom = Math.max(nowSeconds - 60, 0);
+    const minFrom = nowSeconds - day * 365 * 10;
+    const normalizedFrom = Math.min(rawFrom, maxFrom);
+    const effectiveFrom = Math.max(normalizedFrom, minFrom);
+    const resolution = determineResolution(effectiveFrom, nowSeconds);
+    return { from: effectiveFrom, resolution };
+  }
+
+  switch (range) {
+    case '1D':
+      return { from: nowSeconds - day * 2, resolution: '60' };
+    case '1W':
+      return { from: nowSeconds - day * 7, resolution: '60' };
+    case '1M':
+      return { from: nowSeconds - day * 30, resolution: 'D' };
+    case '3M':
+      return { from: nowSeconds - day * 90, resolution: 'D' };
+    case '6M':
+      return { from: nowSeconds - day * 180, resolution: 'D' };
+    case 'YTD': {
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      return { from: Math.floor(startOfYear.getTime() / 1000), resolution: 'D' };
+    }
+    case '1Y':
+      return { from: nowSeconds - day * 365, resolution: 'D' };
+    case 'All':
+      return { from: nowSeconds - day * 365 * 5, resolution: 'W' };
+    default:
+      return { from: nowSeconds - day * 90, resolution: 'D' };
+  }
+}
+
+function getTickerKey(ticker: WatchlistTickerType): string {
+  return ticker.id ?? ticker.symbol;
+}
+
+interface SortableTickerCardProps {
+  id: string;
+  isActive: boolean;
+  children: ReactNode;
+}
+
+function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'h-full cursor-grab select-none touch-pan-y active:cursor-grabbing',
+        isDragging ? 'z-50' : undefined,
+        isActive ? 'ring-2 ring-blue-200' : undefined
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function WatchlistPage() {
   const { locale, settings } = useApp();
@@ -96,7 +300,6 @@ export default function WatchlistPage() {
     selectedGroup?.tickers ?? []
   );
   const [activeTickerId, setActiveTickerId] = useState<string | null>(null);
-  const [freshnessTick, setFreshnessTick] = useState(0);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -138,14 +341,6 @@ export default function WatchlistPage() {
   );
   const hasCustomStartDate = customStartDate !== null;
   const [startDatePopoverOpen, setStartDatePopoverOpen] = useState(false);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setFreshnessTick((tick) => tick + 1);
-    }, 60_000);
-
-    return () => window.clearInterval(interval);
-  }, []);
 
   const minSelectableDate = useMemo(() => {
     const date = new Date();
@@ -191,7 +386,7 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     const validKeys = new Set(
-      groups.flatMap((group) => group.tickers.map((ticker) => getWatchlistTickerKey(ticker)))
+      groups.flatMap((group) => group.tickers.map((ticker) => getTickerKey(ticker)))
     );
 
     setTickerStates((prev) => {
@@ -213,7 +408,7 @@ export default function WatchlistPage() {
       const targetRange = options?.range ?? range;
       const startDateForFetch = options?.startDate ?? effectiveStartDate;
       const { from, resolution } = getRangeParams(targetRange, startDateForFetch);
-      const key = getWatchlistTickerKey(ticker);
+      const key = getTickerKey(ticker);
       const cacheKey = buildTickerCacheKey(key, targetRange, from, resolution);
 
       if (!options?.force) {
@@ -370,7 +565,7 @@ export default function WatchlistPage() {
     }
 
     selectedGroup.tickers.forEach((ticker) => {
-      const key = getWatchlistTickerKey(ticker);
+      const key = getTickerKey(ticker);
       const state = tickerStates[key];
       const shouldLoad =
         !state ||
@@ -631,8 +826,8 @@ export default function WatchlistPage() {
         return;
       }
 
-      const oldIndex = sortableTickers.findIndex((ticker) => getWatchlistTickerKey(ticker) === active.id);
-      const newIndex = sortableTickers.findIndex((ticker) => getWatchlistTickerKey(ticker) === over.id);
+      const oldIndex = sortableTickers.findIndex((ticker) => getTickerKey(ticker) === active.id);
+      const newIndex = sortableTickers.findIndex((ticker) => getTickerKey(ticker) === over.id);
 
       if (oldIndex === -1 || newIndex === -1) {
         return;
@@ -698,7 +893,7 @@ export default function WatchlistPage() {
 
   const quickActions: DashboardQuickAction[] = useMemo(() => {
     const baseActions = createCommonQuickActions(t, {
-      include: ['reload'],
+      exclude: ['watchlist'],
       overrides: {
         reload: {
           label: t.watchlist.actions.refreshAll,
@@ -728,10 +923,12 @@ export default function WatchlistPage() {
     ];
 
     const reloadAction = baseActions.find((action) => action.key === 'reload');
+    const navigationActions = baseActions.filter((action) => action.key !== 'reload');
 
     return [
       ...(reloadAction ? [reloadAction] : []),
       ...extraActions,
+      ...navigationActions,
     ];
   }, [
     t,
@@ -743,374 +940,85 @@ export default function WatchlistPage() {
     selectedGroup,
   ]);
 
-  const watchlistSignalSummary = useMemo(
-    () => buildWatchlistSignalSummary(sortableTickers, tickerStates, Date.now() + freshnessTick * 0),
-    [freshnessTick, sortableTickers, tickerStates],
-  );
-
-  const activeRangeLabel = timeRangeLabels[range] ?? range;
-  const watchlistCopy = locale === 'he'
-    ? {
-        focusLabel: 'פוקוס נוכחי',
-        focusHint: 'כל הקבוצות, הטווחים והכרטיסים נשארים באותו זרם עבודה מהיר.',
-        collectionsLabel: 'קבוצות מעקב',
-        collectionsHint: 'רכז רשימות לפי רעיון, סקטור או תזמון כניסה.',
-        workspaceLabel: 'מרחב מעקב',
-        workspaceHint: 'שליטה בטווח, תאריך התחלה והוספת מניות נשארת קרובה לכרטיסים.',
-        controlLabel: 'בקרה',
-        controlHint: 'הגדר את טווח הצפייה לכל הקבוצה והוסף טיקרים בלי לצאת מההקשר.',
-        emptyWorkspaceHint: 'צור קבוצה כדי להתחיל לבנות רצף מעקב מסודר.',
-        emptyTickersHint: 'הוסף את המניה הראשונה כדי להפוך את הקבוצה למשטח עבודה חי.',
-      }
-    : {
-        focusLabel: 'Current focus',
-        focusHint: 'Groups, ranges, and cards stay in one fast scanning flow.',
-        collectionsLabel: 'Watchlist collections',
-        collectionsHint: 'Organize lists by idea, sector, or timing.',
-        workspaceLabel: 'Watchlist workspace',
-        workspaceHint: 'Range, start-date, and add-ticker controls stay close to the cards.',
-        controlLabel: 'Control rail',
-        controlHint: 'Set the viewing range for the whole group and add tickers without leaving context.',
-        emptyWorkspaceHint: 'Create a group to start building a structured watchlist workflow.',
-        emptyTickersHint: 'Add the first ticker to turn this group into a live workspace.',
-      };
-  const momentumToneClass = watchlistSignalSummary.averageMomentum >= 0 ? 'text-emerald-600' : 'text-rose-600';
-  const syncToneClass = watchlistSignalSummary.loadingCount > 0
-    ? 'bg-amber-50 text-amber-700'
-    : watchlistSignalSummary.staleCount > 0
-      ? 'bg-rose-50 text-rose-700'
-      : 'bg-[color:var(--color-emerald-50)] text-emerald-700';
-  const overviewCardClass =
-    'group relative isolate overflow-hidden rounded-[26px] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-4 shadow-[0_22px_48px_-36px_rgba(15,23,42,0.55)] transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_28px_56px_-36px_rgba(15,23,42,0.62)] motion-reduce:transform-none sm:p-5';
-  const overviewIconShellClass =
-    'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.05rem] border border-white/80 bg-white/88 text-[var(--color-primary-700)] shadow-[0_18px_28px_-22px_rgba(37,99,235,0.65)]';
-
   return (
-    <DashboardPageShell direction={isRtl ? 'rtl' : 'ltr'}>
-      <div className="dashboard-page-container dashboard-page-container-tight overflow-x-clip">
-        <div className="space-y-6">
-          <header className="relative isolate overflow-hidden rounded-[32px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(244,249,255,0.95)_52%,rgba(236,253,245,0.82))] px-4 py-5 shadow-[0_34px_70px_-44px_rgba(15,23,42,0.62)] sm:px-7 sm:py-7">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_40%)]"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"
-            />
-            <div className="relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(21rem,26rem)] xl:items-start xl:gap-8">
-              <div className="max-w-3xl space-y-5">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/80 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-slate-600)] shadow-[0_14px_24px_-18px_rgba(15,23,42,0.4)]">
-                  <Eye className="h-3.5 w-3.5" />
-                  {locale === 'he' ? 'לוח מעקב חי' : 'Live watchlist'}
+    <div
+      className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]"
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
+      <div className="relative">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
+            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
+                    <Eye className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{t.watchlist.title}</h1>
+                    <p className="mt-1 max-w-xl text-sm text-slate-600 sm:text-base">{t.watchlist.subtitle}</p>
+                  </div>
                 </div>
-                <div className="space-y-2.5">
-                  <h1 className="max-w-3xl text-balance text-[clamp(2.1rem,5vw,3.65rem)] font-black tracking-tight text-[var(--color-primary-900)]">
-                    {t.watchlist.title}
-                  </h1>
-                  <p className="max-w-2xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
-                    {t.watchlist.subtitle}
-                  </p>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 text-xs font-medium [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 2xl:grid-cols-4 2xl:max-w-none">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
                   {metaBadges.map((badge) => {
                     const Icon = badge.icon;
                     return (
                       <span
                         key={badge.key}
                         className={cn(
-                          'inline-flex min-h-14 min-w-[11rem] shrink-0 items-center gap-3 rounded-[1.15rem] border border-white/75 px-3.5 py-2.5 text-left shadow-[0_18px_34px_-28px_rgba(15,23,42,0.42)] backdrop-blur-sm sm:min-w-0',
+                          'inline-flex items-center gap-2 rounded-full px-3 py-1 shadow-sm',
                           badge.className
                         )}
                       >
-                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/80 shadow-[0_10px_18px_-14px_rgba(15,23,42,0.45)]">
-                          <Icon className={cn('h-4 w-4', badge.iconClassName)} />
-                        </span>
-                        <span className="min-w-0 break-words text-[0.78rem] font-semibold leading-5">{badge.label}</span>
+                        <Icon className={cn('h-4 w-4', badge.iconClassName)} />
+                        <span>{badge.label}</span>
                       </span>
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap items-start gap-3">
-                  <div className="min-w-[12rem] rounded-[1.3rem] border border-white/70 bg-white/75 px-4 py-3 shadow-[0_20px_32px_-26px_rgba(15,23,42,0.42)]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                      {watchlistCopy.focusLabel}
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">
-                      {selectedGroupSummary ?? t.watchlist.status.empty}
-                    </p>
-                  </div>
-                  <div className="min-w-[14rem] flex-1 rounded-[1.3rem] border border-white/60 bg-[linear-gradient(135deg,rgba(255,255,255,0.6),rgba(255,255,255,0.3))] px-4 py-3 text-sm leading-6 text-[var(--color-slate-600)] shadow-[0_16px_30px_-26px_rgba(15,23,42,0.35)]">
-                    {watchlistCopy.focusHint}
-                  </div>
-                </div>
               </div>
-
-              <QuickActionsSection
-                title={t.watchlist.actionsTitle}
-                actions={quickActions}
-                className="w-full min-w-0 rounded-[28px] border-white/70 bg-white/68 shadow-[0_28px_52px_-36px_rgba(15,23,42,0.58)] xl:max-w-xl xl:self-start xl:before:absolute xl:before:bottom-6 xl:before:-inset-x-0 xl:before:right-full xl:before:top-6 xl:before:w-px xl:before:bg-gradient-to-b xl:before:from-transparent xl:before:via-[rgba(148,163,184,0.42)] xl:before:to-transparent"
-              >
-                <div className="mt-4 rounded-[1.35rem] border border-white/75 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(240,249,255,0.7))] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                    {watchlistCopy.workspaceLabel}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">
-                    {selectedGroupSummary ?? t.watchlist.status.empty}
-                  </p>
-                  <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                    {watchlistCopy.workspaceHint}
-                  </p>
-                </div>
+              <QuickActionsSection title={t.watchlist.actionsTitle} actions={quickActions}>
+                <p className="mt-4 text-xs text-slate-500">
+                  {selectedGroupSummary ?? t.watchlist.status.empty}
+                </p>
               </QuickActionsSection>
             </div>
           </header>
 
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
-            <div className={cn(overviewCardClass, 'xl:col-span-3')}>
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_68%)]" />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <span className={overviewIconShellClass}>
-                    <Layers className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="rounded-full bg-[color:var(--color-blue-50)] px-2.5 py-1 text-xs font-semibold text-[var(--color-blue-700)]">
-                    {selectedGroup ? renderTickerCount(selectedGroup) : tickerSummary}
-                  </span>
-                </div>
-                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  {locale === 'he' ? 'קבוצה פעילה' : 'Active group'}
-                </p>
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <span className="text-2xl font-semibold tracking-tight text-slate-900">
-                    {groupSummary}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  {selectedGroupSummary ?? (locale === 'he' ? 'בחר קבוצה כדי לראות את הקשר שלה.' : 'Choose a group to see its context.')}
-                </p>
-              </div>
-            </div>
-
-            <div className={cn(overviewCardClass, 'xl:col-span-3')}>
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.14),transparent_68%)]" />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <span className={overviewIconShellClass}>
-                    <CalendarDays className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="rounded-full bg-[color:var(--color-primary-050)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary-700)]">
-                    {formattedStartDate}
-                  </span>
-                </div>
-                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  {locale === 'he' ? 'טווח נוכחי' : 'Current range'}
-                </p>
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <span className="text-2xl font-semibold tracking-tight text-slate-900">
-                    {activeRangeLabel}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{startDateSummary}</p>
-              </div>
-            </div>
-
-            <div className={cn(overviewCardClass, 'xl:col-span-3')}>
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.15),transparent_68%)]" />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <span className={cn(overviewIconShellClass, momentumToneClass)}>
-                    <Eye className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="rounded-full bg-[color:var(--color-slate-100)] px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {watchlistSignalSummary.samples}
-                  </span>
-                </div>
-                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  {locale === 'he' ? 'תנופת קבוצה' : 'Group momentum'}
-                </p>
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <span className={cn('text-2xl font-semibold tracking-tight', momentumToneClass)}>
-                    {watchlistSignalSummary.averageMomentum > 0 ? '+' : ''}
-                    {formatPercent(watchlistSignalSummary.averageMomentum, locale)}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  {locale === 'he'
-                    ? `${watchlistSignalSummary.positiveCount} עולים · ${watchlistSignalSummary.negativeCount} יורדים · ${watchlistSignalSummary.neutralCount} יציבים`
-                    : `${watchlistSignalSummary.positiveCount} rising · ${watchlistSignalSummary.negativeCount} falling · ${watchlistSignalSummary.neutralCount} steady`}
-                </p>
-              </div>
-            </div>
-
-            <div className={cn(overviewCardClass, 'xl:col-span-3')}>
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.16),transparent_68%)]" />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <span className={overviewIconShellClass}>
-                    <RefreshCw className="h-4.5 w-4.5" />
-                  </span>
-                  <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', syncToneClass)}>
-                    {watchlistSignalSummary.loadingCount > 0
-                      ? locale === 'he'
-                        ? `${watchlistSignalSummary.loadingCount} נטענים`
-                        : `${watchlistSignalSummary.loadingCount} loading`
-                      : watchlistSignalSummary.staleCount > 0
-                        ? locale === 'he'
-                          ? `${watchlistSignalSummary.staleCount} מיושנים`
-                          : `${watchlistSignalSummary.staleCount} stale`
-                        : locale === 'he'
-                          ? 'מעודכן'
-                          : 'Synced'}
-                  </span>
-                </div>
-                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  {locale === 'he' ? 'סנכרון' : 'Sync state'}
-                </p>
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <span className="text-2xl font-semibold tracking-tight text-slate-900">
-                    {watchlistSignalSummary.readyCount}/{watchlistSignalSummary.totalTickers}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                  <span className="rounded-full bg-[color:var(--color-emerald-50)] px-2.5 py-1 text-emerald-700">
-                    {locale === 'he'
-                      ? `${watchlistSignalSummary.freshCount} מוכנים`
-                      : `${watchlistSignalSummary.freshCount} ready`}
-                  </span>
-                  <span className="rounded-full bg-[color:var(--color-amber-50)] px-2.5 py-1 text-[color:var(--color-amber-700)]">
-                    {locale === 'he'
-                      ? `${watchlistSignalSummary.loadingCount} נטענים`
-                      : `${watchlistSignalSummary.loadingCount} loading`}
-                  </span>
-                  <span className="rounded-full bg-[color:var(--color-rose-50)] px-2.5 py-1 text-rose-700">
-                    {locale === 'he'
-                      ? `${watchlistSignalSummary.staleCount} מיושנים`
-                      : `${watchlistSignalSummary.staleCount} stale`}
-                  </span>
-                  {watchlistSignalSummary.errorCount > 0 ? (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-                      {locale === 'he'
-                        ? `${watchlistSignalSummary.errorCount} שגיאות`
-                        : `${watchlistSignalSummary.errorCount} errors`}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="relative isolate overflow-hidden rounded-[28px] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,251,235,0.84))] p-4 shadow-[0_24px_48px_-36px_rgba(15,23,42,0.52)] sm:col-span-2 sm:p-5 xl:col-span-12">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-56 bg-[radial-gradient(circle_at_right,rgba(245,158,11,0.16),transparent_66%)]" />
-              <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    {locale === 'he' ? 'רוחב תצוגה' : 'View span'}
-                  </p>
-                  <div className="mt-2 flex items-end gap-3">
-                    <span className="text-2xl font-semibold tracking-tight text-slate-900">
-                      {watchlistSignalSummary.noteCount}
-                    </span>
-                    <span className="rounded-full bg-[color:var(--color-amber-50)] px-2.5 py-1 text-xs font-semibold text-[color:var(--color-amber-600)]">
-                      {locale === 'he' ? 'הערות' : 'Notes'}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                    {locale === 'he'
-                      ? 'ככל שיש יותר הערות, כך התצוגה הופכת עשירה יותר.'
-                      : 'Notes add context without crowding the cards.'}
-                  </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[19rem]">
-                  <div className="rounded-[1.15rem] border border-white/75 bg-white/78 px-4 py-3 shadow-[0_18px_30px_-24px_rgba(15,23,42,0.36)]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                      {watchlistCopy.collectionsLabel}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{groupSummary}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{watchlistCopy.collectionsHint}</p>
-                  </div>
-                  <div className="rounded-[1.15rem] border border-white/75 bg-white/78 px-4 py-3 shadow-[0_18px_30px_-24px_rgba(15,23,42,0.36)]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                      {watchlistCopy.workspaceLabel}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{tickerSummary}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {locale === 'he'
-                        ? `${watchlistSignalSummary.noteCount} כרטיסים כוללים הערות.`
-                        : `${watchlistSignalSummary.noteCount} cards include notes.`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] xl:items-start 2xl:gap-8">
-            <aside className="space-y-4 xl:sticky xl:top-6">
-              <div className="relative overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(180deg,rgba(250,252,255,0.98),rgba(244,247,252,0.92))] p-3 shadow-[0_28px_56px_-42px_rgba(15,23,42,0.5)]">
-                <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.1),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.24),transparent_36%)]" />
-                <div className="relative z-10 mb-3 space-y-1 px-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)] shadow-[0_12px_22px_-18px_rgba(15,23,42,0.35)]">
-                    <Layers className="h-3.5 w-3.5" />
-                    {watchlistCopy.collectionsLabel}
-                  </div>
-                  <p className="text-sm leading-6 text-slate-500">{watchlistCopy.collectionsHint}</p>
-                </div>
-              <WatchlistGroupSelector
-                groups={groups}
-                selectedGroupId={selectedGroupId}
-                onSelect={handleSelectGroup}
-                onCreate={openCreateGroupDialog}
-                onEdit={openEditGroupDialog}
-                onDelete={handleDeleteGroup}
-                isLoading={loading}
-                isRefreshing={refreshing}
-                title={t.watchlist.groups.title}
-                description={t.watchlist.groups.description}
-                addLabel={t.watchlist.actions.newGroup}
-                emptyStateText={t.watchlist.groups.empty}
-                loadingText={t.watchlist.groups.loading}
-                renderTickerCount={renderTickerCount}
-                editLabel={t.watchlist.actions.editGroup}
-                deleteLabel={t.watchlist.actions.deleteGroup}
-                className="w-full min-w-0 border-white/70 bg-white/72 shadow-none"
-              />
-              </div>
-            </aside>
+          <div className="mt-10 flex flex-col gap-8 lg:gap-10">
+            <WatchlistGroupSelector
+              groups={groups}
+              selectedGroupId={selectedGroupId}
+              onSelect={handleSelectGroup}
+              onCreate={openCreateGroupDialog}
+              onEdit={openEditGroupDialog}
+              onDelete={handleDeleteGroup}
+              isLoading={loading}
+              isRefreshing={refreshing}
+              title={t.watchlist.groups.title}
+              description={t.watchlist.groups.description}
+              addLabel={t.watchlist.actions.newGroup}
+              emptyStateText={t.watchlist.groups.empty}
+              loadingText={t.watchlist.groups.loading}
+              renderTickerCount={renderTickerCount}
+              editLabel={t.watchlist.actions.editGroup}
+              deleteLabel={t.watchlist.actions.deleteGroup}
+              className="w-full"
+            />
 
             <div className="flex w-full flex-col gap-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-white/85 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)] shadow-[0_12px_22px_-18px_rgba(15,23,42,0.35)]">
-                    <ListChecks className="h-3.5 w-3.5" />
-                    {watchlistCopy.workspaceLabel}
-                  </div>
-                  <p className="text-sm leading-6 text-slate-500">{watchlistCopy.workspaceHint}</p>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)]/80 bg-white/85 px-3 py-2 text-xs font-semibold text-slate-600 shadow-[0_14px_24px_-18px_rgba(15,23,42,0.32)]">
-                  <RefreshCw className={cn('h-3.5 w-3.5 text-[var(--color-primary-500)]', refreshingTickers ? 'animate-spin' : undefined)} />
-                  <span>{selectedGroupSummary ?? t.watchlist.status.empty}</span>
-                </div>
-              </div>
-
               {watchlistError ? (
                 <Alert
                   variant="destructive"
-                  className="rounded-[28px] border border-[color:var(--color-rose-200)] bg-[linear-gradient(135deg,rgba(255,241,242,0.95),rgba(255,255,255,0.88))] px-6 py-5 text-rose-700 shadow-[0_24px_48px_-36px_rgba(225,29,72,0.42)]"
+                  className="rounded-3xl border border-[color:var(--color-rose-200)]/70 bg-overlay-rose-50 px-6 py-5 text-rose-700 shadow-inner glass-blur-sm"
                 >
-                  <AlertTitle className="flex items-center gap-3">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/80 bg-white/75 shadow-[0_14px_26px_-18px_rgba(190,24,93,0.4)]">
-                      <RefreshCw className="h-4.5 w-4.5" />
-                    </span>
-                    <span>{t.watchlist.status.errorTitle}</span>
-                  </AlertTitle>
-                  <AlertDescription className="mt-3 flex flex-wrap items-center gap-3 text-rose-600">
-                    <span className="max-w-2xl">{t.watchlist.status.error}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleRefreshAll}
-                      className="gap-2 rounded-full border-rose-200 bg-white text-rose-700 shadow-sm hover:bg-rose-50"
-                    >
+                  <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
+                  <AlertDescription className="mt-2 flex flex-wrap items-center gap-2 text-rose-600">
+                    <span>{t.watchlist.status.error}</span>
+                    <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
                       <RefreshCw className="h-4 w-4" />
                       {t.watchlist.actions.retry}
                     </Button>
@@ -1120,169 +1028,113 @@ export default function WatchlistPage() {
 
               {selectedGroup ? (
                 <div className="space-y-6">
-                  <section className="relative overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,249,253,0.94))] px-4 py-4 shadow-[0_28px_58px_-42px_rgba(15,23,42,0.48)] sm:px-6 sm:py-6">
-                    <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.1),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.16),transparent_34%)]" />
-                    <div className="space-y-5">
-                      <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="space-y-2">
-                          <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-slate-600)] shadow-[0_14px_24px_-18px_rgba(15,23,42,0.34)]">
-                            <Layers className="h-3.5 w-3.5" />
-                            {renderTickerCount(selectedGroup)}
-                          </div>
-                          <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                            {selectedGroup.name}
-                          </h2>
-                          {selectedGroup.description ? (
-                            <p className="max-w-2xl text-sm leading-6 text-slate-500">
-                              {selectedGroup.description}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        <div
-                          className={cn(
-                            'flex w-full max-w-3xl min-w-0 flex-col gap-4',
-                            isRtl ? 'lg:items-start' : 'lg:items-end'
-                          )}
-                        >
-                          <div className="w-full rounded-[26px] border border-[color:var(--color-slate-200)]/75 bg-[linear-gradient(160deg,rgba(248,250,252,0.98),rgba(255,255,255,0.82)_54%,rgba(239,246,255,0.8))] p-4 shadow-[0_20px_38px_-30px_rgba(15,23,42,0.48)] sm:p-5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                                  {watchlistCopy.controlLabel}
-                                </p>
-                                <p className="text-sm text-slate-500">
-                                  {watchlistCopy.controlHint}
-                                </p>
-                              </div>
-                              <span className="hidden rounded-full border border-white/80 bg-[color:var(--color-neutral-white)]/88 px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm sm:inline-flex">
-                                {startDateSummary}
-                              </span>
-                            </div>
-
-                            <div className="mt-4 space-y-4">
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="rounded-[1.15rem] border border-white/75 bg-white/78 px-4 py-3 shadow-[0_14px_26px_-20px_rgba(15,23,42,0.32)]">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                                    {locale === 'he' ? 'טווח פעיל' : 'Active range'}
-                                  </p>
-                                  <p className="mt-1 text-sm font-semibold text-slate-900">{activeRangeLabel}</p>
-                                  <p className="mt-1 text-xs leading-5 text-slate-500">{startDateSummary}</p>
-                                </div>
-                                <div className="rounded-[1.15rem] border border-white/75 bg-white/78 px-4 py-3 shadow-[0_14px_26px_-20px_rgba(15,23,42,0.32)]">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                                    {locale === 'he' ? 'פוקוס קבוצה' : 'Group focus'}
-                                  </p>
-                                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                                    {selectedGroupSummary ?? t.watchlist.status.empty}
-                                  </p>
-                                  <p className="mt-1 text-xs leading-5 text-slate-500">{watchlistCopy.workspaceHint}</p>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                                  {locale === 'he' ? 'טווח זמן' : 'Time range'}
-                                </p>
-                                <TimeRangeTabs value={range} onChange={handleRangeChange} labels={timeRangeLabels} />
-                              </div>
-
-                              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                                <Popover open={startDatePopoverOpen} onOpenChange={setStartDatePopoverOpen}>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      className={cn(
-                                        'flex min-h-11 w-full items-center gap-3 rounded-full border-white/80 bg-[color:var(--color-neutral-white)]/90 px-4 py-2 text-left text-sm shadow-[0_14px_24px_-18px_rgba(15,23,42,0.28)] transition-colors hover:border-[color:var(--color-slate-300)] hover:bg-[color:var(--color-slate-50)]',
-                                        hasCustomStartDate
-                                          ? 'ring-1 ring-[color:var(--color-slate-300)]'
-                                          : undefined
-                                      )}
-                                    >
-                                      <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
-                                      <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                                        <span className="text-xs font-medium text-slate-500">
-                                          {t.watchlist.filters.startDateLabel}
-                                        </span>
-                                        <span
-                                          className={cn(
-                                            'text-sm font-semibold text-slate-700',
-                                            hasCustomStartDate ? 'text-slate-900' : undefined
-                                          )}
-                                        >
-                                          {formattedStartDate}
-                                        </span>
-                                      </div>
-                                      {hasCustomStartDate ? (
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                                          {t.watchlist.filters.customBadge}
-                                        </span>
-                                      ) : null}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    align={isRtl ? 'end' : 'start'}
-                                    className="w-[min(22rem,calc(100vw-1rem))] rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-lg"
+                  <div className="rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-semibold text-slate-800">{selectedGroup.name}</h2>
+                        {selectedGroup.description ? (
+                          <p className="max-w-xl text-sm text-slate-500">{selectedGroup.description}</p>
+                        ) : null}
+                        <p className="text-xs font-medium text-slate-400">
+                          {renderTickerCount(selectedGroup)}
+                        </p>
+                      </div>
+                      <div
+                        className={cn(
+                          'flex w-full flex-col gap-3',
+                          isRtl ? 'lg:items-start' : 'lg:items-end'
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center gap-3">
+                          <TimeRangeTabs
+                            value={range}
+                            onChange={handleRangeChange}
+                            labels={timeRangeLabels}
+                            className="min-w-[220px] lg:min-w-[260px]"
+                          />
+                          <Popover
+                            open={startDatePopoverOpen}
+                            onOpenChange={setStartDatePopoverOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
+                                  hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
+                                )}
+                              >
+                                <CalendarDays className="h-4 w-4 text-blue-500" />
+                                <div className="flex min-w-[140px] flex-col leading-tight">
+                                  <span className="text-xs font-medium text-slate-500">
+                                    {t.watchlist.filters.startDateLabel}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      'text-sm font-semibold text-slate-700',
+                                      hasCustomStartDate ? 'text-blue-600' : undefined
+                                    )}
                                   >
-                                    <div className="flex flex-col gap-3">
-                                      <p className="text-sm font-medium text-slate-700">
-                                        {t.watchlist.filters.startDateDescription}
-                                      </p>
-                                      <Calendar
-                                        mode="single"
-                                        selected={customStartDate ?? effectiveStartDate}
-                                        defaultMonth={customStartDate ?? effectiveStartDate}
-                                        onSelect={(date) => {
-                                          if (!date) {
-                                            return;
-                                          }
-                                          handleStartDateChange(date);
-                                          setStartDatePopoverOpen(false);
-                                        }}
-                                        toDate={maxSelectableDate}
-                                        fromDate={minSelectableDate}
-                                        initialFocus
-                                      />
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          handleResetStartDate();
-                                          setStartDatePopoverOpen(false);
-                                        }}
-                                        className="justify-start text-slate-600 hover:text-blue-600"
-                                      >
-                                        {t.watchlist.filters.resetStartDate}
-                                      </Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
+                                    {formattedStartDate}
+                                  </span>
+                                </div>
+                                {hasCustomStartDate ? (
+                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
+                                    {t.watchlist.filters.customBadge}
+                                  </span>
+                                ) : null}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align={isRtl ? 'end' : 'start'}
+                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm"
+                            >
+                              <div className="flex flex-col gap-3">
+                                <p className="text-sm font-medium text-slate-700">
+                                  {t.watchlist.filters.startDateDescription}
+                                </p>
+                                <Calendar
+                                  mode="single"
+                                  selected={customStartDate ?? effectiveStartDate}
+                                  defaultMonth={customStartDate ?? effectiveStartDate}
+                                  onSelect={(date) => {
+                                    if (!date) {
+                                      return;
+                                    }
+                                    handleStartDateChange(date);
+                                    setStartDatePopoverOpen(false);
+                                  }}
+                                  toDate={maxSelectableDate}
+                                  fromDate={minSelectableDate}
+                                  initialFocus
+                                />
                                 <Button
+                                  variant="ghost"
                                   size="sm"
-                                  className="min-h-11 w-full gap-2 rounded-full bg-[linear-gradient(135deg,var(--color-primary-500),var(--color-primary-650))] text-white shadow-[0_18px_32px_-20px_rgba(37,99,235,0.6)] hover:bg-[var(--color-primary-700)] sm:w-auto"
-                                  onClick={openCreateTickerDialog}
+                                  onClick={() => {
+                                    handleResetStartDate();
+                                    setStartDatePopoverOpen(false);
+                                  }}
+                                  className="justify-start text-slate-600 hover:text-blue-600"
                                 >
-                                  <Plus className="h-4 w-4" />
-                                  {t.watchlist.actions.newTicker}
+                                  {t.watchlist.filters.resetStartDate}
                                 </Button>
                               </div>
-
-                              <div className="flex flex-col gap-2 rounded-[1.2rem] border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/55 px-4 py-3 text-xs leading-5 text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] sm:flex-row sm:items-center sm:justify-between">
-                                <span>
-                                  {locale === 'he'
-                                    ? 'טווח הזמן מחושב לכל הכרטיסים בקבוצה, והסידור נשמר בגרירה בלבד.'
-                                    : 'The range applies to the whole group, and drag-and-drop only changes order.'}
-                                </span>
-                                <span className="rounded-full border border-white/75 bg-[color:var(--color-neutral-white)] px-2.5 py-1 font-semibold text-slate-600">
-                                  {startDateSummary}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            size="sm"
+                            onClick={openCreateTickerDialog}
+                            className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
+                          >
+                            <Plus className="h-4 w-4" />
+                            {t.watchlist.actions.newTicker}
+                          </Button>
                         </div>
+                        <p className="text-xs text-slate-500">{startDateSummary}</p>
                       </div>
                     </div>
-                  </section>
+                  </div>
 
                   {sortableTickers.length ? (
                     <DndContext
@@ -1292,12 +1144,12 @@ export default function WatchlistPage() {
                       onDragCancel={handleDragCancel}
                     >
                       <SortableContext
-                        items={sortableTickers.map((ticker) => getWatchlistTickerKey(ticker))}
+                        items={sortableTickers.map((ticker) => getTickerKey(ticker))}
                         strategy={rectSortingStrategy}
                       >
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                           {sortableTickers.map((ticker) => {
-                            const tickerKey = getWatchlistTickerKey(ticker);
+                            const tickerKey = getTickerKey(ticker);
                             const state = tickerStates[tickerKey];
                             const historical = state?.historical ?? [];
                             const basePoint = historical.length ? historical[0] : null;
@@ -1365,7 +1217,6 @@ export default function WatchlistPage() {
                                   basePriceLabel={t.watchlist.labels.basePrice}
                                   hoverLabel={t.watchlist.labels.hover}
                                   startDateLabel={t.watchlist.labels.startDate}
-                                  className="border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
                                 />
                               </SortableTickerCard>
                             );
@@ -1374,17 +1225,11 @@ export default function WatchlistPage() {
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed border-[color:var(--color-slate-200)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-10 text-center text-sm text-slate-500 shadow-[0_24px_48px_-38px_rgba(15,23,42,0.42)]">
-                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.3rem] border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/85 text-[var(--color-primary-600)] shadow-[0_18px_30px_-22px_rgba(37,99,235,0.38)]">
-                        <Plus className="h-5 w-5" />
-                      </span>
-                      <div className="space-y-1.5">
-                        <p className="text-base font-semibold text-slate-900">{t.watchlist.status.noTickers}</p>
-                        <p className="max-w-md text-xs leading-6 text-slate-500">{watchlistCopy.emptyTickersHint}</p>
-                      </div>
+                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-10 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                      <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
-                        className="gap-2 rounded-full bg-[linear-gradient(135deg,var(--color-primary-500),var(--color-primary-650))] text-white shadow-[0_18px_32px_-20px_rgba(37,99,235,0.6)] hover:bg-[var(--color-primary-700)]"
+                        className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
                       >
                         <Plus className="h-4 w-4" />
                         {t.watchlist.actions.newTicker}
@@ -1393,17 +1238,11 @@ export default function WatchlistPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-[30px] border border-dashed border-[color:var(--color-slate-200)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-12 text-center text-sm text-slate-500 shadow-[0_26px_52px_-40px_rgba(15,23,42,0.45)]">
-                  <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.3rem] border border-[color:var(--color-blue-100)]/80 bg-[color:var(--color-blue-50)]/85 text-[var(--color-primary-600)] shadow-[0_18px_30px_-22px_rgba(37,99,235,0.38)]">
-                    <Layers className="h-5 w-5" />
-                  </span>
-                  <div className="space-y-1.5">
-                    <p className="text-base font-semibold text-slate-900">{t.watchlist.status.empty}</p>
-                    <p className="max-w-md text-xs leading-6 text-slate-500">{watchlistCopy.emptyWorkspaceHint}</p>
-                  </div>
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-12 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                  <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
-                    className="gap-2 rounded-full bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-650))] text-white shadow-[0_18px_32px_-20px_rgba(37,99,235,0.6)] hover:bg-[var(--color-primary-650)]"
+                    className="gap-2 rounded-full bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]"
                   >
                     <Plus className="h-4 w-4" />
                     {t.watchlist.actions.newGroup}
@@ -1414,8 +1253,9 @@ export default function WatchlistPage() {
           </div>
         </div>
       </div>
+
       <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
-        <DialogContent className="w-[min(34rem,calc(100vw-1rem))] max-w-none sm:w-[min(34rem,calc(100vw-2rem))]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
@@ -1461,7 +1301,7 @@ export default function WatchlistPage() {
       </Dialog>
 
       <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
-        <DialogContent className="w-[min(44rem,calc(100vw-1rem))] max-w-none sm:w-[min(44rem,calc(100vw-2rem))]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}
@@ -1529,6 +1369,6 @@ export default function WatchlistPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </DashboardPageShell>
+    </div>
   );
 }

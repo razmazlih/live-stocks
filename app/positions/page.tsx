@@ -9,6 +9,7 @@ import {
   PositionLocation,
   PositionLot,
   PositionLotType,
+  StockQuote,
 } from "@/types";
 import {
   DEFAULT_COMMISSION_USD,
@@ -60,7 +61,6 @@ import {
   BarChart3,
   ArrowRightLeft,
   History,
-  Clock3,
   Layers,
   Package,
   CalendarClock,
@@ -69,38 +69,109 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "@/lib/toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/page-shell";
-import {
-  cardShellClass,
-  chipShellClass,
-  controlLabelClass,
-  dialogActionButtonClass,
-  dialogFooterClass,
-  dialogSectionClass,
-  dialogShellClass,
-  historyDialogShellClass,
-  panelLabelClass,
-  rowActionButtonClass,
-  sectionShellClass,
-  toolbarCardClass,
-} from "@/features/positions/page-styles";
-import type {
-  PositionFormData,
-  PositionLocationFilter,
-  PositionSortOption,
-  TransactionFormData,
-} from "@/features/positions/page-types";
-import {
-  createDefaultTransactionForm,
-  fetchQuotePrice,
-  getTodayIsoDate,
-} from "@/features/positions/page-utils";
-import {
-  buildPositionItems,
-  filterAndSortPositionItems,
-} from "@/features/positions/selectors";
+
+interface PositionFormData {
+  symbol: string;
+  display: string;
+  imageUrl: string;
+  location: PositionLocation;
+  initialPrice: number;
+  initialQuantity: number;
+  initialDate: string;
+  initialHasCommission: boolean;
+  initialCommissionAmount: number;
+}
+
+interface TransactionFormData {
+  id?: string;
+  type: PositionLotType;
+  price: number;
+  quantity: number;
+  executedAt: string;
+  hasCommission: boolean;
+  commissionAmount: number;
+}
+
+type PositionLocationFilter = PositionLocation | "all";
+type PositionSortOption =
+  | "latest_activity"
+  | "symbol_asc"
+  | "symbol_desc"
+  | "quantity_desc"
+  | "entry_date_desc";
+
+interface PositionListItem {
+  position: Position;
+  sortedLots: PositionLot[];
+  recentLots: PositionLot[];
+  lastActivityDate: string;
+  lastActivityTimestamp: number;
+  fallbackInitials: string;
+}
+
+function getTimestampFromIsoDate(value: string): number {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildFallbackInitials(display: string, symbol: string): string {
+  return (
+    (display || symbol || "?")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("")
+      .slice(0, 2) || "?"
+  );
+}
+
+function getTodayIsoDate(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+function createDefaultTransactionForm(): TransactionFormData {
+  return {
+    type: "BUY",
+    price: 0,
+    quantity: 0,
+    executedAt: getTodayIsoDate(),
+    hasCommission: true,
+    commissionAmount: DEFAULT_COMMISSION_USD,
+  };
+}
+
+async function fetchQuotePrice(symbol: string): Promise<number | null> {
+  const trimmedSymbol = symbol.trim().toUpperCase();
+
+  if (!trimmedSymbol) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/quote?symbol=${encodeURIComponent(trimmedSymbol)}`,
+      { cache: "no-store" },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: StockQuote = await response.json();
+
+    if (typeof data.c === "number" && Number.isFinite(data.c) && data.c > 0) {
+      return data.c;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Failed to fetch quote price for symbol:", symbol, error);
+    return null;
+  }
+}
 
 export default function PositionsPage() {
   const { locale, triggerRefresh, refreshTrigger } = useApp();
@@ -140,7 +211,6 @@ export default function PositionsPage() {
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
   const isRtl = locale === "he";
-  const searchIconClassName = isRtl ? "right-3" : "left-3";
 
   const historyTarget = useMemo(() => {
     if (!historyTargetId) {
@@ -161,20 +231,86 @@ export default function PositionsPage() {
     [positions],
   );
 
-  const positionItems = useMemo(
-    () => buildPositionItems(positions),
+  const positionItems = useMemo<PositionListItem[]>(
+    () =>
+      positions.map((position) => {
+        const sortedLots = [...(position.lots ?? [])].sort((a, b) => {
+          const aTime = getTimestampFromIsoDate(a.executedAt);
+          const bTime = getTimestampFromIsoDate(b.executedAt);
+          return bTime - aTime;
+        });
+
+        const recentLots = sortedLots.slice(0, 3);
+        const lastLotDate = sortedLots[0]?.executedAt ?? position.entryDate;
+
+        return {
+          position,
+          sortedLots,
+          recentLots,
+          lastActivityDate: lastLotDate,
+          lastActivityTimestamp: getTimestampFromIsoDate(lastLotDate),
+          fallbackInitials: buildFallbackInitials(position.display, position.symbol),
+        };
+      }),
     [positions],
   );
 
-  const filteredPositionItems = useMemo(
-    () =>
-      filterAndSortPositionItems(positionItems, {
-        searchTerm,
-        locationFilter,
-        sortOption,
-      }),
-    [locationFilter, positionItems, searchTerm, sortOption],
-  );
+  const filteredPositionItems = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toUpperCase();
+
+    const filtered = positionItems.filter(({ position }) => {
+      if (
+        locationFilter !== "all" &&
+        position.location !== locationFilter
+      ) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const symbol = position.symbol.toUpperCase();
+      const display = position.display.toUpperCase();
+
+      return (
+        symbol.includes(normalizedSearch) || display.includes(normalizedSearch)
+      );
+    });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      if (sortOption === "latest_activity") {
+        return (
+          b.lastActivityTimestamp - a.lastActivityTimestamp ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      if (sortOption === "symbol_desc") {
+        return b.position.symbol.localeCompare(a.position.symbol);
+      }
+
+      if (sortOption === "quantity_desc") {
+        return (
+          b.position.quantity - a.position.quantity ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      if (sortOption === "entry_date_desc") {
+        return (
+          getTimestampFromIsoDate(b.position.entryDate) -
+            getTimestampFromIsoDate(a.position.entryDate) ||
+          a.position.symbol.localeCompare(b.position.symbol)
+        );
+      }
+
+      return a.position.symbol.localeCompare(b.position.symbol);
+    });
+
+    return sorted;
+  }, [locationFilter, positionItems, searchTerm, sortOption]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -200,68 +336,6 @@ export default function PositionsPage() {
   const displayFrom =
     filteredPositionItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const displayTo = Math.min(currentPage * pageSize, filteredPositionItems.length);
-  const totalTransactionCount = useMemo(
-    () =>
-      positions.reduce(
-        (sum, position) => sum + (position.lots?.length ?? 0),
-        0,
-      ),
-    [positions],
-  );
-
-  const prioritySignals = useMemo(() => {
-    if (positionItems.length === 0) {
-      return [];
-    }
-
-    const sortedByActivity = [...positionItems].sort(
-      (a, b) =>
-        b.lastActivityTimestamp - a.lastActivityTimestamp ||
-        a.position.symbol.localeCompare(b.position.symbol),
-    );
-    const sortedByQuantity = [...positionItems].sort(
-      (a, b) =>
-        b.position.quantity - a.position.quantity ||
-        a.position.symbol.localeCompare(b.position.symbol),
-    );
-    const sortedByTrades = [...positionItems].sort(
-      (a, b) =>
-        b.sortedLots.length - a.sortedLots.length ||
-        b.lastActivityTimestamp - a.lastActivityTimestamp ||
-        a.position.symbol.localeCompare(b.position.symbol),
-    );
-
-    const mostRecent = sortedByActivity[0];
-    const largestHolding = sortedByQuantity[0];
-    const busiestHolding = sortedByTrades[0];
-
-    return [
-      {
-        key: "recent",
-        icon: Clock3,
-        label: locale === "he" ? "פעילות אחרונה" : "Latest activity",
-        value: mostRecent.position.symbol,
-        helper: formatDate(mostRecent.lastActivityDate, locale),
-      },
-      {
-        key: "largest",
-        icon: Package,
-        label: locale === "he" ? "החזקה הגדולה" : "Largest holding",
-        value: largestHolding.position.symbol,
-        helper: formatNumber(largestHolding.position.quantity, locale),
-      },
-      {
-        key: "busiest",
-        icon: ArrowRightLeft,
-        label: locale === "he" ? "הכי פעיל" : "Most transactions",
-        value: busiestHolding.position.symbol,
-        helper:
-          busiestHolding.sortedLots.length > 0
-            ? t.positions.transactionCount(busiestHolding.sortedLots.length)
-            : t.positions.noTransactions,
-      },
-    ];
-  }, [locale, positionItems, t.positions]);
 
   const overviewStats = [
     {
@@ -269,31 +343,12 @@ export default function PositionsPage() {
       label: t.positions.overviewActivePositions,
       value: formatNumber(positions.length, locale),
       icon: Layers,
-      tone: "bg-[color:var(--color-slate-50)]",
     },
     {
       key: "quantity",
       label: t.positions.overviewTotalQuantity,
       value: formatNumber(totalQuantity, locale),
       icon: Package,
-      tone: "bg-[color:var(--color-slate-50)]",
-    },
-    {
-      key: "transactions",
-      label: locale === "he" ? "עסקאות" : "Transactions",
-      value: formatNumber(totalTransactionCount, locale),
-      icon: ArrowRightLeft,
-      tone: "bg-[color:var(--color-slate-50)]",
-    },
-    {
-      key: "tracked",
-      label: locale === "he" ? "עם היסטוריה" : "With history",
-      value: formatNumber(
-        positionItems.filter((item) => item.sortedLots.length > 0).length,
-        locale,
-      ),
-      icon: History,
-      tone: "bg-[color:var(--color-slate-50)]",
     },
   ];
 
@@ -302,59 +357,17 @@ export default function PositionsPage() {
       key: "positions",
       icon: Layers,
       label: `${t.positions.overviewActivePositions}: ${formatNumber(positions.length, locale)}`,
-      className:
-        "bg-[color:var(--color-slate-50)] text-[var(--color-primary-700)] shadow-sm",
-      iconClassName: "text-[var(--color-primary-500)]",
+      className: "bg-blue-50 text-blue-600",
+      iconClassName: "text-blue-500",
     },
     {
       key: "quantity",
       icon: CalendarClock,
       label: `${t.positions.overviewTotalQuantity}: ${formatNumber(totalQuantity, locale)}`,
-      className:
-        "bg-[color:var(--color-slate-50)] text-[var(--color-emerald-700)] shadow-sm",
-      iconClassName: "text-[var(--color-emerald-500)]",
-    },
-    {
-      key: "transactions",
-      icon: ArrowRightLeft,
-      label: `${locale === "he" ? "עסקאות" : "Transactions"}: ${formatNumber(totalTransactionCount, locale)}`,
-      className:
-        "bg-[color:var(--color-slate-50)] text-[var(--color-amber-700)] shadow-sm",
-      iconClassName: "text-[var(--color-amber-500)]",
+      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      iconClassName: "text-slate-500",
     },
   ];
-
-  const positionsPageCopy =
-    locale === "he"
-      ? {
-          heroKicker: "מרכז שליטת פוזיציות",
-          heroTagline:
-            "ריכוז חד של החשיפות הפעילות, קצב הפעילות, והפעולות שצריך לבצע בלי לאבד הקשר.",
-          spotlightLabel: "אותות מובילים",
-          workspaceTitle: "מרחב ניהול",
-          workspaceSubtitle:
-            "סינון, מיון ופעולות מהירות על כל הפוזיציות הפעילות במקום אחד.",
-          filtersLabel: "פילטרים פעילים",
-          noFiltersLabel: "אין פילטרים פעילים",
-          resultsLabel: "תצוגת רשימה",
-          historySummary: "ציר עסקאות",
-        }
-      : {
-          heroKicker: "Positions command center",
-          heroTagline:
-            "A sharper read on active exposure, activity cadence, and the actions worth taking next without losing context.",
-          spotlightLabel: "Lead signals",
-          workspaceTitle: "Management workspace",
-          workspaceSubtitle:
-            "Filter, sort, and act on every tracked position from one focused surface.",
-          filtersLabel: "Active filters",
-          noFiltersLabel: "No active filters",
-          resultsLabel: "List view",
-          historySummary: "Transaction timeline",
-        };
-
-  const activeFilterCount =
-    Number(Boolean(searchTerm.trim())) + Number(locationFilter !== "all");
 
   const loadPositions = useCallback(async () => {
     try {
@@ -448,7 +461,7 @@ export default function PositionsPage() {
 
   const quickActions = useMemo<DashboardQuickAction[]>(() => {
     const baseActions = createCommonQuickActions(t, {
-      include: ["reload"],
+      exclude: ["positions"],
       overrides: {
         reload: {
           onClick: triggerRefresh,
@@ -465,7 +478,7 @@ export default function PositionsPage() {
         label: t.positions.add,
         onClick: openAddDialog,
         className:
-          "bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_34px_-22px_rgba(37,99,235,0.72)] hover:bg-[var(--color-primary-650)] hover:shadow-[0_22px_40px_-22px_rgba(37,99,235,0.76)]",
+          "bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]",
       },
       ...baseActions,
     ];
@@ -779,46 +792,32 @@ export default function PositionsPage() {
 
   return (
     <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="dashboard-page-container">
-        <header className={`${sectionShellClass} px-5 py-5 sm:px-6 sm:py-6`}>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_34%),radial-gradient(circle_at_88%_16%,rgba(16,185,129,0.1),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_46%)]"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.95),rgba(255,255,255,0))]"
-          />
-          <div className="relative z-10 flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-6">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="rounded-[22px] border border-[color:var(--color-blue-100)]/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(239,246,255,0.84))] p-3 text-[var(--color-primary-600)] shadow-[0_18px_30px_-24px_rgba(37,99,235,0.75)]">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
+          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
                   <Layers className="h-5 w-5" />
                 </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)] shadow-[0_14px_24px_-20px_rgba(37,99,235,0.65)]">
-                    <Layers className="h-3.5 w-3.5" />
-                    {positionsPageCopy.heroKicker}
-                  </span>
-                  <h1 className="text-2xl font-black tracking-tight text-[var(--color-primary-900)] sm:text-3xl lg:text-[2.2rem]">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">
                     {t.positions.title}
                   </h1>
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-slate-600)] sm:text-base">
+                  <p className="mt-1 max-w-2xl text-sm text-slate-600 sm:text-base">
                     {t.positions.subtitle}
-                  </p>
-                  <p className="max-w-3xl text-sm leading-6 text-[var(--color-slate-500)]">
-                    {positionsPageCopy.heroTagline}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
                 {headerMetaBadges.map((badge) => {
                   const Icon = badge.icon;
                   return (
                     <span
                       key={badge.key}
                       className={cn(
-                        chipShellClass,
+                        "inline-flex items-center gap-2 rounded-full px-3 py-1 shadow-sm",
                         badge.className,
                       )}
                     >
@@ -828,392 +827,250 @@ export default function PositionsPage() {
                   );
                 })}
               </div>
-              {prioritySignals.length > 0 && (
-                <div className="rounded-[28px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.7)] p-3 shadow-[0_20px_34px_-30px_rgba(15,23,42,0.44)] backdrop-blur-sm sm:p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                      {positionsPageCopy.spotlightLabel}
-                    </p>
-                    <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(248,250,252,0.92)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                      {formatNumber(prioritySignals.length, locale)}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  {prioritySignals.map((signal) => {
-                    const Icon = signal.icon;
-
-                    return (
-                      <div
-                        key={signal.key}
-                        className="relative overflow-hidden rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_18px_30px_-28px_rgba(15,23,42,0.38)]"
-                      >
-                        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,rgba(59,130,246,0),rgba(59,130,246,0.75),rgba(59,130,246,0))]" />
-                        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.92)] text-[var(--color-primary-600)] shadow-[0_14px_22px_-18px_rgba(37,99,235,0.72)]">
-                            <Icon className="h-3.5 w-3.5" />
-                          </span>
-                          <span>{signal.label}</span>
-                        </div>
-                        <div className="mt-3 flex items-baseline gap-2">
-                          <span className="text-base font-semibold tracking-tight text-[var(--color-primary-900)]">
-                            {signal.value}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
-                          {signal.helper}
-                        </p>
-                      </div>
-                    );
-                  })}
-                  </div>
-                </div>
-              )}
             </div>
             <QuickActionsSection
               title={t.dashboard.quickActions}
               actions={quickActions}
-              className="lg:sticky lg:top-6 lg:self-start"
             >
-              <div className="mt-4 space-y-3">
-                <p className="text-xs leading-5 text-[var(--color-slate-500)]">
-                  {t.positions.quickActionsDescription}
-                </p>
-                <div className="rounded-[22px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.76)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-600)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                    {positionsPageCopy.resultsLabel}
-                  </span>
-                  <span className="mt-1 block">
-                    {t.positions.filteredResultCount(
-                      filteredPositionItems.length,
-                      positions.length,
-                    )}
-                  </span>
-                </div>
-              </div>
+              <p className="mt-4 text-xs text-slate-500">
+                {t.positions.quickActionsDescription}
+              </p>
             </QuickActionsSection>
           </div>
         </header>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className={dialogShellClass}>
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
-              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
                 {editingPosition ? t.positions.edit : t.positions.add}
               </DialogTitle>
-              <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                {editingPosition
-                  ? locale === "he"
-                    ? "עדכון פרטי הפוזיציה והיתרות הקיימות."
-                    : "Update the position details and current holdings."
-                  : locale === "he"
-                    ? "יצירת פוזיציה חדשה עם פרטי כניסה מלאים."
-                    : "Create a new position with full entry details."}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
-                  {editingPosition ? t.positions.edit : t.positions.add}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                  {formData.location === "bank_two"
-                    ? t.positions.filterBankTwo
-                    : t.positions.filterBankOne}
-                </span>
-              </div>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-                <div className={dialogSectionClass}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className={panelLabelClass}>
-                        {locale === "he" ? "פרטי זיהוי" : "Identity details"}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-500)]">
-                        {locale === "he"
-                          ? "הזן את הסמל, השם והלוגו כך שהפוזיציה תהיה קלה לזיהוי."
-                          : "Enter the symbol, display name, and logo so the position is easy to identify."}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="symbol">{t.positions.symbol}</Label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="symbol">{t.positions.symbol}</Label>
+                  <Input
+                    id="symbol"
+                    value={formData.symbol}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        symbol: e.target.value.toUpperCase(),
+                      })
+                    }
+                    placeholder="AAPL"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="display">{t.positions.display}</Label>
+                  <Input
+                    id="display"
+                    value={formData.display}
+                    onChange={(e) =>
+                      setFormData({ ...formData, display: e.target.value })
+                    }
+                    placeholder="Apple Inc."
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
+                <Input
+                  id="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={(e) =>
+                    setFormData({ ...formData, imageUrl: e.target.value })
+                  }
+                  placeholder="https://logo.clearbit.com/apple.com"
+                />
+              </div>
+              <div>
+                <Label>{t.positions.locationLabel}</Label>
+                <RadioGroup
+                  value={formData.location}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      location: value as PositionLocation,
+                    })
+                  }
+                  className="mt-2 grid gap-2 sm:grid-cols-2"
+                >
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <RadioGroupItem
+                      value="bank_one"
+                      id="position-location-one"
+                      className="order-[-1]"
+                    />
+                    <BankBadge
+                      bank="bank_one"
+                      locale={locale}
+                      className="mt-1 self-start"
+                    />
+                    <span className="text-xs text-slate-500">
+                      {t.positions.bankOneHelper}
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                    <RadioGroupItem
+                      value="bank_two"
+                      id="position-location-two"
+                      className="order-[-1]"
+                    />
+                    <BankBadge
+                      bank="bank_two"
+                      locale={locale}
+                      className="mt-1 self-start"
+                    />
+                    <span className="text-xs text-slate-500">
+                      {t.positions.bankTwoHelper}
+                    </span>
+                  </label>
+                </RadioGroup>
+              </div>
+              {isEditing && editingPosition ? (
+                <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-700">
+                    {t.positions.currentHolding}
+                  </p>
+                  <p className="mt-2">
+                    {formatNumber(editingPosition.quantity, locale)} ·{" "}
+                    {formatCurrency(editingPosition.entryPrice, "USD", locale)}{" "}
+                    • {formatDate(editingPosition.entryDate, locale)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {t.positions.since}{" "}
+                    {formatDate(editingPosition.entryDate, locale)}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
                       <Input
-                        id="symbol"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={formData.symbol}
+                        id="initialPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={
+                          Number.isFinite(formData.initialPrice)
+                            ? formData.initialPrice
+                            : 0
+                        }
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            symbol: e.target.value.toUpperCase(),
+                            initialPrice: Number.parseFloat(e.target.value) || 0,
                           })
                         }
-                        placeholder="AAPL"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="display">{t.positions.display}</Label>
-                      <Input
-                        id="display"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={formData.display}
-                        onChange={(e) =>
-                          setFormData({ ...formData, display: e.target.value })
-                        }
-                        placeholder="Apple Inc."
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
-                      <Input
-                        id="imageUrl"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={formData.imageUrl}
-                        onChange={(e) =>
-                          setFormData({ ...formData, imageUrl: e.target.value })
-                        }
-                        placeholder="https://logo.clearbit.com/apple.com"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className={dialogSectionClass}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <Label className={panelLabelClass}>
-                        {t.positions.locationLabel}
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialQuantity">
+                        {t.positions.initialQuantity}
                       </Label>
-                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-500)]">
-                        {locale === "he"
-                          ? "בחר היכן הפוזיציה נשמרת כדי לשמור על היסטוריה ברורה."
-                          : "Choose where the position is tracked so history stays easy to scan."}
-                      </p>
+                      <Input
+                        id="initialQuantity"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={
+                          Number.isFinite(formData.initialQuantity)
+                            ? formData.initialQuantity
+                            : 0
+                        }
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialQuantity: Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                      <Input
+                        id="initialDate"
+                        type="date"
+                        value={formData.initialDate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialDate: e.target.value,
+                          })
+                        }
+                        required
+                      />
                     </div>
                   </div>
-                  <RadioGroup
-                    value={formData.location}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        location: value as PositionLocation,
-                      })
-                    }
-                    className="mt-4 grid gap-3 sm:grid-cols-2"
-                  >
-                    <label
-                      className={cn(
-                        "flex min-w-0 flex-col gap-1 rounded-2xl border p-4 text-sm shadow-sm transition",
-                        formData.location === "bank_one"
-                          ? "border-[color:var(--color-blue-200)] bg-[rgba(239,246,255,0.86)] text-[var(--color-primary-700)] shadow-[0_18px_28px_-22px_rgba(37,99,235,0.48)]"
-                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
-                      )}
-                    >
-                      <RadioGroupItem
-                        value="bank_one"
-                        id="position-location-one"
-                        className="order-[-1]"
-                      />
-                      <BankBadge
-                        bank="bank_one"
-                        locale={locale}
-                        className="mt-1 self-start"
-                      />
-                      <span className="text-xs leading-5 text-[var(--color-slate-500)]">
-                        {t.positions.bankOneHelper}
-                      </span>
-                    </label>
-                    <label
-                      className={cn(
-                        "flex min-w-0 flex-col gap-1 rounded-2xl border p-4 text-sm shadow-sm transition",
-                        formData.location === "bank_two"
-                          ? "border-[color:var(--color-blue-200)] bg-[rgba(239,246,255,0.86)] text-[var(--color-primary-700)] shadow-[0_18px_28px_-22px_rgba(37,99,235,0.48)]"
-                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
-                      )}
-                    >
-                      <RadioGroupItem
-                        value="bank_two"
-                        id="position-location-two"
-                        className="order-[-1]"
-                      />
-                      <BankBadge
-                        bank="bank_two"
-                        locale={locale}
-                        className="mt-1 self-start"
-                      />
-                      <span className="text-xs leading-5 text-[var(--color-slate-500)]">
-                        {t.positions.bankTwoHelper}
-                      </span>
-                    </label>
-                  </RadioGroup>
-                </div>
-
-                {isEditing && editingPosition ? (
-                  <div className={dialogSectionClass}>
-                    <p className={panelLabelClass}>{t.positions.currentHolding}</p>
-                    <div className="mt-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] p-4 shadow-sm">
-                      <p className="text-sm font-semibold text-[var(--color-primary-900)]">
-                        {formatNumber(editingPosition.quantity, locale)} ·{" "}
-                        {formatCurrency(editingPosition.entryPrice, "USD", locale)}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-[var(--color-slate-600)]">
-                        {formatDate(editingPosition.entryDate, locale)}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
-                        {t.positions.since} {formatDate(editingPosition.entryDate, locale)}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className={dialogSectionClass}>
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
-                          <Input
-                            id="initialPrice"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                            value={
-                              Number.isFinite(formData.initialPrice)
-                                ? formData.initialPrice
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialPrice:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="initialQuantity">
-                            {t.positions.initialQuantity}
-                          </Label>
-                          <Input
-                            id="initialQuantity"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                            value={
-                              Number.isFinite(formData.initialQuantity)
-                                ? formData.initialQuantity
-                                : 0
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialQuantity:
-                                  Number.parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
-                          <Input
-                            id="initialDate"
-                            type="date"
-                            className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                            value={formData.initialDate}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                initialDate: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={dialogSectionClass}>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <Label
-                            htmlFor="initial-commission-toggle"
-                            className={panelLabelClass}
-                          >
-                            {t.positions.transactionCommissionToggle}
-                          </Label>
-                          <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
-                            {t.positions.transactionCommissionHelper}
-                          </p>
-                        </div>
-                        <Switch
-                          id="initial-commission-toggle"
-                          checked={formData.initialHasCommission}
-                          onCheckedChange={(checked) =>
-                            setFormData((previous) => ({
-                              ...previous,
-                              initialHasCommission: checked,
-                              initialCommissionAmount: checked
-                                ? previous.initialCommissionAmount > 0
-                                  ? previous.initialCommissionAmount
-                                  : DEFAULT_COMMISSION_USD
-                                : 0,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-500)]">
-                        {locale === "he"
-                          ? "כאשר עמלה פעילה, היא תיכנס אוטומטית ללוט הקנייה הראשון."
-                          : "When commission is enabled, it is applied directly to the first buy lot."}
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        <Label htmlFor="initial-commission-amount">
-                          {t.positions.transactionCommissionAmount}
+                  <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label
+                          htmlFor="initial-commission-toggle"
+                          className="text-sm font-medium"
+                        >
+                          {t.positions.transactionCommissionToggle}
                         </Label>
-                        <Input
-                          id="initial-commission-amount"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                          value={formData.initialCommissionAmount}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              initialCommissionAmount:
-                                Number.parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          disabled={!formData.initialHasCommission}
-                          required={formData.initialHasCommission}
-                        />
+                        <p className="text-xs text-slate-500">
+                          {t.positions.transactionCommissionHelper}
+                        </p>
                       </div>
+                      <Switch
+                        id="initial-commission-toggle"
+                        checked={formData.initialHasCommission}
+                        onCheckedChange={(checked) =>
+                          setFormData((previous) => ({
+                            ...previous,
+                            initialHasCommission: checked,
+                            initialCommissionAmount: checked
+                              ? previous.initialCommissionAmount > 0
+                                ? previous.initialCommissionAmount
+                                : DEFAULT_COMMISSION_USD
+                              : 0,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="mt-3">
+                      <Label htmlFor="initial-commission-amount">
+                        {t.positions.transactionCommissionAmount}
+                      </Label>
+                      <Input
+                        id="initial-commission-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.initialCommissionAmount}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialCommissionAmount:
+                              Number.parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        disabled={!formData.initialHasCommission}
+                        required={formData.initialHasCommission}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
-              <div className={dialogFooterClass}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={dialogActionButtonClass}
-                    onClick={() => setDialogOpen(false)}
-                  >
-                    {t.positions.cancel}
-                  </Button>
-                  <Button
-                    type="submit"
-                    className={`${dialogActionButtonClass} bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] hover:bg-[var(--color-primary-650)]`}
-                  >
-                    {t.positions.save}
-                  </Button>
                 </div>
+              )}
+              <div className="flex gap-2">
+                <Button type="submit">{t.positions.save}</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  {t.positions.cancel}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -1229,216 +1086,160 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className={dialogShellClass}>
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
-              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
                 {isEditingTransaction
                   ? t.positions.editTransaction
                   : t.positions.addTransaction}
               </DialogTitle>
-              {transactionTarget && (
-                <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                  {(transactionTarget.display || transactionTarget.symbol).trim()} · {transactionTarget.symbol}
-                </p>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
-                  {isEditingTransaction
-                    ? t.positions.editTransaction
-                    : t.positions.addTransaction}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                  {transactionForm.type === "SELL" ? t.positions.sell : t.positions.buy}
-                </span>
-              </div>
             </DialogHeader>
-            <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-                <div className={dialogSectionClass}>
-                  <Label className={panelLabelClass}>{t.positions.transactionType}</Label>
-                  <RadioGroup
-                    value={transactionForm.type}
-                    onValueChange={(value) =>
+            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+              <div>
+                <Label>{t.positions.transactionType}</Label>
+                <RadioGroup
+                  value={transactionForm.type}
+                  onValueChange={(value) =>
+                    setTransactionForm({
+                      ...transactionForm,
+                      type: value as PositionLotType,
+                    })
+                  }
+                  className="mt-2 flex gap-4"
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <RadioGroupItem value="BUY" id="transaction-buy" />
+                    {t.positions.buy}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <RadioGroupItem value="SELL" id="transaction-sell" />
+                    {t.positions.sell}
+                  </label>
+                </RadioGroup>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionPrice">
+                    {t.positions.transactionPrice}
+                  </Label>
+                  <Input
+                    id="transactionPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.price}
+                    onChange={(e) =>
                       setTransactionForm({
                         ...transactionForm,
-                        type: value as PositionLotType,
+                        price: Number.parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="mt-4 grid gap-3 sm:grid-cols-2"
-                  >
-                    <label
-                      className={cn(
-                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-sm transition",
-                        transactionForm.type === "BUY"
-                          ? "border-[color:var(--color-emerald-200)] bg-[rgba(236,253,245,0.88)] text-[var(--color-emerald-700)] shadow-[0_18px_30px_-24px_rgba(16,185,129,0.34)]"
-                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
-                      )}
-                    >
-                      <RadioGroupItem value="BUY" id="transaction-buy" />
-                      {t.positions.buy}
-                    </label>
-                    <label
-                      className={cn(
-                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-sm transition",
-                        transactionForm.type === "SELL"
-                          ? "border-[color:var(--color-rose-200)] bg-[rgba(255,241,242,0.9)] text-[var(--color-rose-700)] shadow-[0_18px_30px_-24px_rgba(244,63,94,0.3)]"
-                          : "border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] text-[var(--color-slate-600)]",
-                      )}
-                    >
-                      <RadioGroupItem value="SELL" id="transaction-sell" />
-                      {t.positions.sell}
-                    </label>
-                  </RadioGroup>
+                    required
+                  />
                 </div>
-
-                <div className={dialogSectionClass}>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="transactionPrice">
-                        {t.positions.transactionPrice}
-                      </Label>
-                      <Input
-                        id="transactionPrice"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={transactionForm.price}
-                        onChange={(e) =>
-                          setTransactionForm({
-                            ...transactionForm,
-                            price: Number.parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="transactionQuantity">
-                        {t.positions.transactionQuantity}
-                      </Label>
-                      <Input
-                        id="transactionQuantity"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={transactionForm.quantity}
-                        onChange={(e) =>
-                          setTransactionForm({
-                            ...transactionForm,
-                            quantity: Number.parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        required
-                      />
-                      {transactionForm.type === "SELL" && transactionTarget && (
-                        <p className="text-xs leading-5 text-[var(--color-slate-500)]">
-                          {t.positions.availableQuantity}:{" "}
-                          {formatNumber(transactionTarget.quantity, locale)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="transactionDate">
-                        {t.positions.transactionDate}
-                      </Label>
-                      <Input
-                        id="transactionDate"
-                        type="date"
-                        className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                        value={transactionForm.executedAt}
-                        onChange={(e) =>
-                          setTransactionForm({
-                            ...transactionForm,
-                            executedAt: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionQuantity">
+                    {t.positions.transactionQuantity}
+                  </Label>
+                  <Input
+                    id="transactionQuantity"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.quantity}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        quantity: Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                  />
+                  {transactionForm.type === "SELL" && transactionTarget && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t.positions.availableQuantity}:{" "}
+                      {formatNumber(transactionTarget.quantity, locale)}
+                    </p>
+                  )}
                 </div>
-
-                <div className={dialogSectionClass}>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <Label
-                        htmlFor="transaction-commission-toggle"
-                        className={panelLabelClass}
-                      >
-                        {t.positions.transactionCommissionToggle}
-                      </Label>
-                      <p className="mt-1 text-xs leading-5 text-[var(--color-slate-500)]">
-                        {t.positions.transactionCommissionHelper}
-                      </p>
-                    </div>
-                    <Switch
-                      id="transaction-commission-toggle"
-                      checked={transactionForm.hasCommission}
-                      onCheckedChange={(checked) =>
-                        setTransactionForm((previous) => ({
-                          ...previous,
-                          hasCommission: checked,
-                          commissionAmount: checked
-                            ? previous.commissionAmount > 0
-                              ? previous.commissionAmount
-                              : DEFAULT_COMMISSION_USD
-                            : 0,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="rounded-2xl border border-[color:var(--color-slate-200)]/80 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs leading-5 text-[var(--color-slate-500)]">
-                    {transactionForm.type === "SELL"
-                      ? locale === "he"
-                        ? "בעסקאות מכירה העמלה תופחת ישירות מתוצאת העסקה."
-                        : "For sell transactions, commission is deducted directly from the trade outcome."
-                      : locale === "he"
-                        ? "בעסקאות קנייה העמלה מצטרפת לעלות הלוט החדש."
-                        : "For buy transactions, commission is added to the cost basis of the new lot."}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <Label htmlFor="transaction-commission-amount">
-                      {t.positions.transactionCommissionAmount}
-                    </Label>
-                    <Input
-                      id="transaction-commission-amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm"
-                      value={transactionForm.commissionAmount}
-                      onChange={(e) =>
-                        setTransactionForm({
-                          ...transactionForm,
-                          commissionAmount:
-                            Number.parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      disabled={!transactionForm.hasCommission}
-                      required={transactionForm.hasCommission}
-                    />
-                  </div>
+                <div className="sm:col-span-1">
+                  <Label htmlFor="transactionDate">
+                    {t.positions.transactionDate}
+                  </Label>
+                  <Input
+                    id="transactionDate"
+                    type="date"
+                    value={transactionForm.executedAt}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        executedAt: e.target.value,
+                      })
+                    }
+                    required
+                  />
                 </div>
               </div>
-              <div className={dialogFooterClass}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={dialogActionButtonClass}
-                    onClick={() => setTransactionDialogOpen(false)}
-                  >
-                    {t.positions.cancel}
-                  </Button>
-                  <Button
-                    type="submit"
-                    className={`${dialogActionButtonClass} bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] hover:bg-[var(--color-primary-650)]`}
-                  >
-                    {t.positions.saveTransaction}
-                  </Button>
+              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label
+                      htmlFor="transaction-commission-toggle"
+                      className="text-sm font-medium"
+                    >
+                      {t.positions.transactionCommissionToggle}
+                    </Label>
+                    <p className="text-xs text-slate-500">
+                      {t.positions.transactionCommissionHelper}
+                    </p>
+                  </div>
+                  <Switch
+                    id="transaction-commission-toggle"
+                    checked={transactionForm.hasCommission}
+                    onCheckedChange={(checked) =>
+                      setTransactionForm((previous) => ({
+                        ...previous,
+                        hasCommission: checked,
+                        commissionAmount: checked
+                          ? previous.commissionAmount > 0
+                            ? previous.commissionAmount
+                            : DEFAULT_COMMISSION_USD
+                          : 0,
+                      }))
+                    }
+                  />
                 </div>
+                <div className="mt-3">
+                  <Label htmlFor="transaction-commission-amount">
+                    {t.positions.transactionCommissionAmount}
+                  </Label>
+                  <Input
+                    id="transaction-commission-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.commissionAmount}
+                    onChange={(e) =>
+                      setTransactionForm({
+                        ...transactionForm,
+                        commissionAmount:
+                          Number.parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    disabled={!transactionForm.hasCommission}
+                    required={transactionForm.hasCommission}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit">{t.positions.saveTransaction}</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTransactionDialogOpen(false)}
+                >
+                  {t.positions.cancel}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -1453,33 +1254,19 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className={historyDialogShellClass}>
-            <DialogHeader className="border-b border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] px-5 py-4 sm:px-6">
-              <DialogTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)] sm:text-xl">
-                {t.positions.manageHistory}
-              </DialogTitle>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t.positions.manageHistory}</DialogTitle>
               {historyTarget && (
-                <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                  {(historyTarget.display || historyTarget.symbol).trim()} ·{" "}
-                  {historyTarget.symbol}
+                <p className="text-sm text-slate-500">
+                  {historyTarget.display} · {historyTarget.symbol}
                 </p>
               )}
-              {historyTarget && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-700)]">
-                    {positionsPageCopy.historySummary}
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                    {t.positions.transactionCount(historyTarget.lots?.length ?? 0)}
-                  </span>
-                </div>
-              )}
             </DialogHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-              {historyTarget ? (
-                historyTarget.lots && historyTarget.lots.length > 0 ? (
-                  <div className="space-y-3">
-                    {[...(historyTarget.lots ?? [])]
+            {historyTarget ? (
+              historyTarget.lots && historyTarget.lots.length > 0 ? (
+                <div className="space-y-3">
+                  {[...(historyTarget.lots ?? [])]
                     .sort((a, b) => {
                       const aTime = new Date(a.executedAt).getTime();
                       const bTime = new Date(b.executedAt).getTime();
@@ -1505,35 +1292,29 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="grid gap-3 rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.94))] p-4 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.38)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"
+                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
                         >
                           <span
-                            className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeTone}`}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}
                           >
                             {typeLabel}
                           </span>
-                          <div className="min-w-0 space-y-1 text-sm text-[var(--color-slate-600)]">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="font-semibold text-[var(--color-primary-900)]">
-                                {formatNumber(lot.quantity, locale)}
-                              </span>
-                              <span>·</span>
-                              <span className="font-semibold text-[var(--color-primary-900)]">
-                                {formatCurrency(lot.price, "USD", locale)}
-                              </span>
-                            </div>
-                            <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                          <div className="flex flex-col text-sm text-slate-600">
+                            <span>
+                              {formatNumber(lot.quantity, locale)} ·{" "}
+                              {formatCurrency(lot.price, "USD", locale)}
+                            </span>
+                            <span className="text-xs text-slate-500">
                               {formatDate(lot.executedAt, locale)}
-                            </p>
-                            <p className="text-xs leading-5 text-[var(--color-slate-500)]">
+                            </span>
+                            <span className="text-xs text-slate-500">
                               {commissionLabel}
-                            </p>
+                            </span>
                           </div>
-                          <div className="flex items-center justify-start gap-1 sm:justify-end sm:self-start">
+                          <div className="ml-auto flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
                               onClick={() =>
                                 historyTarget &&
                                 openEditTransactionDialog(historyTarget, lot)
@@ -1545,7 +1326,6 @@ export default function PositionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)]"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
                             >
@@ -1555,83 +1335,54 @@ export default function PositionsPage() {
                         </div>
                       );
                     })}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-slate-50)]/60 p-5 text-center">
-                    <p className="text-sm font-semibold text-[var(--color-slate-700)]">
-                      {t.positions.noTransactions}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-[var(--color-slate-500)]">
-                      {locale === "he"
-                        ? "ניתן להוסיף עסקה חדשה כדי להתחיל לעקוב אחרי ההיסטוריה."
-                        : "Add a transaction to start building the history timeline."}
-                    </p>
-                  </div>
-                )
-              ) : (
-                <div className="space-y-3" aria-busy="true">
-                  <div className="h-4 w-40 rounded-full bg-[color:var(--color-slate-200)]/80 animate-pulse" />
-                  <div className="h-3 w-56 rounded-full bg-[color:var(--color-slate-100)] animate-pulse" />
                 </div>
-              )}
-            </div>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  {t.positions.noTransactions}
+                </p>
+              )
+            ) : (
+              <p className="text-sm text-slate-500">{t.common.loading}</p>
+            )}
             {historyTarget && (
-              <div className={dialogFooterClass}>
-                <Button
-                  className="h-11 w-full rounded-2xl bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_32px_-22px_rgba(37,99,235,0.7)] hover:bg-[var(--color-primary-650)]"
-                  onClick={() => openTransactionDialog(historyTarget)}
-                >
-                  <Plus className="h-4 w-4" />
-                  {t.positions.addTransaction}
-                </Button>
-              </div>
+              <Button
+                className="mt-4 w-full"
+                onClick={() => openTransactionDialog(historyTarget)}
+              >
+                <Plus className="h-4 w-4" />
+                {t.positions.addTransaction}
+              </Button>
             )}
           </DialogContent>
         </Dialog>
 
-        <main className="mt-8 space-y-8">
-          <section className={`${sectionShellClass} px-4 py-6 sm:px-8`}>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_52%)]"
-            />
+        <main className="mt-10 space-y-10">
+          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
             <div className="relative z-10">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                    {t.positions.overviewTitle}
-                  </p>
-                  <h2 className="text-xl font-semibold tracking-tight text-[var(--color-primary-900)]">
-                    {positionsPageCopy.workspaceTitle}
-                  </h2>
-                  <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                    {t.positions.overviewDescription}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--color-slate-200)] bg-[rgba(255,255,255,0.94)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
-                    {locale === "he" ? "תצוגת מצב" : "Snapshot view"}
-                  </span>
-                  <span className="inline-flex w-fit items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">
-                    {positionsPageCopy.resultsLabel}
-                  </span>
-                </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {t.positions.overviewTitle}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {t.positions.overviewDescription}
+                </p>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {overviewStats.map(({ key, label, value, icon: Icon, tone }) => (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {overviewStats.map(({ key, label, value, icon: Icon }) => (
                   <Card
                     key={key}
-                    className={cn(cardShellClass, tone, "border-[color:var(--color-slate-200)]/75")}
+                    className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner"
                   >
-                    <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                      <div className="rounded-[20px] border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.88)] p-2.5 text-[var(--color-primary-700)] shadow-[0_16px_24px_-20px_rgba(37,99,235,0.6)]">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)] sm:text-[11px]">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
                           {label}
                         </p>
-                        <p className="text-[clamp(1.05rem,2.2vw,1.3rem)] font-semibold tracking-tight text-[var(--color-primary-900)]">
+                        <p className="text-lg font-semibold text-slate-900">
                           {value}
                         </p>
                       </div>
@@ -1642,155 +1393,52 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className={`${sectionShellClass} px-1.5 py-6 sm:px-8 sm:py-8`}>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(59,130,246,0.08),transparent_26%),radial-gradient(circle_at_92%_24%,rgba(16,185,129,0.06),transparent_22%)]"
-            />
+          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
+            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
             <div className="relative z-10">
-              <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                    {positionsPageCopy.workspaceTitle}
-                  </p>
-                  <h2 className="text-xl font-semibold tracking-tight text-[var(--color-primary-900)] sm:text-2xl">
-                    {t.positions.title}
-                  </h2>
-                  <p className="max-w-2xl text-sm leading-6 text-[var(--color-slate-500)]">
-                    {positionsPageCopy.workspaceSubtitle}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">
-                    {t.positions.filteredResultCount(
-                      filteredPositionItems.length,
-                      positions.length,
-                    )}
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.9)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
-                    {t.positions.rangeSummary(
-                      displayFrom,
-                      displayTo,
-                      filteredPositionItems.length,
-                    )}
-                  </span>
-                </div>
-              </div>
               {loading ? (
-                <Card className={cn(cardShellClass, "overflow-hidden")}>
-                  <CardContent className="space-y-5 p-5 sm:p-6">
-                    <div className="space-y-2">
-                      <div className="h-4 w-40 animate-pulse rounded-full bg-[color:var(--color-slate-200)]/80" />
-                      <div className="h-3 w-72 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
-                    </div>
-                    <div className="space-y-3">
-                      {Array.from({ length: 4 }).map((_, index) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]/70 p-4 shadow-sm"
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-11 w-11 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
-                              <div className="space-y-2">
-                                <div className="h-4 w-36 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
-                                <div className="h-3 w-24 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
-                              </div>
-                            </div>
-                            <div className="hidden h-8 w-24 animate-pulse rounded-full bg-[color:var(--color-slate-100)] sm:block" />
-                          </div>
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            {Array.from({ length: 4 }).map((__, metricIndex) => (
-                              <div
-                                key={metricIndex}
-                                className="h-16 animate-pulse rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between gap-3 border-t border-[color:var(--color-slate-200)] pt-4">
-                      <div className="h-3 w-32 animate-pulse rounded-full bg-[color:var(--color-slate-100)]" />
-                      <div className="flex items-center gap-2">
-                        <div className="h-9 w-9 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
-                        <div className="h-9 w-9 animate-pulse rounded-full bg-[color:var(--color-slate-200)]" />
-                      </div>
-                    </div>
+                <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                  <CardContent className="py-16 text-center text-slate-500">
+                    {t.common.loading}
                   </CardContent>
                 </Card>
               ) : positions.length === 0 ? (
-                <Card className="border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-neutral-white)] shadow-none">
-                  <CardContent className="flex flex-col items-center gap-4 px-5 py-14 text-center sm:px-6">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] text-[var(--color-primary-600)]">
-                      <Layers className="h-6 w-6" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-base font-semibold text-[var(--color-slate-700)]">
-                        {t.dashboard.noPositions}
-                      </p>
-                      <p className="max-w-md text-sm leading-6 text-[var(--color-slate-500)]">
-                        {t.positions.emptyStateDescription}
-                      </p>
-                    </div>
-                    <Button
-                      onClick={openAddDialog}
-                      className="gap-2 bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] text-[var(--color-neutral-white)] shadow-[0_18px_32px_-22px_rgba(37,99,235,0.7)] hover:bg-[var(--color-primary-650)]"
-                    >
+                <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                  <CardContent className="flex flex-col items-center gap-4 py-12">
+                    <p className="text-base font-semibold text-slate-700">
+                      {t.dashboard.noPositions}
+                    </p>
+                    <p className="max-w-sm text-sm text-slate-500">
+                      {t.positions.emptyStateDescription}
+                    </p>
+                    <Button onClick={openAddDialog} className="gap-2">
                       <Plus className="h-4 w-4" />
                       {t.positions.add}
                     </Button>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-6 xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] xl:items-start">
-                  <Card className={`${toolbarCardClass} xl:sticky xl:top-6`}>
+                <div className="space-y-4">
+                  <Card className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm">
                     <CardContent className="space-y-4 p-4 sm:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className={panelLabelClass}>
-                            {locale === "he" ? "סינון והתאמה" : "Filter and sort"}
-                          </p>
-                          <p className="text-sm leading-6 text-[var(--color-slate-500)]">
-                            {positionsPageCopy.workspaceSubtitle}
-                          </p>
-                        </div>
-                        <span className="inline-flex items-center rounded-full border border-[color:var(--color-blue-100)]/90 bg-[rgba(239,246,255,0.92)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-700)] shadow-sm">
-                          {formatNumber(filteredPositionItems.length, locale)}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className={controlLabelClass} htmlFor="position-search">
-                          {locale === "he" ? "חיפוש" : "Search"}
-                        </Label>
-                        <div className="relative">
-                          <Search className={cn("pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-slate-400)]", searchIconClassName)} />
+                      <div className="grid gap-3 lg:grid-cols-12">
+                        <div className="relative lg:col-span-5">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                           <Input
-                            id="position-search"
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
                             placeholder={t.positions.searchPlaceholder}
-                            className={cn(
-                              "h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm",
-                              isRtl ? "pr-9" : "pl-9",
-                            )}
+                            className="pl-9"
                           />
                         </div>
-                      </div>
-
-                      <div className="grid gap-3">
-                        <div className="space-y-2">
-                          <Label className={controlLabelClass}>
-                            {t.positions.filterByBank}
-                          </Label>
+                        <div className="lg:col-span-3">
                           <Select
                             value={locationFilter}
                             onValueChange={(value) =>
                               setLocationFilter(value as PositionLocationFilter)
                             }
                           >
-                            <SelectTrigger className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm">
+                            <SelectTrigger>
                               <SelectValue placeholder={t.positions.filterByBank} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1806,18 +1454,14 @@ export default function PositionsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-
-                        <div className="space-y-2">
-                          <Label className={controlLabelClass}>
-                            {t.positions.sortBy}
-                          </Label>
+                        <div className="lg:col-span-3">
                           <Select
                             value={sortOption}
                             onValueChange={(value) =>
                               setSortOption(value as PositionSortOption)
                             }
                           >
-                            <SelectTrigger className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm">
+                            <SelectTrigger>
                               <SelectValue placeholder={t.positions.sortBy} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1839,18 +1483,14 @@ export default function PositionsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-
-                        <div className="space-y-2">
-                          <Label className={controlLabelClass}>
-                            {t.positions.pageSizeLabel}
-                          </Label>
+                        <div className="lg:col-span-1">
                           <Select
                             value={String(pageSize)}
                             onValueChange={(value) =>
                               setPageSize(Number.parseInt(value, 10))
                             }
                           >
-                            <SelectTrigger className="h-11 rounded-2xl border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] shadow-sm">
+                            <SelectTrigger>
                               <SelectValue placeholder={t.positions.pageSizeLabel} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1861,76 +1501,27 @@ export default function PositionsPage() {
                           </Select>
                         </div>
                       </div>
-
-                      <div className="space-y-3 rounded-[24px] border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.72)] px-3.5 py-3 text-xs text-[var(--color-slate-500)] shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                            {positionsPageCopy.filtersLabel}
-                          </span>
-                          <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(248,250,252,0.92)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                            {activeFilterCount}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-[color:var(--color-primary-050)] px-3 py-1 font-semibold text-[var(--color-primary-700)]">
-                            {t.positions.filteredResultCount(
-                              filteredPositionItems.length,
-                              positions.length,
-                            )}
-                          </span>
-                          <span className="rounded-full bg-[color:var(--color-slate-100)] px-3 py-1 font-semibold text-[var(--color-slate-600)]">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                        <span>
+                          {t.positions.filteredResultCount(
+                            filteredPositionItems.length,
+                            positions.length,
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>
                             {t.positions.rangeSummary(
                               displayFrom,
                               displayTo,
                               filteredPositionItems.length,
                             )}
                           </span>
-                        </div>
-                        {hasActiveFilters ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 rounded-full border border-[color:var(--color-slate-200)] px-3 text-xs text-[var(--color-slate-600)] hover:bg-[color:var(--color-slate-50)] hover:text-[var(--color-primary-700)]"
-                            onClick={() => {
-                              setSearchTerm("");
-                              setLocationFilter("all");
-                            }}
-                          >
-                            {t.positions.clearFilters}
-                          </Button>
-                        ) : (
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-400)]">
-                            {positionsPageCopy.noFiltersLabel}
-                          </span>
-                        )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="space-y-5">
-                    {filteredPositionItems.length === 0 ? (
-                      <Card className="border border-dashed border-[color:var(--color-slate-300)] bg-[color:var(--color-neutral-white)] shadow-none">
-                        <CardContent className="flex flex-col items-center gap-4 px-5 py-14 text-center">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--color-slate-50)] text-[var(--color-slate-500)]">
-                            <Search className="h-5 w-5" />
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-[var(--color-slate-700)]">
-                              {t.positions.noFilteredResults}
-                            </p>
-                            <p className="max-w-sm text-sm leading-6 text-[var(--color-slate-500)]">
-                              {locale === "he"
-                                ? "נסה לשנות את החיפוש, הבנק או המיון כדי למצוא פוזיציה."
-                                : "Try adjusting search, bank, or sort to find a position."}
-                            </p>
-                          </div>
                           {hasActiveFilters && (
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
                               onClick={() => {
                                 setSearchTerm("");
                                 setLocationFilter("all");
@@ -1939,233 +1530,67 @@ export default function PositionsPage() {
                               {t.positions.clearFilters}
                             </Button>
                           )}
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <>
-                        <div className="hidden overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] shadow-[0_24px_44px_-34px_rgba(15,23,42,0.44)] md:block">
-                          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--color-slate-200)]/70 bg-[rgba(248,250,252,0.88)] px-5 py-4">
-                            <div>
-                              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                {positionsPageCopy.resultsLabel}
-                              </p>
-                              <p className="mt-1 text-sm text-[var(--color-slate-500)]">
-                                {t.positions.rangeSummary(
-                                  displayFrom,
-                                  displayTo,
-                                  filteredPositionItems.length,
-                                )}
-                              </p>
-                            </div>
-                            <span className="inline-flex items-center rounded-full border border-[color:var(--color-slate-200)]/85 bg-[rgba(255,255,255,0.92)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-slate-600)]">
-                              {formatNumber(paginatedPositionItems.length, locale)}
-                            </span>
-                          </div>
-                          <div className="overflow-x-auto">
-                            <Table className="min-w-[980px]">
-                              <TableHeader className="bg-[color:var(--color-slate-50)]">
-                                <TableRow className="border-b border-[color:var(--color-slate-200)]/60 hover:bg-transparent">
-                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.columnAsset}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.quantity}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.entryPrice}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.entryDate}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.lastActivity}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.transactionsTitle}
-                                  </TableHead>
-                                  <TableHead className="py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-slate-500)]">
-                                    {t.positions.columnActions}
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {paginatedPositionItems.map((item) => {
-                                  const { position, sortedLots, recentLots } = item;
-
-                                  return (
-                                    <TableRow
-                                      key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                      className="group border-b border-[color:var(--color-slate-200)]/50 transition-colors hover:bg-[rgba(248,250,252,0.92)]"
-                                    >
-                                      <TableCell className="py-4">
-                                        <div className="flex items-center gap-3">
-                                          <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
-                                            <StockAvatarImage
-                                              symbol={position.symbol}
-                                              display={`${position.display} logo`}
-                                              imageUrl={position.imageUrl}
-                                            />
-                                            <AvatarFallback className="text-xs font-semibold text-[var(--color-slate-600)]">
-                                              {item.fallbackInitials}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold tracking-tight text-[var(--color-primary-900)]">
-                                              {position.display}
-                                            </p>
-                                            <div className="mt-1 flex items-center gap-2">
-                                              <Badge className="rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-slate-600)]">
-                                                {position.symbol}
-                                              </Badge>
-                                              <BankBadge
-                                                bank={
-                                                  position.location === "bank_two"
-                                                    ? "bank_two"
-                                                    : "bank_one"
-                                                }
-                                                locale={locale}
-                                                size="sm"
-                                              />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
-                                        {formatNumber(position.quantity, locale)}
-                                      </TableCell>
-                                      <TableCell className="py-4 text-right font-medium text-[var(--color-slate-700)]">
-                                        {formatCurrency(position.entryPrice, "USD", locale)}
-                                      </TableCell>
-                                      <TableCell className="py-4 text-[var(--color-slate-600)]">
-                                        {formatDate(position.entryDate, locale)}
-                                      </TableCell>
-                                      <TableCell className="py-4 text-[var(--color-slate-600)]">
-                                        {formatDate(item.lastActivityDate, locale)}
-                                      </TableCell>
-                                      <TableCell className="py-4">
-                                        {sortedLots.length > 0 ? (
-                                          <div className="space-y-2">
-                                            <p className="text-xs font-semibold text-[var(--color-slate-500)]">
-                                              {t.positions.transactionCount(sortedLots.length)}
-                                            </p>
-                                            <div className="flex flex-wrap gap-1">
-                                              {recentLots.map((lot) => (
-                                                <span
-                                                  key={`${lot.id}-${lot.executedAt}`}
-                                                  className={cn(
-                                                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                                    lot.type === "BUY"
-                                                      ? "bg-emerald-50 text-emerald-700"
-                                                      : "bg-rose-50 text-rose-700",
-                                                  )}
-                                                >
-                                                  {lot.type === "BUY"
-                                                    ? t.positions.buy
-                                                    : t.positions.sell}{" "}
-                                                  · {formatDate(lot.executedAt, locale)}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className="text-xs text-[var(--color-slate-400)]">
-                                            {t.positions.noTransactions}
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="py-4 align-top">
-                                        <div className="flex flex-col gap-2 xl:items-end">
-                                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                                            <Link
-                                              href={`/stock/${position.symbol}`}
-                                              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] px-3.5 text-xs font-semibold text-[var(--color-neutral-white)] shadow-[0_16px_28px_-22px_rgba(37,99,235,0.7)] transition hover:-translate-y-0.5 hover:bg-[var(--color-primary-650)] xl:w-auto"
-                                            >
-                                              <BarChart3 className="h-4 w-4" />
-                                              <span>{t.dashboard.viewDetails}</span>
-                                            </Link>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => openTransactionDialog(position)}
-                                              className={rowActionButtonClass}
-                                            >
-                                              <ArrowRightLeft className="h-4 w-4" />
-                                              <span>{t.positions.addTransaction}</span>
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => openHistoryDialog(position)}
-                                              className={rowActionButtonClass}
-                                            >
-                                              <History className="h-4 w-4" />
-                                              <span>{t.positions.manageHistory}</span>
-                                            </Button>
-                                          </div>
-                                          <div className="flex items-center justify-end gap-2 rounded-full border border-[color:var(--color-slate-200)]/75 bg-[rgba(248,250,252,0.9)] px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => openEditDialog(position)}
-                                              aria-label={t.positions.edit}
-                                              className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
-                                            >
-                                              <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() =>
-                                                position.id && handleDelete(position.id)
-                                              }
-                                              aria-label={t.positions.delete}
-                                              disabled={!position.id}
-                                              className="h-8 w-8 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)] disabled:text-[var(--color-slate-300)]"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          </div>
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                        <div className="-mx-2 space-y-3 md:hidden">
-                          {paginatedPositionItems.map((item) => {
-                            const { position, sortedLots, recentLots } = item;
+                  {filteredPositionItems.length === 0 ? (
+                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/70 shadow-none">
+                      <CardContent className="py-12 text-center">
+                        <p className="text-sm font-medium text-slate-700">
+                          {t.positions.noFilteredResults}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      <div className="hidden overflow-hidden rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm md:block">
+                        <Table className="min-w-[920px]">
+                          <TableHeader className="bg-slate-50/90">
+                            <TableRow className="hover:bg-slate-50/90">
+                              <TableHead>{t.positions.columnAsset}</TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.quantity}
+                              </TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.entryPrice}
+                              </TableHead>
+                              <TableHead>{t.positions.entryDate}</TableHead>
+                              <TableHead>{t.positions.lastActivity}</TableHead>
+                              <TableHead>{t.positions.transactionsTitle}</TableHead>
+                              <TableHead className="text-right">
+                                {t.positions.columnActions}
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedPositionItems.map((item) => {
+                              const { position, sortedLots, recentLots } = item;
 
-                            return (
-                              <Card
-                                key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                                className={cn(
-                                  cardShellClass,
-                                  "border-[color:var(--color-slate-200)]/85 max-[639px]:rounded-[20px]"
-                                )}
-                              >
-                                <CardHeader className="space-y-4 px-2.5 pb-3 pt-4">
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                      <Avatar className="h-11 w-11 border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)]">
+                              return (
+                                <TableRow
+                                  key={position.id ?? `${position.symbol}-${position.entryDate}`}
+                                  className="hover:bg-slate-50/60"
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-10 w-10 border border-slate-200 bg-slate-50">
                                         <StockAvatarImage
                                           symbol={position.symbol}
                                           display={`${position.display} logo`}
                                           imageUrl={position.imageUrl}
                                         />
-                                        <AvatarFallback className="text-xs font-semibold text-[var(--color-slate-600)]">
+                                        <AvatarFallback className="text-xs font-medium text-slate-600">
                                           {item.fallbackInitials}
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold tracking-tight text-[var(--color-primary-900)]">
+                                        <p className="truncate text-sm font-semibold text-slate-900">
                                           {position.display}
                                         </p>
                                         <div className="mt-1 flex items-center gap-2">
-                                          <Badge className="rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-slate-600)]">
+                                          <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                                             {position.symbol}
                                           </Badge>
                                           <BankBadge
@@ -2180,104 +1605,89 @@ export default function PositionsPage() {
                                         </div>
                                       </div>
                                     </div>
-                                    <Link
-                                      href={`/stock/${position.symbol}`}
-                                      className="inline-flex h-9 self-start items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-primary-600),var(--color-primary-500))] px-3 text-xs font-semibold text-[var(--color-neutral-white)] shadow-[0_16px_28px_-22px_rgba(37,99,235,0.7)] transition hover:-translate-y-0.5 hover:bg-[var(--color-primary-650)] sm:self-auto"
-                                    >
-                                      <BarChart3 className="h-4 w-4" />
-                                      <span>{t.dashboard.viewDetails}</span>
-                                    </Link>
-                                  </div>
-                                  <div className="grid gap-2 text-xs text-[var(--color-slate-600)] sm:grid-cols-2">
-                                    <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-2.5 py-2">
-                                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-slate-500)]">
-                                        {t.positions.quantity}
-                                      </p>
-                                      <p className="mt-0.5 font-semibold text-[var(--color-primary-900)]">
-                                        {formatNumber(position.quantity, locale)}
-                                      </p>
-                                    </div>
-                                    <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-2.5 py-2">
-                                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-slate-500)]">
-                                        {t.positions.entryPrice}
-                                      </p>
-                                      <p className="mt-0.5 font-semibold text-[var(--color-primary-900)]">
-                                        {formatCurrency(position.entryPrice, "USD", locale)}
-                                      </p>
-                                    </div>
-                                    <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-2.5 py-2">
-                                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-slate-500)]">
-                                        {t.positions.entryDate}
-                                      </p>
-                                      <p className="mt-0.5 font-semibold text-[var(--color-primary-900)]">
-                                        {formatDate(position.entryDate, locale)}
-                                      </p>
-                                    </div>
-                                    <div className="rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-slate-50)] px-2.5 py-2">
-                                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-slate-500)]">
-                                        {t.positions.lastActivity}
-                                      </p>
-                                      <p className="mt-0.5 font-semibold text-[var(--color-primary-900)]">
-                                        {formatDate(item.lastActivityDate, locale)}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </CardHeader>
-                                <CardContent className="space-y-3 px-2.5 pb-3 pt-0">
-                                  <div>
-                                    <p className="text-xs font-semibold text-[var(--color-slate-500)]">
-                                      {sortedLots.length > 0
-                                        ? t.positions.transactionCount(sortedLots.length)
-                                        : t.positions.noTransactions}
-                                    </p>
-                                    {recentLots.length > 0 && (
-                                      <div className="mt-2 flex flex-wrap gap-1">
-                                        {recentLots.map((lot) => (
-                                          <span
-                                            key={`${lot.id}-${lot.executedAt}`}
-                                            className={cn(
-                                              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                              lot.type === "BUY"
-                                                ? "bg-emerald-50 text-emerald-700"
-                                                : "bg-rose-50 text-rose-700",
-                                            )}
-                                          >
-                                            {lot.type === "BUY"
-                                              ? t.positions.buy
-                                              : t.positions.sell}{" "}
-                                            · {formatDate(lot.executedAt, locale)}
-                                          </span>
-                                        ))}
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium text-slate-700">
+                                    {formatNumber(position.quantity, locale)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium text-slate-700">
+                                    {formatCurrency(position.entryPrice, "USD", locale)}
+                                  </TableCell>
+                                  <TableCell className="text-slate-600">
+                                    {formatDate(position.entryDate, locale)}
+                                  </TableCell>
+                                  <TableCell className="text-slate-600">
+                                    {formatDate(item.lastActivityDate, locale)}
+                                  </TableCell>
+                                  <TableCell>
+                                    {sortedLots.length > 0 ? (
+                                      <div className="space-y-1">
+                                        <p className="text-xs text-slate-500">
+                                          {t.positions.transactionCount(sortedLots.length)}
+                                        </p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {recentLots.map((lot) => (
+                                            <span
+                                              key={`${lot.id}-${lot.executedAt}`}
+                                              className={cn(
+                                                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                                lot.type === "BUY"
+                                                  ? "bg-emerald-50 text-emerald-700"
+                                                  : "bg-rose-50 text-rose-700",
+                                              )}
+                                            >
+                                              {lot.type === "BUY"
+                                                ? t.positions.buy
+                                                : t.positions.sell}{" "}
+                                              · {formatDate(lot.executedAt, locale)}
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
+                                    ) : (
+                                      <span className="text-xs text-slate-400">
+                                        {t.positions.noTransactions}
+                                      </span>
                                     )}
-                                  </div>
-                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => openTransactionDialog(position)}
-                                      className={rowActionButtonClass}
-                                    >
-                                      <ArrowRightLeft className="h-4 w-4" />
-                                      {t.positions.addTransaction}
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => openHistoryDialog(position)}
-                                      className={rowActionButtonClass}
-                                    >
-                                      <History className="h-4 w-4" />
-                                      {t.positions.manageHistory}
-                                    </Button>
-                                  </div>
-                                  <div className="flex items-center justify-start gap-1.5 rounded-full border border-[color:var(--color-slate-200)]/75 bg-[rgba(248,250,252,0.9)] px-2 py-1 sm:justify-end">
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Link
+                                        href={`/stock/${position.symbol}`}
+                                        className="shrink-0"
+                                      >
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label={t.dashboard.viewDetails}
+                                          className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                        >
+                                          <BarChart3 className="h-4 w-4" />
+                                        </Button>
+                                      </Link>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openTransactionDialog(position)}
+                                        aria-label={t.positions.addTransaction}
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                      >
+                                        <ArrowRightLeft className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openHistoryDialog(position)}
+                                        aria-label={t.positions.manageHistory}
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                      >
+                                        <History className="h-4 w-4" />
+                                      </Button>
                                       <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => openEditDialog(position)}
                                         aria-label={t.positions.edit}
-                                        className="h-8 w-8 rounded-full text-[var(--color-slate-500)] hover:bg-[color:var(--color-primary-010)] hover:text-[var(--color-primary-700)]"
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
                                       >
                                         <Pencil className="h-4 w-4" />
                                       </Button>
@@ -2289,55 +1699,219 @@ export default function PositionsPage() {
                                         }
                                         aria-label={t.positions.delete}
                                         disabled={!position.id}
-                                        className="h-8 w-8 rounded-full text-[var(--color-rose-600)] hover:bg-[color:var(--color-rose-50)] hover:text-[var(--color-rose-700)] disabled:text-[var(--color-slate-300)]"
+                                        className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
-                                </CardContent>
-                              </Card>
-                            );
-                          })}
-                        </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)] px-4 py-3 text-xs text-[var(--color-slate-500)] shadow-sm">
-                          <span className="font-semibold">
-                            {t.positions.pageIndicator(currentPage, totalPages)}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]"
-                              disabled={currentPage <= 1}
-                              onClick={() =>
-                                setCurrentPage((previous) => Math.max(1, previous - 1))
-                              }
-                              aria-label={t.positions.previousPage}
+                      <div className="space-y-3 md:hidden">
+                        {paginatedPositionItems.map((item) => {
+                          const { position, sortedLots, recentLots } = item;
+
+                          return (
+                            <Card
+                              key={position.id ?? `${position.symbol}-${position.entryDate}`}
+                              className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm"
                             >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 rounded-full border border-[color:var(--color-slate-200)] bg-[color:var(--color-neutral-white)]"
-                              disabled={currentPage >= totalPages}
-                              onClick={() =>
-                                setCurrentPage((previous) =>
-                                  Math.min(totalPages, previous + 1),
-                                )
-                              }
-                              aria-label={t.positions.nextPage}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
+                              <CardHeader className="space-y-3 pb-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <Avatar className="h-11 w-11 border border-slate-200 bg-slate-50">
+                                      <StockAvatarImage
+                                        symbol={position.symbol}
+                                        display={`${position.display} logo`}
+                                        imageUrl={position.imageUrl}
+                                      />
+                                      <AvatarFallback className="text-xs font-medium text-slate-600">
+                                        {item.fallbackInitials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-slate-900">
+                                        {position.display}
+                                      </p>
+                                      <div className="mt-1 flex items-center gap-2">
+                                        <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                          {position.symbol}
+                                        </Badge>
+                                        <BankBadge
+                                          bank={
+                                            position.location === "bank_two"
+                                              ? "bank_two"
+                                              : "bank_one"
+                                          }
+                                          locale={locale}
+                                          size="sm"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <Link href={`/stock/${position.symbol}`}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      aria-label={t.dashboard.viewDetails}
+                                      className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                    >
+                                      <BarChart3 className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.quantity}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatNumber(position.quantity, locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.entryPrice}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatCurrency(position.entryPrice, "USD", locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.entryDate}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatDate(position.entryDate, locale)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                    <p className="text-[11px] text-slate-500">
+                                      {t.positions.lastActivity}
+                                    </p>
+                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                      {formatDate(item.lastActivityDate, locale)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-3 pt-0">
+                                <div>
+                                  <p className="text-xs text-slate-500">
+                                    {sortedLots.length > 0
+                                      ? t.positions.transactionCount(sortedLots.length)
+                                      : t.positions.noTransactions}
+                                  </p>
+                                  {recentLots.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                      {recentLots.map((lot) => (
+                                        <span
+                                          key={`${lot.id}-${lot.executedAt}`}
+                                          className={cn(
+                                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                            lot.type === "BUY"
+                                              ? "bg-emerald-50 text-emerald-700"
+                                              : "bg-rose-50 text-rose-700",
+                                          )}
+                                        >
+                                          {lot.type === "BUY"
+                                            ? t.positions.buy
+                                            : t.positions.sell}{" "}
+                                          · {formatDate(lot.executedAt, locale)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openTransactionDialog(position)}
+                                    className="h-8 text-xs"
+                                  >
+                                    {t.positions.addTransaction}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openHistoryDialog(position)}
+                                    className="h-8 text-xs"
+                                  >
+                                    {t.positions.manageHistory}
+                                  </Button>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openEditDialog(position)}
+                                      aria-label={t.positions.edit}
+                                      className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        position.id && handleDelete(position.id)
+                                      }
+                                      aria-label={t.positions.delete}
+                                      disabled={!position.id}
+                                      className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 text-xs text-slate-500">
+                        <span>
+                          {t.positions.pageIndicator(currentPage, totalPages)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={currentPage <= 1}
+                            onClick={() =>
+                              setCurrentPage((previous) => Math.max(1, previous - 1))
+                            }
+                            aria-label={t.positions.previousPage}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={currentPage >= totalPages}
+                            onClick={() =>
+                              setCurrentPage((previous) =>
+                                Math.min(totalPages, previous + 1),
+                              )
+                            }
+                            aria-label={t.positions.nextPage}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
                         </div>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

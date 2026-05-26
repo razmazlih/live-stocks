@@ -266,12 +266,12 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       : null;
   const dailyChangeBannerClassName =
     dailyChangeAmount === null
-      ? 'border-slate-200/80 bg-slate-50'
+      ? 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95'
       : dailyChangeAmount > 0
-        ? 'border-emerald-200/75 bg-emerald-50/70'
+        ? 'border-emerald-200/75 bg-gradient-to-r from-emerald-100/80 via-emerald-50/55 to-white'
         : dailyChangeAmount < 0
-          ? 'border-rose-200/75 bg-rose-50/70'
-          : 'border-slate-200/80 bg-slate-50';
+          ? 'border-rose-200/75 bg-gradient-to-r from-rose-100/80 via-rose-50/55 to-white'
+          : 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95';
   const dailyChangeIcon = dailyChangeAmount !== null
     ? dailyChangeAmount > 0
       ? <ArrowUpRight className="h-3.5 w-3.5" />
@@ -286,18 +286,6 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
   const closedStats = closedSummary
     ? [
-        {
-          key: 'profit',
-          label: t.dashboard.closedTotalProfit,
-          value: formatCurrency(closedSummary.totalProfitUsd, 'USD', locale),
-          tone: getTrendStyles(closedSummary.totalProfitUsd),
-        },
-        {
-          key: 'return',
-          label: t.dashboard.closedTotalReturn,
-          value: percentText(closedSummary.totalReturnPercent),
-          tone: getTrendStyles(closedSummary.totalReturnPercent),
-        },
         {
           key: 'quantity',
           label: t.dashboard.closedQuantitySold,
@@ -317,6 +305,18 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
           key: 'proceeds',
           label: t.dashboard.closedTotalProceeds,
           value: formatCurrency(closedSummary.totalProceedsUsd, 'USD', locale),
+        },
+        {
+          key: 'profit',
+          label: t.dashboard.closedTotalProfit,
+          value: formatCurrency(closedSummary.totalProfitUsd, 'USD', locale),
+          tone: getTrendStyles(closedSummary.totalProfitUsd),
+        },
+        {
+          key: 'return',
+          label: t.dashboard.closedTotalReturn,
+          value: percentText(closedSummary.totalReturnPercent),
+          tone: getTrendStyles(closedSummary.totalReturnPercent),
         },
       ]
     : [];
@@ -365,137 +365,14 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     setIsHovered(false);
   }, []);
 
-  const closedProfitUsd = closedSummary?.totalProfitUsd ?? 0;
-  const isClosedLoss = isClosed && closedSummary !== null && closedProfitUsd < 0;
-  const closedTheme = isClosedLoss
-    ? {
-        cardShell: 'border-rose-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,241,242,0.94))]',
-        hoverShadow: '-translate-y-0.5 shadow-[0_26px_52px_-34px_rgba(225,29,72,0.3)]',
-        idleShadow: 'shadow-[0_16px_34px_-30px_rgba(225,29,72,0.22)]',
-        accentStripe:
-          'bg-[linear-gradient(90deg,rgba(244,63,94,0),rgba(244,63,94,0.88),rgba(251,113,133,0.76),rgba(244,63,94,0))]',
-        ambientGlow: 'bg-rose-100/35',
-        headerShell:
-          'border-rose-100/80 bg-[linear-gradient(145deg,rgba(255,241,242,0.96),rgba(255,255,255,0.98)_58%,rgba(255,228,230,0.82))]',
-        chartShell:
-          'border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,241,242,0.82))]',
-        actionShell: 'border-rose-100/80 bg-rose-50/45',
-        detailLink:
-          'border-rose-200/85 bg-white text-rose-700 shadow-[0_10px_20px_-16px_rgba(225,29,72,0.5)] hover:bg-rose-50 hover:text-rose-800',
-        avatarGlow:
-          'bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.18),transparent_72%)]',
-        avatarShell:
-          'border-rose-100 bg-white shadow-[0_18px_28px_-22px_rgba(225,29,72,0.4)]',
-        closedBadge: 'border border-rose-200/85 bg-white text-rose-700 shadow-sm',
-        closedSelector: 'border-rose-100/75 bg-white/88',
-        primaryTile:
-          'border-rose-200/85 bg-white shadow-[0_14px_28px_-24px_rgba(225,29,72,0.42)]',
-        primaryTileLabel: 'text-rose-700',
-        chartChip: 'border-rose-100/85 bg-white',
-        chartFrame: 'border-rose-100/75 bg-white',
-      }
-    : {
-        cardShell: 'border-emerald-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(240,253,244,0.94))]',
-        hoverShadow: '-translate-y-0.5 shadow-[0_26px_52px_-34px_rgba(5,150,105,0.32)]',
-        idleShadow: 'shadow-[0_16px_34px_-30px_rgba(5,150,105,0.24)]',
-        accentStripe:
-          'bg-[linear-gradient(90deg,rgba(16,185,129,0),rgba(16,185,129,0.88),rgba(52,211,153,0.76),rgba(16,185,129,0))]',
-        ambientGlow: 'bg-emerald-100/35',
-        headerShell:
-          'border-emerald-100/80 bg-[linear-gradient(145deg,rgba(240,253,244,0.96),rgba(255,255,255,0.98)_58%,rgba(236,253,245,0.82))]',
-        chartShell:
-          'border-emerald-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,244,0.82))]',
-        actionShell: 'border-emerald-100/80 bg-emerald-50/45',
-        detailLink:
-          'border-emerald-200/85 bg-white text-emerald-700 shadow-[0_10px_20px_-16px_rgba(5,150,105,0.55)] hover:bg-emerald-50 hover:text-emerald-800',
-        avatarGlow:
-          'bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.16),transparent_72%)]',
-        avatarShell:
-          'border-emerald-100 bg-white shadow-[0_18px_28px_-22px_rgba(5,150,105,0.45)]',
-        closedBadge: 'border border-emerald-200/85 bg-white text-emerald-700 shadow-sm',
-        closedSelector: 'border-emerald-100/75 bg-white/88',
-        primaryTile:
-          'border-emerald-200/85 bg-white shadow-[0_14px_28px_-24px_rgba(5,150,105,0.5)]',
-        primaryTileLabel: 'text-emerald-700',
-        chartChip: 'border-emerald-100/85 bg-white',
-        chartFrame: 'border-emerald-100/75 bg-white',
-      };
-
-  const cardShellClassName = cn(
-    'group relative flex h-full flex-col overflow-hidden rounded-[30px] border bg-[color:var(--color-neutral-white)] transition-[transform,box-shadow,border-color] duration-300 ease-out',
-    isClosed
-      ? closedTheme.cardShell
-      : 'border-blue-100/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.94))]',
-    isHovered
-      ? isClosed
-        ? closedTheme.hoverShadow
-        : '-translate-y-0.5 shadow-[0_26px_52px_-34px_rgba(37,99,235,0.28)]'
-      : isClosed
-        ? closedTheme.idleShadow
-        : 'shadow-[0_16px_34px_-30px_rgba(37,99,235,0.2)]'
-  );
-  const accentStripeClassName = isClosed
-    ? closedTheme.accentStripe
-    : 'bg-[linear-gradient(90deg,rgba(37,99,235,0),rgba(37,99,235,0.88),rgba(56,189,248,0.74),rgba(37,99,235,0))]';
-  const ambientGlowClassName = isClosed ? closedTheme.ambientGlow : 'bg-blue-100/35';
-  const headerShellClassName = cn(
-    'rounded-[26px] border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)] sm:p-4',
-    isClosed
-      ? closedTheme.headerShell
-      : 'border-blue-100/80 bg-[linear-gradient(145deg,rgba(239,246,255,0.96),rgba(255,255,255,0.98)_54%,rgba(224,242,254,0.84))]'
-  );
-  const chartShellClassName = cn(
-    'rounded-[24px] border p-3 shadow-sm sm:p-4',
-    isClosed
-      ? closedTheme.chartShell
-      : 'border-blue-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.82))]'
-  );
-  const actionShellClassName = cn(
-    'rounded-[22px] border p-2.5 shadow-sm',
-    isClosed ? closedTheme.actionShell : 'border-blue-100/80 bg-blue-50/45'
-  );
-  const detailLinkClassName = cn(
-    'group inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-[transform,background-color,color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 sm:w-auto',
-    isClosed
-      ? closedTheme.detailLink
-      : 'border-blue-200/85 bg-white text-blue-700 shadow-[0_10px_20px_-16px_rgba(37,99,235,0.45)] hover:bg-blue-50 hover:text-blue-800'
-  );
-  const chartSummaryItems = isClosed
-    ? closedSummary
-      ? [
-          {
-            key: 'entry',
-            label: t.dashboard.closedAverageEntry,
-            value: formatCurrency(closedSummary.averageEntryPrice, 'USD', locale),
-          },
-          {
-            key: 'exit',
-            label: t.dashboard.closedAverageExit,
-            value: formatCurrency(closedSummary.averageExitPrice, 'USD', locale),
-          },
-        ]
-      : []
-    : [
-        {
-          key: 'entry',
-          label: t.dashboard.entryPrice,
-          value: formatCurrency(position.entryPrice, 'USD', locale),
-        },
-        ...(Number.isFinite(projectedPrice)
-          ? [{
-              key: 'projected',
-              label: t.dashboard.weightedProjectedPrice,
-              value: formatCurrency(projectedPrice, 'USD', locale),
-            }]
-          : []),
-      ];
-  const actionMetaLabel = isClosed && closedSummary?.lastSaleDate
-    ? `${t.dashboard.closedLastSale}: ${formatDate(closedSummary.lastSaleDate.toISOString(), locale)}`
-    : `${t.dashboard.since} ${formatDate(position.entryDate, locale)}`;
-
   return (
     <div
-      className={cardShellClassName}
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        isHovered
+          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
+          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
+      )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
       onFocusCapture={setHoveredTrue}
@@ -506,237 +383,142 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     >
       <div
         aria-hidden="true"
-        className={cn('pointer-events-none absolute inset-x-8 top-0 h-1.5 rounded-b-full', accentStripeClassName)}
-      />
-      <div
-        aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-8 top-0 h-24 rounded-full transition-opacity duration-300',
-          ambientGlowClassName,
-          isHovered ? 'opacity-100' : 'opacity-0'
+          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
+          isHovered ? 'opacity-90' : 'opacity-0'
         )}
       />
 
-      <div className="relative z-10 flex flex-1 flex-col gap-3.5 p-3.5 sm:gap-4 sm:p-4">
+      <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
-            <div className={headerShellClassName}>
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                <div className="space-y-3">
-                  <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                    <div className="relative shrink-0">
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'absolute inset-[-0.35rem] rounded-[1.35rem]',
-                          closedTheme.avatarGlow
-                        )}
-                      />
-                      <Avatar className={cn(
-                        'relative h-12 w-12 rounded-2xl sm:h-14 sm:w-14',
-                        closedTheme.avatarShell
-                      )}>
-                        <StockAvatarImage
-                          symbol={position.symbol}
-                          display={position.display}
-                          imageUrl={position.imageUrl}
-                        />
-                        <AvatarFallback className="bg-blue-100 font-semibold text-blue-600">
-                          {position.symbol.slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-3">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <div className="relative">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                    <StockAvatarImage
+                      symbol={position.symbol}
+                      display={position.display}
+                      imageUrl={position.imageUrl}
+                    />
+                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                      {position.symbol.slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
 
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className={cn('shrink-0', closedTheme.closedBadge)}
-                        >
-                          {t.dashboard.closedBadge}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 border border-blue-100 bg-blue-50 text-blue-700"
-                        >
-                          {position.symbol}
-                        </Badge>
-                        <BankBadge
-                          bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
-                          locale={locale}
-                          size="sm"
-                        />
-                      </div>
-                      <h3 className="min-w-0 text-[clamp(1.02rem,2vw,1.3rem)] font-black leading-tight tracking-tight text-slate-900">
-                        {position.display}
-                      </h3>
-                      {closedSummary?.lastSaleDate && (
-                        <p className="text-xs text-slate-500 sm:text-sm">
-                          {t.dashboard.closedLastSale}:{' '}
-                          <span className="font-medium text-slate-700">
-                            {formatDate(closedSummary.lastSaleDate.toISOString(), locale)}
-                            {closedSummary.lastSalePrice !== null ? (
-                              <>
-                                {' · '}
-                                {formatCurrency(closedSummary.lastSalePrice, 'USD', locale)}
-                              </>
-                            ) : null}
-                          </span>
-                        </p>
-                      )}
-                    </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <h3 className="text-base font-semibold text-slate-900 sm:text-xl">
+                      {position.display}
+                    </h3>
+                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                      {position.symbol}
+                    </Badge>
+                    <span className="inline-flex items-center gap-1.5">
+                      <BankBadge
+                        bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
+                        locale={locale}
+                        size="sm"
+                      />
+                      <span className="text-xs font-medium text-slate-600 sm:text-sm">
+                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                      </span>
+                    </span>
+                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
+                      {t.dashboard.closedBadge}
+                    </Badge>
                   </div>
+                  {closedSummary?.lastSaleDate && (
+                    <p className="text-xs text-slate-500 sm:text-sm">
+                      {t.dashboard.closedLastSale}:{' '}
+                      <span className="font-medium text-slate-700">
+                        {formatDate(closedSummary.lastSaleDate.toISOString(), locale)}
+                        {closedSummary.lastSalePrice !== null ? (
+                          <>
+                            {' · '}
+                            {formatCurrency(closedSummary.lastSalePrice, 'USD', locale)}
+                          </>
+                        ) : null}
+                      </span>
+                    </p>
+                  )}
                   {closedSelector ? (
-                    <div className={cn('rounded-[22px] border p-2.5 shadow-sm', closedTheme.closedSelector)}>
+                    <div className="pt-1">
                       {closedSelector}
                     </div>
                   ) : null}
                 </div>
-
-                {closedSummary && (
-                  <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[15rem] xl:grid-cols-1">
-                    <div className={cn('rounded-[22px] border bg-white p-3', closedTheme.primaryTile)}>
-                      <p className={cn('text-[10px] font-bold uppercase tracking-[0.16em]', closedTheme.primaryTileLabel)}>
-                        {t.dashboard.closedTotalProfit}
-                      </p>
-                      <p
-                        className={cn(
-                          'mt-1.5 text-[clamp(1rem,2vw,1.2rem)] font-black leading-tight',
-                          getTrendStyles(closedSummary.totalProfitUsd).text
-                        )}
-                      >
-                        <span className={valueDirectionClass}>
-                          {formatCurrency(closedSummary.totalProfitUsd, 'USD', locale)}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="rounded-[22px] border border-sky-200/85 bg-white p-3 shadow-[0_14px_28px_-24px_rgba(14,165,233,0.45)]">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-700">
-                        {t.dashboard.closedTotalReturn}
-                      </p>
-                      <p
-                        className={cn(
-                          'mt-1.5 text-[clamp(1rem,2vw,1.2rem)] font-black leading-tight',
-                          getTrendStyles(closedSummary.totalReturnPercent).text
-                        )}
-                      >
-                        <span className={valueDirectionClass}>
-                          {percentText(closedSummary.totalReturnPercent)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                )}
+              </div>
               </div>
             </div>
 
             {closedStats.length > 0 && (
-              <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm xl:grid-cols-3">
+              <div className="grid gap-2.5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-3 sm:text-sm md:grid-cols-3">
                 {closedStats.map((stat) => (
                   <div
                     key={stat.key}
                     className={cn(
-                      'rounded-[22px] border p-2.5 shadow-sm sm:p-3',
+                      'rounded-2xl border p-2.5 shadow-sm sm:p-3',
                       stat.tone?.surface ?? 'border-slate-100 bg-overlay-slate-50'
                     )}
                   >
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs">{stat.label}</p>
-                    <p className={`mt-1.5 text-sm font-semibold tracking-tight ${stat.tone?.text ?? 'text-slate-900'} sm:text-base`}>{stat.value}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">{stat.label}</p>
+                    <p className={`mt-1 text-sm font-semibold ${stat.tone?.text ?? 'text-slate-900'} sm:text-base`}>{stat.value}</p>
                   </div>
                 ))}
               </div>
             )}
 
             {effectiveSparklineData.length > 1 && (
-              <div className={chartShellClassName}>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                    {t.dashboard.closedPositionsTitle}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {chartSummaryItems.map((item) => (
-                      <span
-                        key={item.key}
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm',
-                          closedTheme.chartChip
-                        )}
-                      >
-                        <span className="text-slate-400">{item.label}</span>
-                        <span className="text-slate-900">{item.value}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className={cn(
-                  'viz-chart-surface relative rounded-[20px] border bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-2',
-                  closedTheme.chartFrame
-                )}>
-                  <Sparkline
-                    points={effectiveSparklineData}
-                    height={126}
-                    color={sparklineColor.hex}
-                    baseline={position.entryPrice}
-                    baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
-                    projectedPrice={sparklineProjectedPrice}
-                    annualGrowthRate={sparklineAnnualGrowthRate}
-                    yearsHeld={sparklineYearsHeld}
-                    events={effectiveSparklineEvents}
-                    className="h-28 w-full sm:h-32"
-                  />
-                </div>
+              <div className="relative p-1 sm:p-1.5">
+                <Sparkline
+                  points={effectiveSparklineData}
+                  height={130}
+                  color={sparklineColor.hex}
+                  baseline={position.entryPrice}
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  projectedPrice={sparklineProjectedPrice}
+                  annualGrowthRate={sparklineAnnualGrowthRate}
+                  yearsHeld={sparklineYearsHeld}
+                  events={effectiveSparklineEvents}
+                  className="h-32 w-full sm:h-36"
+                />
               </div>
             )}
 
-            <div className={actionShellClassName}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-medium text-slate-500">{actionMetaLabel}</p>
-                <Link
-                  href={`/stock/${position.symbol}`}
-                  className={detailLinkClassName}
-                >
-                  {t.dashboard.viewDetails}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              </div>
+            <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
+              <Link
+                href={`/stock/${position.symbol}`}
+                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+              >
+                {t.dashboard.viewDetails}
+                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </Link>
             </div>
           </>
         ) : (
           <>
-            <div className={headerShellClassName}>
+            <div className="flex flex-col gap-2.5 sm:gap-3">
               {dailyChangeAmount !== null && dailyChangeStyles && (
                 <div
                   className={cn(
-                    'rounded-[22px] border px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]',
+                    '-mx-3.5 -mt-3.5 w-[calc(100%+1.75rem)] border-x-0 border-t-0 px-3.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-4 sm:-mt-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-1.5',
                     dailyChangeBannerClassName
                   )}
                 >
-                  <div className="flex flex-col items-start gap-2.5 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <div
-                      className={cn(
-                        'inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em]',
-                        dailyChangeStyles.text
-                      )}
-                    >
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
+                    <div className={cn('inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.11em]', dailyChangeStyles.text)}>
                       {dailyChangeIcon}
                       <span>{t.dashboard.dailyChange}</span>
                     </div>
                     <div className="inline-flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'text-[clamp(1rem,1.2vw,1.15rem)] font-black leading-none tracking-tight',
-                          dailyChangeStyles.text
-                        )}
-                      >
+                      <span className={cn('text-[clamp(0.98rem,1.2vw,1.08rem)] font-semibold leading-none', dailyChangeStyles.text)}>
                         <span className={valueDirectionClass}>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
                       </span>
                       {dailyChangePercentText && (
-                        <span
-                          className={cn(
-                            'inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
-                            dailyChangeStyles.badge
-                          )}
-                        >
+                        <span className={cn('inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none', dailyChangeStyles.badge)}>
                           <span className={valueDirectionClass}>{dailyChangePercentText}</span>
                         </span>
                       )}
@@ -745,70 +527,69 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 </div>
               )}
 
-              <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                  <div className="relative shrink-0">
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-[-0.35rem] rounded-[1.35rem] bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.16),transparent_72%)]"
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <div className="relative">
+                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                    <StockAvatarImage
+                      symbol={position.symbol}
+                      display={position.display}
+                      imageUrl={position.imageUrl}
                     />
-                    <Avatar className="relative h-12 w-12 rounded-2xl border border-blue-100 bg-white shadow-[0_18px_28px_-22px_rgba(37,99,235,0.42)] sm:h-14 sm:w-14">
-                      <StockAvatarImage
-                        symbol={position.symbol}
-                        display={position.display}
-                        imageUrl={position.imageUrl}
-                      />
-                      <AvatarFallback className="bg-blue-100 font-semibold text-blue-600">
-                        {position.symbol.slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                      {position.symbol.slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
 
-                    {changeFromEntryPercent !== null && (
-                      <Badge
-                        variant="secondary"
-                        className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/80 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
-                      >
-                        {percentText(changeFromEntryPercent)}
-                      </Badge>
-                    )}
-                  </div>
+                  {changeFromEntryPercent !== null && (
+                    <Badge
+                      variant="secondary"
+                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                    >
+                      {percentText(changeFromEntryPercent)}
+                    </Badge>
+                  )}
+                </div>
 
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary" className="shrink-0 border border-blue-100 bg-blue-50 text-blue-700">
-                        {position.symbol}
-                      </Badge>
+                <div className="min-w-0 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <h3 className="min-w-0 text-base font-semibold leading-tight text-slate-900 sm:text-xl">
+                      {position.display}
+                    </h3>
+                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                      {position.symbol}
+                    </Badge>
+                    <span className="inline-flex items-center gap-1.5">
                       <BankBadge
                         bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'}
                         locale={locale}
                         size="sm"
                       />
-                    </div>
-                    <h3 className="min-w-0 text-[clamp(1.02rem,2vw,1.3rem)] font-black leading-tight tracking-tight text-slate-900">
-                      {position.display}
-                    </h3>
-                    <p className="text-xs text-slate-500 sm:text-sm">
-                      {t.dashboard.since} {formatDate(position.entryDate, locale)}
-                    </p>
+                      <span className="text-xs font-medium text-slate-600 sm:text-sm">
+                        {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
+                      </span>
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-500 sm:text-sm">
+                    {t.dashboard.since} {formatDate(position.entryDate, locale)}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2 sm:gap-2.5 sm:text-sm">
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:gap-2.5 sm:text-sm">
               {openSnapshotCards.map((stat) => (
                 <div
                   key={stat.key}
                   className={cn(
-                    'rounded-[22px] border p-2.5 shadow-sm sm:p-3',
+                    'rounded-2xl border p-2 shadow-sm sm:p-2.5',
                     stat.isPrimary
-                      ? 'border-blue-200/85 bg-[linear-gradient(145deg,rgba(239,246,255,0.96),rgba(255,255,255,0.98))] shadow-[0_14px_26px_-22px_rgba(37,99,235,0.3)]'
-                      : 'border-slate-100 bg-white/96'
+                      ? 'border-blue-100 bg-blue-50/70'
+                      : 'border-slate-100 bg-overlay-slate-50'
                   )}
                 >
                   <p
                     className={cn(
-                      'text-[10px] font-bold uppercase tracking-[0.16em] sm:text-xs',
+                      'text-[11px] font-semibold uppercase tracking-wide sm:text-xs',
                       stat.isPrimary ? 'text-blue-700' : 'text-slate-400'
                     )}
                   >
@@ -816,8 +597,8 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   </p>
                   <p
                     className={cn(
-                      'mt-1.5 font-semibold leading-tight tracking-tight text-slate-900',
-                      stat.isPrimary ? 'text-[clamp(1rem,2.4vw,1.2rem)]' : 'text-[clamp(0.9rem,2.1vw,1rem)]'
+                      'mt-1 font-semibold leading-tight text-slate-900',
+                      stat.isPrimary ? 'text-[clamp(0.9rem,2.5vw,1.15rem)]' : 'text-[clamp(0.85rem,2.3vw,1rem)]'
                     )}
                   >
                     <span className={valueDirectionClass}>{stat.value}</span>
@@ -826,45 +607,38 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               ))}
             </div>
 
-            <div className="rounded-[24px] border border-blue-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(239,246,255,0.82))] p-3 shadow-sm sm:p-4">
-              <div className="relative space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-2.5 shadow-inner sm:p-3">
+              <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-blue-100/35 blur-2xl" />
+              <div className="relative space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                     {t.dashboard.current} / {t.dashboard.projected}
                   </p>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {chartSummaryItems.map((item) => (
-                      <span
-                        key={item.key}
-                        className="inline-flex items-center gap-1 rounded-full border border-blue-100/80 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm"
-                      >
-                        <span className="text-slate-400">{item.label}</span>
-                        <span className="text-slate-900">{item.value}</span>
-                      </span>
-                    ))}
-                  </div>
+                  <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                    USD / ILS
+                  </Badge>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <section className="rounded-[22px] border border-blue-200/85 bg-white p-3 shadow-[0_14px_28px_-24px_rgba(37,99,235,0.38)]">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-2.5">
                     <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.price}</dt>
-                        <dd className="mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight text-slate-900">
+                        <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
                           <span className={valueDirectionClass}>{formatCurrency(currentPrice, 'USD', locale)}</span>
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.pnl} USD</dt>
-                        <dd className={cn('mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight', currentPnLStyles.text)}>
+                        <dd className={cn('mt-0.5 text-base font-bold leading-tight', currentPnLStyles.text)}>
                           <span className={valueDirectionClass}>{formatCurrency(positionPnLUsd, 'USD', locale)}</span>
                         </dd>
                       </div>
                       {settings.currency === 'ILS' && (
                         <div>
                           <dt className="text-xs font-medium text-slate-500">{t.dashboard.pnl} ILS</dt>
-                          <dd className={cn('mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight', currentPnLStyles.text)}>
+                          <dd className={cn('mt-0.5 text-base font-bold leading-tight', currentPnLStyles.text)}>
                             <span className={valueDirectionClass}>{formatCurrency(positionPnLIls, 'ILS', locale)}</span>
                           </dd>
                         </div>
@@ -872,25 +646,25 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     </dl>
                   </section>
 
-                  <section className="rounded-[22px] border border-indigo-200/85 bg-white p-3 shadow-[0_14px_28px_-24px_rgba(99,102,241,0.34)]">
+                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-2.5">
                     <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.weightedProjectedPrice}</dt>
-                        <dd className="mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight text-slate-900">
+                        <dd className="mt-0.5 text-base font-bold leading-tight text-slate-900">
                           <span className={valueDirectionClass}>{formatCurrency(projectedPrice, 'USD', locale)}</span>
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.combined} USD</dt>
-                        <dd className={cn('mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight', combinedStyles.text)}>
+                        <dd className={cn('mt-0.5 text-base font-bold leading-tight', combinedStyles.text)}>
                           <span className={valueDirectionClass}>{formatCurrency(combined, 'USD', locale)}</span>
                         </dd>
                       </div>
                       {settings.currency === 'ILS' && (
                         <div>
                           <dt className="text-xs font-medium text-slate-500">{t.dashboard.combined} ILS</dt>
-                          <dd className={cn('mt-0.5 text-[1.05rem] font-black leading-tight tracking-tight', combinedStyles.text)}>
+                          <dd className={cn('mt-0.5 text-base font-bold leading-tight', combinedStyles.text)}>
                             <span className={valueDirectionClass}>{formatCurrency(combinedIls, 'ILS', locale)}</span>
                           </dd>
                         </div>
@@ -902,43 +676,30 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             </div>
 
             {effectiveSparklineData.length > 1 && (
-              <div className={chartShellClassName}>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                    {t.dashboard.positionsTitle}
-                  </p>
-                  <Badge className="viz-chip viz-chip-blue rounded-full border border-blue-100/80 bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-700 shadow-sm">
-                    {t.dashboard.changeFromEntryPercent}
-                  </Badge>
-                </div>
-                <div className="viz-chart-surface rounded-[20px] border border-blue-100/75 bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] sm:p-2">
-                  <Sparkline
-                    points={effectiveSparklineData}
-                    height={106}
-                    color={sparklineColor.hex}
-                    baseline={position.entryPrice}
-                    baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
-                    projectedPrice={sparklineProjectedPrice}
-                    annualGrowthRate={sparklineAnnualGrowthRate}
-                    yearsHeld={sparklineYearsHeld}
-                    events={effectiveSparklineEvents}
-                    className="h-24 w-full sm:h-28"
-                  />
-                </div>
+              <div className="relative p-0.5 sm:p-1">
+                <Sparkline
+                  points={effectiveSparklineData}
+                  height={108}
+                  color={sparklineColor.hex}
+                  baseline={position.entryPrice}
+                  baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
+                  projectedPrice={sparklineProjectedPrice}
+                  annualGrowthRate={sparklineAnnualGrowthRate}
+                  yearsHeld={sparklineYearsHeld}
+                  events={effectiveSparklineEvents}
+                  className="h-24 w-full sm:h-28"
+                />
               </div>
             )}
 
-            <div className={actionShellClassName}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-medium text-slate-500">{actionMetaLabel}</p>
-                <Link
-                  href={`/stock/${position.symbol}`}
-                  className={detailLinkClassName}
-                >
-                  {t.dashboard.viewDetails}
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-              </div>
+            <div className="flex flex-wrap justify-end gap-2 sm:gap-2.5">
+              <Link
+                href={`/stock/${position.symbol}`}
+                className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+              >
+                {t.dashboard.viewDetails}
+                <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </Link>
             </div>
           </>
         )}

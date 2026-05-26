@@ -1,10 +1,12 @@
-import { NextRequest } from 'next/server';
-import { errorNoStore, jsonNoStore, parseBooleanFlag } from '@/lib/api/route';
+import { NextRequest, NextResponse } from 'next/server';
 import { HttpStatusError } from '@/lib/http';
 import {
-  fetchQuoteForSymbol,
+  fetchFinnhubQuoteCached,
   FinnhubConfigError,
-} from '@/lib/services/quote-provider';
+  resolveFinnhubToken,
+} from '@/lib/services/finnhub-cache';
+
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -14,42 +16,57 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const tokenParam = searchParams.get('token');
-    const forceRefresh = parseBooleanFlag(searchParams.get('forceRefresh'));
+    const forceRefresh = searchParams.get('forceRefresh') === '1';
 
     if (!symbol) {
-      return errorNoStore('Symbol parameter is required', 400);
+      return NextResponse.json(
+        { error: 'Symbol parameter is required' },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
     }
 
-    const quote = await fetchQuoteForSymbol(symbol, {
-      token: tokenParam,
-      forceRefresh,
-    });
+    const token = await resolveFinnhubToken(tokenParam);
+    const quote = await fetchFinnhubQuoteCached(symbol, token, { forceRefresh });
 
-    return jsonNoStore(quote);
+    return NextResponse.json(quote, { headers: NO_STORE_HEADERS });
   } catch (error) {
     if (error instanceof FinnhubConfigError) {
-      return errorNoStore(error.message, error.status);
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status, headers: NO_STORE_HEADERS },
+      );
     }
 
     if (error instanceof HttpStatusError) {
       if (error.status === 429) {
-        return errorNoStore(
-          'Quote rate limit exceeded. Please retry shortly.',
-          429,
-          typeof error.retryAfterSeconds === 'number'
-            ? { 'Retry-After': String(error.retryAfterSeconds) }
-            : undefined,
+        const headers: Record<string, string> = { ...NO_STORE_HEADERS };
+        if (typeof error.retryAfterSeconds === 'number') {
+          headers['Retry-After'] = String(error.retryAfterSeconds);
+        }
+
+        return NextResponse.json(
+          { error: 'Quote rate limit exceeded. Please retry shortly.' },
+          { status: 429, headers },
         );
       }
 
-      return errorNoStore(`Upstream quote provider returned HTTP ${error.status}`, error.status);
+      return NextResponse.json(
+        { error: `Upstream quote provider returned HTTP ${error.status}` },
+        { status: error.status, headers: NO_STORE_HEADERS },
+      );
     }
 
     if (error instanceof Error && error.message === 'Invalid symbol or no data available') {
-      return errorNoStore(error.message, 404);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 404, headers: NO_STORE_HEADERS },
+      );
     }
 
     console.error('Quote API error:', error);
-    return errorNoStore('Failed to fetch quote data', 500);
+    return NextResponse.json(
+      { error: 'Failed to fetch quote data' },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
   }
 }

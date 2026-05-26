@@ -1,7 +1,6 @@
 import { BrainCircuit, CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings, Sparkles } from 'lucide-react';
 
 import type { DashboardQuickAction } from './quick-actions';
-import { isNavbarHref } from '@/lib/navigation-routes';
 import { translations } from '@/lib/translations';
 
 type Translation = (typeof translations)['he'];
@@ -27,6 +26,7 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     icon: RefreshCw,
     label: t.common.refresh,
     variant: 'outline',
+    labelClassName: 'hidden sm:inline',
   }),
   dashboard: () => ({
     key: 'dashboard',
@@ -84,6 +84,7 @@ const createFactories = (t: Translation): QuickActionFactories => ({
     href: '/settings',
     variant: 'ghost',
     className: 'text-[var(--color-slate-600)] hover:text-[var(--color-primary-900)]',
+    labelClassName: 'hidden sm:inline',
   }),
 });
 
@@ -92,15 +93,14 @@ export interface CommonQuickActionsOptions {
   exclude?: CommonQuickActionKey[];
   overrides?: Partial<Record<CommonQuickActionKey, Partial<DashboardQuickAction>>>;
   extraActions?: DashboardQuickAction[];
-  includeNavbarLinks?: boolean;
 }
 
 export function createCommonQuickActions(
   t: Translation,
-  { include, exclude, overrides, extraActions, includeNavbarLinks = false }: CommonQuickActionsOptions = {}
+  { include, exclude, overrides, extraActions }: CommonQuickActionsOptions = {}
 ): DashboardQuickAction[] {
   const factories = createFactories(t);
-  const keys = include ?? (['reload'] as CommonQuickActionKey[]);
+  const keys = include ?? (Object.keys(factories) as CommonQuickActionKey[]);
   const filteredKeys = keys.filter((key) => !(exclude?.includes(key)));
 
   const actions = filteredKeys
@@ -122,11 +122,9 @@ export function createCommonQuickActions(
     })
     .filter((action): action is DashboardQuickAction => Boolean(action));
 
-  const combinedActions = extraActions?.length ? [...actions, ...extraActions] : actions;
-
-  if (includeNavbarLinks) {
-    return combinedActions;
+  if (extraActions?.length) {
+    actions.push(...extraActions);
   }
 
-  return combinedActions.filter((action) => !isNavbarHref(action.href));
+  return actions;
 }
