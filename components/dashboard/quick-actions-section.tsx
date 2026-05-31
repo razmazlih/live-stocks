@@ -27,15 +27,15 @@ export function QuickActionsSection({
   return (
     <div
       className={cn(
-        'w-full lg:min-w-[420px] lg:max-w-[560px]',
+        'w-full lg:min-w-[360px] lg:max-w-[520px]',
         className
       )}
     >
       <div className="flex items-center gap-2 lg:justify-end">
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-slate-500)]">
+        <p className="text-[11px] font-semibold text-slate-500">
           {title}
         </p>
-        <span className="h-px flex-1 bg-gradient-to-l from-[color:var(--color-primary-200)]/65 to-transparent" />
+        <span className="h-px flex-1 bg-slate-200" />
       </div>
       {description ? (
         <p className="mt-1 text-xs leading-relaxed text-[var(--color-slate-500)]">{description}</p>

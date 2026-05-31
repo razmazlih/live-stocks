@@ -1,10 +1,15 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Filter,
   Sparkles,
@@ -17,8 +22,10 @@ import { HistoricalPoint, PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { computeRealizedSales } from '@/lib/positions';
+import { formatCurrency, formatPercent } from '@/lib/calculations';
 
 import { PositionCard } from '@/components/portfolio/position-card';
+import { Sparkline } from '@/components/charts/sparkline';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,6 +36,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -80,6 +89,125 @@ interface ClosedMetricsOption {
 interface ClosedMetricsGroup {
   groupId: string;
   options: ClosedMetricsOption[];
+}
+
+function getValueTone(value: number) {
+  if (value > VALUE_THRESHOLD) {
+    return {
+      text: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      icon: <ArrowUpRight className="h-4 w-4" />,
+      hex: 'var(--color-emerald-500)',
+    };
+  }
+
+  if (value < -VALUE_THRESHOLD) {
+    return {
+      text: 'text-rose-600',
+      bg: 'bg-rose-50',
+      icon: <ArrowDownRight className="h-4 w-4" />,
+      hex: 'var(--color-rose-500)',
+    };
+  }
+
+  return {
+    text: 'text-slate-600',
+    bg: 'bg-slate-50',
+    icon: null,
+    hex: 'var(--color-primary-500)',
+  };
+}
+
+function PositionMetricRow({
+  metrics,
+  sparklineData,
+  locale,
+}: {
+  metrics: PositionMetrics;
+  sparklineData: HistoricalPoint[];
+  locale: 'he' | 'en';
+}) {
+  const dailyValue =
+    typeof metrics.dailyChange === 'number'
+      ? metrics.dailyChange * metrics.position.quantity
+      : null;
+  const dailyTone = getValueTone(dailyValue ?? 0);
+  const pnlTone = getValueTone(metrics.positionPnLUsd);
+  const gapTone = getValueTone(metrics.combined);
+  const sparklineTone = metrics.positionPnLUsd >= 0 ? 'var(--color-emerald-500)' : 'var(--color-rose-500)';
+
+  return (
+    <div className="grid grid-cols-[minmax(220px,1.4fr)_minmax(112px,0.7fr)_minmax(112px,0.7fr)_minmax(116px,0.75fr)_minmax(116px,0.75fr)_140px_44px] items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-100">
+          <StockAvatarImage
+            symbol={metrics.position.symbol}
+            display={metrics.position.display}
+            imageUrl={metrics.position.imageUrl}
+          />
+          <AvatarFallback className="bg-blue-50 text-sm font-semibold text-blue-700">
+            {metrics.position.symbol.slice(0, 2)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="truncate font-semibold text-slate-950">{metrics.position.display}</p>
+            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+              {metrics.position.symbol}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {formatCurrency(metrics.position.entryPrice, 'USD', locale)} · {metrics.position.quantity}
+          </p>
+        </div>
+      </div>
+
+      <div className="tabular-nums">
+        <p className="font-semibold text-slate-950">{formatCurrency(metrics.currentValue, 'USD', locale)}</p>
+        <p className="text-xs text-slate-500">{formatCurrency(metrics.currentValueIls, 'ILS', locale)}</p>
+      </div>
+
+      <div className="tabular-nums">
+        <p className="font-semibold text-slate-950">{formatCurrency(metrics.currentPrice, 'USD', locale)}</p>
+        <p className={cn('text-xs font-semibold', pnlTone.text)}>
+          {formatCurrency(metrics.positionPnLUsd, 'USD', locale)}
+        </p>
+      </div>
+
+      <div className={cn('inline-flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold tabular-nums', dailyTone.bg, dailyTone.text)}>
+        {dailyTone.icon}
+        <span>{dailyValue !== null ? formatCurrency(dailyValue, 'USD', locale) : '—'}</span>
+      </div>
+
+      <div className="tabular-nums">
+        <p className={cn('font-semibold', gapTone.text)}>{formatCurrency(metrics.combined, 'USD', locale)}</p>
+        <p className="text-xs text-slate-500">{formatPercent(metrics.roiPercent, locale)}</p>
+      </div>
+
+      <div className="h-12 [direction:ltr]">
+        {sparklineData.length > 1 ? (
+          <Sparkline
+            points={sparklineData}
+            height={48}
+            color={sparklineTone}
+            baseline={metrics.position.entryPrice}
+            baselineColor="rgba(var(--color-slate-400-rgb), 0.35)"
+            className="h-12 w-full"
+          />
+        ) : (
+          <div className="h-full rounded-lg border border-dashed border-slate-200 bg-slate-50" />
+        )}
+      </div>
+
+      <Link
+        href={`/stock/${metrics.position.symbol}`}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+        aria-label={metrics.position.display}
+      >
+        <ArrowUpRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
 }
 
 export function PositionsOverview({
@@ -183,7 +311,7 @@ export function PositionsOverview({
           <h2 className="text-xl font-semibold text-slate-900">{openTitle}</h2>
           <p className="text-sm text-slate-500">{sortNotice}</p>
           {hasFilterApplied && (
-            <Badge className="mt-1 inline-flex rounded-full border-blue-100 bg-overlay-blue-50 px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+            <Badge className="mt-1 inline-flex rounded-md border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
               {t.dashboard.positionFilters.activeBadge(activeFilterOption.label)}
             </Badge>
           )}
@@ -194,7 +322,7 @@ export function PositionsOverview({
               <Button
                 variant="outline"
                 size="sm"
-                className="group rounded-full border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-overlay-blue-50 hover:text-blue-600"
+                className="group rounded-lg border-slate-200 bg-white px-4 py-2 text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-slate-50 hover:text-blue-700"
               >
                 <Filter className="h-4 w-4 text-blue-500 transition group-hover:text-blue-600" />
                 <span className="text-sm font-medium">
@@ -202,12 +330,12 @@ export function PositionsOverview({
                     ? activeFilterOption.label
                     : t.dashboard.positionFilters.triggerLabel}
                 </span>
-                <Badge className="ml-2 rounded-full border-transparent bg-[color:var(--color-blue-500)]/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                <Badge className="ml-2 rounded-md border-transparent bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
                   {filteredOpenMetrics.length}
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 rounded-2xl border border-slate-100 bg-[color:var(--color-neutral-white)]/95 p-2 shadow-lg backdrop-blur-xl">
+            <DropdownMenuContent align="end" className="w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
               <DropdownMenuLabel className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t.dashboard.positionFilters.title}
               </DropdownMenuLabel>
@@ -223,7 +351,7 @@ export function PositionsOverview({
                       isActive ? 'bg-[color:var(--color-blue-50)]/60 text-blue-700' : 'text-slate-600'
                     )}
                   >
-                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-500">
+                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                       <Icon className="h-4 w-4" />
                     </span>
                     <div className="space-y-0.5">
@@ -244,23 +372,51 @@ export function PositionsOverview({
         </div>
       </div>
       {filterEmptyState ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/60 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
           {t.dashboard.positionFilters.empty}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-          {filteredOpenMetrics.map((metrics) => {
-            const sparklineKey =
-              metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
-            return (
-            <PositionCard
-              key={metrics.position.id || metrics.position.symbol}
-              metrics={metrics}
-              sparklineData={sparklineData[sparklineKey] || []}
-            />
-          );
-          })}
-        </div>
+        <>
+          <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white lg:block">
+            <div className="grid grid-cols-[minmax(220px,1.4fr)_minmax(112px,0.7fr)_minmax(112px,0.7fr)_minmax(116px,0.75fr)_minmax(116px,0.75fr)_140px_44px] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
+              <span>{t.dashboard.sectionPositionsLabel}</span>
+              <span>{t.dashboard.portfolioValue}</span>
+              <span>{t.dashboard.price}</span>
+              <span>{t.dashboard.dailyChange}</span>
+              <span>{t.dashboard.forecastGap}</span>
+              <span>{t.dashboard.performanceTrendTitle}</span>
+              <span />
+            </div>
+            <div className="divide-y divide-slate-100">
+              {filteredOpenMetrics.map((metrics) => {
+                const sparklineKey =
+                  metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
+                return (
+                  <PositionMetricRow
+                    key={metrics.position.id || metrics.position.symbol}
+                    metrics={metrics}
+                    sparklineData={sparklineData[sparklineKey] || []}
+                    locale={locale}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:hidden">
+            {filteredOpenMetrics.map((metrics) => {
+              const sparklineKey =
+                metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;
+              return (
+                <PositionCard
+                  key={metrics.position.id || metrics.position.symbol}
+                  metrics={metrics}
+                  sparklineData={sparklineData[sparklineKey] || []}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
       {showClosedSection && (
         <div className="space-y-3 sm:space-y-4">
@@ -268,7 +424,7 @@ export function PositionsOverview({
             <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
             <p className="text-sm text-slate-500">{sortNotice}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {groupedClosedMetrics.map((group) => {
               return (
                 <ClosedPositionGroupCard
@@ -305,12 +461,6 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
 }: ClosedPositionGroupCardProps) {
   const [selectedId, setSelectedId] = useState(group.options[0]?.id ?? '');
 
-  useEffect(() => {
-    if (!group.options.some((option) => option.id === selectedId)) {
-      setSelectedId(group.options[0]?.id ?? '');
-    }
-  }, [group.options, selectedId]);
-
   const selectedOption = group.options.find((option) => option.id === selectedId) ?? group.options[0];
   if (!selectedOption) {
     return null;
@@ -330,12 +480,12 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
       sparklineData={sparklineData[selectedOption.sparklineKey] || []}
       closedSelector={
         hasMultipleOptions ? (
-          <div className="rounded-2xl border border-blue-100/90 bg-gradient-to-br from-blue-50/80 to-sky-50/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-2.5">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-700">
                 {selectorLabel}
               </p>
-              <Badge className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              <Badge className="rounded-md border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700">
                 {countLabel(group.options.length)}
               </Badge>
             </div>
@@ -345,17 +495,17 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 variant="outline"
                 size="sm"
                 disabled={!previousOption}
-                className="h-9 w-9 rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40"
+                className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => previousOption && setSelectedId(previousOption.id)}
               >
-                {locale === 'he' ? '→' : '←'}
+                {locale === 'he' ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
 
               <Select value={selectedOption.id} onValueChange={setSelectedId}>
-                <SelectTrigger className="h-9 rounded-xl border-blue-200 bg-white/95 text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
+                <SelectTrigger className="h-9 rounded-lg border-blue-200 bg-white text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="max-h-72 rounded-xl border-blue-100 bg-white/95">
+                <SelectContent className="max-h-72 rounded-lg border-blue-100 bg-white">
                   {group.options.map((option) => (
                     <SelectItem
                       key={option.id}
@@ -373,10 +523,10 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 variant="outline"
                 size="sm"
                 disabled={!nextOption}
-                className="h-9 w-9 rounded-xl border-blue-200 bg-white/90 p-0 text-blue-700 hover:bg-white disabled:opacity-40"
+                className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => nextOption && setSelectedId(nextOption.id)}
               >
-                {locale === 'he' ? '←' : '→'}
+                {locale === 'he' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </Button>
             </div>
           </div>

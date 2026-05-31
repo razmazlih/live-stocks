@@ -368,10 +368,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 ease-out will-change-transform transform-gpu',
+        'group relative flex h-full flex-col overflow-hidden rounded-xl border bg-white transition-colors duration-200',
         isHovered
-          ? '-translate-y-1 border-overlay-blue-200 shadow-2xl'
-          : 'translate-y-0 border-[color:var(--color-slate-200)]/70 shadow-lg'
+          ? 'border-blue-200 shadow-md'
+          : 'border-slate-200 shadow-sm'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -384,25 +384,25 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
       <div
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute inset-x-10 top-0 h-32 rounded-full bg-gradient-to-r from-blue-500/25 via-indigo-400/20 to-transparent blur-3xl transition-opacity duration-500',
-          isHovered ? 'opacity-90' : 'opacity-0'
+          'pointer-events-none absolute inset-x-0 top-0 h-px bg-blue-500 transition-opacity duration-300',
+          isHovered ? 'opacity-100' : 'opacity-0'
         )}
       />
 
       <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-lg border border-slate-200 bg-slate-100 shadow-sm sm:h-14 sm:w-14">
                     <StockAvatarImage
                       symbol={position.symbol}
                       display={position.display}
                       imageUrl={position.imageUrl}
                     />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
@@ -413,7 +413,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     <h3 className="text-base font-semibold text-slate-900 sm:text-xl">
                       {position.display}
                     </h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Badge variant="secondary" className="rounded-md border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
                     <span className="inline-flex items-center gap-1.5">
@@ -426,7 +426,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                         {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                       </span>
                     </span>
-                    <Badge variant="secondary" className="border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    <Badge variant="secondary" className="rounded-md border border-emerald-100 bg-emerald-50 text-emerald-700">
                       {t.dashboard.closedBadge}
                     </Badge>
                   </div>
@@ -460,7 +460,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   <div
                     key={stat.key}
                     className={cn(
-                      'rounded-2xl border p-2.5 shadow-sm sm:p-3',
+                      'rounded-lg border p-2.5 sm:p-3',
                       stat.tone?.surface ?? 'border-slate-100 bg-overlay-slate-50'
                     )}
                   >
@@ -504,7 +504,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               {dailyChangeAmount !== null && dailyChangeStyles && (
                 <div
                   className={cn(
-                    '-mx-3.5 -mt-3.5 w-[calc(100%+1.75rem)] border-x-0 border-t-0 px-3.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:-mx-4 sm:-mt-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-1.5',
+                    'rounded-lg border px-3 py-1.5',
                     dailyChangeBannerClassName
                   )}
                 >
@@ -518,7 +518,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                         <span className={valueDirectionClass}>{formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
                       </span>
                       {dailyChangePercentText && (
-                        <span className={cn('inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none', dailyChangeStyles.badge)}>
+                        <span className={cn('inline-flex rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none', dailyChangeStyles.badge)}>
                           <span className={valueDirectionClass}>{dailyChangePercentText}</span>
                         </span>
                       )}
@@ -529,13 +529,13 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 rounded-2xl border border-[color:var(--color-neutral-white)]/60 bg-slate-100 shadow-sm ring-2 ring-blue-100 sm:h-14 sm:w-14">
+                  <Avatar className="h-12 w-12 rounded-lg border border-slate-200 bg-slate-100 shadow-sm sm:h-14 sm:w-14">
                     <StockAvatarImage
                       symbol={position.symbol}
                       display={position.display}
                       imageUrl={position.imageUrl}
                     />
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
                       {position.symbol.slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
@@ -543,7 +543,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   {changeFromEntryPercent !== null && (
                     <Badge
                       variant="secondary"
-                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
+                      className={`absolute -bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-md border-0 px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ${changeFromEntryStyles?.badge ?? 'bg-slate-100 text-slate-600'}`}
                     >
                       {percentText(changeFromEntryPercent)}
                     </Badge>
@@ -555,7 +555,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     <h3 className="min-w-0 text-base font-semibold leading-tight text-slate-900 sm:text-xl">
                       {position.display}
                     </h3>
-                    <Badge variant="secondary" className="border border-blue-100 bg-blue-50 text-blue-700">
+                    <Badge variant="secondary" className="rounded-md border border-blue-100 bg-blue-50 text-blue-700">
                       {position.symbol}
                     </Badge>
                     <span className="inline-flex items-center gap-1.5">
@@ -581,10 +581,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 <div
                   key={stat.key}
                   className={cn(
-                    'rounded-2xl border p-2 shadow-sm sm:p-2.5',
+                    'rounded-lg border p-2 sm:p-2.5',
                     stat.isPrimary
-                      ? 'border-blue-100 bg-blue-50/70'
-                      : 'border-slate-100 bg-overlay-slate-50'
+                      ? 'border-blue-100 bg-blue-50'
+                      : 'border-slate-200 bg-slate-50'
                   )}
                 >
                   <p
@@ -607,20 +607,19 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               ))}
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200/85 bg-gradient-to-b from-slate-50/85 to-white p-2.5 shadow-inner sm:p-3">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-blue-100/35 blur-2xl" />
+            <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2.5 sm:p-3">
               <div className="relative space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                     {t.dashboard.current} / {t.dashboard.projected}
                   </p>
-                  <Badge className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <Badge className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                     USD / ILS
                   </Badge>
                 </div>
 
                 <div className="grid gap-2 md:grid-cols-2">
-                  <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-2.5">
+                  <section className="rounded-lg border border-blue-100 bg-blue-50 p-2.5">
                     <p className="text-xs font-semibold text-blue-700">{t.dashboard.current}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>
@@ -646,7 +645,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                     </dl>
                   </section>
 
-                  <section className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-2.5">
+                  <section className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-2.5">
                     <p className="text-xs font-semibold text-indigo-700">{t.dashboard.projected}</p>
                     <dl className="mt-1.5 space-y-1.5">
                       <div>

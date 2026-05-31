@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { DashboardHero } from '@/components/dashboard/dashboard-hero';
 import { DashboardEmptyState } from '@/components/dashboard/empty-state';
 import { DailyChangeBadge } from '@/components/dashboard/daily-change-badge';
 import {
@@ -15,10 +15,20 @@ import { PositionsOverview } from '@/components/dashboard/positions/positions-ov
 import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import {
+  Activity,
+  Bell,
+  BrainCircuit,
+  CircleDollarSign,
+  Eye,
+  Home,
   RefreshCw,
   LayoutDashboard,
   Layers,
   LineChart,
+  Search,
+  Settings,
+  WalletCards,
+  type LucideIcon,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
@@ -131,7 +141,7 @@ export default function HomePage() {
           key: 'value',
           label: t.dashboard.totalValue,
           value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-3xl font-semibold text-slate-900',
+          valueClass: 'text-2xl font-semibold text-slate-950',
           secondary: {
             label: 'ILS',
             value: formatCurrency(totalValueIls, 'ILS', locale),
@@ -151,7 +161,7 @@ export default function HomePage() {
           key: 'current',
           label: t.dashboard.currentPnL,
           value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
           secondary: {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
@@ -165,7 +175,7 @@ export default function HomePage() {
           key: 'projected',
           label: t.dashboard.projectedPnL,
           value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD', locale),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
+          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
           secondary: {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS', locale),
@@ -175,7 +185,7 @@ export default function HomePage() {
           key: 'combined',
           label: t.dashboard.combinedPnL,
           value: formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale),
-          valueClass: `text-3xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
+          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
           secondary: {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
@@ -215,9 +225,91 @@ export default function HomePage() {
     },
   ];
 
+  const direction = locale === 'he' ? 'rtl' : 'ltr';
+  const navigationItems: DashboardNavItem[] = [
+    { key: 'dashboard', label: t.app.title, href: '/', icon: Home, active: true },
+    { key: 'positions', label: t.positions.title, href: '/positions', icon: Layers },
+    { key: 'portfolio', label: t.portfolio.quickAction, href: '/portfolio', icon: LineChart },
+    { key: 'watchlist', label: t.watchlist.quickAction, href: '/watchlist', icon: Eye },
+    { key: 'insights', label: t.dashboard.weeklyInsights, href: '/insights', icon: BrainCircuit },
+    { key: 'realized', label: t.realized.quickAction, href: '/realized', icon: CircleDollarSign },
+    { key: 'settings', label: t.settings.title, href: '/settings', icon: Settings },
+  ];
+
+  const topExposure = useMemo(
+    () =>
+      openMetrics
+        .slice()
+        .sort((a, b) => b.currentValue - a.currentValue)
+        .at(0),
+    [openMetrics]
+  );
+
+  const strongestDailyMover = useMemo(
+    () =>
+      openMetrics
+        .filter((metric) => typeof metric.dailyChange === 'number')
+        .slice()
+        .sort(
+          (a, b) =>
+            (b.dailyChange ?? 0) * b.position.quantity -
+            (a.dailyChange ?? 0) * a.position.quantity
+        )
+        .at(0),
+    [openMetrics]
+  );
+
+  const biggestForecastGap = useMemo(
+    () =>
+      openMetrics
+        .slice()
+        .sort((a, b) => a.combined - b.combined)
+        .at(0),
+    [openMetrics]
+  );
+
+  const sideInsights: DashboardInsight[] = [
+    {
+      key: 'exposure',
+      label: locale === 'he' ? 'חשיפה מרכזית' : 'Largest exposure',
+      title: topExposure?.position.display ?? t.dashboard.sectionPositionsEmpty,
+      value: topExposure ? formatCurrency(topExposure.currentValue, 'USD', locale) : '—',
+      helper: topExposure?.position.symbol ?? t.dashboard.emptyChart,
+      icon: WalletCards,
+      tone: 'neutral',
+    },
+    {
+      key: 'momentum',
+      label: t.dashboard.dailyChange,
+      title: strongestDailyMover?.position.display ?? t.dashboard.topMoversNoData,
+      value: strongestDailyMover
+        ? formatSignedCurrency(
+            (strongestDailyMover.dailyChange ?? 0) * strongestDailyMover.position.quantity,
+            'USD',
+            locale
+          )
+        : '—',
+      helper: strongestDailyMover?.position.symbol ?? t.dashboard.emptyChart,
+      icon: Activity,
+      tone:
+        strongestDailyMover && (strongestDailyMover.dailyChange ?? 0) * strongestDailyMover.position.quantity < 0
+          ? 'negative'
+          : 'positive',
+    },
+    {
+      key: 'forecast',
+      label: t.dashboard.forecastGap,
+      title: biggestForecastGap?.position.display ?? t.dashboard.sectionVisualizationsEmpty,
+      value: biggestForecastGap ? formatSignedCurrency(biggestForecastGap.combined, 'USD', locale) : '—',
+      helper: biggestForecastGap?.position.symbol ?? t.dashboard.emptyChart,
+      icon: LineChart,
+      tone: biggestForecastGap && biggestForecastGap.combined < 0 ? 'negative' : 'positive',
+    },
+  ];
+
   const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-[color:var(--color-neutral-white)]/70 px-6 py-10 text-center text-sm text-slate-500">
+    <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
       {message}
     </div>
   );
@@ -258,8 +350,13 @@ export default function HomePage() {
   const renderVisualizationsSection = () =>
     summary && openMetrics.length > 0 ? (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">{t.dashboard.visualizationsTitle}</h3>
-        <div className="rounded-[28px] border border-white/65 bg-[color:var(--color-neutral-white)]/55 p-4 shadow-[0_24px_52px_-34px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">{t.dashboard.visualizationsTitle}</h3>
+          <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500">
+            {t.dashboard.portfolioOverviewFootnote}
+          </span>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <PortfolioVisualizations metrics={openMetrics} summary={summary} />
         </div>
       </div>
@@ -268,95 +365,359 @@ export default function HomePage() {
     );
 
   return (
-    <div className="home-dashboard relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <DashboardHero
-            title={t.app.title}
-            subtitle={t.app.subtitle}
-            updatedLabel={t.app.updated}
-            lastUpdatedDisplay={lastUpdatedDisplay}
-            exchangeRateLabel="1 USD ≈"
-            exchangeRateValue={formatCurrency(currentRate, 'ILS', locale)}
-            quickActionsTitle={t.dashboard.quickActions}
-            quickActions={quickActions}
-            dailyChange={dailyChangeData}
-          />
+    <div dir={direction} className="min-h-screen bg-[#f6f8fb] text-slate-950">
+      <div className="flex min-h-screen">
+        <DashboardSidebar items={navigationItems} locale={locale} />
 
-          <main className="mt-10">
-            <section className="home-main-surface relative overflow-hidden rounded-3xl border px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-20 -top-10 h-60 w-60 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-blue-500-rgb),0.16),_transparent_68%)] blur-3xl" />
-              <div className="relative z-10">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
-                    <p>{t.common.loading}</p>
-                  </div>
-                ) : !hasAnyPositions ? (
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+            <div className="flex min-h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm lg:hidden"
+                aria-label="Open navigation"
+              >
+                <LayoutDashboard className="h-5 w-5" />
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h1 className="truncate text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+                    {t.app.title}
+                  </h1>
+                  <span className="hidden rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 sm:inline-flex">
+                    2.0
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-1 text-sm text-slate-500">{t.app.subtitle}</p>
+              </div>
+
+              <div className="hidden h-10 min-w-[260px] max-w-md flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500 shadow-inner md:flex">
+                <Search className="h-4 w-4 text-slate-400" />
+                <span className="truncate">
+                  {locale === 'he' ? 'חיפוש מניה, תובנה או פעולה...' : 'Search symbols, insights, or actions...'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={reload}
+                  disabled={loading || refreshing}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">{t.common.refresh}</span>
+                </button>
+                <button
+                  type="button"
+                  className="hidden h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-700 sm:inline-flex"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-4 w-4" />
+                </button>
+                <Link
+                  href="/positions"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <Layers className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t.positions.add}</span>
+                </Link>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1560px] space-y-5">
+              <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-700">
+                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
+                    {formatCurrency(currentRate, 'ILS', locale)}
+                    <span className="text-xs font-medium text-slate-400">1 USD</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-500">
+                    {t.app.updated}
+                    <span className="font-semibold text-slate-800">{lastUpdatedDisplay ?? '—'}</span>
+                  </span>
+                  {dailyChangeData && (
+                    <DailyChangeBadge
+                      toneClass={dailyChangeData.toneClass}
+                      icon={dailyChangeData.icon}
+                      value={dailyChangeData.value}
+                      label={dailyChangeData.label}
+                      className="rounded-lg border border-transparent px-3 py-2"
+                    />
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {quickActions.slice(0, 4).map((action) => {
+                    const Icon = action.icon;
+                    const content = (
+                      <>
+                        <Icon className={`h-4 w-4 ${action.iconClassName ?? ''}`} />
+                        <span>{action.label}</span>
+                      </>
+                    );
+
+                    if (action.href) {
+                      return (
+                        <Link
+                          key={action.key}
+                          href={action.href}
+                          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+                        >
+                          {content}
+                        </Link>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={action.key}
+                        type="button"
+                        onClick={action.onClick}
+                        disabled={action.disabled}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:opacity-50"
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {loading ? (
+                <section className="rounded-xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-500 shadow-sm">
+                  <RefreshCw className="mx-auto h-5 w-5 animate-spin text-blue-500" />
+                  <p className="mt-3 text-sm font-medium">{t.common.loading}</p>
+                </section>
+              ) : !hasAnyPositions ? (
+                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <DashboardEmptyState
                     title={t.dashboard.noPositions}
                     description={t.positions.title}
                     actionLabel={t.positions.add}
                     actionHref="/positions"
                   />
-                ) : (
-                  <div className="space-y-6">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/60 p-4 shadow-sm sm:hidden">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">
-                          {t.dashboard.sectionSelectorTitle}
-                        </h2>
-                        {activeSectionConfig?.description && (
-                          <p className="text-sm text-slate-500">
-                            {activeSectionConfig.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {sectionTabs.map(({ key, label, icon: Icon, available }) => {
-                          const isActive = activeSection === key;
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => available && setActiveSection(key)}
-                              disabled={!available}
-                              className={`group inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                                isActive
-                                  ? 'border-blue-500 bg-[color:var(--color-blue-50)]/70 text-blue-600 shadow-sm'
-                                  : 'border-overlay-neutral-white bg-[color:var(--color-neutral-white)]/70 text-slate-500 hover:border-blue-200 hover:bg-[color:var(--color-blue-50)]/60 hover:text-blue-600'
-                              } ${available ? '' : 'cursor-not-allowed opacity-60 hover:border-overlay-neutral-white hover:bg-[color:var(--color-neutral-white)]/70 hover:text-slate-500'}`}
-                            >
-                              <Icon
-                                className={`h-4 w-4 transition ${
-                                  isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-500'
-                                }`}
-                              />
-                              <span>{label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="space-y-10 sm:hidden">
-                      {activeSection === 'summary' && renderSummarySection()}
-                      {activeSection === 'positions' && renderPositionsSection()}
-                      {activeSection === 'visualizations' && renderVisualizationsSection()}
-                    </div>
-                    <div className="hidden space-y-12 sm:block">
+                </section>
+              ) : (
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="min-w-0 space-y-5">
+                    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                       {renderSummarySection()}
-                      {renderPositionsSection()}
-                      {renderVisualizationsSection()}
-                    </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                      <div className="mb-5 flex flex-col gap-4 sm:hidden">
+                        <div className="space-y-1">
+                          <h2 className="text-base font-semibold text-slate-950">
+                            {t.dashboard.sectionSelectorTitle}
+                          </h2>
+                          {activeSectionConfig?.description && (
+                            <p className="text-sm text-slate-500">
+                              {activeSectionConfig.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {sectionTabs.filter((tab) => tab.key !== 'summary').map(({ key, label, icon: Icon, available }) => {
+                            const isActive = activeSection === key;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => available && setActiveSection(key)}
+                                disabled={!available}
+                                className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                                  isActive
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700'
+                                } ${available ? '' : 'cursor-not-allowed opacity-45'}`}
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span>{label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-8 sm:hidden">
+                        {(activeSection === 'summary' || activeSection === 'positions') && renderPositionsSection()}
+                        {activeSection === 'visualizations' && renderVisualizationsSection()}
+                      </div>
+                      <div className="hidden space-y-10 sm:block">
+                        {renderPositionsSection()}
+                        {renderVisualizationsSection()}
+                      </div>
+                    </section>
                   </div>
-                )}
-              </div>
-            </section>
+
+                  <DashboardInsightPanel
+                    title={locale === 'he' ? 'תובנות' : 'Insights'}
+                    marketTitle={locale === 'he' ? 'Market Pulse' : 'Market Pulse'}
+                    insights={sideInsights}
+                    locale={locale}
+                  />
+                </div>
+              )}
+            </div>
           </main>
         </div>
       </div>
     </div>
+  );
+}
+
+interface DashboardNavItem {
+  key: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  active?: boolean;
+}
+
+interface DashboardInsight {
+  key: string;
+  label: string;
+  title: string;
+  value: string;
+  helper: string;
+  icon: LucideIcon;
+  tone: 'positive' | 'negative' | 'neutral';
+}
+
+function DashboardSidebar({
+  items,
+  locale,
+}: {
+  items: DashboardNavItem[];
+  locale: 'he' | 'en';
+}) {
+  return (
+    <aside className="hidden w-60 shrink-0 border-x border-slate-200 bg-white lg:flex lg:flex-col">
+      <div className="flex h-[72px] items-center gap-3 border-b border-slate-200 px-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
+          <LineChart className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold tracking-tight text-slate-950">LiveStocks</p>
+          <p className="text-xs font-medium text-slate-500">Portfolio OS</p>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Dashboard">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
+                item.active
+                  ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${item.active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-700'}`} />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-slate-200 p-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <p className="text-xs font-semibold text-slate-700">
+              {locale === 'he' ? 'סטטוס מסחר' : 'Market status'}
+            </p>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">NASDAQ · 10:30 AM</p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function DashboardInsightPanel({
+  title,
+  marketTitle,
+  insights,
+  locale,
+}: {
+  title: string;
+  marketTitle: string;
+  insights: DashboardInsight[];
+  locale: 'he' | 'en';
+}) {
+  const marketRows = [
+    { label: 'S&P 500', value: '5,303.27', change: '+0.67%', tone: 'positive' },
+    { label: 'NASDAQ 100', value: '18,734.11', change: '+0.89%', tone: 'positive' },
+    { label: 'VIX', value: '12.48', change: '-1.81%', tone: 'negative' },
+    { label: 'US 10Y', value: '4.28%', change: '-0.03', tone: 'negative' },
+  ];
+
+  return (
+    <aside className="space-y-5 xl:sticky xl:top-[92px] xl:self-start">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+          <Link href="/insights" className="text-xs font-semibold text-blue-700 hover:text-blue-800">
+            {locale === 'he' ? 'הצג הכל' : 'View all'}
+          </Link>
+        </div>
+        <div className="mt-4 space-y-3">
+          {insights.map((insight) => {
+            const Icon = insight.icon;
+            const toneClass =
+              insight.tone === 'positive'
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
+                : insight.tone === 'negative'
+                  ? 'text-rose-700 bg-rose-50 border-rose-100'
+                  : 'text-slate-700 bg-slate-50 border-slate-200';
+
+            return (
+              <div key={insight.key} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex items-start gap-3">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${toneClass}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-500">{insight.label}</p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">{insight.title}</p>
+                    <div className="mt-2 flex items-baseline justify-between gap-3">
+                      <span className="text-base font-semibold tabular-nums text-slate-950">{insight.value}</span>
+                      <span className="text-xs font-medium text-slate-500">{insight.helper}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-950">{marketTitle}</h2>
+          <span className="text-xs font-medium text-slate-500">10:30 AM</span>
+        </div>
+        <div className="mt-3 divide-y divide-slate-100">
+          {marketRows.map((row) => (
+            <div key={row.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2.5 text-sm">
+              <span className="font-semibold text-slate-700">{row.label}</span>
+              <span className="font-medium tabular-nums text-slate-700">{row.value}</span>
+              <span className={`font-semibold tabular-nums ${row.tone === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {row.change}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </aside>
   );
 }

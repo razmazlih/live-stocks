@@ -55,7 +55,7 @@ const ChartTooltip = ({ active, payload, label, valueFormatter, labelFormatter }
   const resolvedLabel = labelFormatter ? labelFormatter(label ?? '') : label;
 
   return (
-    <div className="rounded-2xl border border-[color:var(--color-card-border)] bg-[color:var(--color-card-surface)]/95 px-4 py-3 text-sm shadow-2xl backdrop-blur-xl">
+    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
       {resolvedLabel && (
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{resolvedLabel}</p>
       )}
@@ -255,9 +255,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
 
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="relative overflow-hidden rounded-[26px] border border-[color:var(--color-slate-200)]/90 bg-[linear-gradient(155deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] shadow-[0_18px_40px_-30px_rgba(15,23,42,0.55)] backdrop-blur-xl xl:col-span-6">
-        <div className="pointer-events-none absolute -top-20 -left-16 h-36 w-36 rounded-full bg-emerald-100/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -right-16 h-40 w-40 rounded-full bg-rose-100/40 blur-3xl" />
+      <Card className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-6">
         <CardHeader className="relative z-10 space-y-2 border-b border-[color:var(--color-slate-200)]/80 bg-white/65 px-5 py-4">
           <CardTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
@@ -266,7 +264,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardHeader>
         <CardContent className="relative z-10 space-y-5 px-5 py-4">
           {!hasMovers ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 py-12 text-center text-sm text-[var(--color-slate-500)]">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
               <ArrowUpRight className="h-5 w-5 text-[var(--color-slate-400)]" />
               <p>{t.dashboard.topMoversEmpty}</p>
             </div>
@@ -275,16 +273,15 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversGainers}</h4>
-                  <span className="rounded-full border border-emerald-200/85 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
                     {t.dashboard.topMoversPositiveLabel}
                   </span>
                 </div>
                 {topMovers.gainers.map((item, index) => (
                   <div
                     key={`gainer-${item.symbol}-${index}`}
-                    className="group relative overflow-hidden rounded-2xl border border-emerald-100/90 bg-white/90 px-3.5 py-3 shadow-[0_12px_24px_-20px_rgba(16,185,129,0.65)]"
+                    className="group relative overflow-hidden rounded-lg border border-emerald-100 bg-white px-3.5 py-3"
                   >
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-emerald-100/65 via-emerald-50/15 to-transparent" />
                     <div className="relative flex items-center gap-3">
                       <div className={`min-w-0 flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>
                         <p className="truncate text-xl leading-none font-semibold tracking-tight text-[var(--color-primary-900)]">{item.display}</p>
@@ -298,14 +295,14 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                           </p>
                         )}
                       </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
                         <ArrowUpRight className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
                 ))}
                 {topMovers.gainers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -314,16 +311,15 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-[var(--color-slate-700)]">{t.dashboard.topMoversLosers}</h4>
-                  <span className="rounded-full border border-rose-200/85 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
+                  <span className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
                     {t.dashboard.topMoversNegativeLabel}
                   </span>
                 </div>
                 {topMovers.losers.map((item, index) => (
                   <div
                     key={`loser-${item.symbol}-${index}`}
-                    className="group relative overflow-hidden rounded-2xl border border-rose-100/90 bg-white/90 px-3.5 py-3 shadow-[0_12px_24px_-20px_rgba(244,63,94,0.62)]"
+                    className="group relative overflow-hidden rounded-lg border border-rose-100 bg-white px-3.5 py-3"
                   >
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-rose-100/65 via-rose-50/15 to-transparent" />
                     <div className="relative flex items-center gap-3">
                       <div className={`min-w-0 flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>
                         <p className="truncate text-xl leading-none font-semibold tracking-tight text-[var(--color-primary-900)]">{item.display}</p>
@@ -337,14 +333,14 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                           </p>
                         )}
                       </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
                         <ArrowDownRight className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
                 ))}
                 {topMovers.losers.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/50 px-4 py-3 text-sm text-[var(--color-slate-500)]">
+                  <p className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                     {t.dashboard.topMoversNoData}
                   </p>
                 )}
@@ -354,26 +350,26 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[30px] border border-[color:var(--color-sky-200)]/60 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_48%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_40%),linear-gradient(140deg,rgba(255,255,255,0.92),rgba(248,250,252,0.9))] shadow-[0_34px_70px_-40px_rgba(14,116,144,0.55)] backdrop-blur-2xl xl:col-span-6">
-        <CardHeader className="space-y-3 border-b border-[color:var(--color-sky-100)]/80 bg-white/35 backdrop-blur-xl">
+      <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-6">
+        <CardHeader className="space-y-3 border-b border-slate-200 bg-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
               {t.dashboard.holdingPeriodTitle}
             </CardTitle>
-            <span className="rounded-full border border-[color:var(--color-sky-200)] bg-white/85 px-3 py-1 text-xs font-semibold text-[var(--color-primary-700)] shadow-sm">
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
               {formatValue(holdingPeriodTotal)}
             </span>
           </div>
           <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.holdingPeriodDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-5 bg-[radial-gradient(circle_at_15%_0%,rgba(186,230,253,0.35),transparent_50%)]">
+        <CardContent className="space-y-5 bg-white">
           {!hasHoldingData ? (
-            <div className="flex h-52 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-[color:var(--color-neutral-white)]/60 text-sm text-[var(--color-slate-500)]">
+            <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-sm text-slate-500">
               {t.dashboard.emptyChart}
             </div>
           ) : (
             <>
-              <div className="h-60 w-full rounded-2xl border border-white/70 bg-white/55 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] [direction:ltr]">
+              <div className="h-60 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 [direction:ltr]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 8, right: 20, bottom: 0, left: 22 }}>
                     <defs>
@@ -419,7 +415,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 {holdingPeriodData.map((bucket) => (
                   <div
                     key={bucket.key}
-                    className="rounded-2xl border border-white/85 bg-[linear-gradient(150deg,rgba(255,255,255,0.95),rgba(248,250,252,0.85))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_14px_30px_-22px_rgba(30,64,175,0.45)] backdrop-blur-md"
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-4"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-slate-500)]">{bucket.label}</p>
@@ -445,13 +441,13 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[30px] border border-[color:var(--color-slate-200)]/80 bg-[linear-gradient(155deg,rgba(255,255,255,0.96),rgba(241,245,249,0.84))] shadow-[0_30px_70px_-38px_rgba(15,23,42,0.62)] backdrop-blur-2xl xl:col-span-6">
-        <CardHeader className="space-y-3 border-b border-[color:var(--color-slate-200)]/80 bg-white/55 backdrop-blur-xl">
+      <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-6">
+        <CardHeader className="space-y-3 border-b border-slate-200 bg-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <CardTitle className="text-xl font-black tracking-tight text-[var(--color-primary-900)]">
               {t.dashboard.pnlChart}
             </CardTitle>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-slate-200)] bg-white/85 px-3 py-1 text-xs font-semibold text-[var(--color-slate-600)] shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
               <span className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
               {t.dashboard.current}
               <span className="mx-1 h-3 w-px bg-[color:var(--color-slate-200)]" />
@@ -461,14 +457,14 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
           </div>
           <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.pnlDescription}</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-100/90 bg-gradient-to-r from-emerald-50/90 to-white px-3 py-2 shadow-[0_14px_30px_-25px_rgba(16,185,129,0.7)]">
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
               <p className="text-xs font-semibold text-emerald-700">{t.dashboard.current}</p>
               <p className="text-lg font-black text-emerald-700">{formatValue(pnlSnapshot.current)}</p>
               <p className="text-xs text-emerald-600/90">
                 {pnlSnapshot.currentPositive}/{pnlSnapshot.total}
               </p>
             </div>
-            <div className="rounded-2xl border border-sky-100/90 bg-gradient-to-r from-sky-50/90 to-white px-3 py-2 shadow-[0_14px_30px_-25px_rgba(2,132,199,0.7)]">
+            <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
               <p className="text-xs font-semibold text-sky-700">{t.dashboard.projected}</p>
               <p className="text-lg font-black text-sky-700">{formatValue(pnlSnapshot.projected)}</p>
               <p className="text-xs text-sky-600/90">
@@ -477,13 +473,13 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-500-rgb),0.12),_transparent_62%)] pt-5">
+        <CardContent className="space-y-4 bg-white pt-5">
           {pnlData.length === 0 ? (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--color-slate-200)] bg-white/60 text-sm text-[var(--color-slate-500)]">
+            <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-sm text-slate-500">
               {t.dashboard.emptyChart}
             </div>
           ) : (
-            <div className="h-80 rounded-2xl border border-white/80 bg-white/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-md">
+            <div className="h-80 rounded-lg border border-slate-200 bg-slate-50 p-3">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 8, right: 8, left: 0, bottom: 2 }}>
                   <defs>
@@ -563,21 +559,21 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[28px] border border-white/65 bg-gradient-to-br from-white/85 via-slate-50/80 to-indigo-50/50 shadow-[0_26px_64px_-36px_rgba(30,64,175,0.45)] backdrop-blur-2xl xl:col-span-6">
-        <CardHeader className="space-y-2 border-b border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(219,234,254,0.45))] backdrop-blur-xl">
+      <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-6">
+        <CardHeader className="space-y-2 border-b border-slate-200 bg-white">
           <CardTitle className="text-lg font-semibold text-[var(--color-primary-900)]">
             {t.dashboard.allocationChart}
           </CardTitle>
           <p className="text-sm text-[var(--color-slate-500)]">{t.dashboard.allocationDescription}</p>
         </CardHeader>
-        <CardContent className="space-y-5 bg-[radial-gradient(circle_at_20%_5%,_rgba(var(--color-primary-500-rgb),0.14),_transparent_42%),radial-gradient(circle_at_80%_90%,_rgba(var(--color-indigo-500-rgb),0.1),_transparent_40%)]">
+        <CardContent className="space-y-5 bg-white">
           {allocationData.length === 0 ? (
             <div className="flex h-72 items-center justify-center text-sm text-gray-500">
               {t.dashboard.emptyChart}
             </div>
           ) : (
             <>
-              <div className="rounded-[24px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(239,246,255,0.62))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_20px_35px_-26px_rgba(30,64,175,0.45)]">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="h-72 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -647,7 +643,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                 {allocationLegendData.map((entry, index) => (
                   <div
                     key={`allocation-legend-${entry.symbol}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-white/80 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 shadow-[0_12px_28px_-22px_rgba(15,23,42,0.6)]"
+                    className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2"
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLORS[index % COLORS.length] }} />
                     <div className="min-w-0">

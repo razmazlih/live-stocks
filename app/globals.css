@@ -353,54 +353,30 @@
 }
 @layer components {
   .home-dashboard {
-    background-image:
-      radial-gradient(circle at 8% 12%, rgba(255, 255, 255, 0.66), transparent 28%),
-      radial-gradient(circle at 92% 8%, rgba(var(--color-primary-400-rgb), 0.12), transparent 24%);
+    background: #f6f8fb;
   }
 
   .home-hero {
-    background:
-      linear-gradient(130deg, rgba(255, 255, 255, 0.93), rgba(241, 247, 255, 0.86) 55%, rgba(232, 242, 255, 0.82)),
-      rgba(var(--color-neutral-white-rgb), 0.86);
-    box-shadow:
-      0 20px 44px rgba(15, 23, 42, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   .home-main-surface {
-    border-color: rgba(var(--color-neutral-white-rgb), 0.72);
-    background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(246, 250, 255, 0.82)),
-      rgba(var(--color-neutral-white-rgb), 0.8);
-    box-shadow:
-      0 24px 52px rgba(15, 23, 42, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    border-color: var(--color-slate-200);
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   .home-summary-card {
-    background:
-      radial-gradient(circle at 100% 0%, rgba(191, 219, 254, 0.22), transparent 40%),
-      linear-gradient(148deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.78));
-    border-color: rgba(191, 219, 254, 0.66);
-    box-shadow:
-      0 18px 38px rgba(15, 23, 42, 0.09),
-      0 2px 8px rgba(59, 130, 246, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.84);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: #ffffff;
+    border-color: var(--color-slate-200);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   .card-surface {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.92),
-      rgba(236, 244, 255, 0.66)
-    );
-    background-color: var(--color-card-surface);
-    border-color: var(--color-card-border);
-    box-shadow: 0 16px 32px var(--color-card-shadow);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: #ffffff;
+    border-color: var(--color-slate-200);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   .dark .card-surface {
@@ -412,6 +388,6 @@
   }
 
   .card-glow {
-    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.2), transparent 68%);
+    background: transparent;
   }
 }

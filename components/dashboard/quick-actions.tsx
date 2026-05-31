@@ -23,25 +23,11 @@ interface DashboardQuickActionsProps {
   actions: DashboardQuickAction[];
 }
 
-const ACTION_TONE_BY_KEY: Record<string, string> = {
-  reload: 'border-[color:var(--color-blue-200)]/75 !bg-[color:var(--color-blue-50)]/70 !hover:bg-[color:var(--color-blue-50)]/88',
-  settings: 'border-[color:var(--color-slate-200)]/90 !bg-[color:var(--color-slate-50)]/72 !hover:bg-[color:var(--color-slate-50)]/90',
-  dashboard: 'border-[color:var(--color-primary-200)]/75 !bg-[color:var(--color-primary-050)]/68 !hover:bg-[color:var(--color-primary-050)]/86',
-  insights: 'border-[color:var(--color-indigo-200)]/80 !bg-[color:var(--color-indigo-50)]/72 !hover:bg-[color:var(--color-indigo-50)]/90',
-  portfolio: 'border-[color:var(--color-indigo-600)]/30 !bg-[color:var(--color-primary-010)]/72 !hover:bg-[color:var(--color-primary-010)]/90',
-  realized: 'border-[color:var(--color-emerald-200)]/75 !bg-[color:var(--color-emerald-50)]/72 !hover:bg-[color:var(--color-emerald-50)]/90',
-  watchlist: 'border-[color:var(--color-sky-100)] !bg-[color:var(--color-blue-50)]/72 !hover:bg-[color:var(--color-blue-50)]/90',
-  positions: 'border-[color:var(--color-blue-200)]/75 !bg-[color:var(--color-blue-50)]/72 !hover:bg-[color:var(--color-blue-50)]/90',
-  aiPrompts: 'border-[color:var(--color-amber-200)]/75 !bg-[color:var(--color-amber-200)]/38 !hover:bg-[color:var(--color-amber-200)]/56',
-  newGroup: 'border-[color:var(--color-primary-200)]/75 !bg-[color:var(--color-primary-050)]/70 !hover:bg-[color:var(--color-primary-050)]/88',
-  newTicker: 'border-[color:var(--color-sky-100)] !bg-[color:var(--color-blue-50)]/72 !hover:bg-[color:var(--color-blue-50)]/90',
-};
-
 const ACTION_ICON_TONE_BY_KEY: Record<string, string> = {
   reload: 'bg-[color:var(--color-blue-50)] text-[var(--color-blue-700)]',
   settings: 'bg-[color:var(--color-slate-100)] text-[var(--color-slate-700)]',
   dashboard: 'bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)]',
-  insights: 'bg-[color:var(--color-indigo-50)] text-[var(--color-indigo-700)]',
+  insights: 'bg-[color:var(--color-blue-50)] text-[var(--color-indigo-700)]',
   portfolio: 'bg-[color:var(--color-primary-010)] text-[var(--color-indigo-700)]',
   realized: 'bg-[color:var(--color-emerald-50)] text-[var(--color-emerald-700)]',
   watchlist: 'bg-[color:var(--color-blue-50)] text-[var(--color-sky-700)]',
@@ -61,9 +47,6 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
     const contentClassName = 'flex w-full items-center justify-center gap-2';
     const labelBaseClassName = 'truncate text-xs font-semibold sm:text-sm';
     const iconBaseClassName = 'h-4 w-4 shrink-0';
-    const toneClassName =
-      ACTION_TONE_BY_KEY[action.key] ??
-      'border-[color:var(--color-primary-025)]';
     const iconToneClassName =
       ACTION_ICON_TONE_BY_KEY[action.key] ??
       'bg-[color:var(--color-primary-010)] text-[var(--color-primary-600)]';
@@ -73,14 +56,14 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
         <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full', iconToneClassName)}>
           <Icon className={cn(iconBaseClassName, action.iconClassName)} />
         </span>
-        <span className={cn(labelBaseClassName, '!text-[var(--color-slate-800)]', action.labelClassName)}>{action.label}</span>
+        <span className={cn(labelBaseClassName, 'text-slate-800', action.labelClassName)}>{action.label}</span>
       </Link>
     ) : (
       <>
         <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full', iconToneClassName)}>
           <Icon className={cn(iconBaseClassName, action.iconClassName)} />
         </span>
-        <span className={cn(labelBaseClassName, '!text-[var(--color-slate-800)]', action.labelClassName)}>{action.label}</span>
+        <span className={cn(labelBaseClassName, 'text-slate-800', action.labelClassName)}>{action.label}</span>
       </>
     );
 
@@ -94,8 +77,7 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
         disabled={action.disabled}
         aria-label={action.ariaLabel ?? action.label}
         className={cn(
-          toneClassName,
-          'h-10 min-w-[120px] rounded-full px-3 !text-[var(--color-slate-800)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary-300)] focus-visible:ring-offset-1 disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-sm',
+          'h-10 min-w-[112px] rounded-lg border border-slate-200 bg-white px-3 text-slate-800 shadow-sm transition-colors duration-200 hover:border-blue-200 hover:bg-slate-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 disabled:opacity-45',
         )}
       >
         {buttonContent}
