@@ -34,7 +34,6 @@ import {
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
-import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
@@ -361,10 +360,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const normalizedSymbol = symbol.toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const quickActions = useMemo(
-    () => createCommonQuickActions(t),
-    [t],
-  );
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
 
   const [loading, setLoading] = useState(true);
@@ -936,8 +931,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           subtitle={loading ? t.stock.detailView.states.loading : position ? t.stock.overview : normalizedSymbol}
           icon={TrendingUp}
           metaBadges={stockHeaderMetaBadges}
-          quickActionsTitle={t.dashboard.quickActions}
-          quickActions={quickActions}
         />
 
         <DashboardMain>

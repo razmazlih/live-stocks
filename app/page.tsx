@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -130,7 +129,6 @@ export default function HomePage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['dashboard'],
         overrides: {
           reload: {
             onClick: reload,
@@ -402,8 +400,6 @@ export default function HomePage() {
                   <DashboardEmptyState
                     title={t.dashboard.noPositions}
                     description={t.positions.title}
-                    actionLabel={t.positions.add}
-                    actionHref="/positions"
                   />
                 </section>
               ) : (
@@ -508,9 +504,6 @@ function DashboardInsightPanel({
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-          <Link href="/insights" className="text-xs font-semibold text-blue-700 hover:text-blue-800">
-            {locale === 'he' ? 'הצג הכל' : 'View all'}
-          </Link>
         </div>
         <div className="mt-4 space-y-3">
           {insights.map((insight) => {

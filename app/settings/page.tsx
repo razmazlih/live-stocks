@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -22,12 +22,10 @@ import {
   Clock,
   KeyRound,
 } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardContainer, DashboardMain, DashboardSurface } from "@/components/dashboard/page-primitives";
-import { createCommonQuickActions } from "@/components/dashboard/common-quick-actions";
 
 export default function SettingsPage() {
   const { locale, setLocale, settings, setSettings } = useApp();
@@ -37,10 +35,6 @@ export default function SettingsPage() {
   const marketOpen = isNasdaqTradingHours();
   const minutesLabel = locale === "he" ? "דקות" : "minutes";
   const tokenConfigured = Boolean(formData.finnhubToken?.trim());
-  const quickActions = useMemo(
-    () => createCommonQuickActions(t, { exclude: ["settings"] }),
-    [t],
-  );
   const headerMetaBadges = [
     {
       key: "currency",
@@ -178,8 +172,6 @@ export default function SettingsPage() {
           subtitle={t.app.subtitle}
           icon={SettingsIcon}
           metaBadges={headerMetaBadges}
-          quickActionsTitle={t.dashboard.quickActions}
-          quickActions={quickActions}
         />
 
         <DashboardMain>
@@ -307,8 +299,8 @@ export default function SettingsPage() {
                         : "Saving..."
                       : t.settings.save}
                   </Button>
-                  <Button type="button" variant="outline" asChild>
-                    <Link href="/">{t.settings.cancel}</Link>
+                  <Button type="button" variant="outline" onClick={() => setFormData(settings)}>
+                    {t.settings.cancel}
                   </Button>
                 </div>
               </form>

@@ -462,7 +462,6 @@ export default function PositionsPage() {
 
   const quickActions = useMemo<DashboardQuickAction[]>(() => {
     const baseActions = createCommonQuickActions(t, {
-      exclude: ["positions"],
       overrides: {
         reload: {
           onClick: triggerRefresh,

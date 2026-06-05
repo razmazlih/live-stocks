@@ -895,7 +895,6 @@ export default function WatchlistPage() {
 
   const quickActions: DashboardQuickAction[] = useMemo(() => {
     const baseActions = createCommonQuickActions(t, {
-      exclude: ['watchlist'],
       overrides: {
         reload: {
           label: t.watchlist.actions.refreshAll,
@@ -925,12 +924,10 @@ export default function WatchlistPage() {
     ];
 
     const reloadAction = baseActions.find((action) => action.key === 'reload');
-    const navigationActions = baseActions.filter((action) => action.key !== 'reload');
 
     return [
       ...(reloadAction ? [reloadAction] : []),
       ...extraActions,
-      ...navigationActions,
     ];
   }, [
     t,

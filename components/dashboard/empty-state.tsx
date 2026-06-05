@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 interface DashboardEmptyStateProps {
   title: string;
   description: string;
-  actionLabel: string;
-  actionHref: string;
+  actionLabel?: string;
+  actionHref?: string;
   icon?: LucideIcon;
   buttonClassName?: string;
 }
@@ -30,16 +30,18 @@ export function DashboardEmptyState({
         <p className="text-lg font-semibold text-[var(--color-primary-800)]">{title}</p>
         <p className="text-sm text-[var(--color-slate-500)]">{description}</p>
       </div>
-      <Button
-        asChild
-        size="sm"
-        className={cn('gap-2 bg-[var(--color-primary-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-700)]', buttonClassName)}
-      >
-        <Link href={actionHref}>
-          <Icon className="h-4 w-4" />
-          <span>{actionLabel}</span>
-        </Link>
-      </Button>
+      {actionLabel && actionHref ? (
+        <Button
+          asChild
+          size="sm"
+          className={cn('gap-2 bg-[var(--color-primary-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-700)]', buttonClassName)}
+        >
+          <Link href={actionHref}>
+            <Icon className="h-4 w-4" />
+            <span>{actionLabel}</span>
+          </Link>
+        </Button>
+      ) : null}
     </div>
   );
 }

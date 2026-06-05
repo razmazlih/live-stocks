@@ -175,7 +175,6 @@ export default function AiPromptsPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['aiPrompts'],
         overrides: {
           reload: {
             onClick: reload,

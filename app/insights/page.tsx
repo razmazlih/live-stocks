@@ -85,7 +85,6 @@ export default function InsightsPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['insights'],
         overrides: {
           reload: {
             onClick: reload,

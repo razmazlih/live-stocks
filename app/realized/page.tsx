@@ -1,11 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import Link from 'next/link';
 import {
   RefreshCw,
   CircleDollarSign,
-  Receipt,
   TrendingUp,
 } from 'lucide-react';
 
@@ -13,7 +11,6 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
-import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -140,7 +137,6 @@ export default function RealizedPnLPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['realized'],
         overrides: {
           reload: {
             onClick: reload,
@@ -188,12 +184,6 @@ export default function RealizedPnLPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.realized.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.realized.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
-                      <Link href="/positions">
-                        <Receipt className="h-4 w-4" />
-                        <span>{t.realized.goToPositions}</span>
-                      </Link>
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-5">

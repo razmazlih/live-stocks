@@ -32,12 +32,12 @@ const createFactories = (t: Translation): QuickActionFactories => {
 
   return {
     reload: () => ({
-    key: 'reload',
-    icon: RefreshCw,
-    label: t.common.refresh,
-    variant: 'outline',
-    labelClassName: 'hidden sm:inline',
-  }),
+      key: 'reload',
+      icon: RefreshCw,
+      label: t.common.refresh,
+      variant: 'outline',
+      labelClassName: 'hidden sm:inline',
+    }),
     ...routeActions,
   };
 };
@@ -54,7 +54,7 @@ export function createCommonQuickActions(
   { include, exclude, overrides, extraActions }: CommonQuickActionsOptions = {}
 ): DashboardQuickAction[] {
   const factories = createFactories(t);
-  const keys = include ?? (Object.keys(factories) as CommonQuickActionKey[]);
+  const keys = include ?? (['reload'] satisfies CommonQuickActionKey[]);
   const filteredKeys = keys.filter((key) => !(exclude?.includes(key)));
 
   const actions = filteredKeys

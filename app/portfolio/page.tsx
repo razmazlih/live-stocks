@@ -1,15 +1,13 @@
 'use client';
 
 import { useMemo } from 'react';
-import Link from 'next/link';
-import { RefreshCw, LineChart, ArrowUpRight } from 'lucide-react';
+import { RefreshCw, LineChart } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { calculateRealizedPortfolioTotals, formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
-import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -322,7 +320,6 @@ export default function PortfolioPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
-        exclude: ['portfolio'],
         overrides: {
           reload: {
             onClick: reload,
@@ -382,12 +379,6 @@ export default function PortfolioPage() {
                       <p className="text-lg font-semibold text-slate-800">{t.portfolio.emptyTitle}</p>
                       <p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p>
                     </div>
-                    <Button asChild size="sm" className="gap-2 bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]">
-                      <Link href="/positions">
-                        <ArrowUpRight className="h-4 w-4" />
-                        <span>{t.positions.add}</span>
-                      </Link>
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-6">
