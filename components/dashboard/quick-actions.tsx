@@ -71,13 +71,14 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
       <Button
         key={action.key}
         size="sm"
-        variant="ghost"
+        variant={action.variant ?? 'ghost'}
         asChild={Boolean(action.href)}
         onClick={action.onClick}
         disabled={action.disabled}
         aria-label={action.ariaLabel ?? action.label}
         className={cn(
           'h-10 min-w-[112px] rounded-lg border border-slate-200 bg-white px-3 text-slate-800 shadow-sm transition-colors duration-200 hover:border-blue-200 hover:bg-slate-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 disabled:opacity-45',
+          action.className,
         )}
       >
         {buttonContent}

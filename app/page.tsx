@@ -1,12 +1,15 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { DashboardEmptyState } from '@/components/dashboard/empty-state';
 import { DailyChangeBadge } from '@/components/dashboard/daily-change-badge';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer } from '@/components/dashboard/page-primitives';
 import {
   SummaryCard,
   SummaryCardGrid,
@@ -16,17 +19,10 @@ import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visual
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import {
   Activity,
-  Bell,
-  BrainCircuit,
-  CircleDollarSign,
-  Eye,
-  Home,
   RefreshCw,
   LayoutDashboard,
   Layers,
   LineChart,
-  Search,
-  Settings,
   WalletCards,
   type LucideIcon,
 } from 'lucide-react';
@@ -44,6 +40,7 @@ export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
     'positions'
   );
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean | null>(null);
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const {
@@ -59,6 +56,16 @@ export default function HomePage() {
     lastUpdate,
     reload,
   } = usePortfolioData();
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 639px)');
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener('change', updateViewport);
+
+    return () => mediaQuery.removeEventListener('change', updateViewport);
+  }, []);
 
   const lastUpdatedDisplay = formatLastUpdatedTime(lastUpdate, locale);
 
@@ -225,17 +232,6 @@ export default function HomePage() {
     },
   ];
 
-  const direction = locale === 'he' ? 'rtl' : 'ltr';
-  const navigationItems: DashboardNavItem[] = [
-    { key: 'dashboard', label: t.app.title, href: '/', icon: Home, active: true },
-    { key: 'positions', label: t.positions.title, href: '/positions', icon: Layers },
-    { key: 'portfolio', label: t.portfolio.quickAction, href: '/portfolio', icon: LineChart },
-    { key: 'watchlist', label: t.watchlist.quickAction, href: '/watchlist', icon: Eye },
-    { key: 'insights', label: t.dashboard.weeklyInsights, href: '/insights', icon: BrainCircuit },
-    { key: 'realized', label: t.realized.quickAction, href: '/realized', icon: CircleDollarSign },
-    { key: 'settings', label: t.settings.title, href: '/settings', icon: Settings },
-  ];
-
   const topExposure = useMemo(
     () =>
       openMetrics
@@ -365,128 +361,36 @@ export default function HomePage() {
     );
 
   return (
-    <div dir={direction} className="min-h-screen bg-[#f6f8fb] text-slate-950">
-      <div className="flex min-h-screen">
-        <DashboardSidebar items={navigationItems} locale={locale} />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-            <div className="flex min-h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-              <button
-                type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm lg:hidden"
-                aria-label="Open navigation"
-              >
-                <LayoutDashboard className="h-5 w-5" />
-              </button>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h1 className="truncate text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
-                    {t.app.title}
-                  </h1>
-                  <span className="hidden rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 sm:inline-flex">
-                    2.0
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-1 text-sm text-slate-500">{t.app.subtitle}</p>
-              </div>
-
-              <div className="hidden h-10 min-w-[260px] max-w-md flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500 shadow-inner md:flex">
-                <Search className="h-4 w-4 text-slate-400" />
-                <span className="truncate">
-                  {locale === 'he' ? 'חיפוש מניה, תובנה או פעולה...' : 'Search symbols, insights, or actions...'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={reload}
-                  disabled={loading || refreshing}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:opacity-50"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">{t.common.refresh}</span>
-                </button>
-                <button
-                  type="button"
-                  className="hidden h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-700 sm:inline-flex"
-                  aria-label="Notifications"
-                >
-                  <Bell className="h-4 w-4" />
-                </button>
-                <Link
-                  href="/positions"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-                >
-                  <Layers className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t.positions.add}</span>
-                </Link>
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-[1560px] space-y-5">
-              <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-700">
-                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
-                    {formatCurrency(currentRate, 'ILS', locale)}
-                    <span className="text-xs font-medium text-slate-400">1 USD</span>
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-500">
-                    {t.app.updated}
-                    <span className="font-semibold text-slate-800">{lastUpdatedDisplay ?? '—'}</span>
-                  </span>
-                  {dailyChangeData && (
-                    <DailyChangeBadge
-                      toneClass={dailyChangeData.toneClass}
-                      icon={dailyChangeData.icon}
-                      value={dailyChangeData.value}
-                      label={dailyChangeData.label}
-                      className="rounded-lg border border-transparent px-3 py-2"
-                    />
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {quickActions.slice(0, 4).map((action) => {
-                    const Icon = action.icon;
-                    const content = (
-                      <>
-                        <Icon className={`h-4 w-4 ${action.iconClassName ?? ''}`} />
-                        <span>{action.label}</span>
-                      </>
-                    );
-
-                    if (action.href) {
-                      return (
-                        <Link
-                          key={action.key}
-                          href={action.href}
-                          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-                        >
-                          {content}
-                        </Link>
-                      );
-                    }
-
-                    return (
-                      <button
-                        key={action.key}
-                        type="button"
-                        onClick={action.onClick}
-                        disabled={action.disabled}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:opacity-50"
-                      >
-                        {content}
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
+    <DashboardRouteShell activeKey="dashboard" locale={locale}>
+      <DashboardContainer width="full" className="space-y-5">
+              <PageHeader
+                title={t.app.title}
+                subtitle={t.app.subtitle}
+                icon={LayoutDashboard}
+                quickActionsTitle={t.dashboard.quickActions}
+                quickActions={quickActions}
+                metaBadges={[
+                  {
+                    key: 'updated',
+                    label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`,
+                    className: 'bg-blue-50 text-blue-700 border-blue-100',
+                  },
+                  {
+                    key: 'rate',
+                    icon: LineChart,
+                    label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+                  },
+                  ...(dailyChangeData
+                    ? [
+                        {
+                          key: 'daily',
+                          label: `${dailyChangeData.value} ${dailyChangeData.label}`,
+                          className: dailyChangeData.toneClass,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
 
               {loading ? (
                 <section className="rounded-xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-500 shadow-sm">
@@ -544,14 +448,17 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      <div className="space-y-8 sm:hidden">
-                        {(activeSection === 'summary' || activeSection === 'positions') && renderPositionsSection()}
-                        {activeSection === 'visualizations' && renderVisualizationsSection()}
-                      </div>
-                      <div className="hidden space-y-10 sm:block">
-                        {renderPositionsSection()}
-                        {renderVisualizationsSection()}
-                      </div>
+                      {isMobileViewport === null ? null : isMobileViewport ? (
+                        <div className="space-y-5 sm:hidden">
+                          {(activeSection === 'summary' || activeSection === 'positions') && renderPositionsSection()}
+                          {activeSection === 'visualizations' && renderVisualizationsSection()}
+                        </div>
+                      ) : (
+                        <div className="hidden space-y-5 sm:block">
+                          {renderPositionsSection()}
+                          {renderVisualizationsSection()}
+                        </div>
+                      )}
                     </section>
                   </div>
 
@@ -563,20 +470,9 @@ export default function HomePage() {
                   />
                 </div>
               )}
-            </div>
-          </main>
-        </div>
-      </div>
-    </div>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
-}
-
-interface DashboardNavItem {
-  key: string;
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  active?: boolean;
 }
 
 interface DashboardInsight {
@@ -587,60 +483,6 @@ interface DashboardInsight {
   helper: string;
   icon: LucideIcon;
   tone: 'positive' | 'negative' | 'neutral';
-}
-
-function DashboardSidebar({
-  items,
-  locale,
-}: {
-  items: DashboardNavItem[];
-  locale: 'he' | 'en';
-}) {
-  return (
-    <aside className="hidden w-60 shrink-0 border-x border-slate-200 bg-white lg:flex lg:flex-col">
-      <div className="flex h-[72px] items-center gap-3 border-b border-slate-200 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-          <LineChart className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold tracking-tight text-slate-950">LiveStocks</p>
-          <p className="text-xs font-medium text-slate-500">Portfolio OS</p>
-        </div>
-      </div>
-
-      <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Dashboard">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
-                item.active
-                  ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
-              }`}
-            >
-              <Icon className={`h-4 w-4 ${item.active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-700'}`} />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-slate-200 p-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <p className="text-xs font-semibold text-slate-700">
-              {locale === 'he' ? 'סטטוס מסחר' : 'Market status'}
-            </p>
-          </div>
-          <p className="mt-1 text-xs text-slate-500">NASDAQ · 10:30 AM</p>
-        </div>
-      </div>
-    </aside>
-  );
 }
 
 function DashboardInsightPanel({

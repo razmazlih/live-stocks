@@ -4,19 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 import { getSupabaseClient } from '@/lib/supabase';
-import { mapWatchlistGroup, mapWatchlistTicker, sortWatchlistGroups, sortWatchlistTickers } from '@/lib/watchlist';
+import {
+  mapWatchlistGroup,
+  mapWatchlistTicker,
+  normalizeWatchlistNullableText,
+  sortWatchlistGroups,
+  sortWatchlistTickers,
+} from '@/lib/watchlist';
 import type { WatchlistGroup, WatchlistTicker } from '@/types';
 
 type NullableString = string | null | undefined;
-
-function normalizeOptional(value?: NullableString): string | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  const text = `${value}`.trim();
-  return text.length ? text : null;
-}
 
 export interface WatchlistGroupInput {
   name: string;
@@ -136,7 +133,7 @@ export function useWatchlist(): UseWatchlistState {
     async (input) => {
       const payload = {
         name: input.name.trim(),
-        description: normalizeOptional(input.description),
+        description: normalizeWatchlistNullableText(input.description),
       };
 
       const supabase = getSupabaseClient();
@@ -162,7 +159,7 @@ export function useWatchlist(): UseWatchlistState {
     async (groupId, input) => {
       const payload = {
         name: input.name.trim(),
-        description: normalizeOptional(input.description),
+        description: normalizeWatchlistNullableText(input.description),
       };
 
       const supabase = getSupabaseClient();
@@ -219,9 +216,9 @@ export function useWatchlist(): UseWatchlistState {
       const payload = {
         group_id: groupId,
         symbol: input.symbol.trim().toUpperCase(),
-        display: normalizeOptional(input.display),
-        image_url: normalizeOptional(input.imageUrl),
-        note: normalizeOptional(input.note),
+        display: normalizeWatchlistNullableText(input.display),
+        image_url: normalizeWatchlistNullableText(input.imageUrl),
+        note: normalizeWatchlistNullableText(input.note),
         sort_order: nextSortOrder,
       };
 
@@ -256,9 +253,9 @@ export function useWatchlist(): UseWatchlistState {
     async (tickerId, input) => {
       const payload = {
         symbol: input.symbol.trim().toUpperCase(),
-        display: normalizeOptional(input.display),
-        image_url: normalizeOptional(input.imageUrl),
-        note: normalizeOptional(input.note),
+        display: normalizeWatchlistNullableText(input.display),
+        image_url: normalizeWatchlistNullableText(input.imageUrl),
+        note: normalizeWatchlistNullableText(input.note),
         sort_order: typeof input.sortOrder === 'number' ? input.sortOrder : undefined,
       };
 

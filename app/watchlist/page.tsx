@@ -18,9 +18,11 @@ import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-s
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
-import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer } from '@/components/dashboard/page-primitives';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -941,54 +943,18 @@ export default function WatchlistPage() {
   ]);
 
   return (
-    <div
-      className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]"
-      dir={isRtl ? 'rtl' : 'ltr'}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
-                    <Eye className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{t.watchlist.title}</h1>
-                    <p className="mt-1 max-w-xl text-sm text-slate-600 sm:text-base">{t.watchlist.subtitle}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                  {metaBadges.map((badge) => {
-                    const Icon = badge.icon;
-                    return (
-                      <span
-                        key={badge.key}
-                        className={cn(
-                          'inline-flex items-center gap-2 rounded-full px-3 py-1 shadow-sm',
-                          badge.className
-                        )}
-                      >
-                        <Icon className={cn('h-4 w-4', badge.iconClassName)} />
-                        <span>{badge.label}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-              <QuickActionsSection title={t.watchlist.actionsTitle} actions={quickActions}>
-                <p className="mt-4 text-xs text-slate-500">
-                  {selectedGroupSummary ?? t.watchlist.status.empty}
-                </p>
-              </QuickActionsSection>
-            </div>
-          </header>
+    <DashboardRouteShell activeKey="watchlist" locale={locale}>
+      <DashboardContainer>
+          <PageHeader
+            title={t.watchlist.title}
+            subtitle={t.watchlist.subtitle}
+            icon={Eye}
+            metaBadges={metaBadges}
+            quickActionsTitle={t.dashboard.quickActions}
+            quickActions={quickActions}
+          />
 
-          <div className="mt-10 flex flex-col gap-8 lg:gap-10">
+          <div className="mt-5 flex flex-col gap-5">
             <WatchlistGroupSelector
               groups={groups}
               selectedGroupId={selectedGroupId}
@@ -1013,7 +979,7 @@ export default function WatchlistPage() {
               {watchlistError ? (
                 <Alert
                   variant="destructive"
-                  className="rounded-3xl border border-[color:var(--color-rose-200)]/70 bg-overlay-rose-50 px-6 py-5 text-rose-700 shadow-inner glass-blur-sm"
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm"
                 >
                   <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
                   <AlertDescription className="mt-2 flex flex-wrap items-center gap-2 text-rose-600">
@@ -1028,7 +994,7 @@ export default function WatchlistPage() {
 
               {selectedGroup ? (
                 <div className="space-y-6">
-                  <div className="rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white p-6 shadow-xl glass-blur-sm">
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="space-y-2">
                         <h2 className="text-2xl font-semibold text-slate-800">{selectedGroup.name}</h2>
@@ -1087,7 +1053,7 @@ export default function WatchlistPage() {
                             </PopoverTrigger>
                             <PopoverContent
                               align={isRtl ? 'end' : 'start'}
-                              className="w-auto rounded-3xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-4 shadow-xl glass-blur-sm"
+                              className="w-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                             >
                               <div className="flex flex-col gap-3">
                                 <p className="text-sm font-medium text-slate-700">
@@ -1225,7 +1191,7 @@ export default function WatchlistPage() {
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-10 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                    <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
                       <p>{t.watchlist.status.noTickers}</p>
                       <Button
                         onClick={openCreateTickerDialog}
@@ -1238,7 +1204,7 @@ export default function WatchlistPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 p-12 text-center text-sm text-slate-500 shadow-inner glass-blur-sm">
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500 shadow-sm">
                   <p>{t.watchlist.status.empty}</p>
                   <Button
                     onClick={openCreateGroupDialog}
@@ -1251,8 +1217,7 @@ export default function WatchlistPage() {
               )}
             </div>
           </div>
-        </div>
-      </div>
+      </DashboardContainer>
 
       <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
         <DialogContent>
@@ -1369,6 +1334,6 @@ export default function WatchlistPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardRouteShell>
   );
 }

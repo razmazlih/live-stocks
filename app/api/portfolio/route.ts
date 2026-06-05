@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   calculatePortfolioSummary,
   calculatePositionMetrics,
+  calculateRealizedPortfolioTotals,
   calculateRealizedTaxLiability,
+  enrichPortfolioSummaryWithRealized,
 } from '@/lib/calculations';
 import { computeRealizedSalesWithFx, expandPositionActivations, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
@@ -169,19 +171,11 @@ export async function POST(request: NextRequest) {
     const realizedSales = mappedPositions.flatMap((position) =>
       computeRealizedSalesWithFx(position, getFxRateAt),
     );
-    const realizedTotals = realizedSales.reduce(
-      (acc, sale) => {
-        const holdingYears = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
-        const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
-        const expectedProfitUsd = sale.costBasisUsd * (expectedFactor - 1);
-
-        acc.profitUsd += sale.profitUsd;
-        acc.profitIls += sale.profitIls ?? sale.profitUsd * usdToIlsRate;
-        acc.expectedProfitUsd += expectedProfitUsd;
-        acc.expectedProfitIls += expectedProfitUsd * getFxRateAt(new Date(sale.sellDate).getTime());
-        return acc;
-      },
-      { profitUsd: 0, profitIls: 0, expectedProfitUsd: 0, expectedProfitIls: 0 },
+    const realizedTotals = calculateRealizedPortfolioTotals(
+      realizedSales,
+      annualGrowthRate,
+      usdToIlsRate,
+      getFxRateAt,
     );
 
     const chronologicalSales = realizedSales
@@ -196,37 +190,24 @@ export async function POST(request: NextRequest) {
     );
 
     const baseSummary = calculatePortfolioSummary(metrics, usdToIlsRate);
-    const totalCurrentPnLUsd = baseSummary.totalCurrentPnLUsd + realizedTotals.profitUsd;
-    const totalCurrentPnLIls = baseSummary.totalCurrentPnLIls + realizedTotals.profitIls;
-    const totalProjectedPnLUsd = Math.max(
-      baseSummary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd,
-      0,
-    );
-    const totalProjectedPnLIls = Math.max(
-      baseSummary.totalProjectedPnLIls + realizedTotals.expectedProfitIls,
-      0,
-    );
-    const totalCombinedUsd = totalCurrentPnLUsd - totalProjectedPnLUsd;
-    const totalCombinedIls = totalCurrentPnLIls - totalProjectedPnLIls;
-    const totalNetPnLUsd = totalCurrentPnLUsd - taxSummary.taxUsd;
-    const totalNetPnLIls = totalCurrentPnLIls - taxSummary.taxIls;
-    const totalForecastGapUsd = totalNetPnLUsd - totalProjectedPnLUsd;
-    const totalForecastGapIls = totalNetPnLIls - totalProjectedPnLIls;
+    const enrichedSummary = enrichPortfolioSummaryWithRealized(baseSummary, realizedTotals, taxSummary);
+    const totalForecastGapUsd = enrichedSummary.totalNetPnLUsd - enrichedSummary.totalProjectedPnLUsd;
+    const totalForecastGapIls = enrichedSummary.totalNetPnLIls - enrichedSummary.totalProjectedPnLIls;
 
     const summary = {
       ...baseSummary,
-      totalCurrentPnLUsd: toFixedNumber(totalCurrentPnLUsd),
-      totalCurrentPnLIls: toFixedNumber(totalCurrentPnLIls),
-      totalProjectedPnLUsd: toFixedNumber(totalProjectedPnLUsd),
-      totalProjectedPnLIls: toFixedNumber(totalProjectedPnLIls),
-      totalCombinedUsd: toFixedNumber(totalCombinedUsd),
-      totalCombinedIls: toFixedNumber(totalCombinedIls),
-      totalRealizedProfitUsd: toFixedNumber(realizedTotals.profitUsd),
-      totalRealizedProfitIls: toFixedNumber(realizedTotals.profitIls),
-      totalTaxesPaidUsd: toFixedNumber(taxSummary.taxUsd),
-      totalTaxesPaidIls: toFixedNumber(taxSummary.taxIls),
-      totalNetPnLUsd: toFixedNumber(totalNetPnLUsd),
-      totalNetPnLIls: toFixedNumber(totalNetPnLIls),
+      totalCurrentPnLUsd: toFixedNumber(enrichedSummary.totalCurrentPnLUsd),
+      totalCurrentPnLIls: toFixedNumber(enrichedSummary.totalCurrentPnLIls),
+      totalProjectedPnLUsd: toFixedNumber(enrichedSummary.totalProjectedPnLUsd),
+      totalProjectedPnLIls: toFixedNumber(enrichedSummary.totalProjectedPnLIls),
+      totalCombinedUsd: toFixedNumber(enrichedSummary.totalCombinedUsd),
+      totalCombinedIls: toFixedNumber(enrichedSummary.totalCombinedIls),
+      totalRealizedProfitUsd: toFixedNumber(enrichedSummary.totalRealizedProfitUsd),
+      totalRealizedProfitIls: toFixedNumber(enrichedSummary.totalRealizedProfitIls),
+      totalTaxesPaidUsd: toFixedNumber(enrichedSummary.totalTaxesPaidUsd),
+      totalTaxesPaidIls: toFixedNumber(enrichedSummary.totalTaxesPaidIls),
+      totalNetPnLUsd: toFixedNumber(enrichedSummary.totalNetPnLUsd),
+      totalNetPnLIls: toFixedNumber(enrichedSummary.totalNetPnLIls),
       totalForecastGapUsd: toFixedNumber(totalForecastGapUsd),
       totalForecastGapIls: toFixedNumber(totalForecastGapIls),
       totalValue: toFixedNumber(baseSummary.totalValue),

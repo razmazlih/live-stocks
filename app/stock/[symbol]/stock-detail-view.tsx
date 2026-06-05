@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   Area,
   Bar,
@@ -14,7 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { TooltipProps } from 'recharts';
-import { ArrowLeft, RefreshCcw } from 'lucide-react';
+import { RefreshCcw, TrendingUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,10 +31,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
+import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
+import { STOCK_DETAIL_TIME_RANGES } from '@/lib/display/time-ranges';
 import {
   calculatePositionMetrics,
   formatCurrency,
@@ -57,11 +61,10 @@ import {
   TimeRange,
 } from '@/types';
 
-const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', 'All'];
 const DAY_SECONDS = 60 * 60 * 24;
 const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
 const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-2xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-xl ring-1 ring-[color:var(--color-neutral-black)]/20 backdrop-blur';
+  'min-w-[220px] space-y-3 rounded-xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/20';
 
 function getDateKey(timestamp: number) {
   const date = new Date(timestamp);
@@ -310,7 +313,7 @@ function StockDetailSkeleton() {
           <Skeleton className="ml-auto h-4 w-24" />
         </div>
       </div>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card>
         <CardHeader>
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -327,7 +330,7 @@ function StockDetailSkeleton() {
           </div>
         </CardContent>
       </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
+      <Card>
         <CardHeader>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-4 w-64" />
@@ -358,8 +361,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const normalizedSymbol = symbol.toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
+  const quickActions = useMemo(
+    () => createCommonQuickActions(t),
+    [t],
+  );
   const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
-  const isRtl = locale === 'he';
 
   const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
@@ -869,105 +875,116 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       ]
     : [];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-100)] via-[var(--color-primary-200)] to-[var(--color-primary-002)]" dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="mx-auto max-w-6xl p-6">
-        <header className="mb-6 flex items-center justify-between">
-          <Link href="/">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t.stock.back}
-            </Button>
-          </Link>
-          {historicalLoading && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <RefreshCcw className="h-4 w-4 animate-spin" />
-              {t.common.loading}
-            </div>
-          )}
-        </header>
+  const stockHeaderMetaBadges = [
+    ...(historicalLoading
+      ? [
+          {
+            key: 'loading',
+            icon: RefreshCcw,
+            label: t.common.loading,
+            iconClassName: 'animate-spin text-blue-600',
+          },
+        ]
+      : []),
+    ...(metrics
+      ? [
+          {
+            key: 'price',
+            label: `${t.stock.priceToday} ${formatUsdCurrency(metrics.currentPrice)}`,
+          },
+          ...(dailyChangeValue !== undefined
+            ? [
+                {
+                  key: 'daily',
+                  label: `${dailyChangeDisplay} ${t.stock.dailyChange}`,
+                  className:
+                    dailyChangeValue >= 0
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : 'bg-rose-50 text-rose-600',
+                },
+              ]
+            : []),
+        ]
+      : []),
+    ...(position
+      ? [
+          {
+            key: 'symbol',
+            label: position.symbol,
+          },
+          {
+            key: 'quantity',
+            label: `${t.dashboard.quantity} ${formatNumber(position.quantity, locale)}`,
+          },
+          {
+            key: 'entryPrice',
+            label: `${t.dashboard.entryPrice} ${formatDualCurrency(position.entryPrice)}`,
+          },
+          {
+            key: 'since',
+            label: `${t.dashboard.since} ${formatDate(position.entryDate, locale)}`,
+          },
+        ]
+      : []),
+  ];
 
-        {loading ? (
-          <StockDetailSkeleton />
-        ) : error ? (
-          <Card className="bg-overlay-neutral-white border border-red-200 text-red-700">
-            <CardContent className="flex flex-col items-center gap-4 py-10">
-              <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
-              <div className="text-sm text-overlay-red-600">{error}</div>
-              <Button variant="outline" onClick={() => setReloadKey((value) => value + 1)}>
-                {t.stock.detailView.states.retry}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : !position || !metrics ? (
-          <Card className="bg-overlay-neutral-white border border-[color:var(--color-neutral-white)]/60">
-            <CardContent className="flex items-center justify-center py-20 text-sm text-gray-500">
-              {t.stock.detailView.states.empty}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            <Card className="overflow-hidden border-[color:var(--color-primary-200)]/60 bg-gradient-to-br from-[color:var(--color-neutral-white)]/95 via-[color:var(--color-blue-50)]/85 to-[color:var(--color-primary-100)]/85 shadow-xl">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-16 w-16 rounded-full border-2 border-white shadow-sm">
-                      <StockAvatarImage
-                        symbol={position.symbol}
-                        display={position.display}
-                        imageUrl={position.imageUrl}
-                      />
-                      <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                        {position.symbol.slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-3xl font-bold text-[var(--color-primary-900)]">{position.display}</h1>
-                        <Badge variant="secondary" className="text-sm uppercase">
-                          {position.symbol}
-                        </Badge>
-                        {badgeLocations.map((bank) => (
-                          <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-                        <span>
-                          {t.dashboard.quantity}{' '}
-                          <span className="font-medium text-slate-900">
-                            {formatNumber(position.quantity, locale)}
-                          </span>
-                        </span>
-                        <span>
-                          {t.dashboard.entryPrice}{' '}
-                          <span className="font-medium text-slate-900">
-                            {formatDualCurrency(position.entryPrice)}
-                          </span>
-                        </span>
-                        <span>
-                          {t.dashboard.since}{' '}
-                          <span className="font-medium text-slate-900">
-                            {formatDate(position.entryDate, locale)}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
+  return (
+    <DashboardRouteShell activeKey="portfolio" locale={locale}>
+      <DashboardContainer>
+        <PageHeader
+          title={position?.display ?? normalizedSymbol}
+          subtitle={loading ? t.stock.detailView.states.loading : position ? t.stock.overview : normalizedSymbol}
+          icon={TrendingUp}
+          metaBadges={stockHeaderMetaBadges}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+        />
+
+        <DashboardMain>
+          {loading ? (
+            <StockDetailSkeleton />
+          ) : error ? (
+            <DashboardSurface className="border-red-200 text-red-700">
+              <div className="flex flex-col items-center gap-4 py-10">
+                <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
+                <div className="text-sm text-overlay-red-600">{error}</div>
+                <Button variant="outline" onClick={() => setReloadKey((value) => value + 1)}>
+                  {t.stock.detailView.states.retry}
+                </Button>
+              </div>
+            </DashboardSurface>
+          ) : !position || !metrics ? (
+            <DashboardSurface>
+              <div className="flex items-center justify-center py-20 text-sm text-gray-500">
+                {t.stock.detailView.states.empty}
+              </div>
+            </DashboardSurface>
+          ) : (
+            <div className="space-y-5">
+            <DashboardSurface>
+              <div className="flex flex-wrap items-center gap-3">
+                <Avatar className="h-12 w-12 rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
+                  <StockAvatarImage
+                    symbol={position.symbol}
+                    display={position.display}
+                    imageUrl={position.imageUrl}
+                  />
+                  <AvatarFallback className="bg-blue-50 font-semibold text-blue-700">
+                    {position.symbol.slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {badgeLocations.map((bank) => (
+                      <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
+                    ))}
                   </div>
-                  <div className={cn('rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm', isRtl ? 'text-left' : 'text-right')}>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">{t.stock.priceToday}</div>
-                    <div className="mt-1 text-3xl font-semibold text-[var(--color-primary-900)]">
-                      {formatUsdCurrency(metrics.currentPrice)}
-                    </div>
-                    <div className={cn('mt-1 text-sm font-semibold', dailyChangeClass)}>
-                      {dailyChangeDisplay}{' '}
-                      {dailyChangePercent !== undefined && dailyChangePercentLabel !== '--'
-                        ? `(${dailyChangePercentLabel})`
-                        : ''}
-                    </div>
-                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t.stock.detailView.quickFactsSubtitle}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </DashboardSurface>
 
             <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-lg">
               <CardHeader>
@@ -1000,8 +1017,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </CardContent>
             </Card>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <Card>
                 <CardHeader className="gap-2">
                   <div>
                     <CardTitle className="text-lg font-semibold text-gray-900">
@@ -1011,7 +1028,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap gap-2">
-                      {TIME_RANGES.map((option) => (
+                      {STOCK_DETAIL_TIME_RANGES.map((option) => (
                         <Button
                           key={option}
                           variant={range === option ? 'default' : 'outline'}
@@ -1040,7 +1057,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </div>
                   ) : (
                     <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                         <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
                           <defs>
                             <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1117,7 +1134,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </CardContent>
               </Card>
 
-              <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-gray-900">
                     {locale === 'he' ? 'מצב פוזיציה' : 'Position health'}
@@ -1175,7 +1192,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               </Card>
             </div>
 
-            <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-xl">
+            <Card>
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">
@@ -1243,9 +1260,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 )}
               </CardContent>
             </Card>
-          </div>
-        )}
-      </div>
-    </div>
+            </div>
+          )}
+        </DashboardMain>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

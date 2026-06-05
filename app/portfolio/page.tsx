@@ -6,12 +6,14 @@ import { RefreshCw, LineChart, ArrowUpRight } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { formatCurrency } from '@/lib/calculations';
+import { calculateRealizedPortfolioTotals, formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -53,56 +55,41 @@ export default function PortfolioPage() {
       return null;
     }
 
+    const realizedTotals = calculateRealizedPortfolioTotals(
+      realizedSales,
+      settings.annualGrowthRate,
+      rateForSummary,
+    );
     const totals = realizedSales.reduce(
       (acc, sale) => {
-        acc.totalProceedsUsd += sale.proceedsUsd;
-        acc.totalProceedsIls += sale.proceedsIls ?? sale.proceedsUsd * rateForSummary;
-        acc.totalCostUsd += sale.costBasisUsd;
-        acc.totalCostIls += sale.costBasisIls ?? sale.costBasisUsd * rateForSummary;
-        acc.totalProfitUsd += sale.profitUsd;
-        acc.totalProfitIls += sale.profitIls ?? sale.profitUsd * rateForSummary;
         acc.totalQuantity += sale.quantity;
         acc.weightedHoldingDays += sale.holdingPeriodDays * sale.quantity;
         return acc;
       },
       {
-        totalProceedsUsd: 0,
-        totalProceedsIls: 0,
-        totalCostUsd: 0,
-        totalCostIls: 0,
-        totalProfitUsd: 0,
-        totalProfitIls: 0,
         totalQuantity: 0,
         weightedHoldingDays: 0,
       }
     );
 
     const averageHoldingDays = totals.totalQuantity > 0 ? totals.weightedHoldingDays / totals.totalQuantity : 0;
-    const expectedProfitUsd = realizedSales.reduce((acc, sale) => {
-      const yearsHeld = sale.holdingPeriodDays / 365.25;
-      const expectedReturnFactor = Math.pow(1 + settings.annualGrowthRate, yearsHeld);
-      const expectedProfit = sale.costBasisUsd * (expectedReturnFactor - 1);
-      return acc + expectedProfit;
-    }, 0);
-
-    const expectedProfitIls = expectedProfitUsd * rateForSummary;
-    const performanceDeltaUsd = totals.totalProfitUsd - expectedProfitUsd;
-    const performanceDeltaIls = totals.totalProfitIls - expectedProfitIls;
-    const performanceDeltaPercent = expectedProfitUsd !== 0
-      ? (performanceDeltaUsd / Math.abs(expectedProfitUsd)) * 100
+    const performanceDeltaUsd = realizedTotals.profitUsd - realizedTotals.expectedProfitUsd;
+    const performanceDeltaIls = realizedTotals.profitIls - realizedTotals.expectedProfitIls;
+    const performanceDeltaPercent = realizedTotals.expectedProfitUsd !== 0
+      ? (performanceDeltaUsd / Math.abs(realizedTotals.expectedProfitUsd)) * 100
       : 0;
 
     const uniqueSymbols = new Set(realizedSales.map((sale) => sale.symbol));
 
     return {
-      totalProceedsUsd: totals.totalProceedsUsd,
-      totalProceedsIls: totals.totalProceedsIls,
-      totalCostUsd: totals.totalCostUsd,
-      totalCostIls: totals.totalCostIls,
-      totalProfitUsd: totals.totalProfitUsd,
-      totalProfitIls: totals.totalProfitIls,
-      expectedProfitUsd,
-      expectedProfitIls,
+      totalProceedsUsd: realizedTotals.proceedsUsd,
+      totalProceedsIls: realizedTotals.proceedsIls,
+      totalCostUsd: realizedTotals.costUsd,
+      totalCostIls: realizedTotals.costIls,
+      totalProfitUsd: realizedTotals.profitUsd,
+      totalProfitIls: realizedTotals.profitIls,
+      expectedProfitUsd: realizedTotals.expectedProfitUsd,
+      expectedProfitIls: realizedTotals.expectedProfitIls,
       performanceDeltaUsd,
       performanceDeltaIls,
       performanceDeltaPercent,
@@ -348,52 +335,39 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
-                    <LineChart className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{t.portfolio.title}</h1>
-                    <p className="mt-1 max-w-xl text-sm text-slate-600 sm:text-base">{t.portfolio.subtitle}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-                    {t.app.updated} {lastUpdatedDisplay ?? '—'}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
-                    <LineChart className="h-4 w-4 text-blue-500" />
-                    1 USD ≈ {formatCurrency(currentRate, 'ILS', locale)}
-                  </span>
-                  {hasDailyChange && (
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${dailyChangeTone.badge}`}
-                    >
-                      {dailyChangeIcon}
-                      {formatSignedCurrency(totalDailyChangeUsd, 'USD', locale)}
-                      <span className="text-xs font-medium text-overlay-slate-600">{t.dashboard.dailyChange}</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-              <QuickActionsSection title={t.portfolio.actions} actions={quickActions} />
-            </div>
-          </header>
+    <DashboardRouteShell activeKey="portfolio" locale={locale}>
+      <DashboardContainer>
+        <PageHeader
+          title={t.portfolio.title}
+          subtitle={t.portfolio.subtitle}
+          icon={LineChart}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+          metaBadges={[
+            {
+              key: 'updated',
+              label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`,
+              className: 'bg-blue-50 text-blue-700 border-blue-100',
+            },
+            {
+              key: 'rate',
+              icon: LineChart,
+              label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+            },
+            ...(hasDailyChange
+              ? [
+                  {
+                    key: 'daily',
+                    label: `${formatSignedCurrency(totalDailyChangeUsd, 'USD', locale)} ${t.dashboard.dailyChange}`,
+                    className: dailyChangeTone.badge,
+                  },
+                ]
+              : []),
+          ]}
+        />
 
-          <main className="mt-6">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-6">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
-              <div className="relative z-10">
+        <DashboardMain>
+          <DashboardSurface>
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
                     <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
@@ -418,7 +392,7 @@ export default function PortfolioPage() {
                 ) : (
                   <div className="space-y-6">
                     <div className="grid items-start gap-5">
-                      <div className="space-y-4 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                         <div>
                           <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.timelineTitle}</h2>
                           <p className="text-sm text-slate-500">{t.portfolio.overviewDescription}</p>
@@ -426,7 +400,7 @@ export default function PortfolioPage() {
                         {portfolioTimeline.length > 0 ? (
                           <PortfolioOverviewChart data={portfolioTimeline} summary={summary} />
                         ) : (
-                          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-overlay-neutral-white py-14 text-center text-slate-500">
+                          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-200 bg-white py-14 text-center text-slate-500">
                             <LineChart className="h-6 w-6 text-slate-400" />
                             <p>{t.portfolio.timelineEmpty}</p>
                           </div>
@@ -439,7 +413,7 @@ export default function PortfolioPage() {
                             {generalStats.map((stat) => (
                               <div
                                 key={stat.key}
-                                className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm"
                               >
                                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
                                 <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
@@ -451,10 +425,10 @@ export default function PortfolioPage() {
                           </div>
                         )}
 
-                        <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
+                        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                           <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.moversTitle}</h2>
                           <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-emerald-100 bg-[color:var(--color-emerald-50)]/70 px-4 py-3.5 shadow-inner">
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3.5">
                               <p className="text-sm font-medium text-emerald-600">{t.portfolio.bestPerformer}</p>
                               {bestMetric ? (
                                 <div className="mt-2.5 space-y-1 text-sm text-slate-600">
@@ -472,7 +446,7 @@ export default function PortfolioPage() {
                                 <p className="mt-2.5 text-sm text-slate-500">{t.portfolio.moversEmpty}</p>
                               )}
                             </div>
-                            <div className="rounded-2xl border border-rose-100 bg-[color:var(--color-rose-50)]/70 px-4 py-3.5 shadow-inner">
+                            <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3.5">
                               <p className="text-sm font-medium text-rose-600">{t.portfolio.worstPerformer}</p>
                               {worstMetric ? (
                                 <div className="mt-2.5 space-y-1 text-sm text-slate-600">
@@ -494,7 +468,7 @@ export default function PortfolioPage() {
                         </div>
 
                         {closedSummary && closedStats.length > 0 && (
-                          <div className="space-y-3 rounded-3xl border border-[color:var(--color-card-border)] bg-[color:var(--color-neutral-white)]/55 p-4 shadow-sm sm:p-5">
+                          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                             <div>
                               <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
                               <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
@@ -503,7 +477,7 @@ export default function PortfolioPage() {
                               {closedStats.map((stat) => (
                                 <div
                                   key={stat.key}
-                                  className="rounded-2xl border card-surface px-4 py-3.5 transition-shadow duration-300"
+                                  className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm"
                                 >
                                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
                                   <p className={`mt-1.5 text-2xl font-semibold ${stat.toneClass ?? 'text-slate-900'}`}>
@@ -528,9 +502,8 @@ export default function PortfolioPage() {
                           {summaryCards.map((card) => (
                             <div
                               key={card.key}
-                              className="relative overflow-hidden rounded-3xl border card-surface p-4 transition-shadow duration-300"
+                              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                             >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full card-glow blur-3xl" />
                               <div className="relative z-10 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
@@ -592,11 +565,9 @@ export default function PortfolioPage() {
                     )}
                   </div>
                 )}
-              </div>
-            </section>
-          </main>
-        </div>
-      </div>
-    </div>
+          </DashboardSurface>
+        </DashboardMain>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

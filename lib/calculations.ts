@@ -1,7 +1,38 @@
-import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale } from '@/types';
 import { computeOpenLots, summarizeLots } from '@/lib/positions';
 
+export { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/display/formatting';
+
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+type FxRateResolver = (timestamp: number) => number;
+
+export interface RealizedPortfolioTotals {
+  proceedsUsd: number;
+  costUsd: number;
+  profitUsd: number;
+  expectedProfitUsd: number;
+  proceedsIls: number;
+  costIls: number;
+  profitIls: number;
+  expectedProfitIls: number;
+}
+
+export interface PortfolioTaxTotals {
+  taxUsd: number;
+  taxIls: number;
+}
+
+export const EMPTY_REALIZED_PORTFOLIO_TOTALS: RealizedPortfolioTotals = {
+  proceedsUsd: 0,
+  costUsd: 0,
+  profitUsd: 0,
+  expectedProfitUsd: 0,
+  proceedsIls: 0,
+  costIls: 0,
+  profitIls: 0,
+  expectedProfitIls: 0,
+};
 
 function isSameDay(dateA: Date, dateB: Date): boolean {
   return (
@@ -210,37 +241,93 @@ export function calculatePortfolioSummary(
   };
 }
 
-export function formatCurrency(value: number, currency: 'USD' | 'ILS', locale: 'he' | 'en' = 'he'): string {
-  return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+export function calculateRealizedPortfolioTotals(
+  sales: RealizedSale[],
+  annualGrowthRate: number,
+  usdToIlsRate: number,
+  getFxRateAt: FxRateResolver = () => usdToIlsRate,
+): RealizedPortfolioTotals {
+  return sales.reduce<RealizedPortfolioTotals>((acc, sale) => {
+    const holdingYears = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
+    const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
+    const expectedProfitUsd = sale.costBasisUsd * (expectedFactor - 1);
+    const sellTimestamp = new Date(sale.sellDate).getTime();
+    const sellFxRate = getFxRateAt(sellTimestamp);
+
+    acc.proceedsUsd += sale.proceedsUsd;
+    acc.costUsd += sale.costBasisUsd;
+    acc.profitUsd += sale.profitUsd;
+    acc.expectedProfitUsd += expectedProfitUsd;
+    acc.proceedsIls += sale.proceedsIls ?? sale.proceedsUsd * usdToIlsRate;
+    acc.costIls += sale.costBasisIls ?? sale.costBasisUsd * usdToIlsRate;
+    acc.profitIls += sale.profitIls ?? sale.profitUsd * usdToIlsRate;
+    acc.expectedProfitIls += expectedProfitUsd * sellFxRate;
+    return acc;
+  }, { ...EMPTY_REALIZED_PORTFOLIO_TOTALS });
 }
 
-export function formatNumber(value: number, locale: 'he' | 'en' = 'he'): string {
-  return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+export function normalizeOpenPortfolioSummary(summary: PortfolioSummary): PortfolioSummary {
+  const totalProjectedPnLUsd = Math.max(summary.totalProjectedPnLUsd, 0);
+  const totalProjectedPnLIls = Math.max(summary.totalProjectedPnLIls, 0);
+
+  return {
+    ...summary,
+    totalProjectedPnLUsd,
+    totalProjectedPnLIls,
+    totalCombinedUsd: summary.totalCurrentPnLUsd - totalProjectedPnLUsd,
+    totalCombinedIls: summary.totalCurrentPnLIls - totalProjectedPnLIls,
+    totalRealizedProfitUsd: 0,
+    totalRealizedProfitIls: 0,
+    totalTaxesPaidUsd: 0,
+    totalTaxesPaidIls: 0,
+    totalNetPnLUsd: summary.totalCurrentPnLUsd,
+    totalNetPnLIls: summary.totalCurrentPnLIls,
+  };
 }
 
-export function formatPercent(value: number, locale: 'he' | 'en' = 'he'): string {
-  return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', {
-    style: 'percent',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value / 100);
+export function enrichPortfolioSummaryWithRealized(
+  summary: PortfolioSummary,
+  realizedTotals: RealizedPortfolioTotals,
+  taxTotals: PortfolioTaxTotals,
+): PortfolioSummary {
+  const totalCurrentPnLUsd = summary.totalCurrentPnLUsd + realizedTotals.profitUsd;
+  const totalCurrentPnLIls = summary.totalCurrentPnLIls + realizedTotals.profitIls;
+  const totalProjectedPnLUsd = Math.max(summary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd, 0);
+  const totalProjectedPnLIls = Math.max(summary.totalProjectedPnLIls + realizedTotals.expectedProfitIls, 0);
+
+  return {
+    ...summary,
+    totalCurrentPnLUsd,
+    totalCurrentPnLIls,
+    totalProjectedPnLUsd,
+    totalProjectedPnLIls,
+    totalCombinedUsd: totalCurrentPnLUsd - totalProjectedPnLUsd,
+    totalCombinedIls: totalCurrentPnLIls - totalProjectedPnLIls,
+    totalRealizedProfitUsd: realizedTotals.profitUsd,
+    totalRealizedProfitIls: realizedTotals.profitIls,
+    totalTaxesPaidUsd: taxTotals.taxUsd,
+    totalTaxesPaidIls: taxTotals.taxIls,
+    totalNetPnLUsd: totalCurrentPnLUsd - taxTotals.taxUsd,
+    totalNetPnLIls: totalCurrentPnLIls - taxTotals.taxIls,
+  };
 }
 
-export function formatDate(date: string | Date, locale: 'he' | 'en' = 'he'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+export function buildPortfolioTimelinePointFromSummary(
+  summary: PortfolioSummary,
+  timestamp: number,
+  fallbackSpyPoint?: Pick<PortfolioTimelinePoint, 'spyNetPnLUsd' | 'spyNetPnLIls'>,
+): PortfolioTimelinePoint {
+  return {
+    timestamp,
+    totalPnLUsd: summary.totalCurrentPnLUsd,
+    totalPnLIls: summary.totalCurrentPnLIls,
+    netPnLUsd: summary.totalNetPnLUsd,
+    netPnLIls: summary.totalNetPnLIls,
+    expectedNetPnLUsd: summary.totalProjectedPnLUsd,
+    expectedNetPnLIls: summary.totalProjectedPnLIls,
+    spyNetPnLUsd: fallbackSpyPoint?.spyNetPnLUsd ?? 0,
+    spyNetPnLIls: fallbackSpyPoint?.spyNetPnLIls ?? 0,
+  };
 }
 
 export function buildPortfolioAllocation(

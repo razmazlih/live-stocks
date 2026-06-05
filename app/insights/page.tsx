@@ -3,10 +3,12 @@
 import { useMemo } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, RefreshCw } from 'lucide-react';
 
-import { DashboardHero } from '@/components/dashboard/dashboard-hero';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
@@ -149,26 +151,23 @@ export default function InsightsPage() {
   const currentRate = summary?.usdToIlsRate ?? usdToIls;
 
   return (
-    <div className="home-dashboard relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <DashboardHero
-            title={labels.title}
-            subtitle={labels.subtitle}
-            updatedLabel={labels.updated}
-            lastUpdatedDisplay={updatedAtLabel}
-            exchangeRateLabel="1 USD ≈"
-            exchangeRateValue={formatCurrency(currentRate, 'ILS', locale)}
-            quickActionsTitle={t.dashboard.quickActions}
-            quickActions={quickActions}
-          />
+    <DashboardRouteShell activeKey="insights" locale={locale}>
+      <DashboardContainer>
+        <PageHeader
+          title={labels.title}
+          subtitle={labels.subtitle}
+          icon={AlertTriangle}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+          metaBadges={[
+            { key: 'updated', label: `${labels.updated} ${updatedAtLabel ?? '—'}`, className: 'bg-blue-50 text-blue-700 border-blue-100' },
+            { key: 'rate', label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}` },
+          ]}
+        />
 
-          <main className="mt-10">
-            <section className="home-main-surface relative overflow-hidden rounded-3xl border px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-20 -top-10 h-60 w-60 rounded-full bg-[radial-gradient(circle,_rgba(var(--color-blue-500-rgb),0.16),_transparent_68%)] blur-3xl" />
-              <div className="relative z-10 space-y-8">
+        <DashboardMain>
+          <DashboardSurface>
+              <div className="space-y-8">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
                     <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
@@ -304,10 +303,9 @@ export default function InsightsPage() {
                   </>
                 )}
               </div>
-            </section>
-          </main>
-        </div>
-      </div>
-    </div>
+          </DashboardSurface>
+        </DashboardMain>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

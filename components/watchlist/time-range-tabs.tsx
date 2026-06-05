@@ -1,23 +1,22 @@
 'use client';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { WATCHLIST_TIME_RANGES } from '@/lib/display/time-ranges';
 import { cn } from '@/lib/utils';
 import type { TimeRange } from '@/types';
 
 interface TimeRangeTabsProps {
   value: TimeRange;
   onChange: (range: TimeRange) => void;
-  ranges?: TimeRange[];
+  ranges?: readonly TimeRange[];
   labels?: Partial<Record<TimeRange, string>>;
   className?: string;
 }
 
-const DEFAULT_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y'];
-
 export function TimeRangeTabs({
   value,
   onChange,
-  ranges = DEFAULT_RANGES,
+  ranges = WATCHLIST_TIME_RANGES,
   labels,
   className,
 }: TimeRangeTabsProps) {

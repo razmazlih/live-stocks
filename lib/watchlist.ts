@@ -1,6 +1,7 @@
 import { WatchlistGroup, WatchlistTicker } from '@/types';
 
 type SupabaseValue<T> = T | string | null | undefined;
+type NullableString = string | null | undefined;
 
 interface SupabaseWatchlistTickerRow {
   id: string;
@@ -23,12 +24,22 @@ interface SupabaseWatchlistGroupRow {
   watchlist_tickers?: SupabaseWatchlistTickerRow[] | null;
 }
 
-function parseString(value?: SupabaseValue<string>): string | undefined {
+export function normalizeWatchlistNullableText(value?: NullableString): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    return trimmed.length ? trimmed : undefined;
+    return trimmed.length ? trimmed : null;
   }
-  return undefined;
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const text = `${value}`.trim();
+  return text.length ? text : null;
+}
+
+function parseString(value?: SupabaseValue<string>): string | undefined {
+  return normalizeWatchlistNullableText(value) ?? undefined;
 }
 
 function parseNumber(value?: SupabaseValue<number>): number | undefined {

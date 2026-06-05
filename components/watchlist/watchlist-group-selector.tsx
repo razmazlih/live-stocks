@@ -1,5 +1,6 @@
 'use client';
 
+import { DashboardEmptyPanel, DashboardLoading, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -46,9 +47,9 @@ export function WatchlistGroupSelector({
   deleteLabel = 'Delete group',
 }: WatchlistGroupSelectorProps) {
   return (
-    <div
+    <DashboardSurface
       className={cn(
-        'flex w-full flex-col overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-xl glass-blur-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
+        'flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
         className
       )}
     >
@@ -74,12 +75,13 @@ export function WatchlistGroupSelector({
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-6">
           {isLoading ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>{loadingText}</span>
-            </div>
+            <DashboardLoading
+              icon={<Loader2 className="h-4 w-4 animate-spin" />}
+              label={loadingText}
+              className="flex-row items-center justify-start gap-2 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300"
+            />
           ) : groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/75 px-6 py-10 text-center text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
+            <DashboardEmptyPanel className="gap-3 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/75 px-6 py-10 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
               <span>{emptyStateText}</span>
               {onCreate ? (
                 <Button size="sm" onClick={onCreate} className="gap-1 rounded-full">
@@ -87,7 +89,7 @@ export function WatchlistGroupSelector({
                   {addLabel}
                 </Button>
               ) : null}
-            </div>
+            </DashboardEmptyPanel>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {groups.map((group) => {
@@ -156,6 +158,6 @@ export function WatchlistGroupSelector({
           <span>{loadingText}</span>
         </div>
       ) : null}
-    </div>
+    </DashboardSurface>
   );
 }

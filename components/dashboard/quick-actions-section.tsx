@@ -27,11 +27,11 @@ export function QuickActionsSection({
   return (
     <div
       className={cn(
-        'w-full lg:min-w-[360px] lg:max-w-[520px]',
+        'w-full max-w-[760px]',
         className
       )}
     >
-      <div className="flex items-center gap-2 lg:justify-end">
+      <div className="flex items-center gap-2">
         <p className="text-[11px] font-semibold text-slate-500">
           {title}
         </p>

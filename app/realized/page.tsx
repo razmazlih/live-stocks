@@ -15,7 +15,9 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { calculateRealizedTaxLiability, formatCurrency, formatPercent } from '@/lib/calculations';
 import { Button } from '@/components/ui/button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -151,55 +153,27 @@ export default function RealizedPnLPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-primary-050)]">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--color-primary-025)] via-[var(--color-primary-010)] to-[var(--color-primary-005)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(var(--color-primary-400-rgb),0.18),_transparent_60%)]" />
-      <div className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-            <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
-                    <CircleDollarSign className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">{t.realized.title}</h1>
-                    <p className="mt-1 max-w-xl text-sm text-slate-600 sm:text-base">{t.realized.subtitle}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-sm">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-                    {t.app.updated} {lastUpdatedDisplay ?? '—'}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-neutral-white)]/70 px-3 py-1 text-slate-600 shadow-sm">
-                    <TrendingUp className="h-4 w-4 text-blue-500" />
-                    1 USD ≈ {formatCurrency(rate, 'ILS', locale)}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${getTrendTone(netProfitUsd).badge}`}
-                  >
-                    {getTrendIcon(netProfitUsd)}
-                    <span className="flex flex-col leading-tight">
-                      <span>{formatSignedCurrency(netProfitUsd, 'USD', locale)}</span>
-                      <span className="text-[11px] text-overlay-slate-600">
-                        {formatSignedCurrency(netProfitIls, 'ILS', locale)}
-                      </span>
-                    </span>
-                    <span className="text-xs font-medium text-overlay-slate-600">{t.realized.netProfitAfterTax}</span>
-                  </span>
-                </div>
-              </div>
-              <QuickActionsSection title={t.realized.actions} actions={quickActions} />
-            </div>
-          </header>
+    <DashboardRouteShell activeKey="realized" locale={locale}>
+      <DashboardContainer>
+        <PageHeader
+          title={t.realized.title}
+          subtitle={t.realized.subtitle}
+          icon={CircleDollarSign}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+          metaBadges={[
+            { key: 'updated', label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`, className: 'bg-blue-50 text-blue-700 border-blue-100' },
+            { key: 'rate', icon: TrendingUp, label: `1 USD ≈ ${formatCurrency(rate, 'ILS', locale)}` },
+            {
+              key: 'net',
+              label: `${formatSignedCurrency(netProfitUsd, 'USD', locale)} · ${formatSignedCurrency(netProfitIls, 'ILS', locale)} ${t.realized.netProfitAfterTax}`,
+              className: getTrendTone(netProfitUsd).badge,
+            },
+          ]}
+        />
 
-          <main className="mt-10 space-y-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-              <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
-              <div className="relative z-10">
+        <DashboardMain>
+          <DashboardSurface>
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
                     <RefreshCw className="h-5 w-5 animate-spin text-blue-400" />
@@ -222,7 +196,7 @@ export default function RealizedPnLPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-10">
+                  <div className="space-y-5">
                     <div className="space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h2 className="text-xl font-semibold text-slate-900">{t.realized.summaryTitle}</h2>
@@ -240,11 +214,10 @@ export default function RealizedPnLPage() {
                   </span>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalProceeds}</p>
-                            <p className="text-3xl font-semibold text-slate-900">
+                            <p className="text-2xl font-semibold text-slate-900">
                               {formatCurrency(totals.proceedsUsd, 'USD', locale)}
                             </p>
                             <p className="text-xs font-medium text-slate-500">
@@ -252,11 +225,10 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalCost}</p>
-                            <p className="text-3xl font-semibold text-slate-900">
+                            <p className="text-2xl font-semibold text-slate-900">
                               {formatCurrency(totals.costUsd, 'USD', locale)}
                             </p>
                             <p className="text-xs font-medium text-slate-500">
@@ -264,11 +236,10 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.totalProfit}</p>
-                            <p className={`text-3xl font-semibold ${getTrendTone(totals.profitUsd).text}`}>
+                            <p className={`text-2xl font-semibold ${getTrendTone(totals.profitUsd).text}`}>
                               {formatSignedCurrency(totals.profitUsd, 'USD', locale)}
                             </p>
                             <p className={`text-xs font-medium ${getTrendTone(totals.profitUsd).text}`}>
@@ -276,13 +247,12 @@ export default function RealizedPnLPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/70 bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner">
-                          <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="relative z-10 space-y-3">
                             <p className="text-sm font-medium text-slate-500">{t.realized.taxesTitle}</p>
                             <div className="space-y-1">
                               <span className="sr-only">{t.realized.taxesUsdLabel}</span>
-                              <p className="text-3xl font-semibold text-slate-900">
+                              <p className="text-2xl font-semibold text-slate-900">
                                 {formatCurrency(taxSummary.taxUsd, 'USD', locale)}
                               </p>
                             </div>
@@ -309,7 +279,7 @@ export default function RealizedPnLPage() {
                             return (
                               <div
                                 key={item.symbol}
-                                className={`rounded-3xl border ${tone.border} bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner`}
+                                className={`rounded-xl border ${tone.border} bg-white p-4 shadow-sm`}
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -386,9 +356,8 @@ export default function RealizedPnLPage() {
                           return (
                             <div
                               key={`${sale.id ?? sale.symbol}-${sale.sellDate}`}
-                              className={`relative overflow-hidden rounded-3xl border ${tone.border} bg-[color:var(--color-neutral-white)]/90 p-5 shadow-inner`}
+                              className={`rounded-xl border ${tone.border} bg-white p-4 shadow-sm`}
                             >
-                              <div className="pointer-events-none absolute -right-12 top-0 h-32 w-32 rounded-full bg-[color:var(--color-blue-100)]/30 blur-3xl" />
                               <div className="relative z-10 space-y-3">
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -474,11 +443,9 @@ export default function RealizedPnLPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            </section>
-          </main>
-        </div>
-      </div>
-    </div>
+          </DashboardSurface>
+        </DashboardMain>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

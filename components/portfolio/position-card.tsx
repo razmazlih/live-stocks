@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
-import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
+import { getTrendIcon, getTrendTone } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
 
 interface PositionCardProps {
@@ -231,35 +232,11 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     return { className: 'text-[var(--color-primary-500)]', hex: 'var(--color-primary-500)' } as const;
   }, [sparklineReferencePrice, position.entryPrice, projectedPrice]);
 
-  const getTrendStyles = (value: number) => {
-    if (value > 0) {
-      return {
-        text: 'text-[var(--color-green-300)]',
-        badge: 'bg-[var(--color-green-050)] text-[var(--color-green-300)]',
-        surface: 'border border-emerald-100 bg-emerald-50/80',
-      };
-    }
-
-    if (value < 0) {
-      return {
-        text: 'text-[var(--color-red-500)]',
-        badge: 'bg-[var(--color-red-050)] text-[var(--color-red-500)]',
-        surface: 'border border-rose-100 bg-rose-50/80',
-      };
-    }
-
-    return {
-      text: 'text-[var(--color-slate-600)]',
-      badge: 'bg-[var(--color-slate-100)] text-[var(--color-slate-500)]',
-      surface: 'border border-slate-200 bg-slate-50/70',
-    };
-  };
-
   const dailyChangeValue = typeof metrics.dailyChange === 'number' ? metrics.dailyChange : null;
   const dailyChangePercent = metrics.dailyChangePercent;
   const percentText = (value: number) => `${value > 0 ? '+' : ''}${formatPercent(value, locale)}`;
   const dailyChangeAmount = dailyChangeValue !== null ? dailyChangeValue * position.quantity : null;
-  const dailyChangeStyles = dailyChangeAmount !== null ? getTrendStyles(dailyChangeAmount) : null;
+  const dailyChangeStyles = dailyChangeAmount !== null ? getTrendTone(dailyChangeAmount) : null;
   const dailyChangePercentText =
     typeof dailyChangePercent === 'number' && Number.isFinite(dailyChangePercent)
       ? percentText(dailyChangePercent)
@@ -273,16 +250,12 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
           ? 'border-rose-200/75 bg-gradient-to-r from-rose-100/80 via-rose-50/55 to-white'
           : 'border-slate-200/80 bg-gradient-to-r from-slate-100/95 via-white to-slate-100/95';
   const dailyChangeIcon = dailyChangeAmount !== null
-    ? dailyChangeAmount > 0
-      ? <ArrowUpRight className="h-3.5 w-3.5" />
-      : dailyChangeAmount < 0
-        ? <ArrowDownRight className="h-3.5 w-3.5" />
-        : <Minus className="h-3.5 w-3.5" />
+    ? getTrendIcon(dailyChangeAmount, 'h-3.5 w-3.5')
     : null;
 
-  const currentPnLStyles = getTrendStyles(positionPnLUsd);
-  const combinedStyles = getTrendStyles(combined);
-  const changeFromEntryStyles = changeFromEntryPercent !== null ? getTrendStyles(changeFromEntryPercent) : null;
+  const currentPnLStyles = getTrendTone(positionPnLUsd);
+  const combinedStyles = getTrendTone(combined);
+  const changeFromEntryStyles = changeFromEntryPercent !== null ? getTrendTone(changeFromEntryPercent) : null;
 
   const closedStats = closedSummary
     ? [
@@ -310,13 +283,13 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
           key: 'profit',
           label: t.dashboard.closedTotalProfit,
           value: formatCurrency(closedSummary.totalProfitUsd, 'USD', locale),
-          tone: getTrendStyles(closedSummary.totalProfitUsd),
+          tone: getTrendTone(closedSummary.totalProfitUsd),
         },
         {
           key: 'return',
           label: t.dashboard.closedTotalReturn,
           value: percentText(closedSummary.totalReturnPercent),
-          tone: getTrendStyles(closedSummary.totalReturnPercent),
+          tone: getTrendTone(closedSummary.totalReturnPercent),
         },
       ]
     : [];

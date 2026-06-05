@@ -5,7 +5,6 @@ import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertTriangle,
-  ArrowDownRight,
   ArrowUpRight,
   Check,
   ChevronLeft,
@@ -39,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getTrendPresentation } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
 
 interface PositionsOverviewProps {
@@ -92,29 +92,17 @@ interface ClosedMetricsGroup {
 }
 
 function getValueTone(value: number) {
-  if (value > VALUE_THRESHOLD) {
-    return {
-      text: 'text-emerald-600',
-      bg: 'bg-emerald-50',
-      icon: <ArrowUpRight className="h-4 w-4" />,
-      hex: 'var(--color-emerald-500)',
-    };
-  }
-
-  if (value < -VALUE_THRESHOLD) {
-    return {
-      text: 'text-rose-600',
-      bg: 'bg-rose-50',
-      icon: <ArrowDownRight className="h-4 w-4" />,
-      hex: 'var(--color-rose-500)',
-    };
-  }
+  const tone = getTrendPresentation(value, {
+    threshold: VALUE_THRESHOLD,
+    iconClassName: 'h-4 w-4',
+    hideNeutralIcon: true,
+  });
 
   return {
-    text: 'text-slate-600',
-    bg: 'bg-slate-50',
-    icon: null,
-    hex: 'var(--color-primary-500)',
+    text: tone.text,
+    bg: tone.bg,
+    icon: tone.icon,
+    hex: tone.color,
   };
 }
 

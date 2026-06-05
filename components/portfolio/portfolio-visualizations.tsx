@@ -370,7 +370,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
           ) : (
             <>
               <div className="h-60 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 [direction:ltr]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <BarChart data={holdingPeriodData} layout="vertical" barCategoryGap="26%" margin={{ top: 8, right: 20, bottom: 0, left: 22 }}>
                     <defs>
                       <linearGradient id="holdingPeriodGradient" x1="0" y1="0" x2="1" y2="0">
@@ -480,7 +480,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             </div>
           ) : (
             <div className="h-80 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={pnlData} barGap={6} barCategoryGap="20%" margin={{ top: 8, right: 8, left: 0, bottom: 2 }}>
                   <defs>
                     <linearGradient id="pnlCurrentGainGradient" x1="0" y1="0" x2="0" y2="1">
@@ -575,7 +575,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             <>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="h-72 sm:h-80">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <defs>
                       {allocationData.map((entry, index) => {

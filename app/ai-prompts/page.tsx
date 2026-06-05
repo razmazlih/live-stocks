@@ -4,9 +4,10 @@ import { useCallback, useMemo } from 'react';
 import { CheckCircle2, Copy, Globe2, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { DashboardPageShell } from '@/components/dashboard/page-shell';
-import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
+import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
+import { PageHeader } from '@/components/dashboard/page-header';
+import { DashboardContainer, DashboardMain } from '@/components/dashboard/page-primitives';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +49,6 @@ function deriveTags(
 export default function AiPromptsPage() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const direction = locale === 'he' ? 'rtl' : 'ltr';
   const {
     metrics,
     loading,
@@ -175,10 +175,12 @@ export default function AiPromptsPage() {
   const quickActions = useMemo(
     () =>
       createCommonQuickActions(t, {
+        exclude: ['aiPrompts'],
         overrides: {
           reload: {
             onClick: reload,
             disabled: loading || refreshing,
+            iconClassName: loading || refreshing ? 'animate-spin' : undefined,
           },
         },
       }),
@@ -226,42 +228,24 @@ export default function AiPromptsPage() {
   );
 
   return (
-    <DashboardPageShell direction={direction}>
-      <div className="mx-auto max-w-6xl px-4 pb-14 pt-10">
-        <div className="flex flex-col gap-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--color-primary-900)] via-[var(--color-primary-700)] to-[var(--color-primary-500)] p-6 shadow-xl ring-1 ring-black/5">
-            <div className="absolute inset-y-0 left-0 w-1/3 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_55%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-                <Sparkles className="h-4 w-4" />
-                <span>{t.aiPrompts.quickAction}</span>
-              </div>
-              <div className="flex flex-col gap-2 text-white">
-                <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{t.aiPrompts.title}</h1>
-                <p className="max-w-3xl text-sm text-white/80">{t.aiPrompts.subtitle}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {statChips.map((chip) => (
-                  <div
-                    key={chip.label}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur ring-1 ring-white/20"
-                  >
-                    <span className="text-white/80">{chip.label}</span>
-                    <span className="text-white">{chip.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <QuickActionsSection
-            title={t.dashboard.quickActions}
-            description={t.positions.quickActionsDescription}
-            actions={quickActions}
+    <DashboardRouteShell activeKey="aiPrompts" locale={locale}>
+      <DashboardContainer className="pb-14">
+        <div className="flex flex-col gap-5">
+          <PageHeader
+            title={t.aiPrompts.title}
+            subtitle={t.aiPrompts.subtitle}
+            icon={Sparkles}
+            metaBadges={statChips.map((chip) => ({
+              key: chip.label,
+              label: `${chip.label}: ${chip.value}`,
+            }))}
+            quickActionsTitle={t.dashboard.quickActions}
+            quickActions={quickActions}
           />
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-sm">
+          <DashboardMain className="mt-0">
+            <div className="grid gap-5 lg:grid-cols-3">
+              <Card className="lg:col-span-2 shadow-sm">
               <CardHeader>
                 <CardTitle>{t.aiPrompts.contextTitle}</CardTitle>
                 <CardDescription>
@@ -292,7 +276,7 @@ export default function AiPromptsPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+              <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>{t.aiPrompts.tagsTitle}</CardTitle>
                 <CardDescription>{t.aiPrompts.tagsHelper}</CardDescription>
@@ -312,8 +296,8 @@ export default function AiPromptsPage() {
                   ))
                 )}
               </CardContent>
-            </Card>
-          </div>
+              </Card>
+            </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2 shadow-sm">
@@ -396,8 +380,9 @@ export default function AiPromptsPage() {
               </Card>
             ))}
           </div>
+          </DashboardMain>
         </div>
-      </div>
-    </DashboardPageShell>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

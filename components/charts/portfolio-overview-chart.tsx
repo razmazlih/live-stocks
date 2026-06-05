@@ -1,10 +1,11 @@
 'use client';
 
 import { LineChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Fragment, useId, useMemo } from 'react';
+import { type ReactNode, Fragment, useId, useMemo } from 'react';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardSurface } from '@/components/dashboard/page-primitives';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -41,6 +42,8 @@ const trendStateColors: Record<ChartPoint['trendState'], string> = {
   under: 'var(--color-primary-300)',
   above: 'var(--color-green-500)',
 };
+
+const SPY_LABEL = 'S&P 500';
 
 const resolveTrendState = (
   netValue: number,
@@ -112,7 +115,7 @@ const formatSignedCurrency = (value: number, formatter: (value: number) => strin
 
 const resolveForecastGapVisuals = (
   value: number
-): { text: string; badge: string; border: string; background: string; icon: JSX.Element } => {
+): { text: string; badge: string; border: string; background: string; icon: ReactNode } => {
   if (value > 0) {
     return {
       text: 'text-emerald-600',
@@ -141,6 +144,56 @@ const resolveForecastGapVisuals = (
     icon: <Minus className="h-4 w-4" />,
   };
 };
+
+function TooltipCurrencyStack({
+  usd,
+  ils,
+  formatUsd,
+  formatIls,
+  valueClassName = 'text-slate-900',
+}: {
+  usd: number;
+  ils: number;
+  formatUsd: (value: number) => string;
+  formatIls: (value: number) => string;
+  valueClassName?: string;
+}) {
+  return (
+    <>
+      <p className={`mt-0.5 text-base font-semibold ${valueClassName}`}>{formatUsd(usd)}</p>
+      <p className="text-[10px] text-slate-500">{formatIls(ils)}</p>
+    </>
+  );
+}
+
+function PortfolioMetricTile({
+  label,
+  value,
+  secondary,
+  tertiary,
+  className,
+  labelClassName,
+  valueClassName = 'text-slate-900',
+  secondaryClassName = 'text-slate-500',
+}: {
+  label: string;
+  value: string;
+  secondary: string;
+  tertiary?: string;
+  className: string;
+  labelClassName: string;
+  valueClassName?: string;
+  secondaryClassName?: string;
+}) {
+  return (
+    <div className={`rounded-2xl p-4 shadow-sm ${className}`}>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${labelClassName}`}>{label}</p>
+      <p className={`mt-2 text-lg font-semibold ${valueClassName}`}>{value}</p>
+      <p className={`text-xs ${secondaryClassName}`}>{secondary}</p>
+      {tertiary ? <p className="text-xs text-slate-400">{tertiary}</p> : null}
+    </div>
+  );
+}
 
 const ChartTooltip = ({
   active,
@@ -178,7 +231,7 @@ const ChartTooltip = ({
   const changeClass = changeUsd >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
   return (
-    <div className="w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-[color:var(--color-neutral-white)]/95 p-3 text-[11px] shadow-xl backdrop-blur-xl">
+    <div className="w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-white p-3 text-[11px] shadow-lg">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 text-[10px] text-slate-500">
         <span className="font-semibold text-slate-400">{labels.at}</span>
         <span className="font-semibold text-slate-600">{labelFormatter(label ?? '')}</span>
@@ -187,13 +240,11 @@ const ChartTooltip = ({
       <div className="mt-2 grid grid-cols-2 gap-1.5">
         <div className="rounded-lg bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-emerald-500/15 p-2.5">
           <p className="text-[10px] font-semibold text-indigo-600">{labels.net}</p>
-          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(netUsd)}</p>
-          <p className="text-[10px] text-slate-500">{formatIls(netIls)}</p>
+          <TooltipCurrencyStack usd={netUsd} ils={netIls} formatUsd={formatUsd} formatIls={formatIls} />
         </div>
         <div className="rounded-lg border border-[color:var(--color-amber-200)]/70 bg-gradient-to-br from-amber-400/15 via-amber-300/10 to-white/85 p-2.5 shadow-sm">
           <p className="text-[10px] font-semibold text-amber-600">{labels.forecast}</p>
-          <p className="mt-0.5 text-base font-semibold text-slate-900">{formatUsd(forecastUsd)}</p>
-          <p className="text-[10px] text-slate-500">{formatIls(forecastIls)}</p>
+          <TooltipCurrencyStack usd={forecastUsd} ils={forecastIls} formatUsd={formatUsd} formatIls={formatIls} />
           <div className="mt-1.5 space-y-0.5">
             <p className="text-[10px] font-semibold text-overlay-amber-500">{labels.projection}</p>
             <div className="flex items-center justify-between text-[10px] text-slate-500">
@@ -211,19 +262,24 @@ const ChartTooltip = ({
           </div>
         </div>
         <div className="col-span-2 rounded-lg border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white p-2.5 shadow-sm">
-            <p className="text-[10px] font-semibold text-slate-500">{labels.spy}</p>
-            <div className="mt-0.5 flex items-center justify-between">
-                <div>
-                    <p className="text-base font-semibold text-slate-700">{formatUsd(spyUsd)}</p>
-                    <p className="text-[10px] text-slate-500">{formatIls(spyIls)}</p>
-                </div>
-                <div className="text-right">
-                     <p className={`text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
-                     </p>
-                     <p className="text-[10px] text-slate-400">vs S&P 500</p>
-                </div>
+          <p className="text-[10px] font-semibold text-slate-500">{labels.spy}</p>
+          <div className="mt-0.5 flex items-center justify-between">
+            <div>
+              <TooltipCurrencyStack
+                usd={spyUsd}
+                ils={spyIls}
+                formatUsd={formatUsd}
+                formatIls={formatIls}
+                valueClassName="text-slate-700"
+              />
             </div>
+            <div className="text-right">
+              <p className={`text-xs font-semibold ${netUsd > spyUsd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {formatSignedCurrency(netUsd - spyUsd, formatUsd)}
+              </p>
+              <p className="text-[10px] text-slate-400">vs {SPY_LABEL}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -553,10 +609,58 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
   const formattedBestValueIls = bestPoint ? ilsFormatter(bestPoint.netValueIls) : '—';
   const formattedWorstValueUsd = worstPoint ? usdFormatter(worstPoint.netValue) : '—';
   const formattedWorstValueIls = worstPoint ? ilsFormatter(worstPoint.netValueIls) : '—';
+  const portfolioMetricTiles = [
+    {
+      label: t.dashboard.currentPnL,
+      value: usdFormatter(openPnLUsd),
+      secondary: ilsFormatter(openPnLIls),
+      className: 'bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white',
+      labelClassName: 'text-indigo-600',
+    },
+    {
+      label: t.dashboard.realizedPnL,
+      value: usdFormatter(realizedPnLUsd),
+      secondary: ilsFormatter(realizedPnLIls),
+      className: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white',
+      labelClassName: 'text-emerald-600',
+    },
+    {
+      label: t.dashboard.taxesPaid,
+      value: usdFormatter(taxesUsd * -1),
+      secondary: ilsFormatter(taxesIls * -1),
+      className: 'border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white',
+      labelClassName: 'text-rose-600',
+      valueClassName: 'text-rose-600',
+      secondaryClassName: 'text-rose-500',
+    },
+    {
+      label: t.dashboard.projectedPnL,
+      value: usdFormatter(projectedPnLUsd),
+      secondary: ilsFormatter(projectedPnLIls),
+      className: 'bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white',
+      labelClassName: 'text-sky-600',
+    },
+    {
+      label: t.dashboard.bestPnL,
+      value: formattedBestValueUsd,
+      secondary: formattedBestValueIls,
+      tertiary: formattedBestDate,
+      className: 'border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white',
+      labelClassName: 'text-emerald-600',
+    },
+    {
+      label: t.dashboard.worstPnL,
+      value: formattedWorstValueUsd,
+      secondary: formattedWorstValueIls,
+      tertiary: formattedWorstDate,
+      className: 'border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white',
+      labelClassName: 'text-rose-600',
+    },
+  ];
 
   return (
-    <Card className="relative z-[11] border-[color:var(--color-neutral-white)]/50 bg-gradient-to-br from-white/98 via-white/92 to-slate-100/70 shadow-xl glass-blur-sm">
-      <CardHeader className="space-y-2 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/70">
+    <DashboardSurface className="relative z-[11] p-0">
+      <CardHeader className="space-y-2 border-b border-slate-200 bg-white">
         <CardTitle className="text-lg font-semibold text-slate-900">
           {t.dashboard.portfolioOverviewTitle}
         </CardTitle>
@@ -564,7 +668,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
       </CardHeader>
       <CardContent>
         <div className="space-y-6 pt-6">
-          <div className="rounded-3xl border border-overlay-slate-200 bg-[color:var(--color-neutral-white)]/85 p-6 shadow-lg">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
               <div className="space-y-4">
                 <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
@@ -606,38 +710,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
 
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{t.dashboard.currentPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(openPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(openPnLIls)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.realizedPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(realizedPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(realizedPnLIls)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.taxesPaid}</p>
-                    <p className="mt-2 text-lg font-semibold text-rose-600">{usdFormatter(taxesUsd * -1)}</p>
-                    <p className="text-xs text-rose-500">{ilsFormatter(taxesIls * -1)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-500/10 via-sky-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">{t.dashboard.projectedPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{usdFormatter(projectedPnLUsd)}</p>
-                    <p className="text-xs text-slate-500">{ilsFormatter(projectedPnLIls)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t.dashboard.bestPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedBestValueUsd}</p>
-                    <p className="text-xs text-slate-500">{formattedBestValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedBestDate}</p>
-                  </div>
-                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">{t.dashboard.worstPnL}</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{formattedWorstValueUsd}</p>
-                    <p className="text-xs text-slate-500">{formattedWorstValueIls}</p>
-                    <p className="text-xs text-slate-400">{formattedWorstDate}</p>
-                  </div>
+                  {portfolioMetricTiles.map((tile) => (
+                    <PortfolioMetricTile key={tile.label} {...tile} />
+                  ))}
                 </div>
 
                 <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
@@ -656,9 +731,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[color:var(--color-slate-200)]/70 bg-overlay-neutral-white shadow-inner">
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex h-full flex-col gap-6 p-6">
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-overlay-neutral-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/70 glass-blur-sm">
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm">
                 <div className="flex items-center gap-2">
                   <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
                   <span>{t.dashboard.timelineLegendActualLoss}</span>
@@ -677,11 +752,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="block h-[6px] w-6 rounded-full border-2 border-dashed border-slate-400" />
-                  <span>S&P 500</span>
+                  <span>{SPY_LABEL}</span>
                 </div>
               </div>
               <div className="relative h-[22rem] w-full lg:h-[24rem]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <LineChart data={chartPoints} margin={{ top: 12, right: -50, left: 0, bottom: 12 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
@@ -750,7 +825,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                           projection: t.dashboard.timelineTooltipProjection,
                           usd: t.dashboard.usdLabel,
                           ils: t.dashboard.ilsLabel,
-                          spy: "S&P 500",
+                          spy: SPY_LABEL,
                         }}
                       />
                     }
@@ -798,6 +873,6 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
           </div>
         </div>
       </CardContent>
-    </Card>
+    </DashboardSurface>
   );
 }

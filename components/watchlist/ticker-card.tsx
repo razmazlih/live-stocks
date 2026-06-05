@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
 
-import { Card } from '@/components/ui/card';
+import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Button } from '@/components/ui/button';
 import { Sparkline } from '@/components/charts/sparkline';
 import { formatCurrency, formatPercent, formatDate } from '@/lib/calculations';
@@ -46,6 +46,32 @@ function resolveTone(value?: number | null) {
     return 'text-slate-500';
   }
   return value > 0 ? 'text-emerald-600' : 'text-rose-600';
+}
+
+function TickerMetricPanel({
+  label,
+  value,
+  className,
+  labelClassName,
+  valueClassName,
+  children,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  labelClassName?: string;
+  valueClassName?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={cn('min-w-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3', className)}>
+      <p className={cn('text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500', labelClassName)}>
+        {label}
+      </p>
+      <p className={cn('mt-1 break-words font-semibold tabular-nums', valueClassName)}>{value}</p>
+      {children}
+    </div>
+  );
 }
 
 export function TickerCard({
@@ -279,10 +305,8 @@ export function TickerCard({
     effectiveHoveredPoint && typeof effectiveHoveredPoint.timestamp === 'number'
       ? `${hoverLabel} ${formatTooltipTimestamp(effectiveHoveredPoint.timestamp)}`
       : null;
-  const priceLabelClassName = 'text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500';
   const basePriceLabelText = hoverMeta ?? basePriceLabel;
   const basePriceLabelClassName = cn(
-    'text-[0.65rem] font-semibold text-slate-500',
     hoverMeta ? null : 'uppercase tracking-wide'
   );
 
@@ -297,9 +321,9 @@ export function TickerCard({
   );
 
   return (
-    <Card
+    <DashboardSurface
       className={cn(
-        'relative flex h-full flex-col overflow-hidden border card-surface ring-1 ring-[color:var(--color-slate-200)]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl',
+        'relative flex h-full flex-col overflow-hidden border border-slate-200 bg-white p-0 shadow-sm ring-1 ring-[color:var(--color-slate-200)]/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md',
         className
       )}
     >
@@ -353,29 +377,29 @@ export function TickerCard({
         </header>
 
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-          <div className="min-w-0 rounded-xl border border-slate-100 bg-overlay-slate-50 p-2.5 sm:col-span-2 sm:p-3">
-            <p className={priceLabelClassName}>{priceLabel}</p>
-            <p className="mt-1 break-words text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] font-semibold leading-tight tracking-tight text-slate-900 tabular-nums">
-              {priceText}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{changeLabel}</p>
-            <p className={cn('mt-1 break-words whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] font-semibold leading-tight tabular-nums', changeTone)}>
-              {changeText}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-xl border card-surface p-2.5 sm:p-3">
-            <p className={basePriceLabelClassName}>{basePriceLabelText}</p>
-            <p className="mt-1 break-words text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] font-semibold leading-snug text-slate-800 tabular-nums">
-              {basePriceText}
-            </p>
+          <TickerMetricPanel
+            label={priceLabel}
+            value={priceText}
+            className="border-slate-100 bg-overlay-slate-50 sm:col-span-2"
+            valueClassName="text-[clamp(1.15rem,1.2vw+0.95rem,1.7rem)] leading-tight tracking-tight text-slate-900"
+          />
+          <TickerMetricPanel
+            label={changeLabel}
+            value={changeText}
+            valueClassName={cn('whitespace-pre-line text-[clamp(0.95rem,1.05vw+0.8rem,1.35rem)] leading-tight', changeTone)}
+          />
+          <TickerMetricPanel
+            label={basePriceLabelText}
+            value={basePriceText}
+            labelClassName={basePriceLabelClassName}
+            valueClassName="text-[clamp(0.95rem,1.1vw+0.8rem,1.25rem)] leading-snug text-slate-800"
+          >
             {hoverMeta ? null : baseDateText ? (
               <p className="mt-1 text-[0.68rem] text-slate-400">
                 {startDateLabel ? `${startDateLabel} ${baseDateText}` : baseDateText}
               </p>
             ) : null}
-          </div>
+          </TickerMetricPanel>
         </div>
 
         <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
@@ -422,6 +446,6 @@ export function TickerCard({
           </div>
         ) : null}
       </div>
-    </Card>
+    </DashboardSurface>
   );
 }

@@ -1,92 +1,46 @@
-import { BrainCircuit, CircleDollarSign, Eye, Home, LineChart, Plus, RefreshCw, Settings, Sparkles } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 
 import type { DashboardQuickAction } from './quick-actions';
 import { translations } from '@/lib/translations';
+import { createAppRouteItems, type AppRouteKey } from './navigation';
 
 type Translation = (typeof translations)['he'];
 
 export type CommonQuickActionKey =
   | 'reload'
-  | 'dashboard'
-  | 'insights'
-  | 'portfolio'
-  | 'realized'
-  | 'watchlist'
-  | 'positions'
-  | 'aiPrompts'
-  | 'settings';
+  | AppRouteKey;
 
 type QuickActionFactory = () => DashboardQuickAction;
 
 type QuickActionFactories = Record<CommonQuickActionKey, QuickActionFactory>;
 
-const createFactories = (t: Translation): QuickActionFactories => ({
-  reload: () => ({
+const createFactories = (t: Translation): QuickActionFactories => {
+  const routeActions = createAppRouteItems(t).reduce(
+    (acc, route) => {
+      acc[route.key] = () => ({
+        key: route.key,
+        icon: route.key === 'positions' ? Plus : route.icon,
+        label: route.key === 'positions' ? t.positions.add : route.label,
+        href: route.href,
+        variant: route.key === 'settings' ? 'ghost' : 'secondary',
+        labelClassName: route.key === 'settings' ? 'hidden sm:inline' : undefined,
+      });
+      return acc;
+    },
+    {} as Omit<QuickActionFactories, 'reload'>,
+  );
+
+  return {
+    reload: () => ({
     key: 'reload',
     icon: RefreshCw,
     label: t.common.refresh,
     variant: 'outline',
     labelClassName: 'hidden sm:inline',
   }),
-  dashboard: () => ({
-    key: 'dashboard',
-    icon: Home,
-    label: t.app.title,
-    href: '/',
-    variant: 'secondary',
-  }),
-  insights: () => ({
-    key: 'insights',
-    icon: BrainCircuit,
-    label: t.dashboard.weeklyInsights,
-    href: '/insights',
-    className: 'bg-[var(--color-indigo-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-indigo-600)]',
-  }),
-  portfolio: () => ({
-    key: 'portfolio',
-    icon: LineChart,
-    label: t.portfolio.quickAction,
-    href: '/portfolio',
-    className: 'bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]',
-  }),
-  realized: () => ({
-    key: 'realized',
-    icon: CircleDollarSign,
-    label: t.realized.quickAction,
-    href: '/realized',
-    className: 'bg-[var(--color-primary-300)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-sky-600)]',
-  }),
-  watchlist: () => ({
-    key: 'watchlist',
-    icon: Eye,
-    label: t.watchlist.quickAction,
-    href: '/watchlist',
-    className: 'bg-[var(--color-primary-500)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-700)]',
-  }),
-  positions: () => ({
-    key: 'positions',
-    icon: Plus,
-    label: t.positions.add,
-    href: '/positions',
-    variant: 'secondary',
-  }),
-  aiPrompts: () => ({
-    key: 'aiPrompts',
-    icon: Sparkles,
-    label: t.aiPrompts.quickAction,
-    href: '/ai-prompts',
-    className: 'bg-[var(--color-primary-700)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-800)]',
-  }),
-  settings: () => ({
-    key: 'settings',
-    icon: Settings,
-    label: t.settings.title,
-    href: '/settings',
-    variant: 'ghost',
-    className: 'text-[var(--color-slate-600)] hover:text-[var(--color-primary-900)]',
-    labelClassName: 'hidden sm:inline',
-  }),
-});
+    ...routeActions,
+  };
+};
 
 export interface CommonQuickActionsOptions {
   include?: CommonQuickActionKey[];

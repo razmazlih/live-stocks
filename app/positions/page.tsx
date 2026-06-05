@@ -51,9 +51,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { createCommonQuickActions } from "@/components/dashboard/common-quick-actions";
 import type { DashboardQuickAction } from "@/components/dashboard/quick-actions";
+import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { DashboardContainer, DashboardMain } from "@/components/dashboard/page-primitives";
 import {
   Plus,
   Pencil,
@@ -71,7 +73,6 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { DashboardPageShell } from "@/components/dashboard/page-shell";
 
 interface PositionFormData {
   symbol: string;
@@ -791,53 +792,16 @@ export default function PositionsPage() {
   }
 
   return (
-    <DashboardPageShell direction={isRtl ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-5 py-5 shadow-xl glass-blur-sm sm:px-6 sm:py-6">
-          <div className="pointer-events-none absolute -right-12 top-0 h-48 w-48 rounded-full bg-[color:var(--color-blue-200)]/60 blur-3xl" />
-          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-blue-100 p-2.5 text-blue-600 shadow-inner">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-[var(--color-primary-900)] sm:text-3xl">
-                    {t.positions.title}
-                  </h1>
-                  <p className="mt-1 max-w-2xl text-sm text-slate-600 sm:text-base">
-                    {t.positions.subtitle}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-                {headerMetaBadges.map((badge) => {
-                  const Icon = badge.icon;
-                  return (
-                    <span
-                      key={badge.key}
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-full px-3 py-1 shadow-sm",
-                        badge.className,
-                      )}
-                    >
-                      <Icon className={cn("h-4 w-4", badge.iconClassName)} />
-                      <span>{badge.label}</span>
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-            <QuickActionsSection
-              title={t.dashboard.quickActions}
-              actions={quickActions}
-            >
-              <p className="mt-4 text-xs text-slate-500">
-                {t.positions.quickActionsDescription}
-              </p>
-            </QuickActionsSection>
-          </div>
-        </header>
+    <DashboardRouteShell activeKey="positions" locale={locale}>
+      <DashboardContainer>
+        <PageHeader
+          title={t.positions.title}
+          subtitle={t.positions.subtitle}
+          icon={Layers}
+          metaBadges={headerMetaBadges}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+        />
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-xl">
@@ -1356,9 +1320,8 @@ export default function PositionsPage() {
           </DialogContent>
         </Dialog>
 
-        <main className="mt-10 space-y-10">
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/50 blur-3xl" />
+        <DashboardMain>
+          <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
             <div className="relative z-10">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1372,7 +1335,7 @@ export default function PositionsPage() {
                 {overviewStats.map(({ key, label, value, icon: Icon }) => (
                   <Card
                     key={key}
-                    className="border-none bg-[color:var(--color-neutral-white)]/90 shadow-inner"
+                    className="border border-slate-200 bg-slate-50 shadow-none"
                   >
                     <CardContent className="flex items-center gap-3 p-4">
                       <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
@@ -1393,11 +1356,10 @@ export default function PositionsPage() {
             </div>
           </section>
 
-          <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-8 shadow-xl glass-blur-sm sm:px-8">
-            <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[color:var(--color-blue-100)]/40 blur-3xl" />
+          <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
             <div className="relative z-10">
               {loading ? (
-                <Card className="border border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm backdrop-blur">
+                <Card>
                   <CardContent className="py-16 text-center text-slate-500">
                     {t.common.loading}
                   </CardContent>
@@ -1545,8 +1507,8 @@ export default function PositionsPage() {
                     </Card>
                   ) : (
                     <>
-                      <div className="hidden overflow-hidden rounded-2xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm md:block">
-                        <Table className="min-w-[920px]">
+                      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm lg:block">
+                        <Table className="min-w-[860px]">
                           <TableHeader className="bg-slate-50/90">
                             <TableRow className="hover:bg-slate-50/90">
                               <TableHead>{t.positions.columnAsset}</TableHead>
@@ -1712,7 +1674,7 @@ export default function PositionsPage() {
                         </Table>
                       </div>
 
-                      <div className="space-y-3 md:hidden">
+                      <div className="space-y-3 lg:hidden">
                         {paginatedPositionItems.map((item) => {
                           const { position, sortedLots, recentLots } = item;
 
@@ -1916,8 +1878,8 @@ export default function PositionsPage() {
               )}
             </div>
           </section>
-        </main>
-      </div>
-    </DashboardPageShell>
+        </DashboardMain>
+      </DashboardContainer>
+    </DashboardRouteShell>
   );
 }

@@ -70,6 +70,28 @@ type NormalizedData = {
   range: number;
 };
 
+const EVENT_DETAIL_CARD_CLASS = 'rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm';
+
+function SparklineEventMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className={EVENT_DETAIL_CARD_CLASS}>
+      <div className="text-[10px] font-medium tracking-wide text-slate-500">{label}</div>
+      <div
+        className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums"
+        dir="ltr"
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export function Sparkline({
   points,
   width = 320,
@@ -990,25 +1012,17 @@ export function Sparkline({
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
-                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
-                    מחיר
-                  </div>
-                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
-                    {activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
-                  <div className="text-[10px] font-medium tracking-wide text-slate-500">
-                    כמות
-                  </div>
-                  <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-semibold leading-none text-slate-800 tabular-nums" dir="ltr">
-                    {activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
-                  </div>
-                </div>
+                <SparklineEventMetric
+                  label="מחיר"
+                  value={activeEvent.priceLabel ?? activeEvent.price.toLocaleString()}
+                />
+                <SparklineEventMetric
+                  label="כמות"
+                  value={activeEvent.quantityLabel ?? activeEvent.quantity.toLocaleString()}
+                />
               </div>
               {changeFromEvent && (
-                <div className="mt-2 rounded-lg border border-slate-200/80 bg-white/75 px-2.5 py-1.5 shadow-sm">
+                <div className={`mt-2 ${EVENT_DETAIL_CARD_CLASS}`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-medium text-slate-600">שינוי באחוזים</span>
                     <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass}`} dir="ltr">
