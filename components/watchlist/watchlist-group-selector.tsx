@@ -99,23 +99,40 @@ export function WatchlistGroupSelector({
                   <div
                     key={group.id ?? group.name}
                     className={cn(
-                      'group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-4 py-4 transition-all',
+                      'group relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-2xl border p-2 transition-all',
                       'border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm hover:border-[color:var(--color-blue-200)]/70 hover:shadow-md dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:hover:border-slate-600',
                       isActive &&
                         'border-[color:var(--color-blue-400)]/70 bg-overlay-blue-50 text-blue-700 shadow-md dark:border-[color:var(--color-blue-500)]/60 dark:bg-[color:var(--color-slate-800)]/70 dark:text-blue-100'
                     )}
-                    onClick={() => group.id && onSelect(group.id)}
                   >
-                    <div className="flex flex-1 flex-col">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{group.name}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <button
+                      type="button"
+                      disabled={!group.id}
+                      aria-pressed={isActive}
+                      onClick={() => group.id && onSelect(group.id)}
+                      onKeyDown={(event) => {
+                        if (!group.id) {
+                          return;
+                        }
+
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onSelect(group.id);
+                        }
+                      }}
+                      className="min-w-0 rounded-xl px-2 py-2 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-blue-300"
+                    >
+                      <span className="block truncate text-sm font-semibold text-slate-700 dark:text-slate-100">
+                        {group.name}
+                      </span>
+                      <span className="mt-0.5 block break-words text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                         {group.description || ''}
                       </span>
-                      <span className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
                         {renderTickerCount ? renderTickerCount(group) : `${group.tickers.length}`}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-1">
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1 pt-2">
                       {onEdit ? (
                         <Button
                           variant="ghost"

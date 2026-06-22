@@ -1673,17 +1673,17 @@ export default function PositionsPage() {
                         </Table>
                       </div>
 
-                      <div className="space-y-3 lg:hidden">
+                      <div className="min-w-0 space-y-3 overflow-hidden lg:hidden">
                         {paginatedPositionItems.map((item) => {
                           const { position, sortedLots, recentLots } = item;
 
                           return (
                             <Card
                               key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                              className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm"
+                              className="min-w-0 max-w-full overflow-hidden border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm"
                             >
-                              <CardHeader className="space-y-3 pb-3">
-                                <div className="flex items-start justify-between gap-3">
+                              <CardHeader className="min-w-0 space-y-3 pb-3">
+                                <div className="flex min-w-0 items-start justify-between gap-3">
                                   <div className="flex min-w-0 items-center gap-3">
                                     <Avatar className="h-11 w-11 border border-slate-200 bg-slate-50">
                                       <StockAvatarImage
@@ -1726,36 +1726,36 @@ export default function PositionsPage() {
                                     </Button>
                                   </Link>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                <div className="grid min-w-0 grid-cols-2 gap-2 text-xs text-slate-600">
+                                  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
                                     <p className="text-[11px] text-slate-500">
                                       {t.positions.quantity}
                                     </p>
-                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                    <p className="mt-0.5 break-words font-semibold text-slate-800">
                                       {formatNumber(position.quantity, locale)}
                                     </p>
                                   </div>
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
                                     <p className="text-[11px] text-slate-500">
                                       {t.positions.entryPrice}
                                     </p>
-                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                    <p className="mt-0.5 break-words font-semibold text-slate-800">
                                       {formatCurrency(position.entryPrice, "USD", locale)}
                                     </p>
                                   </div>
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
                                     <p className="text-[11px] text-slate-500">
                                       {t.positions.entryDate}
                                     </p>
-                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                    <p className="mt-0.5 break-words font-semibold text-slate-800">
                                       {formatDate(position.entryDate, locale)}
                                     </p>
                                   </div>
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                                  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
                                     <p className="text-[11px] text-slate-500">
                                       {t.positions.lastActivity}
                                     </p>
-                                    <p className="mt-0.5 font-semibold text-slate-800">
+                                    <p className="mt-0.5 break-words font-semibold text-slate-800">
                                       {formatDate(item.lastActivityDate, locale)}
                                     </p>
                                   </div>
@@ -1789,12 +1789,12 @@ export default function PositionsPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => openTransactionDialog(position)}
-                                    className="h-8 text-xs"
+                                    className="!h-auto !min-h-9 w-full min-w-0 !whitespace-normal px-2 py-2 text-xs leading-tight"
                                   >
                                     {t.positions.addTransaction}
                                   </Button>
@@ -1802,11 +1802,11 @@ export default function PositionsPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => openHistoryDialog(position)}
-                                    className="h-8 text-xs"
+                                    className="!h-auto !min-h-9 w-full min-w-0 !whitespace-normal px-2 py-2 text-xs leading-tight"
                                   >
                                     {t.positions.manageHistory}
                                   </Button>
-                                  <div className="flex items-center justify-end gap-1">
+                                  <div className="flex items-center justify-end gap-1 min-[360px]:col-span-2 sm:col-span-1">
                                     <Button
                                       variant="ghost"
                                       size="icon"

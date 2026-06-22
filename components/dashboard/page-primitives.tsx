@@ -21,7 +21,7 @@ export function DashboardContainer({
   width = 'full',
 }: DashboardContainerProps) {
   return (
-    <div className={cn('mx-auto px-4 py-8 sm:px-6 lg:px-8', WIDTH_CLASS[width], className)}>
+    <div className={cn('mx-auto w-full min-w-0 px-4 py-8 sm:px-6 lg:px-8', WIDTH_CLASS[width], className)}>
       {children}
     </div>
   );

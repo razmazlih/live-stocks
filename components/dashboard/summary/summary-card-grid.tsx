@@ -62,15 +62,15 @@ export function SummaryCardGrid({ cards }: SummaryCardGridProps) {
               {hasDetails && (
               <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
                 {card.secondary && (
-                  <div className="grid grid-cols-[auto_1fr] items-center gap-2 text-sm">
-                    <span className="font-medium text-slate-500">{card.secondary.label}:</span>
-                    <span className="font-semibold tabular-nums text-slate-700">{card.secondary.value}</span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-sm">
+                    <span className="min-w-0 break-words font-medium text-slate-500">{card.secondary.label}:</span>
+                    <span className="shrink-0 whitespace-nowrap text-end font-semibold tabular-nums text-slate-700">{card.secondary.value}</span>
                   </div>
                 )}
                 {card.helper?.map((helper) => (
-                  <div key={`${card.key}-${helper.label}`} className="grid grid-cols-[auto_1fr] items-center gap-2 text-xs">
-                    <span className="text-slate-500">{helper.label}:</span>
-                    <span className="font-semibold tabular-nums text-slate-700">{helper.value}</span>
+                  <div key={`${card.key}-${helper.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs">
+                    <span className="min-w-0 break-words text-slate-500">{helper.label}:</span>
+                    <span className="shrink-0 whitespace-nowrap text-end font-semibold tabular-nums text-slate-700">{helper.value}</span>
                   </div>
                 ))}
                 {card.footnote && (
