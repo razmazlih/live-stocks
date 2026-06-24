@@ -44,8 +44,9 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
 
   const renderActionButton = (action: DashboardQuickAction) => {
     const Icon = action.icon;
-    const contentClassName = 'flex w-full min-w-0 items-center justify-center gap-2';
-    const labelBaseClassName = 'min-w-0 whitespace-normal text-balance text-xs font-semibold leading-tight sm:text-sm';
+    const contentClassName = 'flex w-full min-w-0 items-center justify-start gap-2 sm:justify-center';
+    const labelBaseClassName =
+      'min-w-0 whitespace-normal text-balance text-xs font-semibold leading-tight sm:text-sm';
     const iconBaseClassName = 'h-4 w-4 shrink-0';
     const iconToneClassName =
       ACTION_ICON_TONE_BY_KEY[action.key] ??
@@ -77,7 +78,7 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
         disabled={action.disabled}
         aria-label={action.ariaLabel ?? action.label}
         className={cn(
-          '!h-auto !min-h-[44px] !whitespace-normal w-[min(76vw,13rem)] shrink-0 snap-start rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-800 shadow-sm transition-colors duration-200 hover:border-blue-200 hover:bg-slate-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 disabled:opacity-45 sm:!h-10 sm:!min-h-10 sm:min-w-[112px] sm:w-auto sm:py-0',
+          '!h-auto !min-h-[42px] !whitespace-normal w-[min(76vw,13.5rem)] shrink-0 snap-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-800 shadow-sm transition-colors duration-200 hover:border-blue-200 hover:bg-slate-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 disabled:opacity-45 sm:!h-10 sm:!min-h-10 sm:w-auto sm:py-0',
           action.className,
         )}
       >
@@ -87,7 +88,7 @@ export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {
   };
 
   return (
-    <div className="mt-2 flex snap-x gap-2 overflow-x-auto overscroll-x-contain scroll-px-1 pb-1 [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden">
+    <div className="mt-3 grid auto-cols-[minmax(160px,1fr)] grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-px-1 pb-1 [scrollbar-width:none] [scroll-snap-type:x_mandatory] sm:auto-cols-auto sm:grid-cols-2 sm:grid-flow-row sm:overflow-visible lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
       {actions.map((action) => renderActionButton(action))}
     </div>
   );

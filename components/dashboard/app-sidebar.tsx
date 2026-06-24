@@ -16,7 +16,7 @@ export function AppSidebar({ items, activeKey, locale }: AppSidebarProps) {
 
   return (
     <>
-      <aside className="hidden w-60 shrink-0 border-x border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+      <aside className="hidden w-60 shrink-0 border-x border-slate-200 bg-white/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-sm lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         <div className="flex h-[72px] items-center gap-3 border-b border-slate-200 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
             <LineChart className="h-5 w-5" />
@@ -36,14 +36,15 @@ export function AppSidebar({ items, activeKey, locale }: AppSidebarProps) {
                 key={item.key}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                className={`group relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100'
+                    ? 'bg-[color:var(--color-card-surface)] text-[color:var(--color-primary-700)] ring-1 ring-blue-100'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
                 }`}
               >
                 <Icon className={`h-4 w-4 ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-700'}`} />
                 <span className="truncate">{item.label}</span>
+                {isActive ? <span className="ms-auto h-2 w-2 rounded-full bg-blue-600" /> : null}
               </Link>
             );
           })}
@@ -61,7 +62,7 @@ export function AppSidebar({ items, activeKey, locale }: AppSidebarProps) {
       </aside>
 
       <nav
-        className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-lg shadow-slate-200/70 backdrop-blur lg:hidden"
+        className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-lg shadow-slate-200/70 backdrop-blur lg:hidden"
         aria-label={dashboardLabel}
       >
         <div className="flex snap-x gap-1 overflow-x-auto overscroll-x-contain scroll-px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -73,9 +74,9 @@ export function AppSidebar({ items, activeKey, locale }: AppSidebarProps) {
                 key={item.key}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`relative flex min-w-[76px] shrink-0 snap-center flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                className={`relative flex min-w-[76px] shrink-0 snap-center flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-1 ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100 after:absolute after:inset-x-4 after:top-1 after:h-0.5 after:rounded-full after:bg-blue-500'
+                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
                 }`}
               >

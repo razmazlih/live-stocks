@@ -4,6 +4,9 @@
 
 :root {
   --foreground-rgb: 0, 0, 0;
+  --color-page-bg: #f4f7fb;
+  --color-page-surface: #ffffff;
+  --color-page-border: #d9e2f0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
 
@@ -206,6 +209,9 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --color-page-bg: #0c1628;
+    --color-page-surface: rgba(15, 23, 42, 0.84);
+    --color-page-border: rgba(148, 163, 184, 0.26);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -226,7 +232,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+    background-color: var(--color-page-bg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-400);
+    outline-offset: 2px;
   }
 }
 
@@ -389,5 +401,25 @@
 
   .card-glow {
     background: transparent;
+  }
+
+  .dashboard-shell-enter {
+    animation: dashboard-shell-fade-in 180ms ease-out;
+  }
+
+  .page-shell-surface {
+    background: var(--color-page-surface);
+    border-color: var(--color-page-border);
+  }
+}
+
+@keyframes dashboard-shell-fade-in {
+  from {
+    opacity: 0.8;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

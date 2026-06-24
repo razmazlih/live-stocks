@@ -21,7 +21,13 @@ export function DashboardContainer({
   width = 'full',
 }: DashboardContainerProps) {
   return (
-    <div className={cn('mx-auto w-full min-w-0 px-4 py-8 sm:px-6 lg:px-8', WIDTH_CLASS[width], className)}>
+    <div
+      className={cn(
+        'mx-auto w-full min-w-0 px-4 py-7 sm:px-6 lg:px-8',
+        WIDTH_CLASS[width],
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -34,7 +40,7 @@ export function DashboardMain({
   children: ReactNode;
   className?: string;
 }) {
-  return <main className={cn('mt-5 space-y-5', className)}>{children}</main>;
+  return <main className={cn('mt-6 space-y-6', className)}>{children}</main>;
 }
 
 export function DashboardSurface({
@@ -45,7 +51,12 @@ export function DashboardSurface({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6', className)}>
+    <section
+      className={cn(
+        'page-shell-surface rounded-2xl border p-4 shadow-[0_6px_24px_-20px_rgba(15,23,42,0.28)] sm:p-6',
+        className,
+      )}
+    >
       {children}
     </section>
   );
