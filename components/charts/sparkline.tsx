@@ -16,6 +16,17 @@ export interface SparklineEvent {
   quantityLabel?: string;
 }
 
+export interface SparklineHoverPoint {
+  price: number;
+  timestamp: number;
+}
+
+export interface SparklineHoverDetail {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}
+
 interface SparklineProps {
   points: HistoricalPoint[];
   width?: number;
@@ -28,6 +39,8 @@ interface SparklineProps {
   belowEntryColor?: string;
   betweenProjectedColor?: string;
   aboveProjectedColor?: string;
+  activeFromTimestamp?: number;
+  inactiveBeforeColor?: string;
   annualGrowthRate?: number;
   yearsHeld?: number;
   events?: SparklineEvent[];
@@ -36,8 +49,9 @@ interface SparklineProps {
   yAxisWidth?: number;
   priceFormatter?: (value: number) => string;
   timeFormatter?: (timestamp: number) => string;
+  hoverDetails?: (point: SparklineHoverPoint) => SparklineHoverDetail[];
   interactive?: boolean;
-  onHoverPoint?: (point: { price: number; timestamp: number } | null) => void;
+  onHoverPoint?: (point: SparklineHoverPoint | null) => void;
 }
 
 type SparklineSegment = {
@@ -64,6 +78,7 @@ type NormalizedData = {
   baselineY: number | null;
   projectedY: number | null;
   projectionPoints: { x: number; y: number }[] | null;
+  projectionStartX: number;
   events: NormalizedEvent[];
   min: number;
   max: number;
@@ -104,6 +119,8 @@ export function Sparkline({
   belowEntryColor = 'var(--color-red-400)',
   betweenProjectedColor = 'var(--color-primary-500)',
   aboveProjectedColor = 'var(--color-green-400)',
+  activeFromTimestamp,
+  inactiveBeforeColor = 'var(--color-slate-400)',
   annualGrowthRate,
   yearsHeld,
   events,
@@ -121,6 +138,7 @@ export function Sparkline({
       month: 'short',
       year: 'numeric',
     }),
+  hoverDetails,
   interactive = false,
   onHoverPoint,
 }: SparklineProps) {
@@ -187,7 +205,16 @@ export function Sparkline({
     const sortedPoints = [...points].sort((a, b) => a.timestamp - b.timestamp);
     const closes = sortedPoints.map((point) => point.close);
 
-    const projectionValues: number[] = [];
+    const firstTimestamp = sortedPoints[0]?.timestamp ?? 0;
+    const lastTimestamp = sortedPoints[sortedPoints.length - 1]?.timestamp ?? 0;
+    const timeRange = Math.max(lastTimestamp - firstTimestamp, 1);
+    const entryTimestamp =
+      typeof activeFromTimestamp === 'number' && Number.isFinite(activeFromTimestamp)
+        ? activeFromTimestamp
+        : firstTimestamp;
+    const projectionVisibleStart = Math.min(Math.max(entryTimestamp, firstTimestamp), lastTimestamp);
+
+    const projectionValues: Array<{ timestamp: number; value: number }> = [];
     const canProject =
       typeof baseline === 'number' &&
       typeof annualGrowthRate === 'number' &&
@@ -201,10 +228,23 @@ export function Sparkline({
       const isGrowthValid = growthBase > 0;
 
       if (isGrowthValid) {
-        for (let index = 0; index < sortedPoints.length; index += 1) {
-          const progress = index / (sortedPoints.length - 1);
+        const projectionDuration = Math.max(lastTimestamp - entryTimestamp, 1);
+
+        if (entryTimestamp > firstTimestamp && entryTimestamp < lastTimestamp) {
+          projectionValues.push({ timestamp: entryTimestamp, value: baseline });
+        }
+
+        for (const point of sortedPoints) {
+          if (point.timestamp < projectionVisibleStart) {
+            continue;
+          }
+
+          const progress = Math.max(0, (point.timestamp - entryTimestamp) / projectionDuration);
           const projectedValue = baseline * Math.pow(growthBase, yearsHeld * progress);
-          projectionValues.push(projectedValue);
+          projectionValues.push({
+            timestamp: point.timestamp,
+            value: projectedValue,
+          });
         }
       }
     }
@@ -213,7 +253,7 @@ export function Sparkline({
       ...closes,
       ...(typeof baseline === 'number' ? [baseline] : []),
       ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
-      ...projectionValues,
+      ...projectionValues.map((point) => point.value),
       ...((events ?? [])
         .map((event) => event.price)
         .filter((price): price is number => typeof price === 'number' && Number.isFinite(price))),
@@ -221,10 +261,6 @@ export function Sparkline({
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
-
-    const firstTimestamp = sortedPoints[0]?.timestamp ?? 0;
-    const lastTimestamp = sortedPoints[sortedPoints.length - 1]?.timestamp ?? 0;
-    const timeRange = Math.max(lastTimestamp - firstTimestamp, 1);
 
     const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
       const relativeTime = (point.timestamp - firstTimestamp) / timeRange;
@@ -241,10 +277,11 @@ export function Sparkline({
       ? height - ((projectedPrice - min) / range) * height
       : null;
 
-    const projectionPoints = projectionValues.length === sortedPoints.length
-      ? projectionValues.map((value, index) => {
-          const referencePoint = normalizedPoints[index];
-          const x = referencePoint?.x ?? 0;
+    const projectionStartX = ((projectionVisibleStart - firstTimestamp) / timeRange) * chartWidth;
+
+    const projectionPoints = projectionValues.length > 1
+      ? projectionValues.map(({ timestamp, value }) => {
+          const x = ((timestamp - firstTimestamp) / timeRange) * chartWidth;
           const y = height - ((value - min) / range) * height;
           return { x, y };
         })
@@ -295,6 +332,7 @@ export function Sparkline({
       baselineY,
       projectedY,
       projectionPoints,
+      projectionStartX,
       events: normalizedEvents,
       min,
       max,
@@ -309,6 +347,7 @@ export function Sparkline({
     annualGrowthRate,
     yearsHeld,
     events,
+    activeFromTimestamp,
   ]);
 
   const segments = useMemo(() => {
@@ -323,7 +362,15 @@ export function Sparkline({
 
     const uniqueThresholds = Array.from(new Set(thresholds)).sort((a, b) => a - b);
 
-    const determineColor = (value: number) => {
+    const determineColor = (value: number, timestamp: number) => {
+      if (
+        typeof activeFromTimestamp === 'number' &&
+        Number.isFinite(activeFromTimestamp) &&
+        timestamp < activeFromTimestamp
+      ) {
+        return inactiveBeforeColor;
+      }
+
       if (typeof baseline === 'number' && value < baseline) {
         return belowEntryColor;
       }
@@ -346,9 +393,10 @@ export function Sparkline({
       const endPoint = normalized.points[index];
       const startValue = normalized.closes[index - 1];
       const endValue = normalized.closes[index];
-      const direction = Math.sign(endValue - startValue) || 1;
+      const startTimestamp = startPoint.timestamp;
+      const endTimestamp = endPoint.timestamp;
 
-      const breakpoints = uniqueThresholds
+      const priceBreakpoints = uniqueThresholds
         .map((threshold) => {
           if (endValue === startValue) {
             return null;
@@ -366,20 +414,38 @@ export function Sparkline({
 
           return {
             ratio,
-            threshold,
             point: {
               x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
               y: startPoint.y + (endPoint.y - startPoint.y) * ratio,
             },
           };
         })
-        .filter((breakpoint): breakpoint is { ratio: number; threshold: number; point: { x: number; y: number } } =>
+        .filter((breakpoint): breakpoint is { ratio: number; point: { x: number; y: number } } =>
           breakpoint !== null && breakpoint.ratio > 0 && breakpoint.ratio < 1,
-        )
+        );
+
+      const timeBreakpoint =
+        typeof activeFromTimestamp === 'number' &&
+        Number.isFinite(activeFromTimestamp) &&
+        startTimestamp < activeFromTimestamp &&
+        endTimestamp > activeFromTimestamp
+          ? (() => {
+              const ratio = (activeFromTimestamp - startTimestamp) / (endTimestamp - startTimestamp || 1);
+              return {
+                ratio,
+                point: {
+                  x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
+                  y: startPoint.y + (endPoint.y - startPoint.y) * ratio,
+                },
+              };
+            })()
+          : null;
+
+      const breakpoints = [...priceBreakpoints, ...(timeBreakpoint ? [timeBreakpoint] : [])]
         .sort((a, b) => a.ratio - b.ratio);
 
       let segmentStartPoint: { x: number; y: number } = { x: startPoint.x, y: startPoint.y };
-      let currentColor = determineColor(startValue);
+      let currentColor = determineColor(startValue, startTimestamp);
 
       breakpoints.forEach((breakpoint) => {
         computed.push({
@@ -389,8 +455,10 @@ export function Sparkline({
         });
 
         segmentStartPoint = breakpoint.point;
-        const epsilon = direction > 0 ? 1e-4 : -1e-4;
-        currentColor = determineColor(breakpoint.threshold + epsilon);
+        const afterRatio = Math.min(1, breakpoint.ratio + 1e-4);
+        const nextValue = startValue + (endValue - startValue) * afterRatio;
+        const nextTimestamp = startTimestamp + (endTimestamp - startTimestamp) * afterRatio;
+        currentColor = determineColor(nextValue, nextTimestamp);
       });
 
       computed.push({
@@ -408,6 +476,8 @@ export function Sparkline({
     belowEntryColor,
     betweenProjectedColor,
     aboveProjectedColor,
+    activeFromTimestamp,
+    inactiveBeforeColor,
     color,
   ]);
 
@@ -558,12 +628,18 @@ export function Sparkline({
       : null;
   const hoveredPriceText = effectiveHoveredPoint ? priceFormatter(effectiveHoveredPoint.close) : null;
   const hoveredTimeText = effectiveHoveredPoint ? timeFormatter(effectiveHoveredPoint.timestamp) : null;
+  const hoveredDetailRows = effectiveHoveredPoint && hoverDetails
+    ? hoverDetails({
+        price: effectiveHoveredPoint.close,
+        timestamp: effectiveHoveredPoint.timestamp,
+      })
+    : [];
 
   const lastSegmentColor = segments[segments.length - 1]?.color ?? color;
   const projectedLinePath = projectionPoints && projectionPoints.length > 1
     ? projectionPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
     : projectedY !== null
-      ? `M 0 ${projectedY} L ${chartWidth} ${projectedY}`
+      ? `M ${normalized?.projectionStartX ?? 0} ${projectedY} L ${chartWidth} ${projectedY}`
       : null;
 
   const activeEventId = selectedEventId ?? hoveredEventId;
@@ -979,17 +1055,29 @@ export function Sparkline({
 
           {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (
             <div
-              className="pointer-events-none absolute z-10 flex flex-col items-center gap-1"
+              className="pointer-events-none absolute z-10 flex min-w-[176px] flex-col items-stretch gap-1"
               style={{
                 left: Math.min(Math.max(effectiveHoveredPoint.x, 12), chartWidth - 12),
                 top: Math.max(effectiveHoveredPoint.y - 56, 8),
+                transform: 'translateX(-50%)',
               }}
             >
-              <div className="rounded-lg bg-[color:var(--color-neutral-white)]/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-md ring-1 ring-[color:var(--color-neutral-black)]/5">
-                {hoveredPriceText}
-              </div>
-              <div className="rounded-md bg-overlay-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow">
-                {hoveredTimeText}
+              <div className="rounded-xl bg-[color:var(--color-neutral-white)]/95 p-2.5 text-xs text-slate-700 shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-slate-500">מחיר</span>
+                  <span className="font-semibold text-slate-900 tabular-nums" dir="ltr">{hoveredPriceText}</span>
+                </div>
+                {hoveredDetailRows.map((row) => (
+                  <div key={row.label} className="mt-1.5 flex items-center justify-between gap-3">
+                    <span className="font-medium text-slate-500">{row.label}</span>
+                    <span className={`font-semibold tabular-nums ${row.valueClassName ?? 'text-slate-900'}`} dir="ltr">
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+                <div className="mt-2 rounded-md bg-overlay-slate-900 px-2 py-0.5 text-center text-[10px] font-medium text-slate-100 shadow">
+                  {hoveredTimeText}
+                </div>
               </div>
             </div>
           ) : null}

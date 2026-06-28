@@ -2,26 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Area,
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  ResponsiveContainer,
-  Scatter,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import type { TooltipProps } from 'recharts';
-import { RefreshCcw, TrendingUp } from 'lucide-react';
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarDays,
+  DollarSign,
+  RefreshCcw,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { BankBadge } from '@/components/branding/bank-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
-import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -34,6 +28,7 @@ import {
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
+import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
@@ -41,7 +36,6 @@ import { useTranslation } from '@/lib/translations';
 import { STOCK_DETAIL_TIME_RANGES } from '@/lib/display/time-ranges';
 import {
   calculatePositionMetrics,
-  formatCurrency,
   formatDate,
   formatNumber,
   formatPercent,
@@ -54,24 +48,12 @@ import {
   HistoricalPoint,
   Position,
   PositionLocation,
-  PositionLotType,
   PositionMetrics,
   StockQuote,
   TimeRange,
 } from '@/types';
 
 const DAY_SECONDS = 60 * 60 * 24;
-const FALLBACK_X_AXIS_DOMAIN: [number | string, number | string] = ['dataMin', 'dataMax'];
-const TOOLTIP_CONTAINER_CLASS =
-  'min-w-[220px] space-y-3 rounded-xl bg-[color:var(--color-slate-900)]/95 p-4 text-sm text-slate-200 shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/20';
-
-function getDateKey(timestamp: number) {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 function getEarliestValidDate(dates: Array<string | undefined>): string | undefined {
   let earliestValue: string | undefined;
@@ -178,39 +160,6 @@ function buildLocationBreakdowns(positions: Position[]): LocationBreakdown[] {
     });
 }
 
-interface TradeMarkerDatum {
-  id: string;
-  timestamp: number;
-  tradePrice: number;
-  quantity: number;
-  type: PositionLotType;
-  isTradeMarker: true;
-}
-
-interface TradeMarkerShapeProps {
-  cx?: number;
-  cy?: number;
-  payload?: TradeMarkerDatum;
-}
-
-function TradeMarkerShape({ cx, cy, payload }: TradeMarkerShapeProps) {
-  if (typeof cx !== 'number' || typeof cy !== 'number' || !payload) {
-    return null;
-  }
-
-  const isBuy = payload.type === 'BUY';
-  const fill = isBuy ? 'var(--color-green-300)' : 'var(--color-red-500)';
-  const arrowPath = isBuy ? 'M -4 2 L 0 -3 L 4 2 Z' : 'M -4 -2 L 0 3 L 4 -2 Z';
-
-  return (
-    <g transform={`translate(${cx}, ${cy})`}>
-      <circle r={6.5} fill="white" fillOpacity={0.92} />
-      <circle r={5} fill={fill} />
-      <path d={arrowPath} fill="white" />
-    </g>
-  );
-}
-
 type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
 
@@ -235,43 +184,14 @@ function getRangeParams(range: TimeRange, entryDate?: string) {
       return { from: now - 365 * DAY_SECONDS, resolution: 'D' };
     case 'All': {
       const defaultRange = now - 5 * 365 * DAY_SECONDS;
-      const entryTimestamp = entryDate ? Math.floor(new Date(entryDate).getTime() / 1000) : defaultRange;
-      const earliest = Math.min(entryTimestamp, defaultRange);
-      const clamped = Math.min(earliest, now - DAY_SECONDS);
+      const entryTimestamp = entryDate ? Math.floor(new Date(entryDate).getTime() / 1000) : Number.NaN;
+      const startTimestamp = Number.isFinite(entryTimestamp) ? entryTimestamp : defaultRange;
+      const clamped = Math.min(startTimestamp, now - DAY_SECONDS);
       return { from: clamped, resolution: 'W' };
     }
     default:
       return { from: now - 30 * DAY_SECONDS, resolution: 'D' };
   }
-}
-
-function formatAxisLabel(timestamp: number, range: TimeRange, locale: string) {
-  const date = new Date(timestamp);
-  if (range === '1D') {
-    return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-  }
-  if (range === '1W') {
-    return date.toLocaleDateString(locale, { weekday: 'short' });
-  }
-  if (range === '1M' || range === '3M' || range === '6M') {
-    return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-  }
-  return date.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
-}
-
-function formatTooltipLabel(timestamp: number, range: TimeRange, locale: string) {
-  const date = new Date(timestamp);
-  if (range === '1D') {
-    return date.toLocaleString(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-  return date.toLocaleDateString(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function buildHoldingPeriodLabel(
@@ -360,7 +280,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const normalizedSymbol = symbol.toUpperCase();
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const localeCode = locale === 'he' ? 'he-IL' : 'en-US';
 
   const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
@@ -369,8 +288,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
-  const [range, setRange] = useState<TimeRange>('1M');
-  const [showVolume, setShowVolume] = useState(true);
+  const [range, setRange] = useState<TimeRange>('All');
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const position = useMemo(() => combinePositions(positions), [positions]);
@@ -580,29 +498,40 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   }, [fetchHistorical, position, range]);
 
   const formatUsdCurrency = useCallback(
-    (valueUsd?: number) => (valueUsd !== undefined ? formatCurrency(valueUsd, 'USD', locale) : '--'),
-    [locale]
-  );
-
-  const formatDualCurrency = useCallback(
     (valueUsd?: number) =>
       valueUsd !== undefined
-        ? `${formatCurrency(valueUsd, 'USD', locale)} · ${formatCurrency(valueUsd * usdToIls, 'ILS', locale)}`
+        ? new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(valueUsd)
         : '--',
-    [locale, usdToIls]
+    []
   );
 
-  const numberFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(localeCode, {
-        maximumFractionDigits: 0,
-      }),
-    [localeCode]
+  const formatSignedUsdCurrency = useCallback(
+    (valueUsd: number) =>
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        signDisplay: 'always',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(valueUsd),
+    []
   );
 
-  const formatVolume = useCallback(
-    (value?: number) => (value !== undefined ? numberFormatter.format(value) : '--'),
-    [numberFormatter]
+  const formatSignedIlsCurrency = useCallback(
+    (valueIls: number) =>
+      new Intl.NumberFormat('he-IL', {
+        style: 'currency',
+        currency: 'ILS',
+        signDisplay: 'always',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(valueIls),
+    []
   );
 
   const chartData = useMemo(
@@ -615,7 +544,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [historical]
   );
 
-  const tradeMarkers = useMemo<TradeMarkerDatum[]>(() => {
+  const entryTimestamp = useMemo(() => {
+    if (!metrics?.position.entryDate) {
+      return undefined;
+    }
+
+    const timestamp = new Date(metrics.position.entryDate).getTime();
+    return Number.isFinite(timestamp) ? timestamp : undefined;
+  }, [metrics?.position.entryDate]);
+
+  const sparklineEvents = useMemo<SparklineEvent[]>(() => {
     if (!transactions.length || !chartData.length) {
       return [];
     }
@@ -624,178 +562,66 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     const rangeEnd = chartData[chartData.length - 1]?.timestamp ?? Number.POSITIVE_INFINITY;
 
     return transactions
-      .map((lot) => {
+      .reduce<SparklineEvent[]>((events, lot) => {
         const timestamp = new Date(lot.executedAt).getTime();
         if (Number.isNaN(timestamp)) {
-          return null;
+          return events;
         }
 
-        return {
+        if (timestamp < rangeStart || timestamp > rangeEnd) {
+          return events;
+        }
+
+        events.push({
           id: lot.id ?? `${lot.executedAt}-${lot.type}-${lot.price}-${lot.quantity}`,
           timestamp,
-          tradePrice: lot.price,
+          price: lot.price,
           quantity: lot.quantity,
           type: lot.type,
-          isTradeMarker: true as const,
-        } satisfies TradeMarkerDatum;
-      })
-      .filter((marker): marker is TradeMarkerDatum => {
-        if (!marker) {
-          return false;
-        }
-        return marker.timestamp >= rangeStart && marker.timestamp <= rangeEnd;
-      })
+          typeLabel: lot.type === 'BUY' ? t.positions.buy : t.positions.sell,
+          priceLabel: formatUsdCurrency(lot.price),
+          quantityLabel: formatNumber(lot.quantity, locale),
+        });
+
+        return events;
+      }, [])
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [chartData, transactions]);
+  }, [chartData, formatUsdCurrency, locale, t.positions.buy, t.positions.sell, transactions]);
 
-  const tradesByDay = useMemo(() => {
-    const grouped = new Map<string, TradeMarkerDatum[]>();
-    for (const marker of tradeMarkers) {
-      const key = getDateKey(marker.timestamp);
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.push(marker);
-      } else {
-        grouped.set(key, [marker]);
-      }
-    }
-    grouped.forEach((entries) => {
-      entries.sort((a, b) => a.timestamp - b.timestamp);
-    });
-    return grouped;
-  }, [tradeMarkers]);
-
-  const priceDomain = useMemo<[number, number]>(() => {
-    if (chartData.length === 0) {
-      return [0, 0];
-    }
-
-    let min = chartData[0].close;
-    let max = chartData[0].close;
-
-    for (const point of chartData) {
-      if (point.close < min) {
-        min = point.close;
-      }
-      if (point.close > max) {
-        max = point.close;
-      }
-    }
-
-    for (const marker of tradeMarkers) {
-      if (marker.tradePrice < min) {
-        min = marker.tradePrice;
-      }
-      if (marker.tradePrice > max) {
-        max = marker.tradePrice;
-      }
-    }
-
-    if (min === max) {
-      const buffer = min === 0 ? 1 : Math.abs(min) * 0.01;
-      return [min - buffer, max + buffer];
-    }
-
-    return [min, max];
-  }, [chartData, tradeMarkers]);
-
-  const xAxisDomain = useMemo<[number, number] | undefined>(() => {
-    const { from } = getRangeParams(range, position?.entryDate);
-    const nowSeconds = Math.floor(Date.now() / 1000);
-
-    if (!Number.isFinite(from) || from >= nowSeconds) {
-      return undefined;
-    }
-
-    return [from * 1000, nowSeconds * 1000];
-  }, [position?.entryDate, range]);
-
-  const renderTooltip = useCallback(
-    (tooltipProps: TooltipProps<number, string>) => {
-      const { active, payload, label } = tooltipProps;
-
-      if (!active || !payload?.length || typeof label !== 'number') {
-        return null;
+  const buildSparklineHoverDetails = useCallback(
+    (point: { price: number; timestamp: number }) => {
+      if (!metrics) {
+        return [];
       }
 
-      const dateLabel = formatTooltipLabel(label, range, localeCode);
-      const priceEntry = payload.find((entry) => entry.dataKey === 'close');
-      const volumeEntry = payload.find((entry) => entry.dataKey === 'volume');
-      const tradesForDay = tradesByDay.get(getDateKey(label)) ?? [];
-      const quantityLabel = t.stock.detailView.tradeMarkers.quantityLabel;
+      const pnlUsd = (point.price - metrics.position.entryPrice) * metrics.position.quantity;
+      const pnlIls = pnlUsd * usdToIls;
+      const valueClassName = pnlUsd >= 0 ? 'text-emerald-700' : 'text-rose-700';
 
-      return (
-        <div className={TOOLTIP_CONTAINER_CLASS}>
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{dateLabel}</div>
-          {priceEntry && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t.stock.detailView.chartPriceLabel}</span>
-              <span className="font-semibold text-slate-50">
-                {formatDualCurrency(priceEntry.value as number)}
-              </span>
-            </div>
-          )}
-          {showVolume && volumeEntry && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t.stock.detailView.tooltip.volume}</span>
-              <span className="font-semibold text-slate-50">{formatVolume(volumeEntry.value as number)}</span>
-            </div>
-          )}
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              {t.stock.detailView.tooltip.tradesHeading}
-            </div>
-            {tradesForDay.length === 0 ? (
-              <div className="mt-1 text-xs text-slate-500">
-                {t.stock.detailView.tooltip.noTrades}
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                {tradesForDay.map((trade) => {
-                  const isBuy = trade.type === 'BUY';
-                  const tradeLabel = isBuy
-                    ? t.stock.detailView.tradeMarkers.buy
-                    : t.stock.detailView.tradeMarkers.sell;
-                  const timeLabel = new Date(trade.timestamp).toLocaleTimeString(localeCode, {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-
-                  return (
-                    <div
-                      key={trade.id}
-                      className="rounded-xl bg-[color:var(--color-slate-800)]/60 px-3 py-2 text-xs leading-5 text-slate-100"
-                    >
-                      <div className="flex items-center justify-between font-semibold">
-                        <span className={isBuy ? 'text-emerald-400' : 'text-rose-400'}>{tradeLabel}</span>
-                        <span className="text-slate-300">{timeLabel}</span>
-                      </div>
-                      <div className="mt-1 text-[11px] text-slate-200">
-                        {`${formatDualCurrency(trade.tradePrice)} · ${quantityLabel}: ${formatNumber(
-                          trade.quantity,
-                          locale
-                        )}`}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      );
+      return [
+        {
+          label: locale === 'he' ? 'רווח/הפסד $' : 'P/L USD',
+          value: formatSignedUsdCurrency(pnlUsd),
+          valueClassName,
+        },
+        {
+          label: locale === 'he' ? 'רווח/הפסד ₪' : 'P/L ILS',
+          value: formatSignedIlsCurrency(pnlIls),
+          valueClassName,
+        },
+      ];
     },
-    [formatDualCurrency, formatVolume, locale, localeCode, range, showVolume, t, tradesByDay]
+    [formatSignedIlsCurrency, formatSignedUsdCurrency, locale, metrics, usdToIls]
   );
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
 
   const investedAmountUsd = metrics ? metrics.position.entryPrice * metrics.position.quantity : 0;
-  const investedAmountDisplay = metrics ? formatDualCurrency(investedAmountUsd) : '--';
-  const currentValueDisplay = metrics ? formatDualCurrency(metrics.currentValue) : '--';
+  const investedAmountDisplay = metrics ? formatUsdCurrency(investedAmountUsd) : '--';
+  const currentValueDisplay = metrics ? formatUsdCurrency(metrics.currentValue) : '--';
   const totalGainUsd = metrics ? metrics.currentValue - investedAmountUsd : 0;
-  const totalGainDisplay = metrics ? formatDualCurrency(totalGainUsd) : '--';
+  const totalGainDisplay = metrics ? formatUsdCurrency(totalGainUsd) : '--';
   const totalGainPercentLabel =
     metrics?.roiPercent !== undefined ? formatPercent(metrics.roiPercent, locale) : '--';
   const totalGainClass =
@@ -806,7 +632,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       : 'text-slate-600';
   const holdingPeriodLabel = metrics ? buildHoldingPeriodLabel(metrics.yearsHeld, t, locale) : '--';
   const dailyChangeDisplay =
-    dailyChangeValue !== undefined ? formatDualCurrency(dailyChangeValue) : '--';
+    dailyChangeValue !== undefined ? formatUsdCurrency(dailyChangeValue) : '--';
   const dailyChangePercentLabel =
     dailyChangePercent !== undefined ? formatPercent(dailyChangePercent, locale) : '--';
   const dailyChangeClass =
@@ -828,7 +654,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         ? 'text-emerald-600'
         : 'text-rose-600';
   const profitPerShare = metrics ? metrics.currentPrice - metrics.position.entryPrice : 0;
-  const profitPerShareLabel = formatDualCurrency(profitPerShare);
+  const profitPerShareLabel = formatUsdCurrency(profitPerShare);
   const profitPerShareClass =
     profitPerShare === 0 ? 'text-slate-600' : profitPerShare > 0 ? 'text-emerald-600' : 'text-rose-600';
   const transactionsCountLabel = formatNumber(transactions.length, locale);
@@ -838,34 +664,44 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     ? [
         {
           key: 'currentValue',
+          icon: Wallet,
           label: t.stock.detailView.quickFacts.currentValue,
           value: currentValueDisplay,
+          helper: t.stock.detailView.quickFactsHelper.currentValue,
         },
         {
           key: 'investedAmount',
+          icon: DollarSign,
           label: t.stock.detailView.quickFacts.investedAmount,
           value: investedAmountDisplay,
+          helper: t.stock.detailView.quickFactsHelper.investedAmount,
         },
         {
           key: 'totalGain',
+          icon: totalGainUsd >= 0 ? ArrowUpRight : ArrowDownRight,
           label: t.stock.detailView.quickFacts.totalGain,
           value: totalGainDisplay,
           secondary: totalGainPercentLabel,
           accentClass: totalGainClass,
           secondaryClass: totalGainClass,
+          helper: t.stock.detailView.quickFactsHelper.totalGain,
         },
         {
           key: 'dailyChange',
+          icon: dailyChangeValue !== undefined && dailyChangeValue < 0 ? ArrowDownRight : ArrowUpRight,
           label: t.stock.detailView.quickFacts.dailyChange,
           value: dailyChangeDisplay,
           secondary: dailyChangePercentLabel,
           accentClass: dailyChangeClass,
           secondaryClass: dailyChangeClass,
+          helper: t.stock.detailView.quickFactsHelper.dailyChange,
         },
         {
           key: 'holdingTime',
+          icon: CalendarDays,
           label: t.stock.detailView.quickFacts.holdingTime,
           value: holdingPeriodLabel,
+          helper: t.stock.detailView.quickFactsHelper.holdingTime,
         },
       ]
     : [];
@@ -913,7 +749,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           },
           {
             key: 'entryPrice',
-            label: `${t.dashboard.entryPrice} ${formatDualCurrency(position.entryPrice)}`,
+            label: `${t.dashboard.entryPrice} ${formatUsdCurrency(position.entryPrice)}`,
           },
           {
             key: 'since',
@@ -954,61 +790,135 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </DashboardSurface>
           ) : (
             <div className="space-y-5">
-            <DashboardSurface>
-              <div className="flex flex-wrap items-center gap-3">
-                <Avatar className="h-12 w-12 rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
-                  <StockAvatarImage
-                    symbol={position.symbol}
-                    display={position.display}
-                    imageUrl={position.imageUrl}
-                  />
-                  <AvatarFallback className="bg-blue-50 font-semibold text-blue-700">
-                    {position.symbol.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {badgeLocations.map((bank) => (
-                      <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
-                    ))}
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {t.stock.detailView.quickFactsSubtitle}
-                  </p>
-                </div>
-              </div>
-            </DashboardSurface>
-
-            <Card className="border border-[color:var(--color-primary-100)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  {t.stock.detailView.quickFactsTitle}
-                </CardTitle>
-                <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  {quickFacts.map((fact) => (
-                    <div
-                      key={fact.key}
-                      className="rounded-xl border border-slate-100 bg-[color:var(--color-neutral-white)] p-4 shadow-sm"
-                    >
-                      <div className="text-xs uppercase tracking-wide text-gray-500">
-                        {fact.label}
-                      </div>
-                      <div className={cn('mt-2 text-lg font-semibold text-slate-900', fact.accentClass)}>
-                        {fact.value}
-                      </div>
-                      {fact.secondary && (
-                        <div className={cn('text-sm font-medium', fact.secondaryClass)}>
-                          {fact.secondary}
+              <DashboardSurface className="overflow-hidden border-slate-200 bg-white p-0">
+                <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
+                  <div className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-4">
+                        <Avatar className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
+                          <StockAvatarImage
+                            symbol={position.symbol}
+                            display={position.display}
+                            imageUrl={position.imageUrl}
+                          />
+                          <AvatarFallback className="bg-blue-50 text-lg font-semibold text-blue-700">
+                            {position.symbol.slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                              {position.symbol}
+                            </span>
+                            {badgeLocations.map((bank) => (
+                              <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
+                            ))}
+                          </div>
+                          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                            {position.display || position.symbol}
+                          </h2>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {t.stock.detailView.quickFactsSubtitle}
+                          </p>
                         </div>
-                      )}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 self-start sm:w-auto"
+                        onClick={() => setReloadKey((value) => value + 1)}
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        {t.watchlist.actions.refreshTicker}
+                      </Button>
                     </div>
-                  ))}
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+                        <div className="text-xs font-medium text-blue-700">{t.stock.priceToday}</div>
+                        <div className="mt-2 text-2xl font-semibold text-slate-950">
+                          {formatUsdCurrency(metrics.currentPrice)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-medium text-slate-500">{t.dashboard.entryPrice}</div>
+                        <div className="mt-2 text-xl font-semibold text-slate-900">
+                          {formatUsdCurrency(metrics.position.entryPrice)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-medium text-slate-500">{t.dashboard.quantity}</div>
+                        <div className="mt-2 text-xl font-semibold text-slate-900">
+                          {formatNumber(metrics.position.quantity, locale)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-200 bg-slate-950 p-5 text-white sm:p-6 lg:border-l lg:border-t-0">
+                    <div className="text-sm font-medium text-slate-300">
+                      {t.stock.detailView.quickFacts.totalGain}
+                    </div>
+                    <div className={cn('mt-3 text-3xl font-semibold', totalGainUsd >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
+                      {totalGainDisplay}
+                    </div>
+                    <div className={cn('mt-1 text-sm font-medium', totalGainUsd >= 0 ? 'text-emerald-200' : 'text-rose-200')}>
+                      {totalGainPercentLabel}
+                    </div>
+                    <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-white/[0.08] p-3 ring-1 ring-white/10">
+                        <div className="text-slate-400">{t.stock.detailView.quickFacts.currentValue}</div>
+                        <div className="mt-1 font-semibold text-slate-50">{currentValueDisplay}</div>
+                      </div>
+                      <div className="rounded-xl bg-white/[0.08] p-3 ring-1 ring-white/10">
+                        <div className="text-slate-400">{t.stock.detailView.quickFacts.dailyChange}</div>
+                        <div className={cn('mt-1 font-semibold', dailyChangeClass.replace('600', '300'))}>
+                          {dailyChangeDisplay}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </DashboardSurface>
+
+              <Card className="border border-slate-200 bg-white shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {t.stock.detailView.quickFactsTitle}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    {quickFacts.map((fact) => {
+                      const FactIcon = fact.icon;
+                      return (
+                        <div
+                          key={fact.key}
+                          className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+                        >
+                          <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                            <span className="rounded-md bg-white p-1.5 text-slate-500 shadow-sm ring-1 ring-slate-200">
+                              <FactIcon className="h-3.5 w-3.5" />
+                            </span>
+                            <span>{fact.label}</span>
+                          </div>
+                          <div className={cn('mt-3 break-words text-lg font-semibold text-slate-900', fact.accentClass)}>
+                            {fact.value}
+                          </div>
+                          {fact.secondary && (
+                            <div className={cn('text-sm font-medium', fact.secondaryClass)}>
+                              {fact.secondary}
+                            </div>
+                          )}
+                          <p className="mt-2 text-xs leading-5 text-slate-500">{fact.helper}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card>
@@ -1033,12 +943,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         </Button>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Switch checked={showVolume} onCheckedChange={setShowVolume} id="volume-toggle" />
-                      <label htmlFor="volume-toggle" className="cursor-pointer">
-                        {t.stock.detailView.showVolume}
-                      </label>
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1049,78 +953,37 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       {t.stock.historyUnavailable}
                     </div>
                   ) : (
-                    <div className={cn('w-full', showVolume ? 'h-[360px]' : 'h-[300px]')}>
-                      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                        <ComposedChart data={chartData} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
-                          <defs>
-                            <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="var(--color-primary-700)" stopOpacity={0.45} />
-                              <stop offset="100%" stopColor="var(--color-primary-400)" stopOpacity={0.05} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="4 4" stroke="rgba(var(--color-slate-400-rgb), 0.18)" vertical={false} />
-                          <XAxis
-                            dataKey="timestamp"
-                            type="number"
-                            domain={xAxisDomain ?? FALLBACK_X_AXIS_DOMAIN}
-                            allowDataOverflow
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={12}
-                            minTickGap={24}
-                            tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
-                            tickFormatter={(value) => formatAxisLabel(value as number, range, localeCode)}
-                          />
-                          <YAxis
-                            yAxisId="price"
-                            domain={priceDomain}
-                            width={80}
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={8}
-                            padding={{ top: 12, bottom: 12 }}
-                            tick={{ fill: 'var(--color-slate-600)', fontSize: 12 }}
-                            tickFormatter={(value) => formatCurrency(value as number, 'USD', locale)}
-                          />
-                          <Tooltip
-                            cursor={{ stroke: 'rgba(var(--color-primary-500-rgb), 0.25)', strokeWidth: 2 }}
-                            wrapperStyle={{ outline: 'none' }}
-                            content={renderTooltip}
-                          />
-                          {showVolume && (
-                            <YAxis yAxisId="volume" orientation="right" tickLine={false} axisLine={false} hide />
-                          )}
-                          {showVolume && (
-                            <Bar
-                              yAxisId="volume"
-                              dataKey="volume"
-                              name={t.stock.detailView.tooltip.volume}
-                              barSize={14}
-                              radius={[6, 6, 0, 0]}
-                              fill="rgba(var(--color-primary-400-rgb), 0.18)"
-                            />
-                          )}
-                          <Area
-                            type="monotone"
-                            dataKey="close"
-                            yAxisId="price"
-                            stroke="var(--color-primary-700)"
-                            strokeWidth={2.75}
-                            activeDot={{ r: 4, fill: 'var(--color-primary-500)', strokeWidth: 0 }}
-                            fill="url(#priceGradient)"
-                            name={t.stock.detailView.chartPriceLabel}
-                          />
-                          {tradeMarkers.length > 0 && (
-                            <Scatter
-                              data={tradeMarkers}
-                              dataKey="tradePrice"
-                              yAxisId="price"
-                              name={t.stock.detailView.tradeMarkers.seriesLabel}
-                              shape={<TradeMarkerShape />}
-                            />
-                          )}
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                    <div className="h-[320px] w-full rounded-xl border border-slate-200 bg-slate-50/70 p-3 [direction:ltr] sm:h-[360px] sm:p-4">
+                      <Sparkline
+                        points={chartData}
+                        height={320}
+                        color="var(--color-emerald-500)"
+                        baseline={metrics.position.entryPrice}
+                        baselineColor="rgba(var(--color-slate-400-rgb), 0.55)"
+                        projectedPrice={metrics.projectedPrice}
+                        projectedLineColor="rgba(var(--color-primary-500-rgb), 0.85)"
+                        belowEntryColor="var(--color-rose-500)"
+                        betweenProjectedColor="var(--color-primary-500)"
+                        aboveProjectedColor="var(--color-emerald-500)"
+                        activeFromTimestamp={entryTimestamp}
+                        inactiveBeforeColor="var(--color-slate-400)"
+                        annualGrowthRate={settings.annualGrowthRate}
+                        yearsHeld={metrics.yearsHeld}
+                        events={sparklineEvents}
+                        className="h-full w-full"
+                        showYAxis
+                        yAxisWidth={76}
+                        priceFormatter={formatUsdCurrency}
+                        timeFormatter={(timestamp) =>
+                          new Date(timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        }
+                        hoverDetails={buildSparklineHoverDetails}
+                        interactive
+                      />
                     </div>
                   )}
                   <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
@@ -1174,7 +1037,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                             </span>
                             <span className="text-slate-600">
-                              {formatNumber(breakdown.quantity, locale)} · {formatDualCurrency(breakdown.averageEntryPrice)}
+                              {formatNumber(breakdown.quantity, locale)} · {formatUsdCurrency(breakdown.averageEntryPrice)}
                             </span>
                           </div>
                         ))}
@@ -1233,11 +1096,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                               <TableCell className="text-right font-medium">
                                 {formatNumber(lot.quantity, locale)}
                               </TableCell>
-                              <TableCell className="text-right">{formatDualCurrency(lot.price)}</TableCell>
+                              <TableCell className="text-right">{formatUsdCurrency(lot.price)}</TableCell>
                               <TableCell className="text-right text-xs text-gray-500">
                                 {lot.hasCommission && lot.commissionAmount > 0
                                   ? t.positions.transactionCommissionShort(
-                                      formatDualCurrency(lot.commissionAmount),
+                                      formatUsdCurrency(lot.commissionAmount),
                                     )
                                   : t.positions.transactionCommissionWaived}
                               </TableCell>

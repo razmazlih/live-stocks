@@ -11,7 +11,9 @@ import {
   ChevronRight,
   Clock,
   Filter,
+  LayoutGrid,
   Sparkles,
+  Table2,
   Target,
   TrendingDown,
   TrendingUp,
@@ -21,7 +23,7 @@ import { HistoricalPoint, PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { computeRealizedSales } from '@/lib/positions';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/calculations';
 
 import { PositionCard } from '@/components/portfolio/position-card';
 import { Sparkline } from '@/components/charts/sparkline';
@@ -40,6 +42,7 @@ import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getTrendPresentation } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
+import { BankBadge } from '@/components/branding/bank-badge';
 
 interface PositionsOverviewProps {
   openTitle: string;
@@ -50,6 +53,7 @@ interface PositionsOverviewProps {
 }
 
 type FilterKey = 'all' | 'winners' | 'losers' | 'ahead' | 'lagging' | 'recent';
+type PositionViewMode = 'table' | 'cards';
 
 const VALUE_THRESHOLD = 1e-2;
 
@@ -115,6 +119,7 @@ function PositionMetricRow({
   sparklineData: HistoricalPoint[];
   locale: 'he' | 'en';
 }) {
+  const { t } = useTranslation(locale);
   const dailyValue =
     typeof metrics.dailyChange === 'number'
       ? metrics.dailyChange * metrics.position.quantity
@@ -123,9 +128,18 @@ function PositionMetricRow({
   const pnlTone = getValueTone(metrics.positionPnLUsd);
   const gapTone = getValueTone(metrics.combined);
   const sparklineTone = metrics.positionPnLUsd >= 0 ? 'var(--color-emerald-500)' : 'var(--color-rose-500)';
+  const dailyPercent =
+    typeof metrics.dailyChangePercent === 'number' && Number.isFinite(metrics.dailyChangePercent)
+      ? formatPercent(metrics.dailyChangePercent, locale)
+      : null;
+  const bank = metrics.position.location === 'bank_two' ? 'bank_two' : 'bank_one';
 
   return (
-    <div className="grid grid-cols-[minmax(220px,1.4fr)_minmax(112px,0.7fr)_minmax(112px,0.7fr)_minmax(116px,0.75fr)_minmax(116px,0.75fr)_140px_44px] items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50">
+    <Link
+      href={`/stock/${metrics.position.symbol}`}
+      className="group grid min-w-[1180px] grid-cols-[minmax(280px,1.45fr)_minmax(132px,0.68fr)_minmax(152px,0.78fr)_minmax(140px,0.72fr)_minmax(132px,0.68fr)_150px_44px] items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200"
+      aria-label={metrics.position.display}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Avatar className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-100">
           <StockAvatarImage
@@ -144,9 +158,14 @@ function PositionMetricRow({
               {metrics.position.symbol}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {formatCurrency(metrics.position.entryPrice, 'USD', locale)} · {metrics.position.quantity}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+            <span>{t.dashboard.entryPrice}: {formatCurrency(metrics.position.entryPrice, 'USD', locale)}</span>
+            <span>{t.dashboard.quantity}: {formatNumber(metrics.position.quantity, locale)}</span>
+            <span className="inline-flex items-center gap-1">
+              <BankBadge bank={bank} locale={locale} size="sm" />
+              {formatDate(metrics.position.entryDate, locale)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -158,13 +177,23 @@ function PositionMetricRow({
       <div className="tabular-nums">
         <p className="font-semibold text-slate-950">{formatCurrency(metrics.currentPrice, 'USD', locale)}</p>
         <p className={cn('text-xs font-semibold', pnlTone.text)}>
-          {formatCurrency(metrics.positionPnLUsd, 'USD', locale)}
+          {t.dashboard.pnl}: {formatCurrency(metrics.positionPnLUsd, 'USD', locale)}
+        </p>
+        <p className="text-xs text-slate-500">
+          {t.dashboard.projected}: {formatCurrency(metrics.projectedPrice, 'USD', locale)}
         </p>
       </div>
 
-      <div className={cn('inline-flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold tabular-nums', dailyTone.bg, dailyTone.text)}>
-        {dailyTone.icon}
-        <span>{dailyValue !== null ? formatCurrency(dailyValue, 'USD', locale) : '—'}</span>
+      <div className="space-y-1">
+        <div className={cn('inline-flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold tabular-nums', dailyTone.bg, dailyTone.text)}>
+          {dailyTone.icon}
+          <span>{dailyValue !== null ? formatCurrency(dailyValue, 'USD', locale) : '—'}</span>
+        </div>
+        {dailyPercent ? (
+          <p className={cn('text-xs font-semibold tabular-nums', dailyTone.text)}>
+            {dailyPercent}
+          </p>
+        ) : null}
       </div>
 
       <div className="tabular-nums">
@@ -187,14 +216,10 @@ function PositionMetricRow({
         )}
       </div>
 
-      <Link
-        href={`/stock/${metrics.position.symbol}`}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-        aria-label={metrics.position.display}
-      >
+      <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-700">
         <ArrowUpRight className="h-4 w-4" />
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }
 
@@ -210,6 +235,7 @@ export function PositionsOverview({
   const sortNotice = t.dashboard.positionsSortedByForecast;
 
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [viewMode, setViewMode] = useState<PositionViewMode>('table');
 
   const filterOptions: FilterOptionConfig[] = useMemo(
     () =>
@@ -305,6 +331,34 @@ export function PositionsOverview({
           )}
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="hidden rounded-lg border border-slate-200 bg-white p-1 shadow-sm lg:flex" aria-label={t.dashboard.positionView.title}>
+            {([
+              { key: 'table' as const, label: t.dashboard.positionView.table, icon: Table2 },
+              { key: 'cards' as const, label: t.dashboard.positionView.cards, icon: LayoutGrid },
+            ]).map(({ key, label, icon: Icon }) => {
+              const isActive = viewMode === key;
+
+              return (
+                <Button
+                  key={key}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode(key)}
+                  className={cn(
+                    'h-8 rounded-md px-3 text-xs font-semibold transition',
+                    isActive
+                      ? 'bg-blue-50 text-blue-700 shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  )}
+                  aria-pressed={isActive}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </Button>
+              );
+            })}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -365,11 +419,16 @@ export function PositionsOverview({
         </div>
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white lg:block">
-            <div className="grid grid-cols-[minmax(220px,1.4fr)_minmax(112px,0.7fr)_minmax(112px,0.7fr)_minmax(116px,0.75fr)_minmax(116px,0.75fr)_140px_44px] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
+          <div
+            className={cn(
+              'hidden overflow-x-auto rounded-xl border border-slate-200 bg-white',
+              viewMode === 'table' && 'lg:block'
+            )}
+          >
+            <div className="grid min-w-[1180px] grid-cols-[minmax(280px,1.45fr)_minmax(132px,0.68fr)_minmax(152px,0.78fr)_minmax(140px,0.72fr)_minmax(132px,0.68fr)_150px_44px] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
               <span>{t.dashboard.sectionPositionsLabel}</span>
               <span>{t.dashboard.portfolioValue}</span>
-              <span>{t.dashboard.price}</span>
+              <span>{t.dashboard.current} / {t.dashboard.projected}</span>
               <span>{t.dashboard.dailyChange}</span>
               <span>{t.dashboard.forecastGap}</span>
               <span>{t.dashboard.performanceTrendTitle}</span>
@@ -391,7 +450,12 @@ export function PositionsOverview({
             </div>
           </div>
 
-          <div className="grid gap-3 lg:hidden">
+          <div
+            className={cn(
+              'grid gap-3 sm:grid-cols-2',
+              viewMode === 'cards' ? 'lg:grid lg:grid-cols-2 xl:grid-cols-3' : 'lg:hidden'
+            )}
+          >
             {filteredOpenMetrics.map((metrics) => {
               const sparklineKey =
                 metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol;

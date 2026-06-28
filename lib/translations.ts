@@ -106,6 +106,11 @@ export const translations = {
       sectionPositionsDescription: 'פירוט פוזיציות פעילות וסגורות עם מגמות.',
       sectionPositionsEmpty: 'אין פוזיציות להצגה כרגע.',
       positionsSortedByForecast: 'מסודר לפי הפער מול התחזית (הגבוה ראשון)',
+      positionView: {
+        title: 'בחירת תצוגת פוזיציות',
+        table: 'טבלה',
+        cards: 'כרטיסים',
+      },
       positionFilters: {
         title: 'מסנני תצוגה',
         triggerLabel: 'סינון חכם',
@@ -695,6 +700,11 @@ export const translations = {
       sectionPositionsDescription: 'Dive into open and closed positions with recent trends.',
       sectionPositionsEmpty: 'No positions are available to review yet.',
       positionsSortedByForecast: 'Sorted by gap vs projection (highest first)',
+      positionView: {
+        title: 'Choose positions view',
+        table: 'Table',
+        cards: 'Cards',
+      },
       positionFilters: {
         title: 'Smart filters',
         triggerLabel: 'Refine view',
