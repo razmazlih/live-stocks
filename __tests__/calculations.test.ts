@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
-import { calculatePositionMetrics, calculateRequiredExitPrice, hasMaterialExitPriceGap } from '@/lib/calculations';
+import { calculatePositionMetrics, calculateRequiredExitPrice, calculateSymbolExceptionAssessment, hasMaterialExitPriceGap } from '@/lib/calculations';
 import { Position } from '@/types';
 
 describe('calculatePositionMetrics', () => {
@@ -150,5 +150,49 @@ describe('hasMaterialExitPriceGap', () => {
     expect(hasMaterialExitPriceGap(100, 100.009)).toBe(false);
     expect(hasMaterialExitPriceGap(100, 100.01)).toBe(true);
     expect(hasMaterialExitPriceGap(100, undefined)).toBe(false);
+  });
+});
+
+describe('calculateSymbolExceptionAssessment', () => {
+  const asOf = new Date('2025-01-01T00:00:00Z');
+  const position: Position = {
+    symbol: 'TEST', display: 'Test Corp', imageUrl: '', entryPrice: 100, quantity: 10,
+    entryDate: '2024-01-01T00:00:00Z', location: 'bank_one',
+  };
+
+  it('aggregates realized history with an open lifecycle into one open assessment', () => {
+    const assessment = calculateSymbolExceptionAssessment([
+      { ...position, quantity: 0, lots: [
+        { type: 'BUY', price: 100, quantity: 2, executedAt: '2024-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+        { type: 'SELL', price: 80, quantity: 2, executedAt: '2025-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+      ] },
+      { ...position, quantity: 2, lots: [
+        { type: 'BUY', price: 200, quantity: 2, executedAt: '2025-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+      ] },
+    ], 200, 0.1, asOf);
+
+    expect(assessment).toMatchObject({ status: 'open', openQuantity: 2, realizedProfitUsd: -40 });
+    expect(assessment?.requiredExitPrice).toBeCloseTo(230.02153, 5);
+    expect(assessment?.projectedPrice).toBeCloseTo(200, 6);
+    expect(assessment?.gapUsd).toBeCloseTo(30.02153, 5);
+  });
+
+  it('reports a closed symbol from realized performance without an exit price', () => {
+    const assessment = calculateSymbolExceptionAssessment([{ ...position, quantity: 0, lots: [
+      { type: 'BUY', price: 100, quantity: 1, executedAt: '2024-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+      { type: 'SELL', price: 120, quantity: 1, executedAt: '2025-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+    ] }], undefined, 0.1, asOf);
+
+    expect(assessment).toMatchObject({ status: 'closed', realizedProfitUsd: 20, actualProfitUsd: 20 });
+    expect(assessment?.expectedProfitUsd).toBeCloseTo(10.02153, 5);
+    expect(assessment?.requiredExitPrice).toBeUndefined();
+  });
+
+  it('surfaces invalid or unmatched lots as data-quality warnings', () => {
+    const assessment = calculateSymbolExceptionAssessment([{ ...position, lots: [
+      { type: 'SELL', price: 100, quantity: 1, executedAt: '2025-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+    ] }], 100, 0.1, asOf);
+
+    expect(assessment).toMatchObject({ status: 'invalid', invalidReason: 'unmatched_sell_lot' });
   });
 });

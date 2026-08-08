@@ -1,4 +1,4 @@
-import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale } from '@/types';
+import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale, SymbolExceptionAssessment } from '@/types';
 import { computeOpenLots, computeRealizedSales, summarizeLots } from '@/lib/positions';
 
 export { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/display/formatting';
@@ -184,7 +184,7 @@ export function calculateRequiredExitPrice(
   }
 
   const lotsByPosition = positions.map((position) => position.lots ?? []);
-  if (lotsByPosition.some((lots) => !hasValidAndMatchedLots(lots))) {
+  if (lotsByPosition.some((lots) => getLotsValidationError(lots))) {
     return undefined;
   }
 
@@ -230,9 +230,106 @@ export function calculateRequiredExitPrice(
   return Number.isFinite(requiredExitPrice) && requiredExitPrice >= 0 ? requiredExitPrice : undefined;
 }
 
-function hasValidAndMatchedLots(lots: PositionLot[]): boolean {
+/**
+ * Calculates an annual-target assessment for every lifecycle of one symbol.
+ * `currentPrice` is only required for open symbols, where it supplies the live
+ * shortfall in addition to the target-to-target gap.
+ */
+export function calculateSymbolExceptionAssessment(
+  positions: Position[],
+  currentPrice: number | undefined,
+  annualGrowthRate: number,
+  asOf: Date = new Date(),
+): SymbolExceptionAssessment | undefined {
+  if (!Array.isArray(positions) || positions.length === 0) {
+    return undefined;
+  }
+
+  const representative = positions[0];
+  const assessmentBase = {
+    symbol: representative.symbol,
+    display: representative.display,
+    imageUrl: representative.imageUrl,
+    positions,
+    openQuantity: 0,
+    realizedProfitUsd: 0,
+    expectedProfitUsd: 0,
+    actualProfitUsd: 0,
+    profitGapUsd: 0,
+  };
+
+  if (!Number.isFinite(annualGrowthRate)) {
+    return { ...assessmentBase, status: 'invalid', invalidReason: 'invalid_annual_growth_rate' };
+  }
+
+  const lotsByPosition = positions.map((position) => position.lots ?? []);
+  const validationError = lotsByPosition.map(getLotsValidationError).find(Boolean);
+  if (validationError) {
+    return { ...assessmentBase, status: 'invalid', invalidReason: validationError };
+  }
+
+  const openLots = lotsByPosition.flatMap((lots) => computeOpenLots(lots));
+  const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
+  const realizedSales = positions.flatMap((position) => computeRealizedSales(position));
+  const realized = realizedSales.reduce(
+    (acc, sale) => {
+      const yearsHeld = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
+      const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+      return {
+        actualProfit: acc.actualProfit + sale.profitUsd,
+        expectedProfit: acc.expectedProfit + sale.costBasisUsd * (expectedFactor - 1),
+      };
+    },
+    { actualProfit: 0, expectedProfit: 0 },
+  );
+
+  if (openQuantity <= 0) {
+    return {
+      ...assessmentBase,
+      status: 'closed',
+      realizedProfitUsd: realized.actualProfit,
+      expectedProfitUsd: realized.expectedProfit,
+      actualProfitUsd: realized.actualProfit,
+      profitGapUsd: realized.actualProfit - realized.expectedProfit,
+    };
+  }
+
+  const requiredExitPrice = calculateRequiredExitPrice(positions, annualGrowthRate, asOf);
+  if (requiredExitPrice === undefined) {
+    return { ...assessmentBase, status: 'invalid', openQuantity, invalidReason: 'uncomputable_required_exit_price' };
+  }
+
+  const openCostBasis = openLots.reduce((sum, lot) => sum + lot.totalCost, 0);
+  const expectedOpenProfit = openLots.reduce((sum, lot) => {
+    const yearsHeld = Math.max((asOf.getTime() - new Date(lot.executedAt).getTime()) / MS_PER_YEAR, 0);
+    return sum + lot.totalCost * (Math.pow(1 + annualGrowthRate, yearsHeld) - 1);
+  }, 0);
+  const projectedPrice = (openCostBasis + expectedOpenProfit) / openQuantity;
+  const gapUsd = requiredExitPrice - projectedPrice;
+  const validCurrentPrice = typeof currentPrice === 'number' && Number.isFinite(currentPrice) && currentPrice >= 0;
+  const actualProfitUsd = realized.actualProfit + (validCurrentPrice ? currentPrice * openQuantity - openCostBasis : 0);
+  const expectedProfitUsd = realized.expectedProfit + expectedOpenProfit;
+
+  return {
+    ...assessmentBase,
+    status: 'open',
+    openQuantity,
+    currentPrice: validCurrentPrice ? currentPrice : undefined,
+    projectedPrice,
+    requiredExitPrice,
+    gapUsd,
+    gapPercent: projectedPrice !== 0 ? (gapUsd / projectedPrice) * 100 : undefined,
+    currentGapUsd: validCurrentPrice ? (requiredExitPrice - currentPrice) * openQuantity : undefined,
+    realizedProfitUsd: realized.actualProfit,
+    expectedProfitUsd,
+    actualProfitUsd,
+    profitGapUsd: actualProfitUsd - expectedProfitUsd,
+  };
+}
+
+function getLotsValidationError(lots: PositionLot[]): string | undefined {
   if (!lots.length) {
-    return false;
+    return 'missing_lots';
   }
 
   const orderedLots = [...lots].sort(
@@ -249,22 +346,22 @@ function hasValidAndMatchedLots(lots: PositionLot[]): boolean {
       !Number.isFinite(lot.quantity) || lot.quantity <= 0 ||
       !Number.isFinite(commission) || commission < 0
     ) {
-      return false;
+      return 'invalid_lot_data';
     }
 
     if (lot.type === 'BUY') {
       availableQuantity += lot.quantity;
     } else if (lot.type === 'SELL') {
       if (lot.quantity > availableQuantity + 1e-8) {
-        return false;
+        return 'unmatched_sell_lot';
       }
       availableQuantity -= lot.quantity;
     } else {
-      return false;
+      return 'invalid_lot_type';
     }
   }
 
-  return true;
+  return undefined;
 }
 
 export function calculateRealizedTaxLiability(

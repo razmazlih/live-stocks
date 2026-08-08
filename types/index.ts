@@ -142,6 +142,35 @@ export interface PositionMetrics {
   dailyChangePercent?: number;
 }
 
+export type SymbolExceptionStatus = 'open' | 'closed' | 'invalid';
+
+/**
+ * One annual-target assessment for all position lifecycles belonging to a symbol.
+ * Monetary fields are USD and `gap` compares the full-history exit target to the
+ * weighted annual target of the still-open lots.
+ */
+export interface SymbolExceptionAssessment {
+  symbol: string;
+  display: string;
+  imageUrl: string;
+  status: SymbolExceptionStatus;
+  positions: Position[];
+  openQuantity: number;
+  currentPrice?: number;
+  projectedPrice?: number;
+  requiredExitPrice?: number;
+  /** Required-exit price minus the weighted projected price. */
+  gapUsd?: number;
+  gapPercent?: number;
+  /** Required proceeds at the current price, minus the proceeds needed to meet target. */
+  currentGapUsd?: number;
+  realizedProfitUsd: number;
+  expectedProfitUsd: number;
+  actualProfitUsd: number;
+  profitGapUsd: number;
+  invalidReason?: string;
+}
+
 export interface PortfolioSummary {
   totalCurrentPnLUsd: number;
   totalCurrentPnLIls: number;

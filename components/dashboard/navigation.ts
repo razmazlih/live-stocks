@@ -7,6 +7,7 @@ import {
   LineChart,
   Settings,
   Sparkles,
+  Target,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,6 +22,7 @@ export type AppRouteKey =
   | 'watchlist'
   | 'insights'
   | 'realized'
+  | 'exceptions'
   | 'aiPrompts'
   | 'settings';
 
@@ -39,6 +41,7 @@ export function createAppRouteItems(t: Translation): AppRouteItem[] {
     { key: 'watchlist', href: '/watchlist', label: t.watchlist.quickAction, icon: Eye },
     { key: 'insights', href: '/insights', label: t.dashboard.weeklyInsights, icon: BrainCircuit },
     { key: 'realized', href: '/realized', label: t.realized.quickAction, icon: CircleDollarSign },
+    { key: 'exceptions', href: '/exceptions', label: t.exceptions.quickAction, icon: Target },
     { key: 'aiPrompts', href: '/ai-prompts', label: t.aiPrompts.quickAction, icon: Sparkles },
     { key: 'settings', href: '/settings', label: t.settings.title, icon: Settings },
   ];
