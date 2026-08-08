@@ -128,6 +128,8 @@ export interface PositionMetrics {
   positionPnLUsd: number;
   positionPnLIls: number;
   projectedPrice: number;
+  /** Price needed to exit all open shares while meeting the annual target across this symbol's history. */
+  requiredExitPrice?: number;
   projectedPnLUsd: number;
   projectedPnLIls: number;
   combined: number;

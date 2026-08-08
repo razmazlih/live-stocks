@@ -1,11 +1,24 @@
 import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale } from '@/types';
-import { computeOpenLots, summarizeLots } from '@/lib/positions';
+import { computeOpenLots, computeRealizedSales, summarizeLots } from '@/lib/positions';
 
 export { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/display/formatting';
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+export const EXIT_PRICE_GAP_THRESHOLD_USD = 0.01;
 
 type FxRateResolver = (timestamp: number) => number;
+
+export function hasMaterialExitPriceGap(
+  projectedPrice: number,
+  requiredExitPrice: number | undefined,
+): requiredExitPrice is number {
+  return (
+    typeof requiredExitPrice === 'number' &&
+    Number.isFinite(requiredExitPrice) &&
+    Number.isFinite(projectedPrice) &&
+    Math.abs(requiredExitPrice - projectedPrice) >= EXIT_PRICE_GAP_THRESHOLD_USD
+  );
+}
 
 export interface RealizedPortfolioTotals {
   proceedsUsd: number;
@@ -155,6 +168,103 @@ export function calculateWeightedProjectedPrice(
   }, 0);
 
   return weightedSum / totalQuantity;
+}
+
+/**
+ * Returns the per-share exit price required today for all open shares of one symbol.
+ * Realized sales keep their actual holding period; open lots are projected through `asOf`.
+ */
+export function calculateRequiredExitPrice(
+  positions: Position[],
+  annualGrowthRate: number,
+  asOf: Date = new Date(),
+): number | undefined {
+  if (!Array.isArray(positions) || positions.length === 0 || !Number.isFinite(annualGrowthRate)) {
+    return undefined;
+  }
+
+  const lotsByPosition = positions.map((position) => position.lots ?? []);
+  if (lotsByPosition.some((lots) => !hasValidAndMatchedLots(lots))) {
+    return undefined;
+  }
+
+  const openLots = lotsByPosition.flatMap((lots) => computeOpenLots(lots));
+  const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
+  if (openQuantity <= 0) {
+    return undefined;
+  }
+
+  let openCostBasis = 0;
+  let expectedOpenProfit = 0;
+  for (const lot of openLots) {
+    const executedAt = new Date(lot.executedAt);
+    if (Number.isNaN(executedAt.getTime()) || !Number.isFinite(lot.totalCost)) {
+      return undefined;
+    }
+
+    const yearsHeld = Math.max((asOf.getTime() - executedAt.getTime()) / MS_PER_YEAR, 0);
+    const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+    if (!Number.isFinite(expectedFactor)) {
+      return undefined;
+    }
+
+    openCostBasis += lot.totalCost;
+    expectedOpenProfit += lot.totalCost * (expectedFactor - 1);
+  }
+
+  const realizedSales = positions.flatMap((position) => computeRealizedSales(position));
+  const realized = realizedSales.reduce(
+    (acc, sale) => {
+      const yearsHeld = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
+      const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
+      return {
+        actualProfit: acc.actualProfit + sale.profitUsd,
+        expectedProfit: acc.expectedProfit + sale.costBasisUsd * (expectedFactor - 1),
+      };
+    },
+    { actualProfit: 0, expectedProfit: 0 },
+  );
+
+  const requiredProceeds = openCostBasis + expectedOpenProfit + realized.expectedProfit - realized.actualProfit;
+  const requiredExitPrice = requiredProceeds / openQuantity;
+  return Number.isFinite(requiredExitPrice) && requiredExitPrice >= 0 ? requiredExitPrice : undefined;
+}
+
+function hasValidAndMatchedLots(lots: PositionLot[]): boolean {
+  if (!lots.length) {
+    return false;
+  }
+
+  const orderedLots = [...lots].sort(
+    (a, b) => new Date(a.executedAt).getTime() - new Date(b.executedAt).getTime(),
+  );
+  let availableQuantity = 0;
+
+  for (const lot of orderedLots) {
+    const timestamp = new Date(lot.executedAt).getTime();
+    const commission = lot.hasCommission ? lot.commissionAmount : 0;
+    if (
+      !Number.isFinite(timestamp) ||
+      !Number.isFinite(lot.price) || lot.price <= 0 ||
+      !Number.isFinite(lot.quantity) || lot.quantity <= 0 ||
+      !Number.isFinite(commission) || commission < 0
+    ) {
+      return false;
+    }
+
+    if (lot.type === 'BUY') {
+      availableQuantity += lot.quantity;
+    } else if (lot.type === 'SELL') {
+      if (lot.quantity > availableQuantity + 1e-8) {
+        return false;
+      }
+      availableQuantity -= lot.quantity;
+    } else {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function calculateRealizedTaxLiability(

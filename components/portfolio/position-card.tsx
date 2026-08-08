@@ -3,7 +3,7 @@
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
-import { formatCurrency, formatNumber, formatDate, formatPercent } from '@/lib/calculations';
+import { formatCurrency, formatNumber, formatDate, formatPercent, hasMaterialExitPriceGap } from '@/lib/calculations';
 import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -32,6 +32,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     positionPnLUsd,
     positionPnLIls,
     projectedPrice,
+    requiredExitPrice,
     combined,
     combinedIls,
     yearsHeld,
@@ -325,6 +326,9 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     'block w-full text-left [direction:ltr] [unicode-bidi:isolate] tabular-nums';
 
   const sparklineProjectedPrice = isClosed ? undefined : projectedPrice;
+  const visibleRequiredExitPrice = !isClosed && hasMaterialExitPriceGap(projectedPrice, requiredExitPrice)
+    ? requiredExitPrice
+    : undefined;
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
@@ -453,6 +457,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
+                  requiredExitPrice={visibleRequiredExitPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
                   events={effectiveSparklineEvents}
@@ -627,6 +632,15 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                           <span className={valueDirectionClass}>{formatCurrency(projectedPrice, 'USD', locale)}</span>
                         </dd>
                       </div>
+                      {visibleRequiredExitPrice !== undefined && (
+                        <div>
+                          <dt className="text-xs font-medium text-slate-500">{t.dashboard.requiredExitPrice}</dt>
+                          <dd data-testid="required-exit-price" className="mt-0.5 text-base font-bold leading-tight text-violet-700">
+                            <span className={valueDirectionClass}>{formatCurrency(visibleRequiredExitPrice, 'USD', locale)}</span>
+                          </dd>
+                          <p className="mt-0.5 text-[10px] font-medium leading-tight text-violet-600">{t.dashboard.requiredExitPriceHelper}</p>
+                        </div>
+                      )}
                       <div>
                         <dt className="text-xs font-medium text-slate-500">{t.dashboard.combined} USD</dt>
                         <dd className={cn('mt-0.5 text-base font-bold leading-tight', combinedStyles.text)}>
@@ -656,6 +670,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
                   projectedPrice={sparklineProjectedPrice}
+                  requiredExitPrice={visibleRequiredExitPrice}
                   annualGrowthRate={sparklineAnnualGrowthRate}
                   yearsHeld={sparklineYearsHeld}
                   events={effectiveSparklineEvents}

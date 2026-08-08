@@ -9,7 +9,7 @@
 - Watchlist עם קבוצות, כרטיסי מניות, היסטוריית מחירים וגרירה למיון
 - עמוד Insights שבועי
 - עמוד AI Prompts ליצירת קונטקסט מוכן לניתוח חיצוני
-- Scriptable iOS widget שמציג סטטוס תיק מתוך אותו API
+- Scriptable iOS widget מקומי שמציג סטטוס תיק מתוך אותו API
 - המרות USD/ILS בזמן אמת + שערים היסטוריים
 - API פנימי ב-Next.js לציטוטים, נרות ופורטפוליו
 
@@ -56,8 +56,6 @@ supabase/
   seed.sql                      # seed מקומי
   config.toml                   # קונפיגורציית Supabase CLI
 
-public/
-  widget.js                     # Scriptable iOS widget, נפרס כ-/widget.js
 ```
 
 ## מסכים מרכזיים באפליקציה
@@ -78,7 +76,6 @@ public/
 - `GET /api/exchange-rate` שער USD→ILS
 - `POST /api/portfolio` חישוב summary + metrics + realized מול Supabase
 - `GET /api/portfolio/combined-pnl` סיכום משולב לתיק
-- `GET /widget.js` קובץ ה-Scriptable widget להתקנה/עדכון באייפון
 
 ## בסיס נתונים (Supabase)
 טבלאות עיקריות:
@@ -141,11 +138,8 @@ npm run dev
 - `npm test` הרצת בדיקות Vitest
 
 ## iOS widget
-הקובץ `public/widget.js` הוא ה-widget ל-Scriptable. בפרודקשן הוא זמין ב:
-
-```text
-https://razmaz-live-stocks.vercel.app/widget.js
-```
+קוד ה-widget ל-Scriptable מנוהל כמקור יחיד בקובץ המקומי
+`Stocks Status.js` שבתיקיית Scriptable ב-iCloud. אין בפרויקט עותק נוסף של קוד ה-widget.
 
 ה-widget קורא ל-`POST /api/portfolio` עם `includeWeightedPrice: true` ו-`targetCurrency: "ILS"`, ולכן הוא נשאר מסונכרן עם אותו חוזה API של האפליקציה.
 

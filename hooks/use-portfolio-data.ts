@@ -11,6 +11,7 @@ import {
   buildPortfolioTimelinePointFromSummary,
   calculatePortfolioSummary,
   calculatePositionMetrics,
+  calculateRequiredExitPrice,
   calculateRealizedPortfolioTotals,
   calculateRealizedTaxLiability,
   enrichPortfolioSummaryWithRealized,
@@ -619,18 +620,36 @@ export function usePortfolioData() {
           });
         });
 
+        const positionsBySymbol = new Map<string, Position[]>();
+        mappedPositions.forEach((position) => {
+          const symbol = position.symbol.trim().toUpperCase();
+          positionsBySymbol.set(symbol, [...(positionsBySymbol.get(symbol) ?? []), position]);
+        });
+        const requiredExitPriceBySymbol = new Map(
+          Array.from(positionsBySymbol.entries()).map(([symbol, symbolPositions]) => [
+            symbol,
+            calculateRequiredExitPrice(symbolPositions, settings.annualGrowthRate),
+          ]),
+        );
+
         const calculatedMetrics = activationPositions.map((position) => {
           const quote = quoteMap.get(position.symbol);
           const currentPrice = quote?.currentPrice ?? position.entryPrice;
           const dailyChange = quote?.dailyChange;
 
-          return calculatePositionMetrics(
+          const metrics = calculatePositionMetrics(
             position,
             currentPrice,
             rate,
             settings.annualGrowthRate,
             dailyChange
           );
+          return {
+            ...metrics,
+            requiredExitPrice: position.quantity > 0
+              ? requiredExitPriceBySymbol.get(position.symbol.trim().toUpperCase())
+              : undefined,
+          };
         });
         const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
         const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);

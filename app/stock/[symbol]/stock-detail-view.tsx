@@ -7,6 +7,7 @@ import {
   CalendarDays,
   DollarSign,
   RefreshCcw,
+  Target,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -36,6 +37,8 @@ import { useTranslation } from '@/lib/translations';
 import { STOCK_DETAIL_TIME_RANGES } from '@/lib/display/time-ranges';
 import {
   calculatePositionMetrics,
+  calculateRequiredExitPrice,
+  hasMaterialExitPriceGap,
   formatDate,
   formatNumber,
   formatPercent,
@@ -404,13 +407,17 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         const currentPrice = fetchedQuote?.c ?? combinedPosition.entryPrice;
         const dailyChange = fetchedQuote?.d;
 
-        const computedMetrics = calculatePositionMetrics(
+        const baseMetrics = calculatePositionMetrics(
           combinedPosition,
           currentPrice,
           rate,
           settings.annualGrowthRate,
           dailyChange
         );
+        const computedMetrics = {
+          ...baseMetrics,
+          requiredExitPrice: calculateRequiredExitPrice(mappedPositions, settings.annualGrowthRate),
+        };
 
         if (cancelled) {
           return;
@@ -659,6 +666,12 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     profitPerShare === 0 ? 'text-slate-600' : profitPerShare > 0 ? 'text-emerald-600' : 'text-rose-600';
   const transactionsCountLabel = formatNumber(transactions.length, locale);
   const openLotsCountLabel = formatNumber(openLots.length, locale);
+  const visibleRequiredExitPrice = metrics && hasMaterialExitPriceGap(metrics.projectedPrice, metrics.requiredExitPrice)
+    ? metrics.requiredExitPrice
+    : undefined;
+  const requiredExitPriceLabel = visibleRequiredExitPrice !== undefined
+    ? formatUsdCurrency(visibleRequiredExitPrice)
+    : null;
 
   const quickFacts = metrics
     ? [
@@ -703,6 +716,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           value: holdingPeriodLabel,
           helper: t.stock.detailView.quickFactsHelper.holdingTime,
         },
+        ...(requiredExitPriceLabel
+          ? [{
+              key: 'requiredExitPrice',
+              icon: Target,
+              label: t.dashboard.requiredExitPrice,
+              value: requiredExitPriceLabel,
+              helper: t.dashboard.requiredExitPriceHelper,
+            }]
+          : []),
       ]
     : [];
 
@@ -961,7 +983,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         baseline={metrics.position.entryPrice}
                         baselineColor="rgba(var(--color-slate-400-rgb), 0.55)"
                         projectedPrice={metrics.projectedPrice}
+                        requiredExitPrice={visibleRequiredExitPrice}
                         projectedLineColor="rgba(var(--color-primary-500-rgb), 0.85)"
+                        requiredExitLabel={t.dashboard.requiredExitPrice}
                         belowEntryColor="var(--color-rose-500)"
                         betweenProjectedColor="var(--color-primary-500)"
                         aboveProjectedColor="var(--color-emerald-500)"

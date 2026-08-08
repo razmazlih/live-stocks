@@ -23,7 +23,7 @@ import { HistoricalPoint, PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { computeRealizedSales } from '@/lib/positions';
-import { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/calculations';
+import { formatCurrency, formatDate, formatNumber, formatPercent, hasMaterialExitPriceGap } from '@/lib/calculations';
 
 import { PositionCard } from '@/components/portfolio/position-card';
 import { Sparkline } from '@/components/charts/sparkline';
@@ -182,6 +182,11 @@ function PositionMetricRow({
         <p className="text-xs text-slate-500">
           {t.dashboard.projected}: {formatCurrency(metrics.projectedPrice, 'USD', locale)}
         </p>
+        {hasMaterialExitPriceGap(metrics.projectedPrice, metrics.requiredExitPrice) && (
+          <p className="text-xs font-medium text-indigo-600">
+            {t.dashboard.requiredExitPrice}: {formatCurrency(metrics.requiredExitPrice, 'USD', locale)}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1">

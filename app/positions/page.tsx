@@ -139,8 +139,8 @@ function createDefaultTransactionForm(): TransactionFormData {
     price: 0,
     quantity: 0,
     executedAt: getTodayIsoDate(),
-    hasCommission: true,
-    commissionAmount: DEFAULT_COMMISSION_USD,
+    hasCommission: false,
+    commissionAmount: 0,
   };
 }
 
@@ -189,8 +189,8 @@ export default function PositionsPage() {
     initialPrice: 0,
     initialQuantity: 0,
     initialDate: getTodayIsoDate(),
-    initialHasCommission: true,
-    initialCommissionAmount: DEFAULT_COMMISSION_USD,
+    initialHasCommission: false,
+    initialCommissionAmount: 0,
   });
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [transactionTarget, setTransactionTarget] = useState<Position | null>(
@@ -405,8 +405,8 @@ export default function PositionsPage() {
       initialPrice: 0,
       initialQuantity: 0,
       initialDate: getTodayIsoDate(),
-      initialHasCommission: true,
-      initialCommissionAmount: DEFAULT_COMMISSION_USD,
+      initialHasCommission: false,
+      initialCommissionAmount: 0,
     });
     lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
@@ -422,8 +422,8 @@ export default function PositionsPage() {
       initialPrice: position.entryPrice,
       initialQuantity: position.quantity,
       initialDate: position.entryDate,
-      initialHasCommission: true,
-      initialCommissionAmount: DEFAULT_COMMISSION_USD,
+      initialHasCommission: false,
+      initialCommissionAmount: 0,
     });
     setDialogOpen(true);
   }
@@ -803,14 +803,20 @@ export default function PositionsPage() {
         />
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
+          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[color:var(--color-neutral-white)] p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
               <DialogTitle>
                 {editingPosition ? t.positions.edit : t.positions.add}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col [&_input]:h-11 sm:[&_input]:h-10">
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 sm:px-7">
+                <section className="space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "פרטי הנכס" : "Asset details"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "איך לזהות את הפוזיציה בתיק." : "How this position appears in your portfolio."}</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-1">
                   <Label htmlFor="symbol">{t.positions.symbol}</Label>
                   <Input
@@ -850,8 +856,12 @@ export default function PositionsPage() {
                   placeholder="https://logo.clearbit.com/apple.com"
                 />
               </div>
+                </section>
               <div>
-                <Label>{t.positions.locationLabel}</Label>
+                <div className="mb-3">
+                  <Label>{t.positions.locationLabel}</Label>
+                  <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "בחר את החשבון שבו מוחזק הנכס." : "Choose the account that holds this asset."}</p>
+                </div>
                 <RadioGroup
                   value={formData.location}
                   onValueChange={(value) =>
@@ -860,42 +870,48 @@ export default function PositionsPage() {
                       location: value as PositionLocation,
                     })
                   }
-                  className="mt-2 grid gap-2 sm:grid-cols-2"
+                  className="grid gap-3 sm:grid-cols-2"
                 >
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className={cn(
+                    "flex min-h-28 cursor-pointer flex-col justify-between rounded-xl border-2 p-4 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring",
+                    formData.location === "bank_one" ? "border-primary bg-primary/5 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300",
+                  )} onClick={() => setFormData((previous) => ({ ...previous, location: "bank_one" }))}>
                     <RadioGroupItem
                       value="bank_one"
                       id="position-location-one"
-                      className="order-[-1]"
+                      className="sr-only"
                     />
                     <BankBadge
                       bank="bank_one"
                       locale={locale}
-                      className="mt-1 self-start"
+                      className="self-start"
                     />
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs leading-5 text-slate-500">
                       {t.positions.bankOneHelper}
                     </span>
                   </label>
-                  <label className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-[color:var(--color-neutral-white)]/70 p-3 text-sm text-slate-600">
+                  <label className={cn(
+                    "flex min-h-28 cursor-pointer flex-col justify-between rounded-xl border-2 p-4 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring",
+                    formData.location === "bank_two" ? "border-primary bg-primary/5 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300",
+                  )} onClick={() => setFormData((previous) => ({ ...previous, location: "bank_two" }))}>
                     <RadioGroupItem
                       value="bank_two"
                       id="position-location-two"
-                      className="order-[-1]"
+                      className="sr-only"
                     />
                     <BankBadge
                       bank="bank_two"
                       locale={locale}
-                      className="mt-1 self-start"
+                      className="self-start"
                     />
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs leading-5 text-slate-500">
                       {t.positions.bankTwoHelper}
                     </span>
                   </label>
                 </RadioGroup>
               </div>
               {isEditing && editingPosition ? (
-                <div className="rounded-lg border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-4 text-sm text-slate-600">
+                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                   <p className="font-semibold text-slate-700">
                     {t.positions.currentHolding}
                   </p>
@@ -908,9 +924,13 @@ export default function PositionsPage() {
                     {t.positions.since}{" "}
                     {formatDate(editingPosition.entryDate, locale)}
                   </p>
-                </div>
+                </section>
               ) : (
-                <div className="space-y-4">
+                <section className="space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "רכישה ראשונה" : "Initial purchase"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "הפרטים של הפעולה הראשונה בפוזיציה." : "Details for the first transaction in this position."}</p>
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="sm:col-span-1">
                       <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
@@ -972,7 +992,7 @@ export default function PositionsPage() {
                       />
                     </div>
                   </div>
-                  <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <Label
@@ -1001,7 +1021,7 @@ export default function PositionsPage() {
                         }
                       />
                     </div>
-                    <div className="mt-3">
+                    {formData.initialHasCommission && <div className="mt-4 border-t border-slate-200 pt-4">
                       <Label htmlFor="initial-commission-amount">
                         {t.positions.transactionCommissionAmount}
                       </Label>
@@ -1021,19 +1041,16 @@ export default function PositionsPage() {
                         disabled={!formData.initialHasCommission}
                         required={formData.initialHasCommission}
                       />
-                    </div>
+                    </div>}
                   </div>
-                </div>
+                </section>
               )}
-              <div className="flex gap-2">
-                <Button type="submit">{t.positions.save}</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
+              </div>
+              <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
+                <Button type="button" variant="outline" className="h-11 sm:h-10" onClick={() => setDialogOpen(false)}>
                   {t.positions.cancel}
                 </Button>
+                <Button type="submit" className="h-11 sm:h-10">{t.positions.save}</Button>
               </div>
             </form>
           </DialogContent>
@@ -1049,17 +1066,21 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
+          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
               <DialogTitle>
                 {isEditingTransaction
                   ? t.positions.editTransaction
                   : t.positions.addTransaction}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleTransactionSubmit} className="space-y-4">
-              <div>
-                <Label>{t.positions.transactionType}</Label>
+            <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 [&_input]:h-11 sm:px-7 [&_input]:sm:h-10">
+              <section className="space-y-3">
+                <div>
+                  <Label>{t.positions.transactionType}</Label>
+                  <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "בחר את הפעולה שמתבצעת כעת." : "Choose the action you are recording."}</p>
+                </div>
                 <RadioGroup
                   value={transactionForm.type}
                   onValueChange={(value) =>
@@ -1068,18 +1089,23 @@ export default function PositionsPage() {
                       type: value as PositionLotType,
                     })
                   }
-                  className="mt-2 flex gap-4"
+                  className="grid grid-cols-2 gap-3"
                 >
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
-                    <RadioGroupItem value="BUY" id="transaction-buy" />
+                  <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "BUY" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "BUY" }))}>
+                    <RadioGroupItem value="BUY" id="transaction-buy" className="sr-only" />
                     {t.positions.buy}
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
-                    <RadioGroupItem value="SELL" id="transaction-sell" />
+                  <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "SELL" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "SELL" }))}>
+                    <RadioGroupItem value="SELL" id="transaction-sell" className="sr-only" />
                     {t.positions.sell}
                   </label>
                 </RadioGroup>
-              </div>
+              </section>
+              <section className="space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "פרטי העסקה" : "Transaction details"}</p>
+                  <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "מחיר, כמות ותאריך ביצוע." : "Price, quantity, and execution date."}</p>
+                </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="sm:col-span-1">
                   <Label htmlFor="transactionPrice">
@@ -1118,12 +1144,6 @@ export default function PositionsPage() {
                     }
                     required
                   />
-                  {transactionForm.type === "SELL" && transactionTarget && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      {t.positions.availableQuantity}:{" "}
-                      {formatNumber(transactionTarget.quantity, locale)}
-                    </p>
-                  )}
                 </div>
                 <div className="sm:col-span-1">
                   <Label htmlFor="transactionDate">
@@ -1143,7 +1163,13 @@ export default function PositionsPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-slate-50)]/70 p-3">
+              {transactionForm.type === "SELL" && transactionTarget && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {t.positions.availableQuantity}: {formatNumber(transactionTarget.quantity, locale)}
+                </div>
+              )}
+              </section>
+              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label
@@ -1172,7 +1198,7 @@ export default function PositionsPage() {
                     }
                   />
                 </div>
-                <div className="mt-3">
+                {transactionForm.hasCommission && <div className="mt-4 border-t border-slate-200 pt-4">
                   <Label htmlFor="transaction-commission-amount">
                     {t.positions.transactionCommissionAmount}
                   </Label>
@@ -1192,17 +1218,19 @@ export default function PositionsPage() {
                     disabled={!transactionForm.hasCommission}
                     required={transactionForm.hasCommission}
                   />
-                </div>
+                </div>}
+              </section>
               </div>
-              <div className="flex gap-2">
-                <Button type="submit">{t.positions.saveTransaction}</Button>
+              <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
                 <Button
                   type="button"
                   variant="outline"
+                  className="h-11 sm:h-10"
                   onClick={() => setTransactionDialogOpen(false)}
                 >
                   {t.positions.cancel}
                 </Button>
+                <Button type="submit" className="h-11 sm:h-10">{t.positions.saveTransaction}</Button>
               </div>
             </form>
           </DialogContent>
@@ -1217,8 +1245,8 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
+          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
               <DialogTitle>{t.positions.manageHistory}</DialogTitle>
               {historyTarget && (
                 <p className="text-sm text-slate-500">
@@ -1226,6 +1254,7 @@ export default function PositionsPage() {
                 </p>
               )}
             </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7">
             {historyTarget ? (
               historyTarget.lots && historyTarget.lots.length > 0 ? (
                 <div className="space-y-3">
@@ -1255,29 +1284,24 @@ export default function PositionsPage() {
                       return (
                         <div
                           key={`${lot.id}-${lot.executedAt}`}
-                          className="flex items-center gap-3 rounded-md border border-slate-200 bg-[color:var(--color-slate-50)]/70 p-3"
+                          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center"
                         >
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}
-                          >
-                            {typeLabel}
-                          </span>
-                          <div className="flex flex-col text-sm text-slate-600">
-                            <span>
-                              {formatNumber(lot.quantity, locale)} ·{" "}
-                              {formatCurrency(lot.price, "USD", locale)}
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeTone}`}>
+                              {typeLabel}
                             </span>
-                            <span className="text-xs text-slate-500">
-                              {formatDate(lot.executedAt, locale)}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {commissionLabel}
-                            </span>
+                            <div className="min-w-0 text-sm text-slate-700">
+                              <p className="font-medium">
+                                {formatNumber(lot.quantity, locale)} · {formatCurrency(lot.price, "USD", locale)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">{formatDate(lot.executedAt, locale)} · {commissionLabel}</p>
+                            </div>
                           </div>
-                          <div className="ml-auto flex items-center gap-1">
+                          <div className="flex w-full items-center gap-2 sm:w-auto">
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-10 flex-1 border border-slate-200 bg-white sm:w-10 sm:flex-none"
                               onClick={() =>
                                 historyTarget &&
                                 openEditTransactionDialog(historyTarget, lot)
@@ -1289,6 +1313,7 @@ export default function PositionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-10 flex-1 border border-slate-200 bg-white sm:w-10 sm:flex-none"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
                             >
@@ -1307,14 +1332,17 @@ export default function PositionsPage() {
             ) : (
               <p className="text-sm text-slate-500">{t.common.loading}</p>
             )}
+            </div>
             {historyTarget && (
+              <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 sm:px-7">
               <Button
-                className="mt-4 w-full"
+                className="h-11 w-full sm:h-10"
                 onClick={() => openTransactionDialog(historyTarget)}
               >
                 <Plus className="h-4 w-4" />
                 {t.positions.addTransaction}
               </Button>
+              </div>
             )}
           </DialogContent>
         </Dialog>

@@ -36,6 +36,9 @@ interface SparklineProps {
   baselineColor?: string;
   projectedPrice?: number;
   projectedLineColor?: string;
+  requiredExitPrice?: number;
+  requiredExitLineColor?: string;
+  requiredExitLabel?: string;
   belowEntryColor?: string;
   betweenProjectedColor?: string;
   aboveProjectedColor?: string;
@@ -77,6 +80,7 @@ type NormalizedData = {
   closes: number[];
   baselineY: number | null;
   projectedY: number | null;
+  requiredExitY: number | null;
   projectionPoints: { x: number; y: number }[] | null;
   projectionStartX: number;
   events: NormalizedEvent[];
@@ -116,6 +120,9 @@ export function Sparkline({
   baselineColor = 'rgba(var(--color-slate-400-rgb), 0.9)',
   projectedPrice,
   projectedLineColor = 'rgba(var(--color-primary-500-rgb), 0.8)',
+  requiredExitPrice,
+  requiredExitLineColor = 'var(--color-violet-500)',
+  requiredExitLabel,
   belowEntryColor = 'var(--color-red-400)',
   betweenProjectedColor = 'var(--color-primary-500)',
   aboveProjectedColor = 'var(--color-green-400)',
@@ -253,6 +260,7 @@ export function Sparkline({
       ...closes,
       ...(typeof baseline === 'number' ? [baseline] : []),
       ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
+      ...(typeof requiredExitPrice === 'number' ? [requiredExitPrice] : []),
       ...projectionValues.map((point) => point.value),
       ...((events ?? [])
         .map((event) => event.price)
@@ -275,6 +283,9 @@ export function Sparkline({
 
     const projectedY = typeof projectedPrice === 'number'
       ? height - ((projectedPrice - min) / range) * height
+      : null;
+    const requiredExitY = typeof requiredExitPrice === 'number'
+      ? height - ((requiredExitPrice - min) / range) * height
       : null;
 
     const projectionStartX = ((projectionVisibleStart - firstTimestamp) / timeRange) * chartWidth;
@@ -331,6 +342,7 @@ export function Sparkline({
       closes,
       baselineY,
       projectedY,
+      requiredExitY,
       projectionPoints,
       projectionStartX,
       events: normalizedEvents,
@@ -342,6 +354,7 @@ export function Sparkline({
     points,
     baseline,
     projectedPrice,
+    requiredExitPrice,
     chartWidth,
     height,
     annualGrowthRate,
@@ -619,6 +632,7 @@ export function Sparkline({
   const normalizedPoints = normalized?.points ?? [];
   const baselineY = normalized?.baselineY ?? null;
   const projectedY = normalized?.projectedY ?? null;
+  const requiredExitY = normalized?.requiredExitY ?? null;
   const projectionPoints = normalized?.projectionPoints ?? null;
   const normalizedEvents = normalized?.events ?? [];
 
@@ -641,6 +655,13 @@ export function Sparkline({
     : projectedY !== null
       ? `M ${normalized?.projectionStartX ?? 0} ${projectedY} L ${chartWidth} ${projectedY}`
       : null;
+  const hasExitTargetGap = projectedY !== null && requiredExitY !== null;
+  const exitGapStartX = Math.max(normalized?.projectionStartX ?? 0, chartWidth * 0.74);
+  const exitGapTop = hasExitTargetGap ? Math.min(projectedY, requiredExitY) : 0;
+  const exitGapHeight = hasExitTargetGap ? Math.abs(projectedY - requiredExitY) : 0;
+  const exitGapAmount = typeof projectedPrice === 'number' && typeof requiredExitPrice === 'number'
+    ? requiredExitPrice - projectedPrice
+    : null;
 
   const activeEventId = selectedEventId ?? hoveredEventId;
   const activeEvent = normalizedEvents.find((event) => event.id === activeEventId) ?? null;
@@ -935,12 +956,47 @@ export function Sparkline({
 
             {projectedLinePath && (
               <path
+                data-testid="sparkline-projected-line"
                 d={projectedLinePath}
                 fill="none"
                 stroke={projectedLineColor}
                 strokeWidth={1.1}
                 strokeDasharray="4 7"
               />
+            )}
+
+            {hasExitTargetGap && (
+              <>
+                <rect
+                  data-testid="sparkline-required-exit-gap"
+                  x={exitGapStartX}
+                  y={exitGapTop}
+                  width={Math.max(chartWidth - exitGapStartX, 0)}
+                  height={exitGapHeight}
+                  fill={requiredExitLineColor}
+                  opacity={0.1}
+                />
+                <line
+                  data-testid="sparkline-required-exit-line"
+                  x1={normalized?.projectionStartX ?? 0}
+                  y1={requiredExitY}
+                  x2={chartWidth}
+                  y2={requiredExitY}
+                  stroke={requiredExitLineColor}
+                  strokeWidth={1.35}
+                  strokeDasharray="2 4"
+                />
+                <line
+                  x1={chartWidth - 5}
+                  y1={projectedY}
+                  x2={chartWidth - 5}
+                  y2={requiredExitY}
+                  stroke={requiredExitLineColor}
+                  strokeWidth={1.2}
+                />
+                <circle cx={chartWidth - 5} cy={projectedY} r={1.7} fill={requiredExitLineColor} />
+                <circle cx={chartWidth - 5} cy={requiredExitY} r={1.7} fill={requiredExitLineColor} />
+              </>
             )}
 
             <path
@@ -1052,6 +1108,12 @@ export function Sparkline({
                 );
               })}
           </svg>
+
+          {hasExitTargetGap && requiredExitLabel && exitGapAmount !== null ? (
+            <div className="pointer-events-none absolute right-2 top-2 rounded-md border border-violet-200/80 bg-white/90 px-2 py-1 text-[10px] font-semibold text-violet-700 shadow-sm backdrop-blur-sm [direction:ltr] tabular-nums">
+              {requiredExitLabel} · Δ {exitGapAmount > 0 ? '+' : ''}{priceFormatter(exitGapAmount)}
+            </div>
+          ) : null}
 
           {interactive && effectiveHoveredPoint && hoveredPriceText && hoveredTimeText ? (
             <div
