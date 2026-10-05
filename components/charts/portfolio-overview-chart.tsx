@@ -667,72 +667,11 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
         <p className="text-sm text-slate-500">{t.dashboard.portfolioOverviewDescription}</p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6 pt-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
-              <div className="space-y-4">
-                <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
-                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
-                  {toneClass === 'text-emerald-600'
-                    ? t.dashboard.positiveTrend
-                    : toneClass === 'text-rose-600'
-                    ? t.dashboard.negativeTrend
-                    : t.dashboard.neutralTrend}
-                </div>
+        <div className="flex flex-col gap-4 pt-4">
 
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
-                  <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
-                  <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
-                  <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
-                        aria-hidden="true"
-                      >
-                        {forecastGapVisuals.icon}
-                      </span>
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          {t.dashboard.forecastGap}
-                        </p>
-                        <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
-                          {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {portfolioMetricTiles.map((tile) => (
-                    <PortfolioMetricTile key={tile.label} {...tile} />
-                  ))}
-                </div>
-
-                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    {t.dashboard.portfolioOverviewFootnote}
-                  </p>
-                  <p className="mt-2 leading-relaxed">
-                    {t.dashboard.portfolioOverviewSummary(
-                      usdFormatter(openPnLUsd),
-                      usdFormatter(realizedPnLUsd),
-                      usdFormatter(Math.abs(taxesUsd))
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex h-full flex-col gap-6 p-6">
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex h-full flex-col gap-4 p-3 sm:p-5">
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-[12px] font-semibold text-slate-600 shadow-sm">
                 <div className="flex items-center gap-2">
                   <span className="block h-1.5 w-6 rounded-full bg-rose-500" />
@@ -755,9 +694,9 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                   <span>{SPY_LABEL}</span>
                 </div>
               </div>
-              <div className="relative h-[22rem] w-full lg:h-[24rem]">
+              <div className="relative h-[19rem] w-full sm:h-[22rem] lg:h-[24rem]" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                  <LineChart data={chartPoints} margin={{ top: 12, right: -50, left: 0, bottom: 12 }}>
+                  <LineChart data={chartPoints} margin={{ top: 12, right: 4, left: 0, bottom: 12 }}>
                   <defs>
                     <linearGradient id={netLineGradientId} x1="0" y1="0" x2="1" y2="0">
                       {netLineGradientStops.length === 0 ? (
@@ -810,6 +749,7 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
                     {...(yDomain ? { domain: yDomain } : {})}
                   />
                   <Tooltip
+                    isAnimationActive={false}
                     wrapperStyle={{ zIndex: 40 }}
                     cursor={{ strokeDasharray: '4 6', stroke: 'rgba(var(--color-indigo-500-rgb), 0.35)', strokeWidth: 1.25 }}
                     content={
@@ -871,6 +811,71 @@ export function PortfolioOverviewChart({ data, summary }: PortfolioOverviewChart
               </div>
             </div>
           </div>
+          <details className="rounded-xl border border-slate-200 bg-white p-4">
+            <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              {locale === 'he' ? 'פירוט ביצועים ונתונים נוספים' : 'Performance breakdown and additional data'}
+            </summary>
+            <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+              <div className="space-y-4">
+                <div className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                  {toneClass === 'text-emerald-600'
+                    ? t.dashboard.positiveTrend
+                    : toneClass === 'text-rose-600'
+                    ? t.dashboard.negativeTrend
+                    : t.dashboard.neutralTrend}
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-slate-500">{t.dashboard.netPnL}</p>
+                  <p className={`text-3xl font-semibold ${toneClass}`}>{usdFormatter(netPnLUsd)}</p>
+                  <p className="text-xs text-slate-500">{ilsFormatter(netPnLIls)}</p>
+                  <div className={`rounded-2xl border ${forecastGapVisuals.border} bg-gradient-to-br ${forecastGapVisuals.background} p-4 shadow-sm`}>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${forecastGapVisuals.badge}`}
+                        aria-hidden="true"
+                      >
+                        {forecastGapVisuals.icon}
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {t.dashboard.forecastGap}
+                        </p>
+                        <p className={`text-lg font-semibold ${forecastGapVisuals.text}`}>
+                          {formatSignedCurrency(netForecastGapUsd, usdFormatter)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {t.dashboard.forecastGapSecondary(formatSignedCurrency(netForecastGapIls, ilsFormatter))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {portfolioMetricTiles.map((tile) => (
+                    <PortfolioMetricTile key={tile.label} {...tile} />
+                  ))}
+                </div>
+
+                <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-white to-emerald-500/10 p-4 text-sm text-slate-600 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t.dashboard.portfolioOverviewFootnote}
+                  </p>
+                  <p className="mt-2 leading-relaxed">
+                    {t.dashboard.portfolioOverviewSummary(
+                      usdFormatter(openPnLUsd),
+                      usdFormatter(realizedPnLUsd),
+                      usdFormatter(Math.abs(taxesUsd))
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       </CardContent>
     </DashboardSurface>

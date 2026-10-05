@@ -2,6 +2,8 @@
 
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,8 @@ interface TickerCardProps {
   quote?: StockQuote | null;
   historical?: HistoricalPoint[] | null;
   range: TimeRange;
+  returnTo?: string;
+  lastUpdated?: number | null;
   locale: Locale;
   currency?: 'USD' | 'ILS';
   loading?: boolean;
@@ -79,6 +83,8 @@ export function TickerCard({
   quote,
   historical,
   range,
+  returnTo = '/watchlist',
+  lastUpdated,
   locale,
   currency = 'USD',
   loading = false,
@@ -332,9 +338,14 @@ export function TickerCard({
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold tracking-tight text-slate-900">
+              <Link
+                href={buildStockHref(ticker.symbol, returnTo)}
+                id={`watchlist-link-${ticker.id ?? ticker.symbol}`}
+                onClick={() => rememberReturnContext(`watchlist-link-${ticker.id ?? ticker.symbol}`)}
+                className="inline-flex min-h-[44px] items-center text-base font-semibold tracking-tight text-slate-900 hover:text-blue-600"
+              >
                 {ticker.symbol.toUpperCase()}
-              </span>
+              </Link>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600">
                 {range}
               </span>
@@ -348,7 +359,7 @@ export function TickerCard({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
+                className="h-11 w-11"
                 onClick={() => onRefresh(ticker)}
                 disabled={loading}
               >
@@ -357,7 +368,7 @@ export function TickerCard({
               </Button>
             ) : null}
             {onEdit ? (
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(ticker)}>
+              <Button size="icon" variant="ghost" className="h-11 w-11" onClick={() => onEdit(ticker)}>
                 <Pencil className="h-4 w-4" />
                 <span className="sr-only">{editLabel}</span>
               </Button>
@@ -366,7 +377,7 @@ export function TickerCard({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 text-rose-500 hover:text-rose-600"
+                className="h-11 w-11 text-rose-500 hover:text-rose-600"
                 onClick={() => onDelete(ticker)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -403,11 +414,13 @@ export function TickerCard({
         </div>
 
         <div className="rounded-2xl border border-overlay-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 sm:p-3">
-          {loading ? (
+          {loading && showSparkline ? <p role="status" className="mb-2 text-xs text-slate-500">{locale === 'he' ? 'מעדכן… הגרף מציג את הטווח הקודם עד לסיום.' : 'Updating… The chart keeps its previous range until ready.'}</p> : null}
+          {error && showSparkline ? <p role="alert" className="mb-2 text-xs text-amber-700">{error} {locale === 'he' ? 'מוצגים הנתונים האחרונים.' : 'Showing the last available data.'}</p> : null}
+          {loading && !showSparkline ? (
             <div className="flex items-center justify-center text-xs text-slate-500" style={{ height: chartHeight }}>
               {loadingLabel}
             </div>
-          ) : error ? (
+          ) : error && !showSparkline ? (
             <div
               className="flex items-center justify-center text-center text-xs text-rose-500"
               style={{ height: chartHeight }}
@@ -439,6 +452,7 @@ export function TickerCard({
           )}
         </div>
 
+        {lastUpdated ? <p className="text-xs tabular-nums text-slate-400">{locale === 'he' ? 'עודכן' : 'Updated'} {new Date(lastUpdated).toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</p> : null}
         {ticker.note ? (
           <div className="rounded-xl border border-slate-100 bg-[color:var(--color-slate-50)]/70 p-2.5 text-[0.8rem] text-slate-600 sm:p-3">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">{noteLabel}</p>

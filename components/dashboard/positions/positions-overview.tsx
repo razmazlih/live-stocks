@@ -42,6 +42,8 @@ import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getTrendPresentation } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
+import { useUrlState } from '@/hooks/use-url-state';
+import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 import { BankBadge } from '@/components/branding/bank-badge';
 
 interface PositionsOverviewProps {
@@ -120,6 +122,8 @@ function PositionMetricRow({
   locale: 'he' | 'en';
 }) {
   const { t } = useTranslation(locale);
+  const [, , sourceUrl] = useUrlState(() => null);
+  const focusId = `overview-${metrics.position.activationId ?? metrics.position.id ?? metrics.position.symbol}`;
   const dailyValue =
     typeof metrics.dailyChange === 'number'
       ? metrics.dailyChange * metrics.position.quantity
@@ -136,7 +140,9 @@ function PositionMetricRow({
 
   return (
     <Link
-      href={`/stock/${metrics.position.symbol}`}
+      id={focusId}
+      href={buildStockHref(metrics.position.symbol, sourceUrl || '/')}
+      onClick={() => rememberReturnContext(focusId)}
       className="group grid min-w-[1180px] grid-cols-[minmax(280px,1.45fr)_minmax(132px,0.68fr)_minmax(152px,0.78fr)_minmax(140px,0.72fr)_minmax(132px,0.68fr)_150px_44px] items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-200"
       aria-label={metrics.position.display}
     >

@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
+import { useUrlState } from '@/hooks/use-url-state';
+import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 import { ArrowUpRight } from 'lucide-react';
 import { getTrendIcon, getTrendTone } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
@@ -25,6 +27,7 @@ interface PositionCardProps {
 
 export function PositionCard({ metrics, sparklineData, closedSelector }: PositionCardProps) {
   const { locale, settings } = useApp();
+  const [, , sourceUrl] = useUrlState(() => null);
   const { t } = useTranslation(locale);
   const {
     position,
@@ -468,7 +471,9 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
             <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3">
               <Link
-                href={`/stock/${position.symbol}`}
+                href={buildStockHref(position.symbol, sourceUrl || '/portfolio')}
+                id={`portfolio-link-${position.id ?? position.symbol}`}
+                onClick={() => rememberReturnContext(`portfolio-link-${position.id ?? position.symbol}`)}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}
@@ -681,7 +686,9 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
             <div className="flex flex-wrap justify-end gap-2 sm:gap-2.5">
               <Link
-                href={`/stock/${position.symbol}`}
+                href={buildStockHref(position.symbol, sourceUrl || '/portfolio')}
+                id={`portfolio-link-${position.id ?? position.symbol}`}
+                onClick={() => rememberReturnContext(`portfolio-link-${position.id ?? position.symbol}`)}
                 className="group inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
                 {t.dashboard.viewDetails}

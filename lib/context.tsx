@@ -9,6 +9,7 @@ import {
   useCallback,
 } from 'react';
 import { Locale, Settings } from '@/types';
+import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 
@@ -138,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         triggerRefresh,
       }}
     >
-      {children}
+      <PortfolioDataProvider>{children}</PortfolioDataProvider>
     </AppContext.Provider>
   );
 }

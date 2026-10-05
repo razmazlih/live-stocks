@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, createElement, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useApp } from '@/lib/context';
 import {
@@ -428,10 +428,15 @@ function buildPositionTimeline(
   return timeline;
 }
 
-export function usePortfolioData() {
+function usePortfolioDataState() {
   const { settings, settingsReady, refreshTrigger } = useApp();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
+  const hasDataRef = useRef(false);
+  const generationRef = useRef(0);
+  const requestRef = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
   const [refreshingCount, setRefreshingCount] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
@@ -567,13 +572,16 @@ export function usePortfolioData() {
   );
 
   const loadData = useCallback(
-    async ({ background = false, forceQuoteRefresh = false }: LoadOptions = {}) => {
-      if (!settingsReady) {
-        return;
-      }
-
+    ({ forceQuoteRefresh = false }: LoadOptions = {}): Promise<void> => {
+      if (!settingsReady) return Promise.resolve();
+      if (requestRef.current) return requestRef.current.promise;
+      const controller = new AbortController();
+      const generation = ++generationRef.current;
+      const isBackground = hasDataRef.current;
+      const promise = (async () => {
       try {
-      if (background) {
+      setError(null);
+      if (isBackground) {
         setRefreshingCount((count) => count + 1);
       } else {
         setLoading(true);
@@ -584,7 +592,7 @@ export function usePortfolioData() {
         params.set('forceQuoteRefresh', '1');
       }
       const query = params.toString();
-      const response = await fetch(`/api/portfolio/dashboard${query ? `?${query}` : ''}`);
+      const response = await fetch(`/api/portfolio/dashboard${query ? `?${query}` : ''}`, { signal: controller.signal });
       if (!response.ok) {
         throw new Error(`Dashboard request failed: HTTP ${response.status}`);
       }
@@ -746,6 +754,9 @@ export function usePortfolioData() {
             : null;
         const continuousTimeline = buildContinuousTimeline(finalTimeline, earliestActivityTimestamp);
 
+        if (controller.signal.aborted || generation !== generationRef.current) return;
+        hasDataRef.current = true;
+        setHasData(true);
         setPositions(mappedPositions);
         setUsdToIls(rate);
         setMetrics(calculatedMetrics);
@@ -760,14 +771,22 @@ export function usePortfolioData() {
         setRealizedSales(realizedSalesWithFx);
         setLastUpdate(new Date());
       } catch (error) {
-        console.error('Error loading portfolio data:', error);
+        if (!controller.signal.aborted && generation === generationRef.current) {
+          console.error('Error loading portfolio data:', error);
+          setError('portfolio_load_failed');
+        }
       } finally {
-        if (background) {
+        if (generation !== generationRef.current) return;
+        requestRef.current = null;
+        if (isBackground) {
           setRefreshingCount((count) => Math.max(0, count - 1));
         } else {
           setLoading(false);
         }
       }
+      })();
+      requestRef.current = { controller, promise };
+      return promise;
     },
     [loadSparklines, settings.annualGrowthRate, settingsReady]
   );
@@ -776,7 +795,17 @@ export function usePortfolioData() {
     if (!settingsReady) {
       return;
     }
+    // An invalidation supersedes the old calculation; route changes do not remount this provider.
+    requestRef.current?.controller.abort();
+    requestRef.current = null;
+    generationRef.current += 1;
+    setRefreshingCount(0);
     void loadData();
+    return () => {
+      requestRef.current?.controller.abort();
+      requestRef.current = null;
+      generationRef.current += 1;
+    };
   }, [loadData, refreshTrigger, settingsReady]);
 
   useEffect(() => {
@@ -798,8 +827,12 @@ export function usePortfolioData() {
     };
   }, [loadData, settings.refreshInterval, settingsReady]);
 
+  const reload = useCallback(() => loadData({ background: true, forceQuoteRefresh: true }), [loadData]);
+
   return {
     loading,
+    error,
+    hasData,
     refreshing: refreshingCount > 0,
     positions,
     metrics,
@@ -812,6 +845,19 @@ export function usePortfolioData() {
     historicalIlsRealizedPnL,
     realizedSales,
     lastUpdate,
-    reload: () => loadData({ background: true, forceQuoteRefresh: true }),
+    reload,
   };
+}
+
+const PortfolioDataContext = createContext<ReturnType<typeof usePortfolioDataState> | null>(null);
+
+export function PortfolioDataProvider({ children }: { children: ReactNode }) {
+  const value = usePortfolioDataState();
+  return createElement(PortfolioDataContext.Provider, { value }, children);
+}
+
+export function usePortfolioData() {
+  const value = useContext(PortfolioDataContext);
+  if (!value) throw new Error('usePortfolioData must be used within AppProvider');
+  return value;
 }

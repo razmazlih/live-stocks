@@ -403,8 +403,8 @@
     background: transparent;
   }
 
-  .dashboard-shell-enter {
-    animation: dashboard-shell-fade-in 180ms ease-out;
+  .dashboard-content-enter {
+    animation: dashboard-content-fade-in 200ms ease-out;
   }
 
   .page-shell-surface {
@@ -413,7 +413,7 @@
   }
 }
 
-@keyframes dashboard-shell-fade-in {
+@keyframes dashboard-content-fade-in {
   from {
     opacity: 0.8;
     transform: translateY(4px);
@@ -421,5 +421,53 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+
+@layer base {
+  html {
+    scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
+  button, a, input, select, textarea, summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  input, select, button {
+    min-height: 44px;
+  }
+
+  button {
+    min-width: 44px;
+  }
+}
+
+@layer components {
+  .summary-details[open] > .summary-details-content {
+    animation: dashboard-content-fade-in 200ms ease-out;
+  }
+
+  .summary-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .summary-details[open] .summary-chevron {
+    transform: rotate(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .dashboard-content-enter,
+  .summary-details[open] > .summary-details-content {
+    animation: none;
   }
 }

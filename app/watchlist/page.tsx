@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -40,6 +40,9 @@ import { useTranslation } from '@/lib/translations';
 import { formatDate, mapCandleDataToPoints } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/hooks/use-watchlist';
+import { useUrlState } from '@/hooks/use-url-state';
+import { useReturnContext } from '@/hooks/use-return-context';
+import { localDateParam, parseWatchlistState } from '@/lib/list-url-state';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { isNasdaqTradingHours } from '@/lib/utils/trading-hours';
@@ -73,6 +76,8 @@ interface TickerState {
   historical: HistoricalPoint[];
   range: TimeRange;
   from: number | null;
+  requestedRange: TimeRange;
+  requestedFrom: number;
   lastUpdated: number | null;
 }
 
@@ -290,8 +295,11 @@ export default function WatchlistPage() {
     reorderTickers,
   } = useWatchlist();
 
-  const [range, setRange] = useState<TimeRange>('1M');
-  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+  const [{ range, customStartDate }, patchUrl, sourceUrl] = useUrlState(parseWatchlistState);
+  const setCustomStartDate = useCallback((date: Date | null) => patchUrl({ from: localDateParam(date) }), [patchUrl]);
+  const requests = useRef(new Map<string, { identity: string; controller: AbortController }>());
+  useReturnContext(!loading && Boolean(selectedGroup));
+  useEffect(() => () => { requests.current.forEach((request) => request.controller.abort()); }, []);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<GroupFormState>(createEmptyGroupForm);
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
@@ -358,9 +366,8 @@ export default function WatchlistPage() {
   }, []);
 
   const handleRangeChange = useCallback((nextRange: TimeRange) => {
-    setRange(nextRange);
-    setCustomStartDate(null);
-  }, []);
+    patchUrl({ range: nextRange, from: null });
+  }, [patchUrl]);
 
   const handleStartDateChange = useCallback((date: Date | undefined) => {
     if (!date) {
@@ -378,11 +385,11 @@ export default function WatchlistPage() {
     } else {
       setCustomStartDate(normalized);
     }
-  }, []);
+  }, [setCustomStartDate]);
 
   const handleResetStartDate = useCallback(() => {
     setCustomStartDate(null);
-  }, []);
+  }, [setCustomStartDate]);
 
   const startDateSummary = t.watchlist.filters.summary(formattedStartDate);
 
@@ -412,6 +419,13 @@ export default function WatchlistPage() {
       const { from, resolution } = getRangeParams(targetRange, startDateForFetch);
       const key = getTickerKey(ticker);
       const cacheKey = buildTickerCacheKey(key, targetRange, from, resolution);
+      const previousRequest = requests.current.get(key);
+      if (!options?.force && previousRequest?.identity === cacheKey) return;
+      previousRequest?.controller.abort();
+      const controller = new AbortController();
+      const request = { identity: cacheKey, controller };
+      requests.current.set(key, request);
+      const isCurrent = () => requests.current.get(key) === request && !controller.signal.aborted;
 
       if (!options?.force) {
         const cached = readTickerCache(cacheKey);
@@ -427,26 +441,19 @@ export default function WatchlistPage() {
               error: cached.error ?? null,
               range: targetRange,
               from,
+              requestedRange: targetRange,
+              requestedFrom: from,
               lastUpdated:
                 typeof cached.storedAt === 'number' ? cached.storedAt : Date.now(),
             },
           }));
+          requests.current.delete(key);
           return;
         }
       }
 
       setTickerStates((prev) => {
         const existing = prev[key];
-        if (
-          !options?.force &&
-          existing &&
-          existing.loading &&
-          existing.range === targetRange &&
-          existing.from === from
-        ) {
-          return prev;
-        }
-
         return {
           ...prev,
           [key]: {
@@ -454,8 +461,10 @@ export default function WatchlistPage() {
             historical: existing?.historical ?? [],
             loading: true,
             error: null,
-            range: targetRange,
-            from,
+            range: existing?.range ?? targetRange,
+            from: existing?.from ?? from,
+            requestedRange: targetRange,
+            requestedFrom: from,
             lastUpdated: existing?.lastUpdated ?? null,
           },
         };
@@ -481,8 +490,8 @@ export default function WatchlistPage() {
         });
 
         const [quoteResponse, candlesResponse] = await Promise.all([
-          fetch(`/api/quote?${quoteParams.toString()}`),
-          fetch(`/api/candles?${candlesParams.toString()}`),
+          fetch(`/api/quote?${quoteParams.toString()}`, { signal: controller.signal }),
+          fetch(`/api/candles?${candlesParams.toString()}`, { signal: controller.signal }),
         ]);
 
         let quote: StockQuote | null = null;
@@ -496,7 +505,7 @@ export default function WatchlistPage() {
         }
 
         let historical: HistoricalPoint[] = [];
-        let errorMessage: string | null = null;
+        let errorMessage: string | null = quoteResponse.ok ? null : chartErrorMessage;
 
         if (candlesResponse.ok) {
           const payload = (await candlesResponse.json()) as (CandleData & { error?: string }) | { error: string };
@@ -517,6 +526,8 @@ export default function WatchlistPage() {
           }
         }
 
+        if (!isCurrent()) return;
+        if (errorMessage) throw new Error(errorMessage);
         const fetchedAt = Date.now();
         writeTickerCache(cacheKey, {
           quote,
@@ -538,12 +549,14 @@ export default function WatchlistPage() {
             error: errorMessage,
             range: targetRange,
             from,
+            requestedRange: targetRange,
+            requestedFrom: from,
             lastUpdated: fetchedAt,
           },
         }));
       } catch (error) {
+        if (!isCurrent()) return;
         console.error('Failed to load ticker data', error);
-        const failedAt = Date.now();
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
@@ -551,11 +564,15 @@ export default function WatchlistPage() {
             historical: prev[key]?.historical ?? [],
             loading: false,
             error: chartErrorMessage,
-            range: targetRange,
-            from,
-            lastUpdated: failedAt,
+            range: prev[key]?.range ?? targetRange,
+            from: prev[key]?.from ?? from,
+            requestedRange: targetRange,
+            requestedFrom: from,
+            lastUpdated: prev[key]?.lastUpdated ?? null,
           },
         }));
+      } finally {
+        if (requests.current.get(key) === request) requests.current.delete(key);
       }
     },
     [chartErrorMessage, effectiveStartDate, finnhubToken, range]
@@ -571,8 +588,8 @@ export default function WatchlistPage() {
       const state = tickerStates[key];
       const shouldLoad =
         !state ||
-        state.range !== range ||
-        state.from !== effectiveFromSeconds;
+        state.requestedRange !== range ||
+        state.requestedFrom !== effectiveFromSeconds;
 
       if (shouldLoad) {
         fetchTickerData(ticker, { range, startDate: effectiveStartDate }).catch((error) => {
@@ -1153,7 +1170,9 @@ export default function WatchlistPage() {
                                   ticker={ticker}
                                   quote={state?.quote}
                                   historical={historical}
-                                  range={range}
+                                  range={state?.range ?? range}
+                                  returnTo={sourceUrl || '/watchlist'}
+                                  lastUpdated={state?.lastUpdated}
                                   locale={locale}
                                   loading={state?.loading}
                                   error={state?.error}

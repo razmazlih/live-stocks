@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useUrlState } from '@/hooks/use-url-state';
+import { parseWatchlistState } from '@/lib/list-url-state';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 import { getSupabaseClient } from '@/lib/supabase';
@@ -67,12 +69,21 @@ const GROUP_SELECT = `
 
 export function useWatchlist(): UseWatchlistState {
   const [groups, setGroups] = useState<WatchlistGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [{ group: selectedGroupId }, patchUrl] = useUrlState(parseWatchlistState);
+  const groupRef = useRef(selectedGroupId);
+  groupRef.current = selectedGroupId;
+  const setSelectedGroupId = useCallback((value: string | null | ((previous: string | null) => string | null)) => {
+    const next = typeof value === 'function' ? value(groupRef.current) : value;
+    groupRef.current = next;
+    patchUrl({ group: next });
+  }, [patchUrl]);
+  const requestIdRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<PostgrestError | null>(null);
 
   const loadGroups = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setRefreshing(true);
     try {
       const supabase = getSupabaseClient();
@@ -87,6 +98,7 @@ export function useWatchlist(): UseWatchlistState {
         throw queryError;
       }
 
+      if (requestId !== requestIdRef.current) return;
       const mapped = (data ?? []).map(mapWatchlistGroup);
       const sorted = sortWatchlistGroups(mapped);
       setGroups(sorted);
@@ -106,13 +118,16 @@ export function useWatchlist(): UseWatchlistState {
         return stillExists ? current : sorted[0]?.id ?? null;
       });
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       console.error('Failed to load watchlist groups:', err);
       setError(err as PostgrestError);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, []);
+  }, [setSelectedGroupId]);
 
   useEffect(() => {
     loadGroups();
@@ -127,7 +142,7 @@ export function useWatchlist(): UseWatchlistState {
 
   const selectGroup = useCallback((groupId: string) => {
     setSelectedGroupId(groupId);
-  }, []);
+  }, [setSelectedGroupId]);
 
   const createGroup = useCallback<UseWatchlistState['createGroup']>(
     async (input) => {
@@ -152,7 +167,7 @@ export function useWatchlist(): UseWatchlistState {
       setSelectedGroupId(mapped.id ?? null);
       return mapped;
     },
-    []
+    [setSelectedGroupId]
   );
 
   const updateGroup = useCallback<UseWatchlistState['updateGroup']>(
@@ -192,21 +207,9 @@ export function useWatchlist(): UseWatchlistState {
       throw deleteError;
     }
 
-    setGroups((prev) => {
-      const next = prev.filter((group) => group.id !== groupId);
-      const fallback = next[0]?.id ?? null;
-
-      setSelectedGroupId((current) => {
-        if (current && current !== groupId) {
-          const stillExists = next.some((group) => group.id === current);
-          return stillExists ? current : fallback;
-        }
-        return fallback;
-      });
-
-      return next;
-    });
-  }, []);
+    setGroups((prev) => prev.filter((group) => group.id !== groupId));
+    setSelectedGroupId((current) => current === groupId ? groups.find((group) => group.id !== groupId)?.id ?? null : current);
+  }, [groups, setSelectedGroupId]);
 
   const createTicker = useCallback<UseWatchlistState['createTicker']>(
     async (groupId, input) => {

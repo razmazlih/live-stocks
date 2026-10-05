@@ -7,6 +7,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { calculateRealizedPortfolioTotals, formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { useReturnContext } from '@/hooks/use-return-context';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
@@ -37,6 +38,8 @@ export default function PortfolioPage() {
     lastUpdate,
     reload,
   } = usePortfolioData();
+
+  useReturnContext(!loading);
 
   const lastUpdatedDisplay = formatLastUpdatedTime(lastUpdate, locale);
 

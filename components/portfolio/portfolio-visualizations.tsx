@@ -398,6 +398,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       tick={{ fill: 'var(--color-slate-700)', fontSize: 12, fontWeight: 700 }}
                     />
                     <Tooltip
+                      isAnimationActive={false}
                       cursor={{ fill: 'var(--color-overlay-sky-soft)' }}
                       content={
                         <ChartTooltip
@@ -406,7 +407,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                         />
                       }
                     />
-                    <Bar dataKey="value" fill="url(#holdingPeriodGradient)" radius={[999, 999, 999, 999]} />
+                    <Bar isAnimationActive={false} dataKey="value" fill="url(#holdingPeriodGradient)" radius={[999, 999, 999, 999]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -519,10 +520,12 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                     tick={{ fill: 'var(--color-slate-600)', fontSize: 12, fontWeight: 500 }}
                   />
                   <Tooltip
+                      isAnimationActive={false}
                     cursor={{ fill: 'var(--color-overlay-navy-soft)' }}
                     content={<ChartTooltip valueFormatter={barTooltipFormatter} />}
                   />
                   <Bar
+                    isAnimationActive={false}
                     dataKey="currentPnLDisplay"
                     name={t.dashboard.current}
                     radius={[10, 10, 6, 6]}
@@ -536,6 +539,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                     ))}
                   </Bar>
                   <Bar
+                    isAnimationActive={false}
                     dataKey="projectedPnLDisplay"
                     name={t.dashboard.projected}
                     radius={[10, 10, 6, 6]}
@@ -596,6 +600,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       })}
                     </defs>
                     <Pie
+                      isAnimationActive={false}
                       data={allocationData}
                       dataKey="value"
                       nameKey="display"
@@ -627,6 +632,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
                       />
                     </Pie>
                     <Tooltip
+                      isAnimationActive={false}
                       cursor={{ fill: 'var(--color-overlay-primary-soft)' }}
                       content={
                         <ChartTooltip

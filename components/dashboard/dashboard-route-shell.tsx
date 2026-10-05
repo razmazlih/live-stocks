@@ -8,6 +8,7 @@ import { useTranslation } from '@/lib/translations';
 import type { AppRouteKey } from './navigation';
 import { createAppRouteItems } from './navigation';
 import { DashboardPageShell } from './page-shell';
+import { PortfolioFeedback } from './portfolio-feedback';
 
 interface DashboardRouteShellProps {
   activeKey: AppRouteKey;
@@ -15,6 +16,7 @@ interface DashboardRouteShellProps {
   className?: string;
   contentClassName?: string;
   locale: Locale;
+  portfolioFeedback?: boolean;
 }
 
 export function DashboardRouteShell({
@@ -23,6 +25,7 @@ export function DashboardRouteShell({
   className,
   contentClassName,
   locale,
+  portfolioFeedback = true,
 }: DashboardRouteShellProps) {
   const { t } = useTranslation(locale);
   const navigationItems = useMemo(() => createAppRouteItems(t), [t]);
@@ -36,7 +39,9 @@ export function DashboardRouteShell({
       locale={locale}
       navigationItems={navigationItems}
     >
-      {children}
+      {portfolioFeedback && ['dashboard', 'portfolio', 'realized', 'insights', 'aiPrompts', 'exceptions'].includes(activeKey)
+        ? <PortfolioFeedback locale={locale}>{children}</PortfolioFeedback>
+        : children}
     </DashboardPageShell>
   );
 }

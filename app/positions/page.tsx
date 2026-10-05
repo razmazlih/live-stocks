@@ -73,6 +73,10 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUrlState } from "@/hooks/use-url-state";
+import { useReturnContext } from "@/hooks/use-return-context";
+import { parsePositionsState } from "@/lib/list-url-state";
+import { buildStockHref, rememberReturnContext } from "@/lib/navigation-context";
 
 interface PositionFormData {
   symbol: string;
@@ -201,13 +205,16 @@ export default function PositionsPage() {
   );
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [locationFilter, setLocationFilter] =
-    useState<PositionLocationFilter>("all");
-  const [sortOption, setSortOption] =
-    useState<PositionSortOption>("latest_activity");
-  const [pageSize, setPageSize] = useState(20);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [{ searchTerm, locationFilter, sortOption, pageSize, currentPage }, patchUrl, sourceUrl] = useUrlState(parsePositionsState);
+  const setSearchTerm = (value: string) => patchUrl({ q: value, page: null });
+  const setLocationFilter = (value: PositionLocationFilter) => patchUrl({ account: value === "all" ? null : value, page: null });
+  const setSortOption = (value: PositionSortOption) => patchUrl({ sort: value, page: null });
+  const setPageSize = (value: number) => patchUrl({ pageSize: value, page: null });
+  const setCurrentPage = useCallback((value: number | ((previous: number) => number)) => patchUrl({ page: typeof value === "function" ? value(currentPage) : value }), [currentPage, patchUrl]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const requestIdRef = useRef(0);
+  useReturnContext(hasLoaded && Boolean(sourceUrl));
   const lastFetchedSymbolRef = useRef<string | null>(null);
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
@@ -313,20 +320,16 @@ export default function PositionsPage() {
     return sorted;
   }, [locationFilter, positionItems, searchTerm, sortOption]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, locationFilter, sortOption, pageSize]);
-
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredPositionItems.length / pageSize)),
     [filteredPositionItems.length, pageSize],
   );
 
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (hasLoaded && !loading && sourceUrl && currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, hasLoaded, loading, sourceUrl, setCurrentPage]);
 
   const paginatedPositionItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -371,6 +374,7 @@ export default function PositionsPage() {
   ];
 
   const loadPositions = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
       const supabase = getSupabaseClient();
@@ -382,12 +386,17 @@ export default function PositionsPage() {
       if (error) throw error;
 
       const mappedPositions: Position[] = (data || []).map(mapPositionRow);
+      if (requestId !== requestIdRef.current) return;
       setPositions(mappedPositions);
+      setHasLoaded(true);
+      setLoadError(false);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      setLoadError(true);
       console.error("Error loading positions:", error);
       toast.error(t.common.error);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [t.common.error]);
 
@@ -649,7 +658,6 @@ export default function PositionsPage() {
       }
 
       setDialogOpen(false);
-      loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error("Error saving position:", error);
@@ -730,7 +738,6 @@ export default function PositionsPage() {
       }
 
       setTransactionDialogOpen(false);
-      loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error("Error saving transaction:", error);
@@ -758,7 +765,6 @@ export default function PositionsPage() {
       if (error) throw error;
 
       toast.success(t.positions.transactionDeleted);
-      await loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error("Error deleting transaction:", error);
@@ -782,7 +788,6 @@ export default function PositionsPage() {
       if (error) throw error;
 
       toast.success(locale === "he" ? "הפוזיציה נמחקה" : "Position deleted");
-      loadPositions();
       triggerRefresh();
     } catch (error) {
       console.error("Error deleting position:", error);
@@ -1385,13 +1390,20 @@ export default function PositionsPage() {
 
           <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
             <div className="relative z-10">
-              {loading ? (
+              {loadError ? (
+                <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <span>{locale === "he" ? (hasLoaded ? "הרענון נכשל. הנתונים האחרונים נשמרו." : "לא הצלחנו לטעון את הפוזיציות.") : (hasLoaded ? "Refresh failed. Showing the last available data." : "Unable to load positions.")}</span>
+                  <Button variant="outline" onClick={loadPositions} disabled={loading}>{locale === "he" ? "ניסיון חוזר" : "Try again"}</Button>
+                </div>
+              ) : null}
+              {loading && hasLoaded ? <p role="status" className="mb-3 text-xs text-slate-500">{locale === "he" ? "מעדכן נתונים…" : "Updating data…"}</p> : null}
+              {loading && !hasLoaded ? (
                 <Card>
-                  <CardContent className="py-16 text-center text-slate-500">
-                    {t.common.loading}
+                  <CardContent className="space-y-4 py-8" aria-label={t.common.loading} aria-busy="true">
+                    {[0, 1, 2].map((row) => <div key={row} className="h-24 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />)}
                   </CardContent>
                 </Card>
-              ) : positions.length === 0 ? (
+              ) : !hasLoaded && loadError ? null : positions.length === 0 ? (
                 <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
                   <CardContent className="flex flex-col items-center gap-4 py-12">
                     <p className="text-base font-semibold text-slate-700">
@@ -1640,19 +1652,14 @@ export default function PositionsPage() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center justify-end gap-1">
-                                      <Link
-                                        href={`/stock/${position.symbol}`}
-                                        className="shrink-0"
-                                      >
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label={t.dashboard.viewDetails}
-                                          className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
-                                        >
-                                          <BarChart3 className="h-4 w-4" />
-                                        </Button>
-                                      </Link>
+                                      <Button asChild variant="ghost" size="icon" className="shrink-0 rounded-full text-slate-500 hover:text-slate-800">
+                                        <Link href={buildStockHref(position.symbol, sourceUrl || "/positions")}
+                                          id={`position-link-${position.id ?? position.symbol}`}
+                                          onClick={() => rememberReturnContext(`position-link-${position.id ?? position.symbol}`)}
+                                          aria-label={t.dashboard.viewDetails}>
+                                          <BarChart3 aria-hidden="true" className="h-4 w-4" />
+                                        </Link>
+                                      </Button>
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -1743,16 +1750,14 @@ export default function PositionsPage() {
                                       </div>
                                     </div>
                                   </div>
-                                  <Link href={`/stock/${position.symbol}`}>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      aria-label={t.dashboard.viewDetails}
-                                      className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-800"
-                                    >
-                                      <BarChart3 className="h-4 w-4" />
-                                    </Button>
-                                  </Link>
+                                  <Button asChild variant="ghost" size="icon" className="rounded-full text-slate-500 hover:text-slate-800">
+                                    <Link href={buildStockHref(position.symbol, sourceUrl || "/positions")}
+                                      id={`position-mobile-link-${position.id ?? position.symbol}`}
+                                      onClick={() => rememberReturnContext(`position-mobile-link-${position.id ?? position.symbol}`)}
+                                      aria-label={t.dashboard.viewDetails}>
+                                      <BarChart3 aria-hidden="true" className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
                                 </div>
                                 <div className="grid min-w-0 grid-cols-2 gap-2 text-xs text-slate-600">
                                   <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">

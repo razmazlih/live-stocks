@@ -18,7 +18,6 @@ import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visual
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import {
   Activity,
-  RefreshCw,
   LayoutDashboard,
   Layers,
   LineChart,
@@ -27,6 +26,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { useReturnContext } from '@/hooks/use-return-context';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -65,6 +66,8 @@ export default function HomePage() {
 
     return () => mediaQuery.removeEventListener('change', updateViewport);
   }, []);
+
+  useReturnContext(!loading);
 
   const lastUpdatedDisplay = formatLastUpdatedTime(lastUpdate, locale);
 
@@ -301,7 +304,6 @@ export default function HomePage() {
     },
   ];
 
-  const activeSectionConfig = sectionTabs.find((tab) => tab.key === activeSection);
   const renderSectionPlaceholder = (message: string) => (
     <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
       {message}
@@ -319,10 +321,11 @@ export default function HomePage() {
               icon={dailyChangeData.icon}
               value={dailyChangeData.value}
               label={dailyChangeData.label}
+              className="self-start tabular-nums"
             />
           )}
         </div>
-        <SummaryCardGrid cards={summaryCards} />
+        <SummaryCardGrid cards={summaryCards} locale={locale} />
       </div>
     ) : (
       renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty)
@@ -378,22 +381,18 @@ export default function HomePage() {
                     icon: LineChart,
                     label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
                   },
-                  ...(dailyChangeData
-                    ? [
-                        {
-                          key: 'daily',
-                          label: `${dailyChangeData.value} ${dailyChangeData.label}`,
-                          className: dailyChangeData.toneClass,
-                        },
-                      ]
-                    : []),
+
                 ]}
               />
 
               {loading ? (
-                <section className="rounded-xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-500 shadow-sm">
-                  <RefreshCw className="mx-auto h-5 w-5 animate-spin text-blue-500" />
-                  <p className="mt-3 text-sm font-medium">{t.common.loading}</p>
+                <section aria-busy="true" aria-label={t.common.loading} className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-40 rounded-2xl" />)}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-48 rounded-2xl" />)}
+                  </div>
                 </section>
               ) : !hasAnyPositions ? (
                 <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -405,22 +404,12 @@ export default function HomePage() {
               ) : (
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <div className="min-w-0 space-y-5">
-                    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <section aria-label={t.dashboard.summaryTitle}>
                       {renderSummarySection()}
                     </section>
 
                     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                       <div className="mb-5 flex flex-col gap-4 sm:hidden">
-                        <div className="space-y-1">
-                          <h2 className="text-base font-semibold text-slate-950">
-                            {t.dashboard.sectionSelectorTitle}
-                          </h2>
-                          {activeSectionConfig?.description && (
-                            <p className="text-sm text-slate-500">
-                              {activeSectionConfig.description}
-                            </p>
-                          )}
-                        </div>
                         <div className="flex flex-wrap gap-2">
                           {sectionTabs.filter((tab) => tab.key !== 'summary').map(({ key, label, icon: Icon, available }) => {
                             const isActive = activeSection === key;
@@ -460,7 +449,6 @@ export default function HomePage() {
 
                   <DashboardInsightPanel
                     title={locale === 'he' ? 'תובנות' : 'Insights'}
-                    marketTitle={locale === 'he' ? 'Market Pulse' : 'Market Pulse'}
                     insights={sideInsights}
                     locale={locale}
                   />
@@ -483,21 +471,14 @@ interface DashboardInsight {
 
 function DashboardInsightPanel({
   title,
-  marketTitle,
   insights,
   locale,
 }: {
   title: string;
-  marketTitle: string;
   insights: DashboardInsight[];
   locale: 'he' | 'en';
 }) {
-  const marketRows = [
-    { label: 'S&P 500', value: '5,303.27', change: '+0.67%', tone: 'positive' },
-    { label: 'NASDAQ 100', value: '18,734.11', change: '+0.89%', tone: 'positive' },
-    { label: 'VIX', value: '12.48', change: '-1.81%', tone: 'negative' },
-    { label: 'US 10Y', value: '4.28%', change: '-0.03', tone: 'negative' },
-  ];
+
 
   return (
     <aside className="space-y-5 xl:sticky xl:top-[92px] xl:self-start">
@@ -536,23 +517,7 @@ function DashboardInsightPanel({
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-950">{marketTitle}</h2>
-          <span className="text-xs font-medium text-slate-500">10:30 AM</span>
-        </div>
-        <div className="mt-3 divide-y divide-slate-100">
-          {marketRows.map((row) => (
-            <div key={row.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2.5 text-sm">
-              <span className="font-semibold text-slate-700">{row.label}</span>
-              <span className="font-medium tabular-nums text-slate-700">{row.value}</span>
-              <span className={`font-semibold tabular-nums ${row.tone === 'positive' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {row.change}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+
     </aside>
   );
 }

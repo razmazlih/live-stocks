@@ -38,12 +38,12 @@ export const DashboardPageShell = React.forwardRef<
         ref={ref}
         dir={direction}
         className={cn(
-          "dashboard-shell-enter relative min-h-[100dvh] overflow-hidden bg-[var(--color-page-bg)] text-slate-900",
+          "relative min-h-[100dvh] overflow-x-clip bg-[var(--color-page-bg)] text-slate-900",
           className,
         )}
         {...props}
       >
-        <div className={cn("relative flex min-h-[100dvh]", hasNavigation ? "pb-24 lg:pb-0" : undefined)}>
+        <div className={cn("relative flex min-h-[100dvh]", hasNavigation ? "pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0" : undefined)}>
           {hasNavigation ? (
             <AppSidebar
               items={navigationItems ?? []}
@@ -52,7 +52,7 @@ export const DashboardPageShell = React.forwardRef<
             />
           ) : null}
 
-          <div className={cn("flex min-w-0 flex-1 flex-col", contentClassName)}>
+          <div className={cn("dashboard-content-enter flex min-w-0 flex-1 flex-col", contentClassName)}>
             {children}
           </div>
         </div>

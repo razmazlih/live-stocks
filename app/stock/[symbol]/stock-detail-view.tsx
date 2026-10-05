@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useUrlState } from '@/hooks/use-url-state';
+import { validateReturnTo } from '@/lib/navigation-context';
+import { createAppRouteItems } from '@/components/dashboard/navigation';
 import {
-  ArrowDownRight,
-  ArrowUpRight,
-  CalendarDays,
+  ArrowLeft,
   DollarSign,
   RefreshCcw,
   Target,
@@ -284,14 +286,25 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
 
+  const [routeState, patchParams] = useUrlState((params) => ({
+    returnTo: validateReturnTo(params.get('returnTo')),
+    range: STOCK_DETAIL_TIME_RANGES.includes(params.get('range') as TimeRange)
+      ? params.get('range') as TimeRange : 'All' as TimeRange,
+  }));
+  const { returnTo, range } = routeState;
+  const sourceRoute = createAppRouteItems(t).find((route) => route.href === returnTo.split('?')[0]);
+  const loadedSymbol = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [historicalError, setHistoricalError] = useState(false);
+  const [displayedRange, setDisplayedRange] = useState<TimeRange | null>(null);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [usdToIls, setUsdToIls] = useState(3.7);
-  const [range, setRange] = useState<TimeRange>('All');
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const position = useMemo(() => combinePositions(positions), [positions]);
@@ -322,8 +335,18 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     let cancelled = false;
 
     const load = async () => {
-      setLoading(true);
+      const initialLoad = loadedSymbol.current !== normalizedSymbol;
+      setLoading(initialLoad);
+      setRefreshing(!initialLoad);
       setError(null);
+      if (initialLoad) {
+        setPositions([]);
+        setMetrics(null);
+        setQuote(null);
+        setLastUpdated(null);
+        setHistorical([]);
+        setDisplayedRange(null);
+      }
 
       try {
         const supabase = getSupabaseClient();
@@ -364,8 +387,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
-        setPositions(mappedPositions);
-
         const trimmedToken = settings.finnhubToken?.trim();
         const quoteParams = trimmedToken
           ? new URLSearchParams({
@@ -388,10 +409,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             const quoteData = (await quoteResponse.json()) as QuoteResponse;
             if (!quoteData.error && quoteData.c) {
               fetchedQuote = quoteData;
+            } else if (loadedSymbol.current === normalizedSymbol) {
+              throw new Error(quoteData.error || 'Quote unavailable');
             } else if (quoteData.error) {
               console.warn('Quote API error:', quoteData.error);
             }
           } else {
+            if (loadedSymbol.current === normalizedSymbol) throw new Error(`Quote request failed: ${quoteResponse.status}`);
             console.warn(`Quote request failed with status ${quoteResponse.status}`);
           }
         }
@@ -423,9 +447,12 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
+        setPositions(mappedPositions);
         setQuote(fetchedQuote);
         setUsdToIls(rate);
         setMetrics(computedMetrics);
+        loadedSymbol.current = normalizedSymbol;
+        setLastUpdated(new Date());
       } catch (err) {
         console.error('Failed to load stock data:', err);
         if (!cancelled) {
@@ -434,6 +461,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       } finally {
         if (!cancelled) {
           setLoading(false);
+          setRefreshing(false);
         }
       }
     };
@@ -446,63 +474,40 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
 
   const fetchHistorical = useCallback(
-    async (selectedRange: TimeRange, entryDate?: string) => {
-      try {
-        const now = Math.floor(Date.now() / 1000);
-        const { from, resolution } = getRangeParams(selectedRange, entryDate);
-
-        const url = `/api/candles?symbol=${encodeURIComponent(normalizedSymbol)}&resolution=${resolution}&from=${from}&to=${now}${
-          settings.finnhubToken ? `&token=${settings.finnhubToken}` : ''
-        }`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          console.warn(`Candles request failed with status ${response.status}`);
-          return [] as HistoricalPoint[];
-        }
-
-        const data = (await response.json()) as CandleResponse;
-        if (data.error) {
-          console.warn('Candles API error:', data.error);
-          return [] as HistoricalPoint[];
-        }
-
-        return mapCandleDataToPoints(data);
-      } catch (err) {
-        console.error('Failed to load historical data:', err);
-        return [] as HistoricalPoint[];
-      }
+    async (selectedRange: TimeRange, entryDate: string | undefined, signal: AbortSignal) => {
+      const now = Math.floor(Date.now() / 1000);
+      const { from, resolution } = getRangeParams(selectedRange, entryDate);
+      const params = new URLSearchParams({ symbol: normalizedSymbol, resolution, from: String(from), to: String(now) });
+      if (settings.finnhubToken) params.set('token', settings.finnhubToken);
+      const response = await fetch(`/api/candles?${params}`, { signal });
+      if (!response.ok) throw new Error(`Candles request failed: ${response.status}`);
+      const data = await response.json() as CandleResponse;
+      if (data.error) throw new Error(data.error);
+      return mapCandleDataToPoints(data);
     },
     [normalizedSymbol, settings.finnhubToken]
   );
 
+  const historicalEntryDate = position?.entryDate;
   useEffect(() => {
-    if (!position) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadHistorical = async () => {
-      setHistoricalLoading(true);
-      try {
-        const points = await fetchHistorical(range, position.entryDate);
-        if (!cancelled) {
-          setHistorical(points);
-        }
-      } finally {
-        if (!cancelled) {
-          setHistoricalLoading(false);
-        }
-      }
-    };
-
-    loadHistorical();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchHistorical, position, range]);
+    if (!historicalEntryDate) return;
+    const controller = new AbortController();
+    setHistoricalLoading(true);
+    setHistoricalError(false);
+    void fetchHistorical(range, historicalEntryDate, controller.signal)
+      .then((points) => {
+        if (controller.signal.aborted) return;
+        setHistorical(points);
+        setDisplayedRange(range);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setHistoricalError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHistoricalLoading(false);
+      });
+    return () => controller.abort();
+  }, [fetchHistorical, historicalEntryDate, range, reloadKey]);
 
   const formatUsdCurrency = useCallback(
     (valueUsd?: number) =>
@@ -676,45 +681,18 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const quickFacts = metrics
     ? [
         {
-          key: 'currentValue',
-          icon: Wallet,
-          label: t.stock.detailView.quickFacts.currentValue,
-          value: currentValueDisplay,
-          helper: t.stock.detailView.quickFactsHelper.currentValue,
-        },
-        {
-          key: 'investedAmount',
-          icon: DollarSign,
+          key: 'investedAmount', icon: DollarSign,
           label: t.stock.detailView.quickFacts.investedAmount,
           value: investedAmountDisplay,
           helper: t.stock.detailView.quickFactsHelper.investedAmount,
         },
         {
-          key: 'totalGain',
-          icon: totalGainUsd >= 0 ? ArrowUpRight : ArrowDownRight,
-          label: t.stock.detailView.quickFacts.totalGain,
-          value: totalGainDisplay,
-          secondary: totalGainPercentLabel,
-          accentClass: totalGainClass,
-          secondaryClass: totalGainClass,
-          helper: t.stock.detailView.quickFactsHelper.totalGain,
+          key: 'entryPrice', icon: Target, label: t.dashboard.entryPrice,
+          value: formatUsdCurrency(metrics.position.entryPrice), helper: '',
         },
         {
-          key: 'dailyChange',
-          icon: dailyChangeValue !== undefined && dailyChangeValue < 0 ? ArrowDownRight : ArrowUpRight,
-          label: t.stock.detailView.quickFacts.dailyChange,
-          value: dailyChangeDisplay,
-          secondary: dailyChangePercentLabel,
-          accentClass: dailyChangeClass,
-          secondaryClass: dailyChangeClass,
-          helper: t.stock.detailView.quickFactsHelper.dailyChange,
-        },
-        {
-          key: 'holdingTime',
-          icon: CalendarDays,
-          label: t.stock.detailView.quickFacts.holdingTime,
-          value: holdingPeriodLabel,
-          helper: t.stock.detailView.quickFactsHelper.holdingTime,
+          key: 'quantity', icon: Wallet, label: t.dashboard.quantity,
+          value: formatNumber(metrics.position.quantity, locale), helper: '',
         },
         ...(requiredExitPriceLabel
           ? [{
@@ -728,73 +706,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       ]
     : [];
 
-  const stockHeaderMetaBadges = [
-    ...(historicalLoading
-      ? [
-          {
-            key: 'loading',
-            icon: RefreshCcw,
-            label: t.common.loading,
-            iconClassName: 'animate-spin text-blue-600',
-          },
-        ]
-      : []),
-    ...(metrics
-      ? [
-          {
-            key: 'price',
-            label: `${t.stock.priceToday} ${formatUsdCurrency(metrics.currentPrice)}`,
-          },
-          ...(dailyChangeValue !== undefined
-            ? [
-                {
-                  key: 'daily',
-                  label: `${dailyChangeDisplay} ${t.stock.dailyChange}`,
-                  className:
-                    dailyChangeValue >= 0
-                      ? 'bg-emerald-50 text-emerald-600'
-                      : 'bg-rose-50 text-rose-600',
-                },
-              ]
-            : []),
-        ]
-      : []),
-    ...(position
-      ? [
-          {
-            key: 'symbol',
-            label: position.symbol,
-          },
-          {
-            key: 'quantity',
-            label: `${t.dashboard.quantity} ${formatNumber(position.quantity, locale)}`,
-          },
-          {
-            key: 'entryPrice',
-            label: `${t.dashboard.entryPrice} ${formatUsdCurrency(position.entryPrice)}`,
-          },
-          {
-            key: 'since',
-            label: `${t.dashboard.since} ${formatDate(position.entryDate, locale)}`,
-          },
-        ]
-      : []),
-  ];
-
   return (
-    <DashboardRouteShell activeKey="portfolio" locale={locale}>
+    <DashboardRouteShell activeKey={sourceRoute?.key ?? "portfolio"} locale={locale} portfolioFeedback={false}>
       <DashboardContainer>
+        <Link href={returnTo} scroll={false} className="mb-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+          {locale === 'he' ? `חזרה ל${sourceRoute?.label ?? t.portfolio.title}` : `Back to ${sourceRoute?.label ?? t.portfolio.title}`}
+        </Link>
         <PageHeader
           title={position?.display ?? normalizedSymbol}
           subtitle={loading ? t.stock.detailView.states.loading : position ? t.stock.overview : normalizedSymbol}
           icon={TrendingUp}
-          metaBadges={stockHeaderMetaBadges}
         />
 
         <DashboardMain>
           {loading ? (
             <StockDetailSkeleton />
-          ) : error ? (
+          ) : error && !metrics ? (
             <DashboardSurface className="border-red-200 text-red-700">
               <div className="flex flex-col items-center gap-4 py-10">
                 <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
@@ -812,135 +740,51 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </DashboardSurface>
           ) : (
             <div className="space-y-5">
-              <DashboardSurface className="overflow-hidden border-slate-200 bg-white p-0">
-                <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
-                  <div className="p-5 sm:p-6">
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-4">
-                        <Avatar className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
-                          <StockAvatarImage
-                            symbol={position.symbol}
-                            display={position.display}
-                            imageUrl={position.imageUrl}
-                          />
-                          <AvatarFallback className="bg-blue-50 text-lg font-semibold text-blue-700">
-                            {position.symbol.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                              {position.symbol}
-                            </span>
-                            {badgeLocations.map((bank) => (
-                              <BankBadge key={`header-${bank}`} bank={bank} locale={locale} size="sm" />
-                            ))}
-                          </div>
-                          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                            {position.display || position.symbol}
-                          </h2>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {t.stock.detailView.quickFactsSubtitle}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-2 self-start sm:w-auto"
-                        onClick={() => setReloadKey((value) => value + 1)}
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                        {t.watchlist.actions.refreshTicker}
-                      </Button>
-                    </div>
-
-                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
-                        <div className="text-xs font-medium text-blue-700">{t.stock.priceToday}</div>
-                        <div className="mt-2 text-2xl font-semibold text-slate-950">
-                          {formatUsdCurrency(metrics.currentPrice)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-xs font-medium text-slate-500">{t.dashboard.entryPrice}</div>
-                        <div className="mt-2 text-xl font-semibold text-slate-900">
-                          {formatUsdCurrency(metrics.position.entryPrice)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-xs font-medium text-slate-500">{t.dashboard.quantity}</div>
-                        <div className="mt-2 text-xl font-semibold text-slate-900">
-                          {formatNumber(metrics.position.quantity, locale)}
-                        </div>
-                      </div>
+              {error && (
+                <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <span>{locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.'}</span>
+                  <Button variant="outline" size="sm" disabled={refreshing} onClick={() => setReloadKey((value) => value + 1)}>{t.stock.detailView.states.retry}</Button>
+                </div>
+              )}
+              <DashboardSurface className="border-slate-200 bg-white p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3" aria-busy={refreshing}>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="h-11 w-11 rounded-xl border border-slate-200 bg-slate-100">
+                      <StockAvatarImage symbol={position.symbol} display={position.display} imageUrl={position.imageUrl} />
+                      <AvatarFallback className="bg-blue-50 font-semibold text-blue-700">{position.symbol.slice(0, 2)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-slate-900" dir="ltr">{position.symbol}</span>
+                      {badgeLocations.map((bank) => <BankBadge key={bank} bank={bank} locale={locale} size="sm" />)}
                     </div>
                   </div>
-
-                  <div className="border-t border-slate-200 bg-slate-950 p-5 text-white sm:p-6 lg:border-l lg:border-t-0">
-                    <div className="text-sm font-medium text-slate-300">
-                      {t.stock.detailView.quickFacts.totalGain}
-                    </div>
-                    <div className={cn('mt-3 text-3xl font-semibold', totalGainUsd >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
-                      {totalGainDisplay}
-                    </div>
-                    <div className={cn('mt-1 text-sm font-medium', totalGainUsd >= 0 ? 'text-emerald-200' : 'text-rose-200')}>
-                      {totalGainPercentLabel}
-                    </div>
-                    <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-xl bg-white/[0.08] p-3 ring-1 ring-white/10">
-                        <div className="text-slate-400">{t.stock.detailView.quickFacts.currentValue}</div>
-                        <div className="mt-1 font-semibold text-slate-50">{currentValueDisplay}</div>
-                      </div>
-                      <div className="rounded-xl bg-white/[0.08] p-3 ring-1 ring-white/10">
-                        <div className="text-slate-400">{t.stock.detailView.quickFacts.dailyChange}</div>
-                        <div className={cn('mt-1 font-semibold', dailyChangeClass.replace('600', '300'))}>
-                          {dailyChangeDisplay}
-                        </div>
-                      </div>
-                    </div>
+                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2" disabled={refreshing} onClick={() => setReloadKey((value) => value + 1)}>
+                    <RefreshCcw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                    {refreshing ? t.common.loading : t.watchlist.actions.refreshTicker}
+                  </Button>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
+                  <div className="col-span-2 lg:col-span-1">
+                    <p className="text-xs text-slate-500">{t.stock.priceToday}</p>
+                    <p className="mt-1 text-3xl font-semibold tabular-nums text-slate-950" dir="ltr">{formatUsdCurrency(metrics.currentPrice)}</p>
+                    <p className={cn('mt-1 text-sm font-medium tabular-nums', dailyChangeClass)}>
+                      {dailyChangeDisplay} {dailyChangePercentLabel} <span className="text-xs text-slate-500">{t.stock.dailyChange}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">{t.stock.detailView.quickFacts.currentValue}</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{currentValueDisplay}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">{t.stock.detailView.quickFacts.totalGain}</p>
+                    <p className={cn('mt-1 text-lg font-semibold tabular-nums', totalGainClass)}>{totalGainDisplay}</p>
+                    <p className={cn('text-xs tabular-nums', totalGainClass)}>{totalGainPercentLabel}</p>
                   </div>
                 </div>
+                <p className="mt-3 text-xs text-slate-500" role="status">
+                  {lastUpdated ? `${t.app.updated} ${lastUpdated.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                </p>
               </DashboardSurface>
-
-              <Card className="border border-slate-200 bg-white shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    {t.stock.detailView.quickFactsTitle}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                    {quickFacts.map((fact) => {
-                      const FactIcon = fact.icon;
-                      return (
-                        <div
-                          key={fact.key}
-                          className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
-                        >
-                          <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <span className="rounded-md bg-white p-1.5 text-slate-500 shadow-sm ring-1 ring-slate-200">
-                              <FactIcon className="h-3.5 w-3.5" />
-                            </span>
-                            <span>{fact.label}</span>
-                          </div>
-                          <div className={cn('mt-3 break-words text-lg font-semibold text-slate-900', fact.accentClass)}>
-                            {fact.value}
-                          </div>
-                          {fact.secondary && (
-                            <div className={cn('text-sm font-medium', fact.secondaryClass)}>
-                              {fact.secondary}
-                            </div>
-                          )}
-                          <p className="mt-2 text-xs leading-5 text-slate-500">{fact.helper}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card>
@@ -958,7 +802,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                           key={option}
                           variant={range === option ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setRange(option)}
+                          onClick={() => patchParams({ range: option })}
+                          aria-pressed={range === option}
                           disabled={historicalLoading && range === option}
                         >
                           {t.timeRange[option]}
@@ -967,8 +812,19 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  {historicalLoading ? (
+                <CardContent aria-busy={historicalLoading}>
+                  <div role="status" className="mb-2 min-h-5 text-xs text-slate-500">
+                    {(historicalLoading || historicalError) && chartData.length > 0 && displayedRange && (
+                      <span>{locale === 'he' ? `מוצגים נתוני ${t.timeRange[displayedRange]}. ` : `Showing ${t.timeRange[displayedRange]} data. `}</span>
+                    )}
+                    {historicalLoading ? t.common.loading : historicalError ? (
+                      <span className="text-amber-800">
+                        {locale === 'he' ? 'הגרף לא התעדכן.' : 'Chart could not be updated.'}{' '}
+                        <button className="min-h-[44px] underline underline-offset-2" onClick={() => setReloadKey((value) => value + 1)}>{t.stock.detailView.states.retry}</button>
+                      </span>
+                    ) : null}
+                  </div>
+                  {historicalLoading && chartData.length === 0 ? (
                     <Skeleton className="h-80 w-full" />
                   ) : chartData.length === 0 ? (
                     <div className="flex h-80 items-center justify-center text-sm text-gray-500">
@@ -1071,6 +927,39 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </CardContent>
               </Card>
             </div>
+
+              <Card className="border border-slate-200 bg-white shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    {t.stock.detailView.quickFactsTitle}
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    {quickFacts.map((fact) => {
+                      const FactIcon = fact.icon;
+                      return (
+                        <div
+                          key={fact.key}
+                          className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+                        >
+                          <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                            <span className="rounded-md bg-white p-1.5 text-slate-500 shadow-sm ring-1 ring-slate-200">
+                              <FactIcon className="h-3.5 w-3.5" />
+                            </span>
+                            <span>{fact.label}</span>
+                          </div>
+                          <div className={cn('mt-3 break-words text-lg font-semibold text-slate-900')}>
+                            {fact.value}
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">{fact.helper}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
 
             <Card>
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
