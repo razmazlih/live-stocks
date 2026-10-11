@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import type { PositionMetrics } from '@/types';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -14,16 +15,8 @@ import {
   SummaryCardGrid,
 } from '@/components/dashboard/summary/summary-card-grid';
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
-import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import {
-  Activity,
-  LayoutDashboard,
-  Layers,
-  LineChart,
-  WalletCards,
-  type LucideIcon,
-} from 'lucide-react';
+import { LayoutDashboard, LineChart } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
@@ -37,10 +30,6 @@ import {
 } from '@/lib/utils/portfolio-display';
 
 export default function HomePage() {
-  const [activeSection, setActiveSection] = useState<'summary' | 'positions' | 'visualizations'>(
-    'positions'
-  );
-  const [isMobileViewport, setIsMobileViewport] = useState<boolean | null>(null);
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const {
@@ -51,21 +40,9 @@ export default function HomePage() {
     openSummary,
     sparklineData,
     usdToIls,
-    historicalIlsNetPnL,
-    historicalIlsRealizedPnL,
     lastUpdate,
     reload,
   } = usePortfolioData();
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 639px)');
-    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
-
-    updateViewport();
-    mediaQuery.addEventListener('change', updateViewport);
-
-    return () => mediaQuery.removeEventListener('change', updateViewport);
-  }, []);
 
   useReturnContext(!loading);
 
@@ -156,14 +133,12 @@ export default function HomePage() {
           },
           helper: [
             { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-            { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD', locale) },
           ],
           badge: {
             value: formatSignedPercent(totalReturnPercent, locale),
             className: getTrendTone(totalReturnUsd).badge,
             icon: getTrendIcon(totalReturnUsd),
           },
-          footnote: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
         },
         {
           key: 'current',
@@ -174,10 +149,6 @@ export default function HomePage() {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
           },
-          helper: [
-            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale) },
-            { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS', locale) },
-          ],
         },
         {
           key: 'projected',
@@ -198,111 +169,9 @@ export default function HomePage() {
             label: 'ILS',
             value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
           },
-          helper: [
-            { label: t.portfolio.ilsCurrentLabel, value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale) },
-            {
-              label: t.portfolio.ilsHistoricalAdjustedLabel,
-              value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale),
-            },
-          ],
         },
       ]
     : [];
-
-  const sectionTabs = [
-    {
-      key: 'summary' as const,
-      label: t.dashboard.sectionSummaryLabel,
-      description: t.dashboard.sectionSummaryDescription,
-      icon: LayoutDashboard,
-      available: Boolean(summary && summaryCards.length > 0),
-    },
-    {
-      key: 'positions' as const,
-      label: t.dashboard.sectionPositionsLabel,
-      description: t.dashboard.sectionPositionsDescription,
-      icon: Layers,
-      available: hasAnyPositions,
-    },
-    {
-      key: 'visualizations' as const,
-      label: t.dashboard.sectionVisualizationsLabel,
-      description: t.dashboard.sectionVisualizationsDescription,
-      icon: LineChart,
-      available: Boolean(summary && openMetrics.length > 0),
-    },
-  ];
-
-  const topExposure = useMemo(
-    () =>
-      openMetrics
-        .slice()
-        .sort((a, b) => b.currentValue - a.currentValue)
-        .at(0),
-    [openMetrics]
-  );
-
-  const strongestDailyMover = useMemo(
-    () =>
-      openMetrics
-        .filter((metric) => typeof metric.dailyChange === 'number')
-        .slice()
-        .sort(
-          (a, b) =>
-            (b.dailyChange ?? 0) * b.position.quantity -
-            (a.dailyChange ?? 0) * a.position.quantity
-        )
-        .at(0),
-    [openMetrics]
-  );
-
-  const biggestForecastGap = useMemo(
-    () =>
-      openMetrics
-        .slice()
-        .sort((a, b) => a.combined - b.combined)
-        .at(0),
-    [openMetrics]
-  );
-
-  const sideInsights: DashboardInsight[] = [
-    {
-      key: 'exposure',
-      label: locale === 'he' ? 'חשיפה מרכזית' : 'Largest exposure',
-      title: topExposure?.position.display ?? t.dashboard.sectionPositionsEmpty,
-      value: topExposure ? formatCurrency(topExposure.currentValue, 'USD', locale) : '—',
-      helper: topExposure?.position.symbol ?? t.dashboard.emptyChart,
-      icon: WalletCards,
-      tone: 'neutral',
-    },
-    {
-      key: 'momentum',
-      label: t.dashboard.dailyChange,
-      title: strongestDailyMover?.position.display ?? t.dashboard.topMoversNoData,
-      value: strongestDailyMover
-        ? formatSignedCurrency(
-            (strongestDailyMover.dailyChange ?? 0) * strongestDailyMover.position.quantity,
-            'USD',
-            locale
-          )
-        : '—',
-      helper: strongestDailyMover?.position.symbol ?? t.dashboard.emptyChart,
-      icon: Activity,
-      tone:
-        strongestDailyMover && (strongestDailyMover.dailyChange ?? 0) * strongestDailyMover.position.quantity < 0
-          ? 'negative'
-          : 'positive',
-    },
-    {
-      key: 'forecast',
-      label: t.dashboard.forecastGap,
-      title: biggestForecastGap?.position.display ?? t.dashboard.sectionVisualizationsEmpty,
-      value: biggestForecastGap ? formatSignedCurrency(biggestForecastGap.combined, 'USD', locale) : '—',
-      helper: biggestForecastGap?.position.symbol ?? t.dashboard.emptyChart,
-      icon: LineChart,
-      tone: biggestForecastGap && biggestForecastGap.combined < 0 ? 'negative' : 'positive',
-    },
-  ];
 
   const renderSectionPlaceholder = (message: string) => (
     <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
@@ -344,180 +213,62 @@ export default function HomePage() {
       renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
     );
 
-  const renderVisualizationsSection = () =>
-    summary && openMetrics.length > 0 ? (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t.dashboard.visualizationsTitle}</h3>
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500">
-            {t.dashboard.portfolioOverviewFootnote}
-          </span>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <PortfolioVisualizations metrics={openMetrics} summary={summary} />
-        </div>
-      </div>
-    ) : (
-      renderSectionPlaceholder(t.dashboard.sectionVisualizationsEmpty)
-    );
-
   return (
     <DashboardRouteShell activeKey="dashboard" locale={locale}>
       <DashboardContainer width="full" className="space-y-5">
-              <PageHeader
-                title={t.app.title}
-                subtitle={t.app.subtitle}
-                icon={LayoutDashboard}
-                quickActionsTitle={t.dashboard.quickActions}
-                quickActions={quickActions}
-                metaBadges={[
-                  {
-                    key: 'updated',
-                    label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`,
-                    className: 'bg-blue-50 text-blue-700 border-blue-100',
-                  },
-                  {
-                    key: 'rate',
-                    icon: LineChart,
-                    label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
-                  },
+        <PageHeader
+          title={t.app.title}
+          subtitle={locale === 'he' ? 'ההחזקות שלך, השווי והשינוי היומי.' : 'Your holdings, their value and today’s change.'}
+          icon={LayoutDashboard}
+          quickActionsTitle={t.dashboard.quickActions}
+          quickActions={quickActions}
+          metaBadges={[
+            {
+              key: 'updated',
+              label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`,
+              className: 'bg-blue-50 text-blue-700 border-blue-100',
+            },
+            {
+              key: 'rate',
+              label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+            },
+          ]}
+        />
 
-                ]}
-              />
-
-              {loading ? (
-                <section aria-busy="true" aria-label={t.common.loading} className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-40 rounded-2xl" />)}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-48 rounded-2xl" />)}
-                  </div>
-                </section>
-              ) : !hasAnyPositions ? (
-                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <DashboardEmptyState
-                    title={t.dashboard.noPositions}
-                    description={t.positions.title}
-                  />
-                </section>
-              ) : (
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-                  <div className="min-w-0 space-y-5">
-                    <section aria-label={t.dashboard.summaryTitle}>
-                      {renderSummarySection()}
-                    </section>
-
-                    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                      <div className="mb-5 flex flex-col gap-4 sm:hidden">
-                        <div className="flex flex-wrap gap-2">
-                          {sectionTabs.filter((tab) => tab.key !== 'summary').map(({ key, label, icon: Icon, available }) => {
-                            const isActive = activeSection === key;
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => available && setActiveSection(key)}
-                                disabled={!available}
-                                className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                                  isActive
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700'
-                                } ${available ? '' : 'cursor-not-allowed opacity-45'}`}
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span>{label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {isMobileViewport === null ? null : isMobileViewport ? (
-                        <div className="space-y-5 sm:hidden">
-                          {(activeSection === 'summary' || activeSection === 'positions') && renderPositionsSection()}
-                          {activeSection === 'visualizations' && renderVisualizationsSection()}
-                        </div>
-                      ) : (
-                        <div className="hidden space-y-5 sm:block">
-                          {renderPositionsSection()}
-                          {renderVisualizationsSection()}
-                        </div>
-                      )}
-                    </section>
-                  </div>
-
-                  <DashboardInsightPanel
-                    title={locale === 'he' ? 'תובנות' : 'Insights'}
-                    insights={sideInsights}
-                    locale={locale}
-                  />
-                </div>
-              )}
+        {loading ? (
+          <section aria-busy="true" aria-label={t.common.loading} className="space-y-5">
+            <Skeleton className="h-48 rounded-2xl" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-48 rounded-2xl" />)}
+            </div>
+          </section>
+        ) : !hasAnyPositions ? (
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <DashboardEmptyState
+              title={t.dashboard.noPositions}
+              description={t.positions.title}
+            />
+          </section>
+        ) : (
+          <div className="space-y-5">
+            <section aria-label={t.dashboard.summaryTitle}>
+              {renderSummarySection()}
+            </section>
+            <div className="flex justify-end">
+              <Link
+                href="/portfolio"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <LineChart aria-hidden="true" className="h-4 w-4" />
+                {locale === 'he' ? 'ביצועים וגרפים' : 'Performance and charts'}
+              </Link>
+            </div>
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              {renderPositionsSection()}
+            </section>
+          </div>
+        )}
       </DashboardContainer>
     </DashboardRouteShell>
-  );
-}
-
-interface DashboardInsight {
-  key: string;
-  label: string;
-  title: string;
-  value: string;
-  helper: string;
-  icon: LucideIcon;
-  tone: 'positive' | 'negative' | 'neutral';
-}
-
-function DashboardInsightPanel({
-  title,
-  insights,
-  locale,
-}: {
-  title: string;
-  insights: DashboardInsight[];
-  locale: 'he' | 'en';
-}) {
-
-
-  return (
-    <aside className="space-y-5 xl:sticky xl:top-[92px] xl:self-start">
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-        </div>
-        <div className="mt-4 space-y-3">
-          {insights.map((insight) => {
-            const Icon = insight.icon;
-            const toneClass =
-              insight.tone === 'positive'
-                ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
-                : insight.tone === 'negative'
-                  ? 'text-rose-700 bg-rose-50 border-rose-100'
-                  : 'text-slate-700 bg-slate-50 border-slate-200';
-
-            return (
-              <div key={insight.key} className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${toneClass}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-500">{insight.label}</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">{insight.title}</p>
-                    <div className="mt-2 flex items-baseline justify-between gap-3">
-                      <span className="text-base font-semibold tabular-nums text-slate-950">{insight.value}</span>
-                      <span className="text-xs font-medium text-slate-500">{insight.helper}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-
-    </aside>
   );
 }
