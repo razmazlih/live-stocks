@@ -1,13 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
-import { RefreshCw, LineChart } from 'lucide-react';
+import { ChevronDown, RefreshCw, LineChart } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { calculateRealizedPortfolioTotals, formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
+import { PortfolioVisualizations } from '@/components/portfolio/portfolio-visualizations';
 import { PortfolioOverviewChart } from '@/components/charts/portfolio-overview-chart';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
@@ -30,6 +31,7 @@ export default function PortfolioPage() {
     positions,
     metrics,
     summary,
+    openSummary,
     portfolioTimeline,
     usdToIls,
     historicalIlsNetPnL,
@@ -98,19 +100,6 @@ export default function PortfolioPage() {
       uniqueSymbols: uniqueSymbols.size,
     };
   }, [realizedSales, rateForSummary, settings.annualGrowthRate]);
-
-  const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
-  const totalDailyChangeUsd = metrics.reduce(
-    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
-    0
-  );
-  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
-  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
-
-  const currentRate = rateForSummary;
-  const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
-  const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
-  const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
 
   const averageReturnPercent = metrics.length
     ? metrics.reduce((acc, metric) => acc + metric.roiPercent, 0) / metrics.length
@@ -186,25 +175,6 @@ export default function PortfolioPage() {
 
     summaryCards.push(
       {
-        key: 'value',
-        label: t.dashboard.totalValue,
-        value: formatCurrency(summary.totalValue, 'USD', locale),
-        valueClass: 'text-3xl font-semibold text-slate-900',
-        secondary: {
-          label: 'ILS',
-          value: formatCurrency(totalValueIls, 'ILS', locale),
-        },
-        helper: [
-          { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-          { label: t.dashboard.totalReturn, value: formatSignedCurrency(totalReturnUsd, 'USD', locale) },
-        ],
-        badge: {
-          value: formatSignedPercent(totalReturnPercent, locale),
-          tone: getTrendTone(totalReturnUsd),
-          icon: getTrendIcon(totalReturnUsd),
-        },
-      },
-      {
         key: 'net',
         label: t.dashboard.netPnL,
         value: formatSignedCurrency(summary.totalNetPnLUsd, 'USD', locale),
@@ -214,10 +184,6 @@ export default function PortfolioPage() {
           value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS', locale),
         },
         helper: [
-          {
-            label: t.portfolio.ilsCurrentLabel,
-            value: formatSignedCurrency(summary.totalNetPnLIls, 'ILS', locale),
-          },
           {
             label: t.portfolio.ilsHistoricalAdjustedLabel,
             value: formatSignedCurrency(historicalIlsNetPnL, 'ILS', locale),
@@ -278,10 +244,6 @@ export default function PortfolioPage() {
       },
       helper: [
         {
-          label: t.portfolio.ilsCurrentLabel,
-          value: formatSignedCurrency(closedSummary.totalProfitIls, 'ILS', locale),
-        },
-        {
           label: t.portfolio.ilsHistoricalAdjustedLabel,
           value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale),
         },
@@ -339,7 +301,7 @@ export default function PortfolioPage() {
       <DashboardContainer>
         <PageHeader
           title={t.portfolio.title}
-          subtitle={t.portfolio.subtitle}
+          subtitle={locale === 'he' ? 'ביצועי התיק לאורך זמן, כולל החזקות פעילות ומכירות.' : 'Portfolio performance over time, including active holdings and sales.'}
           icon={LineChart}
           quickActionsTitle={t.dashboard.quickActions}
           quickActions={quickActions}
@@ -352,17 +314,8 @@ export default function PortfolioPage() {
             {
               key: 'rate',
               icon: LineChart,
-              label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
+              label: `1 USD ≈ ${formatCurrency(rateForSummary, 'ILS', locale)}`,
             },
-            ...(hasDailyChange
-              ? [
-                  {
-                    key: 'daily',
-                    label: `${formatSignedCurrency(totalDailyChangeUsd, 'USD', locale)} ${t.dashboard.dailyChange}`,
-                    className: dailyChangeTone.badge,
-                  },
-                ]
-              : []),
           ]}
         />
 
@@ -462,11 +415,13 @@ export default function PortfolioPage() {
                         </div>
 
                         {closedSummary && closedStats.length > 0 && (
-                          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                            <div>
-                              <h2 className="text-lg font-semibold text-slate-900">{t.portfolio.closedOverviewTitle}</h2>
-                              <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
-                            </div>
+                          <details className="summary-details rounded-xl border border-slate-200 bg-white shadow-sm">
+                            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:p-5">
+                              <span>{t.portfolio.closedOverviewTitle}</span>
+                              <ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 shrink-0" />
+                            </summary>
+                            <div className="space-y-3 border-t border-slate-100 p-4 sm:p-5">
+                            <p className="text-sm text-slate-500">{t.portfolio.closedOverviewDescription}</p>
                             <div className="grid gap-3 sm:grid-cols-2">
                               {closedStats.map((stat) => (
                                 <div
@@ -484,15 +439,19 @@ export default function PortfolioPage() {
                             <p className="text-xs font-medium text-slate-500">
                               {t.portfolio.closedHoldingFootnote(Math.round(closedSummary.averageHoldingDays))}
                             </p>
-                          </div>
+                            </div>
+                          </details>
                         )}
                       </aside>
                     </div>
 
                     {summaryCards.length > 0 && (
-                      <div className="space-y-3">
-                        <h2 className="text-xl font-semibold text-slate-900">{t.portfolio.overviewTitle}</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                      <details className="summary-details rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:p-5">
+                          <span>{locale === 'he' ? 'פירוט רווחים, תחזית ומסים' : 'Profit, projection and tax details'}</span>
+                          <ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 shrink-0" />
+                        </summary>
+                        <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-2 sm:p-5 2xl:grid-cols-3">
                           {summaryCards.map((card) => (
                             <div
                               key={card.key}
@@ -555,7 +514,19 @@ export default function PortfolioPage() {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </details>
+                    )}
+
+                    {openMetrics.length > 0 && (
+                      <details className="summary-details rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:p-5">
+                          <span>{locale === 'he' ? 'הרכב התיק והשוואת ההחזקות' : 'Allocation and holdings comparison'}</span>
+                          <ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 shrink-0" />
+                        </summary>
+                        <div className="border-t border-slate-100 p-3 sm:p-5">
+                          <PortfolioVisualizations metrics={openMetrics} summary={openSummary ?? summary} />
+                        </div>
+                      </details>
                     )}
                   </div>
                 )}
