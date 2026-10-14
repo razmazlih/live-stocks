@@ -263,7 +263,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
         aria-expanded={isExpanded}
         aria-controls={detailsId}
         onClick={() => setIsExpanded((expanded) => !expanded)}
-        className="relative z-10 w-full p-3.5 text-start transition-colors hover:bg-slate-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:p-4"
+        className="relative z-10 w-full p-3 text-start transition-colors hover:bg-slate-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:p-3.5"
       >
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 shrink-0 rounded-lg border border-slate-200">
@@ -282,7 +282,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             {statusLabel}
           </span>
         </div>
-        <dl className={cn('mt-3 grid gap-3 rounded-lg p-2.5', isClosed ? 'grid-cols-2 bg-white/80' : 'grid-cols-2 bg-blue-50/50')}>
+        <dl className={cn('mt-2 grid gap-x-3 gap-y-1.5 rounded-lg p-2', isClosed ? 'grid-cols-2 bg-white/80' : 'grid-cols-2 bg-blue-50/50')}>
           <div className={cn('min-w-0', !isClosed && 'col-span-2')}>
             <dt className="text-[11px] text-slate-500">{isClosed ? t.dashboard.closedLastSale : t.dashboard.portfolioValue}</dt>
             <dd className="mt-1 text-sm font-semibold text-slate-900">
@@ -302,7 +302,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             </dd>
           </div>
         </dl>
-        <div className="mt-3 flex items-center justify-between text-xs font-medium text-slate-500">
+        <div className="mt-2 flex items-center justify-between text-xs font-medium text-slate-500">
           <span>{toggleLabel}</span>
           <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-300 ease-out motion-reduce:transition-none', isExpanded && 'rotate-180')} />
         </div>
@@ -312,16 +312,16 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
         aria-hidden={!isExpanded}
         ref={(element) => { element?.toggleAttribute('inert', !isExpanded); }}
         className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+          'grid transition-[grid-template-rows,opacity] duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
           isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="space-y-3 border-t border-slate-200/70 px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4">
+          <div className="space-y-2 border-t border-slate-200/70 px-3.5 pb-3 pt-2.5 sm:px-4 sm:pb-3">
             {closedSelector}
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               {detailStats.map((stat) => (
-                <div key={stat.label} className="min-w-0 border-b border-slate-200/60 pb-2">
+                <div key={stat.label} className="min-w-0 border-b border-slate-200/60 pb-1.5">
                   <dt className="text-[11px] leading-4 text-slate-500">{stat.label}</dt>
                   <dd className={cn('mt-0.5 font-semibold tabular-nums', 'tone' in stat ? stat.tone : 'text-slate-900')}>
                     <bdi>{stat.value}</bdi>
@@ -330,10 +330,10 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               ))}
             </dl>
             {effectiveSparklineData.length > 1 && (
-              <div className="h-16 [direction:ltr]">
+              <div className="h-12 [direction:ltr]">
                 <Sparkline
                   points={effectiveSparklineData}
-                  height={64}
+                  height={48}
                   color={sparklineColor.hex}
                   baseline={position.entryPrice}
                   baselineColor="rgba(var(--color-slate-400-rgb), 0.5)"
@@ -342,7 +342,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                   annualGrowthRate={isClosed ? undefined : settings.annualGrowthRate}
                   yearsHeld={isClosed ? undefined : yearsHeld}
                   events={effectiveSparklineEvents}
-                  className="h-16 w-full"
+                  className="h-12 w-full"
                 />
               </div>
             )}
@@ -353,7 +353,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 id={`portfolio-link-${position.id ?? position.symbol}`}
                 onClick={() => rememberReturnContext(`portfolio-link-${position.id ?? position.symbol}`)}
                 tabIndex={isExpanded ? undefined : -1}
-                className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md font-semibold text-blue-600 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                className="inline-flex min-h-7 shrink-0 items-center gap-1 rounded-md font-semibold text-blue-600 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               >
                 {t.dashboard.viewDetails}
                 <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
