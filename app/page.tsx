@@ -16,11 +16,12 @@ import {
 } from '@/components/dashboard/summary/summary-card-grid';
 import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { LayoutDashboard, LineChart } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, LayoutDashboard, LineChart } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { buildWeeklyMovers, buildWeeklySnapshot } from '@/lib/weekly-insights';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -39,6 +40,7 @@ export default function HomePage() {
     summary: portfolioSummary,
     openSummary,
     sparklineData,
+    portfolioTimeline,
     usdToIls,
     lastUpdate,
     reload,
@@ -57,6 +59,14 @@ export default function HomePage() {
   const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
 
   const summary = openSummary ?? portfolioSummary;
+  const weeklySnapshot = useMemo(
+    () => buildWeeklySnapshot(portfolioTimeline, portfolioSummary),
+    [portfolioTimeline, portfolioSummary]
+  );
+  const weeklyMovers = useMemo(
+    () => buildWeeklyMovers(metrics, sparklineData, 2),
+    [metrics, sparklineData]
+  );
   const currentRate = summary?.usdToIlsRate ?? usdToIls;
   const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
   const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
@@ -213,6 +223,76 @@ export default function HomePage() {
       renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
     );
 
+  const renderWeeklyStatus = () => {
+    const hasWeeklyPortfolioData = weeklySnapshot.baselineTimestamp !== null;
+    const hasWeeklyStockData = weeklyMovers.improved.length > 0 || weeklyMovers.worsened.length > 0;
+
+    return (
+      <section aria-labelledby="weekly-status-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="weekly-status-title" className="text-lg font-semibold text-slate-900">
+            {locale === 'he' ? 'מה השתנה השבוע' : 'What changed this week'}
+          </h2>
+          <span className="text-xs text-slate-500">
+            {locale === 'he' ? 'השוואה לנקודת הנתונים הקודמת הזמינה' : 'Compared with the previous available data point'}
+          </span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-sm text-slate-600">
+              {locale === 'he' ? 'השינוי ברווח/הפסד נטו' : 'Net profit/loss change'}
+            </p>
+            {hasWeeklyPortfolioData ? (
+              <p className={`mt-1 text-2xl font-semibold tabular-nums ${getTrendTone(weeklySnapshot.netPnLDeltaUsd).text}`}>
+                {formatSignedCurrency(weeklySnapshot.netPnLDeltaUsd, 'USD', locale)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">
+                {locale === 'he' ? 'יצטברו נתונים לאחר רענון נוסף.' : 'Available after more history is collected.'}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([
+              { key: 'improved', title: locale === 'he' ? 'עלו הכי הרבה' : 'Top gainers', items: weeklyMovers.improved, icon: ArrowUpRight, tone: 'text-emerald-700' },
+              { key: 'worsened', title: locale === 'he' ? 'ירדו הכי הרבה' : 'Top decliners', items: weeklyMovers.worsened, icon: ArrowDownRight, tone: 'text-rose-700' },
+            ] as const).map((group) => (
+              <div key={group.key}>
+                <h3 className="mb-2 text-sm font-medium text-slate-700">{group.title}</h3>
+                {group.items.length ? (
+                  <ul className="space-y-2">
+                    {group.items.map((item) => {
+                      const Icon = group.icon;
+                      return (
+                        <li key={item.key} className="flex items-center justify-between gap-2 text-sm">
+                          <Link href={`/stock/${encodeURIComponent(item.symbol)}`} className="inline-flex min-h-9 min-w-0 items-center gap-1 rounded-md font-medium text-slate-800 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+                            <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${group.tone}`} />
+                            <span className="truncate">{item.display}</span>
+                          </Link>
+                          <span className={`shrink-0 text-end tabular-nums ${group.tone}`}>
+                            {formatSignedPercent(item.changePercent, locale)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    {hasWeeklyStockData
+                      ? (locale === 'he' ? 'אין שינוי בולט.' : 'No notable move.')
+                      : (locale === 'he' ? 'אין עדיין מספיק נתונים.' : 'Not enough data yet.')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   return (
     <DashboardRouteShell activeKey="dashboard" locale={locale}>
       <DashboardContainer width="full" className="space-y-5">
@@ -254,6 +334,7 @@ export default function HomePage() {
             <section aria-label={t.dashboard.summaryTitle}>
               {renderSummarySection()}
             </section>
+            {renderWeeklyStatus()}
             <div className="flex justify-end">
               <Link
                 href="/portfolio"
