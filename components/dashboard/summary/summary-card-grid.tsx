@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 export interface SummaryCardBadge {
   value: string;
+  label?: string;
   className: string;
   icon: ReactNode;
 }
@@ -46,7 +47,7 @@ export function SummaryCardGrid({ cards, locale = 'he' }: SummaryCardGridProps) 
           <p className="text-sm font-medium text-slate-500">{primary.label}</p>
           <p className="mt-2 break-words text-3xl font-semibold leading-tight tracking-tight text-slate-950 tabular-nums sm:text-4xl" dir="ltr">{primary.value}</p>
         </div>
-        {primary.badge ? <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tabular-nums', primary.badge.className)}>{primary.badge.icon}<bdi>{primary.badge.value}</bdi></span> : null}
+        {primary.badge ? <div className="flex flex-col items-end gap-1"><span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tabular-nums', primary.badge.className)}>{primary.badge.icon}<bdi>{primary.badge.value}</bdi></span>{primary.badge.label ? <span className="text-[11px] text-slate-500">{primary.badge.label}</span> : null}</div> : null}
       </div>
       {supporting.length > 0 ? (
         <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-y-0">
