@@ -246,7 +246,7 @@ export function PositionsOverview({
   const sortNotice = t.dashboard.positionsSortedByForecast;
 
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
-  const [viewMode, setViewMode] = useState<PositionViewMode>('table');
+  const [viewMode, setViewMode] = useState<PositionViewMode>('cards');
 
   const filterOptions: FilterOptionConfig[] = useMemo(
     () =>
@@ -482,12 +482,12 @@ export function PositionsOverview({
         </>
       )}
       {showClosedSection && (
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-100/60 p-3 sm:space-y-4 sm:p-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <h2 className="text-xl font-semibold text-slate-900">{closedTitle}</h2>
-            <p className="text-sm text-slate-500">{sortNotice}</p>
+            <p className="text-sm text-slate-500">{locale === 'he' ? 'ארכיון סגירות · נתוני מימוש, ללא החזקה פעילה' : 'Closed history · Realized results, no active holdings'}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {groupedClosedMetrics.map((group) => {
               return (
                 <ClosedPositionGroupCard
@@ -557,6 +557,7 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 type="button"
                 variant="outline"
                 size="sm"
+                aria-label={locale === 'he' ? 'סגירה קודמת' : 'Previous closure'}
                 disabled={!previousOption}
                 className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => previousOption && setSelectedId(previousOption.id)}
@@ -585,6 +586,7 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 type="button"
                 variant="outline"
                 size="sm"
+                aria-label={locale === 'he' ? 'סגירה הבאה' : 'Next closure'}
                 disabled={!nextOption}
                 className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => nextOption && setSelectedId(nextOption.id)}

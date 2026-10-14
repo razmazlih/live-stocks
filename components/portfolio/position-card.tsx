@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useCallback, useMemo, useState } from 'react';
+import { ReactNode, useId, useCallback, useMemo, useState } from 'react';
 
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent, hasMaterialExitPriceGap } from '@/lib/calculations';
@@ -15,7 +15,7 @@ import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { useUrlState } from '@/hooks/use-url-state';
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
-import { ArrowUpRight } from 'lucide-react';
+import { Archive, ArrowUpRight, ChevronDown, CircleDot } from 'lucide-react';
 import { getTrendIcon, getTrendTone } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
 
@@ -335,6 +335,11 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   const sparklineAnnualGrowthRate = isClosed ? undefined : settings.annualGrowthRate;
   const sparklineYearsHeld = isClosed ? undefined : yearsHeld;
 
+  const [isExpanded, setIsExpanded] = useState(false);
+  const detailsId = useId();
+  const statusLabel = locale === 'he' ? (isClosed ? 'סגורה · ארכיון' : 'פעילה') : (isClosed ? 'Closed · Archive' : 'Active');
+  const toggleLabel = locale === 'he' ? (isExpanded ? 'קיפול פרטים' : 'פתיחת פרטים') : (isExpanded ? 'Hide details' : 'Show details');
+  const summaryProfit = isClosed ? closedSummary?.totalProfitUsd : positionPnLUsd;
   const [isHovered, setIsHovered] = useState(false);
 
   const setHoveredTrue = useCallback(() => {
@@ -348,10 +353,11 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
   return (
     <div
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-xl border bg-white transition-colors duration-200',
+        'group relative flex flex-col self-start overflow-hidden rounded-xl border transition-colors duration-200',
+        isClosed ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-white',
         isHovered
           ? 'border-blue-200 shadow-md'
-          : 'border-slate-200 shadow-sm'
+          : 'shadow-sm'
       )}
       onPointerEnter={setHoveredTrue}
       onPointerLeave={setHoveredFalse}
@@ -369,6 +375,57 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
         )}
       />
 
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={detailsId}
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+        className="relative z-10 w-full p-3.5 text-start transition-colors hover:bg-slate-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:p-4"
+      >
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 shrink-0 rounded-lg border border-slate-200">
+            <StockAvatarImage symbol={position.symbol} display={position.display} imageUrl={position.imageUrl} />
+            <AvatarFallback>{position.symbol.slice(0, 2)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-slate-900">{position.display}</h3>
+            <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+              <span dir="ltr">{position.symbol}</span>
+              <BankBadge bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'} locale={locale} size="sm" />
+            </div>
+          </div>
+          <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold', isClosed ? 'bg-slate-200 text-slate-600' : 'bg-blue-50 text-blue-700')}>
+            {isClosed ? <Archive className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
+            {statusLabel}
+          </span>
+        </div>
+        <dl className={cn('mt-3 grid gap-3 rounded-lg p-2.5', isClosed ? 'grid-cols-2 bg-white/80' : 'grid-cols-2 bg-blue-50/50')}>
+          <div className={cn('min-w-0', !isClosed && 'col-span-2')}>
+            <dt className="text-[11px] text-slate-500">{isClosed ? t.dashboard.closedLastSale : t.dashboard.portfolioValue}</dt>
+            <dd className="mt-1 text-sm font-semibold text-slate-900">
+              {isClosed ? (closedSummary?.lastSaleDate ? formatDate(closedSummary.lastSaleDate.toISOString(), locale) : '—') : <span dir="ltr" className="inline-block tabular-nums">{formatCurrency(currentValue, 'USD', locale)}</span>}
+            </dd>
+          </div>
+          {!isClosed && <div className="min-w-0">
+            <dt className="text-[11px] text-slate-500">{t.dashboard.dailyChange}</dt>
+            <dd className={cn('mt-1 text-sm font-semibold', dailyChangeAmount === null ? 'text-slate-500' : getTrendTone(dailyChangeAmount).text)}>
+              <span dir="ltr" className="inline-block tabular-nums">{dailyChangeAmount === null ? '—' : formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+            </dd>
+          </div>}
+          <div className="min-w-0">
+            <dt className="text-[11px] text-slate-500">{isClosed ? t.dashboard.realizedPnL : t.dashboard.pnl}</dt>
+            <dd className={cn('mt-1 text-sm font-semibold', summaryProfit === undefined ? 'text-slate-500' : getTrendTone(summaryProfit).text)}>
+              <span dir="ltr" className="inline-block tabular-nums">{summaryProfit === undefined ? '—' : formatCurrency(summaryProfit, 'USD', locale)}</span>
+            </dd>
+          </div>
+        </dl>
+        <div className="mt-3 flex items-center justify-between text-xs font-medium text-slate-500">
+          <span>{toggleLabel}</span>
+          <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform motion-reduce:transition-none', isExpanded && 'rotate-180')} />
+        </div>
+      </button>
+      <div id={detailsId} hidden={!isExpanded}>
+      {isExpanded && (
       <div className="relative z-10 flex flex-1 flex-col gap-3 p-3.5 sm:gap-4 sm:p-4">
         {isClosed ? (
           <>
@@ -406,7 +463,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                         {position.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
                       </span>
                     </span>
-                    <Badge variant="secondary" className="rounded-md border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    <Badge variant="secondary" className="rounded-md border border-slate-200 bg-slate-100 text-slate-600">
                       {t.dashboard.closedBadge}
                     </Badge>
                   </div>
@@ -697,6 +754,8 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             </div>
           </>
         )}
+      </div>
+      )}
       </div>
     </div>
   );
