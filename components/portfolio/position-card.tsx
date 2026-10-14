@@ -248,7 +248,6 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     { label: t.dashboard.current, value: formatCurrency(currentPrice, 'USD', locale) },
     { label: t.dashboard.projected, value: formatCurrency(projectedPrice, 'USD', locale) },
     ...(visibleRequiredExitPrice === undefined ? [] : [{ label: t.dashboard.requiredExitPrice, value: formatCurrency(visibleRequiredExitPrice, 'USD', locale) }]),
-    { label: t.dashboard.dailyChange, value: dailyChangeAmount === null ? '—' : formatCurrency(dailyChangeAmount, 'USD', locale), tone: dailyChangeAmount === null ? 'text-slate-500' : getTrendTone(dailyChangeAmount).text },
   ];
 
   return (
@@ -289,8 +288,16 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
           <div className={cn('min-w-0', !isClosed && 'col-span-2')}>
             <dt className="text-[10px] font-medium text-slate-500">{isClosed ? t.dashboard.closedLastSale : t.dashboard.positionValueUsd}</dt>
-            <dd className={cn('mt-1 font-semibold tracking-tight text-slate-950', isClosed ? 'text-sm' : 'text-[26px] leading-8')}>
-              {isClosed ? (closedSummary?.lastSaleDate ? formatDate(closedSummary.lastSaleDate.toISOString(), locale) : '—') : <bdi className="tabular-nums">{formatCurrency(currentValue, 'USD', locale)}</bdi>}
+            <dd className={cn('mt-1 font-semibold tracking-tight text-slate-950', isClosed ? 'text-sm' : 'flex items-end justify-between gap-3')}>
+              {isClosed ? (closedSummary?.lastSaleDate ? formatDate(closedSummary.lastSaleDate.toISOString(), locale) : '—') : <>
+                <bdi className="min-w-0 break-all text-[26px] leading-8 tabular-nums">{formatCurrency(currentValue, 'USD', locale)}</bdi>
+                <span className="inline-flex shrink-0 flex-col items-end gap-0.5 pb-0.5">
+                  <span className="text-[10px] font-medium leading-4 tracking-normal text-slate-500">{t.dashboard.dailyChange}</span>
+                  <bdi className={cn('text-xs leading-4 tabular-nums', dailyChangeAmount === null ? 'text-slate-500' : getTrendTone(dailyChangeAmount).text)}>
+                    {dailyChangeAmount === null ? '—' : formatCurrency(dailyChangeAmount, 'USD', locale)}
+                  </bdi>
+                </span>
+              </>}
             </dd>
           </div>
           {!isClosed && <div className="min-w-0">
@@ -323,7 +330,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
               {detailStats.map((stat) => (
                 <div key={stat.label} className="min-w-0">
                   <dt className="text-[10px] font-medium leading-4 text-slate-500">{stat.label}</dt>
-                  <dd className={cn('mt-1 text-[13px] font-medium tabular-nums', 'tone' in stat ? stat.tone : 'text-slate-900')}>
+                  <dd className={cn('mt-1 text-[13px] font-medium tabular-nums', 'text-slate-900')}>
                     <bdi>{stat.value}</bdi>
                   </dd>
                 </div>

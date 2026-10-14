@@ -63,7 +63,8 @@ describe('collapsed position cards', () => {
     }
     expect(within(active).getByText('Active')).toBeInTheDocument();
     expect(within(active).getByText('Forecast gap')).toBeInTheDocument();
-    expect(within(active).queryByText('Daily change')).not.toBeInTheDocument();
+    expect(within(active).getByText('Daily change')).toBeInTheDocument();
+    expect(within(active).getByText(formatCurrency(20, 'USD', 'en'))).toBeInTheDocument();
     expect(within(closed).getByText('Closed · Archive')).toBeInTheDocument();
     expect(within(closed).getByText('Realized profit / loss')).toBeInTheDocument();
     expect(within(closed).getByText(formatCurrency(250, 'USD', 'en'))).toBeInTheDocument();
@@ -83,6 +84,7 @@ describe('collapsed position cards', () => {
     expect(closed).toHaveAttribute('aria-expanded', 'false');
     const activeDetails = document.getElementById(active.getAttribute('aria-controls')!)!;
     expect(activeDetails).toHaveAttribute('aria-hidden', 'false');
+    expect(within(activeDetails).queryByText('Daily change')).not.toBeInTheDocument();
     expect(activeDetails).not.toHaveAttribute('inert');
     expect(within(activeDetails).getByRole('link', { name: 'View details' })).not.toHaveAttribute('tabindex', '-1');
     await user.click(closed);
