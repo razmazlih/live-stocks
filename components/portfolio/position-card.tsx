@@ -7,14 +7,13 @@ import { formatCurrency, formatNumber, formatDate, formatPercent, hasMaterialExi
 import { computeRealizedSales } from '@/lib/positions';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { BankBadge } from '@/components/branding/bank-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import Link from 'next/link';
 import { useUrlState } from '@/hooks/use-url-state';
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
-import { Archive, ArrowUpRight, ChevronDown, CircleDot } from 'lucide-react';
+import { Archive, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { getTrendTone } from '@/lib/display/trends';
 import { cn } from '@/lib/utils';
 
@@ -249,63 +248,64 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
     { label: t.dashboard.current, value: formatCurrency(currentPrice, 'USD', locale) },
     { label: t.dashboard.projected, value: formatCurrency(projectedPrice, 'USD', locale) },
     ...(visibleRequiredExitPrice === undefined ? [] : [{ label: t.dashboard.requiredExitPrice, value: formatCurrency(visibleRequiredExitPrice, 'USD', locale) }]),
-    { label: t.dashboard.forecastGap, value: formatCurrency(combined, 'USD', locale), tone: getTrendTone(combined).text },
+    { label: t.dashboard.dailyChange, value: dailyChangeAmount === null ? '—' : formatCurrency(dailyChangeAmount, 'USD', locale), tone: dailyChangeAmount === null ? 'text-slate-500' : getTrendTone(dailyChangeAmount).text },
   ];
 
   return (
     <div className={cn(
-      'group relative self-start overflow-hidden rounded-xl border shadow-sm transition-[border-color,box-shadow] duration-300 motion-reduce:transition-none',
-      isClosed ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-white',
-      isExpanded && 'shadow-md'
+      'group relative self-start overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-300 motion-reduce:transition-none',
+      isClosed ? 'border-slate-200/80 bg-slate-50/70' : 'border-slate-200/80 bg-white',
+      isExpanded ? 'shadow-[0_8px_28px_-16px_rgba(15,23,42,0.22)]' : 'shadow-[0_2px_8px_-4px_rgba(15,23,42,0.12)]'
     )}>
       <button
         type="button"
         aria-expanded={isExpanded}
         aria-controls={detailsId}
         onClick={() => setIsExpanded((expanded) => !expanded)}
-        className="relative z-10 w-full p-3 text-start transition-colors hover:bg-slate-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:p-3.5"
+        className="relative z-10 w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
       >
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 shrink-0 rounded-lg border border-slate-200">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="h-10 w-10 shrink-0 rounded-xl border border-slate-100 bg-white">
             <StockAvatarImage symbol={position.symbol} display={position.display} imageUrl={position.imageUrl} />
-            <AvatarFallback>{position.symbol.slice(0, 2)}</AvatarFallback>
+            <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-600">{position.symbol.slice(0, 2)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold text-slate-900">{position.display}</h3>
-            <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-              <span dir="ltr">{position.symbol}</span>
-              <BankBadge bank={position.location === 'bank_two' ? 'bank_two' : 'bank_one'} locale={locale} size="sm" />
+            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-950">{position.display}</h3>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-slate-500">
+              <span dir="ltr" className="font-medium tracking-wide text-slate-500">{position.symbol}</span>
+              <span aria-hidden="true">·</span>
+              <span>{position.location === 'bank_two' ? 'Pepper' : 'ONE ZERO'}</span>
             </div>
           </div>
-          <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold', isClosed ? 'bg-slate-200 text-slate-600' : 'bg-blue-50 text-blue-700')}>
-            {isClosed ? <Archive className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
+          <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[10px] font-medium', isClosed ? 'text-slate-500' : 'text-blue-600')}>
+            {isClosed ? <Archive aria-hidden="true" className="h-3 w-3" /> : <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
             {statusLabel}
           </span>
+          <span className="ms-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100/70 text-slate-500 transition-colors group-hover:bg-slate-200/70 group-hover:text-slate-600">
+            <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-300 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
+          </span>
+          <span className="sr-only">{toggleLabel}</span>
         </div>
-        <dl className={cn('mt-2 grid gap-x-3 gap-y-1.5 rounded-lg p-2', isClosed ? 'grid-cols-2 bg-white/80' : 'grid-cols-2 bg-blue-50/50')}>
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
           <div className={cn('min-w-0', !isClosed && 'col-span-2')}>
-            <dt className="text-[11px] text-slate-500">{isClosed ? t.dashboard.closedLastSale : t.dashboard.portfolioValue}</dt>
-            <dd className="mt-1 text-sm font-semibold text-slate-900">
-              {isClosed ? (closedSummary?.lastSaleDate ? formatDate(closedSummary.lastSaleDate.toISOString(), locale) : '—') : <span dir="ltr" className="inline-block tabular-nums">{formatCurrency(currentValue, 'USD', locale)}</span>}
+            <dt className="text-[10px] font-medium text-slate-500">{isClosed ? t.dashboard.closedLastSale : t.dashboard.positionValueUsd}</dt>
+            <dd className={cn('mt-1 font-semibold tracking-tight text-slate-950', isClosed ? 'text-sm' : 'text-[26px] leading-8')}>
+              {isClosed ? (closedSummary?.lastSaleDate ? formatDate(closedSummary.lastSaleDate.toISOString(), locale) : '—') : <bdi className="tabular-nums">{formatCurrency(currentValue, 'USD', locale)}</bdi>}
             </dd>
           </div>
           {!isClosed && <div className="min-w-0">
-            <dt className="text-[11px] text-slate-500">{t.dashboard.dailyChange}</dt>
-            <dd className={cn('mt-1 text-sm font-semibold', dailyChangeAmount === null ? 'text-slate-500' : getTrendTone(dailyChangeAmount).text)}>
-              <span dir="ltr" className="inline-block tabular-nums">{dailyChangeAmount === null ? '—' : formatCurrency(dailyChangeAmount, 'USD', locale)}</span>
+            <dt className="text-[10px] font-medium text-slate-500">{t.dashboard.forecastGap}</dt>
+            <dd className={cn('mt-1 text-sm font-semibold', getTrendTone(combined).text)}>
+              <bdi className="tabular-nums">{formatCurrency(combined, 'USD', locale)}</bdi>
             </dd>
           </div>}
           <div className="min-w-0">
-            <dt className="text-[11px] text-slate-500">{isClosed ? t.dashboard.realizedPnL : t.dashboard.pnl}</dt>
+            <dt className="text-[10px] font-medium text-slate-500">{isClosed ? t.dashboard.realizedPnL : t.dashboard.pnl}</dt>
             <dd className={cn('mt-1 text-sm font-semibold', summaryProfit === undefined ? 'text-slate-500' : getTrendTone(summaryProfit).text)}>
-              <span dir="ltr" className="inline-block tabular-nums">{summaryProfit === undefined ? '—' : formatCurrency(summaryProfit, 'USD', locale)}</span>
+              <bdi className="tabular-nums">{summaryProfit === undefined ? '—' : formatCurrency(summaryProfit, 'USD', locale)}</bdi>
             </dd>
           </div>
         </dl>
-        <div className="mt-2 flex items-center justify-between text-xs font-medium text-slate-500">
-          <span>{toggleLabel}</span>
-          <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-300 ease-out motion-reduce:transition-none', isExpanded && 'rotate-180')} />
-        </div>
       </button>
       <div
         id={detailsId}
@@ -317,13 +317,13 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="space-y-2 border-t border-slate-200/70 px-3.5 pb-3 pt-2.5 sm:px-4 sm:pb-3">
+          <div className="space-y-3 px-4 pb-4 pt-1">
             {closedSelector}
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
               {detailStats.map((stat) => (
-                <div key={stat.label} className="min-w-0 border-b border-slate-200/60 pb-1.5">
-                  <dt className="text-[11px] leading-4 text-slate-500">{stat.label}</dt>
-                  <dd className={cn('mt-0.5 font-semibold tabular-nums', 'tone' in stat ? stat.tone : 'text-slate-900')}>
+                <div key={stat.label} className="min-w-0">
+                  <dt className="text-[10px] font-medium leading-4 text-slate-500">{stat.label}</dt>
+                  <dd className={cn('mt-1 text-[13px] font-medium tabular-nums', 'tone' in stat ? stat.tone : 'text-slate-900')}>
                     <bdi>{stat.value}</bdi>
                   </dd>
                 </div>
@@ -346,7 +346,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
                 />
               </div>
             )}
-            <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
               <span>{t.dashboard.since} {formatDate(position.entryDate, locale)}</span>
               <Link
                 href={buildStockHref(position.symbol, sourceUrl || '/portfolio')}

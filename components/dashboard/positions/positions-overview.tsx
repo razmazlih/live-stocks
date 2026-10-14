@@ -543,12 +543,12 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
       sparklineData={sparklineData[selectedOption.sparklineKey] || []}
       closedSelector={
         hasMultipleOptions ? (
-          <div className="rounded-lg border border-blue-100 bg-blue-50 p-2.5">
+          <div className="rounded-xl bg-slate-100/70 p-2.5">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-700">
+              <p className="text-[11px] font-semibold tracking-normal text-slate-600">
                 {selectorLabel}
               </p>
-              <Badge className="rounded-md border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              <Badge className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                 {countLabel(group.options.length)}
               </Badge>
             </div>
@@ -559,22 +559,22 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 size="sm"
                 aria-label={locale === 'he' ? 'סגירה קודמת' : 'Previous closure'}
                 disabled={!previousOption}
-                className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                className="h-9 w-9 rounded-lg border-slate-200 bg-white p-0 text-slate-600 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => previousOption && setSelectedId(previousOption.id)}
               >
                 {locale === 'he' ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
 
               <Select value={selectedOption.id} onValueChange={setSelectedId}>
-                <SelectTrigger className="h-9 rounded-lg border-blue-200 bg-white text-[13px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
+                <SelectTrigger className="h-9 rounded-lg border-transparent bg-white text-[12px] font-semibold text-slate-800 shadow-sm ring-0 focus:ring-2 focus:ring-blue-200">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="max-h-72 rounded-lg border-blue-100 bg-white">
+                <SelectContent className="max-h-72 rounded-lg border-slate-200 bg-white">
                   {group.options.map((option) => (
                     <SelectItem
                       key={option.id}
                       value={option.id}
-                      className="rounded-lg py-2 text-sm data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700"
+                      className="rounded-lg py-2 text-sm data-[highlighted]:bg-blue-50 data-[highlighted]:text-slate-600"
                     >
                       {option.label}
                     </SelectItem>
@@ -588,7 +588,7 @@ const ClosedPositionGroupCard = memo(function ClosedPositionGroupCard({
                 size="sm"
                 aria-label={locale === 'he' ? 'סגירה הבאה' : 'Next closure'}
                 disabled={!nextOption}
-                className="h-9 w-9 rounded-lg border-blue-200 bg-white p-0 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                className="h-9 w-9 rounded-lg border-slate-200 bg-white p-0 text-slate-600 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => nextOption && setSelectedId(nextOption.id)}
               >
                 {locale === 'he' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}

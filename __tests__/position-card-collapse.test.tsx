@@ -62,7 +62,8 @@ describe('collapsed position cards', () => {
       expect(within(details!).getByRole('link', { hidden: true })).toHaveAttribute('tabindex', '-1');
     }
     expect(within(active).getByText('Active')).toBeInTheDocument();
-    expect(within(active).getByText('Daily change')).toBeInTheDocument();
+    expect(within(active).getByText('Forecast gap')).toBeInTheDocument();
+    expect(within(active).queryByText('Daily change')).not.toBeInTheDocument();
     expect(within(closed).getByText('Closed · Archive')).toBeInTheDocument();
     expect(within(closed).getByText('Realized profit / loss')).toBeInTheDocument();
     expect(within(closed).getByText(formatCurrency(250, 'USD', 'en'))).toBeInTheDocument();
