@@ -147,18 +147,19 @@ export default function HomePage() {
           ],
           badge: {
             value: formatSignedPercent(totalReturnPercent, locale),
+            label: t.dashboard.returnOnCost,
             className: getTrendTone(totalReturnUsd).badge,
             icon: getTrendIcon(totalReturnUsd),
           },
         },
         {
-          key: 'current',
-          label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
-          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
+          key: 'combined',
+          label: t.dashboard.combinedPnL,
+          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale),
+          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
+            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
           },
         },
         {
@@ -172,13 +173,13 @@ export default function HomePage() {
           },
         },
         {
-          key: 'combined',
-          label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale),
-          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
+          key: 'current',
+          label: t.dashboard.currentPnL,
+          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
+          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
           secondary: {
             label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
+            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
           },
         },
       ]
