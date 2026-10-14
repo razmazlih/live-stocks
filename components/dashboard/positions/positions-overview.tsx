@@ -246,7 +246,7 @@ export function PositionsOverview({
   const sortNotice = t.dashboard.positionsSortedByForecast;
 
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
-  const [viewMode, setViewMode] = useState<PositionViewMode>('cards');
+  const [viewMode, setViewMode] = useState<PositionViewMode>('table');
 
   const filterOptions: FilterOptionConfig[] = useMemo(
     () =>

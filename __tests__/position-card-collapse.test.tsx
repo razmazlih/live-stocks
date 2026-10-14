@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PositionCard } from '@/components/portfolio/position-card';
+import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
 import { formatCurrency } from '@/lib/calculations';
 import type { PositionMetrics } from '@/types';
 
@@ -36,13 +37,29 @@ function metrics(closed = false): PositionMetrics {
 afterEach(cleanup);
 
 describe('collapsed position cards', () => {
+  it('defaults to the desktop table and allows switching to cards', async () => {
+    const user = userEvent.setup();
+    render(<PositionsOverview openTitle="Active positions" closedTitle="Closed positions" openMetrics={[metrics()]} closedMetrics={[]} sparklineData={{}} />);
+    const table = screen.getByRole('button', { name: 'Table' });
+    const cards = screen.getByRole('button', { name: 'Cards' });
+    expect(table).toHaveAttribute('aria-pressed', 'true');
+    expect(cards).toHaveAttribute('aria-pressed', 'false');
+    await user.click(cards);
+    expect(table).toHaveAttribute('aria-pressed', 'false');
+    expect(cards).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Active holding/ })).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('starts active and closed holdings collapsed with distinct status and realized closed results', () => {
     render(<><PositionCard metrics={metrics()} /><PositionCard metrics={metrics(true)} /></>);
     const active = screen.getByRole('button', { name: /Active holding/ });
     const closed = screen.getByRole('button', { name: /Closed holding/ });
     for (const toggle of [active, closed]) {
       expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      expect(document.getElementById(toggle.getAttribute('aria-controls')!)).not.toBeVisible();
+      const details = document.getElementById(toggle.getAttribute('aria-controls')!);
+      expect(details).toHaveAttribute('aria-hidden', 'true');
+      expect(details).toHaveAttribute('inert');
+      expect(within(details!).getByRole('link', { hidden: true })).toHaveAttribute('tabindex', '-1');
     }
     expect(within(active).getByText('Active')).toBeInTheDocument();
     expect(within(active).getByText('Daily change')).toBeInTheDocument();
@@ -63,6 +80,10 @@ describe('collapsed position cards', () => {
     await user.keyboard('{Enter}');
     expect(active).toHaveAttribute('aria-expanded', 'true');
     expect(closed).toHaveAttribute('aria-expanded', 'false');
+    const activeDetails = document.getElementById(active.getAttribute('aria-controls')!)!;
+    expect(activeDetails).toHaveAttribute('aria-hidden', 'false');
+    expect(activeDetails).not.toHaveAttribute('inert');
+    expect(within(activeDetails).getByRole('link', { name: 'View details' })).not.toHaveAttribute('tabindex', '-1');
     await user.click(closed);
     expect(active).toHaveAttribute('aria-expanded', 'true');
     expect(closed).toHaveAttribute('aria-expanded', 'true');
@@ -71,6 +92,9 @@ describe('collapsed position cards', () => {
     await user.click(active);
     expect(active).toHaveAttribute('aria-expanded', 'false');
     expect(closed).toHaveAttribute('aria-expanded', 'true');
-    expect(closedDetails).toBeVisible();
+    expect(activeDetails).toHaveAttribute('aria-hidden', 'true');
+    expect(activeDetails).toHaveAttribute('inert');
+    expect(closedDetails).toHaveAttribute('aria-hidden', 'false');
+    expect(closedDetails).not.toHaveAttribute('inert');
   });
 });
