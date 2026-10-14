@@ -22,6 +22,7 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildWeeklyMovers, buildWeeklySnapshot } from '@/lib/weekly-insights';
+import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 import {
   formatLastUpdatedTime,
   formatSignedCurrency,
@@ -224,8 +225,14 @@ export default function HomePage() {
     );
 
   const renderWeeklyStatus = () => {
-    const hasWeeklyPortfolioData = weeklySnapshot.baselineTimestamp !== null;
-    const hasWeeklyStockData = weeklyMovers.improved.length > 0 || weeklyMovers.worsened.length > 0;
+    const hasWeeklyPortfolioData =
+      weeklySnapshot.baselineTimestamp !== null &&
+      weeklySnapshot.currentTimestamp !== null &&
+      weeklySnapshot.baselineTimestamp < weeklySnapshot.currentTimestamp;
+    const hasWeeklyStockData = openMetrics.some((metric) => {
+      const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
+      return new Set((sparklineData[key] ?? []).map((point) => point.timestamp)).size > 1;
+    });
 
     return (
       <section aria-labelledby="weekly-status-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -267,7 +274,12 @@ export default function HomePage() {
                       const Icon = group.icon;
                       return (
                         <li key={item.key} className="flex items-center justify-between gap-2 text-sm">
-                          <Link href={`/stock/${encodeURIComponent(item.symbol)}`} className="inline-flex min-h-9 min-w-0 items-center gap-1 rounded-md font-medium text-slate-800 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+                          <Link
+                            id={`weekly-mover-${item.key}`}
+                            href={buildStockHref(item.symbol, '/')}
+                            onClick={() => rememberReturnContext(`weekly-mover-${item.key}`)}
+                            className="inline-flex min-h-9 min-w-0 items-center gap-1 rounded-md font-medium text-slate-800 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                          >
                             <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${group.tone}`} />
                             <span className="truncate">{item.display}</span>
                           </Link>
