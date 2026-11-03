@@ -1,13 +1,9 @@
 import {
-  BrainCircuit,
-  CircleDollarSign,
   Eye,
   Home,
   Layers,
   LineChart,
   Settings,
-  Sparkles,
-  Target,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,15 +30,12 @@ export interface AppRouteItem {
 }
 
 export function createAppRouteItems(t: Translation): AppRouteItem[] {
+  const he = t.settings.title === 'הגדרות';
   return [
-    { key: 'dashboard', href: '/', label: t.app.title, icon: Home },
-    { key: 'positions', href: '/positions', label: t.positions.title, icon: Layers },
-    { key: 'portfolio', href: '/portfolio', label: t.portfolio.quickAction, icon: LineChart },
-    { key: 'watchlist', href: '/watchlist', label: t.watchlist.quickAction, icon: Eye },
-    { key: 'insights', href: '/insights', label: t.dashboard.weeklyInsights, icon: BrainCircuit },
-    { key: 'realized', href: '/realized', label: t.realized.quickAction, icon: CircleDollarSign },
-    { key: 'exceptions', href: '/exceptions', label: t.exceptions.quickAction, icon: Target },
-    { key: 'aiPrompts', href: '/ai-prompts', label: t.aiPrompts.quickAction, icon: Sparkles },
+    { key: 'dashboard', href: '/', label: he ? 'סקירה' : 'Overview', icon: Home },
+    { key: 'positions', href: '/positions', label: he ? 'פעילות' : 'Activity', icon: Layers },
+    { key: 'portfolio', href: '/portfolio', label: he ? 'ביצועים' : 'Performance', icon: LineChart },
+    { key: 'watchlist', href: '/watchlist', label: he ? 'מעקב' : 'Watchlist', icon: Eye },
     { key: 'settings', href: '/settings', label: t.settings.title, icon: Settings },
   ];
 }

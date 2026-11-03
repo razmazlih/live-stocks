@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PortfolioDataProvider, usePortfolioData } from '@/hooks/use-portfolio-data';
 import { PortfolioFeedback } from '@/components/dashboard/portfolio-feedback';
+import type { PortfolioTimelinePoint, Position } from '@/types';
 
 const appState = vi.hoisted(() => ({
   settingsReady: true,
@@ -16,6 +17,10 @@ function Consumer({ label }: { label: string }) {
     <output data-testid={label}>{JSON.stringify({ loading: data.loading, refreshing: data.refreshing, hasData: data.hasData, error: data.error, updated: data.lastUpdate?.toISOString(), rate: data.usdToIls })}</output>
     <button onClick={() => void data.reload()}>Reload {label}</button>
   </div>;
+}
+function TimelineConsumer() {
+  const { portfolioTimeline, summary, metrics, openSummary } = usePortfolioData();
+  return <output data-testid="timeline">{JSON.stringify({ points: portfolioTimeline, summary, metrics, openSummary })}</output>;
 }
 const successful = (rate = 3.7) => ({ ok: true, json: async () => ({ positions: [], usdToIls: rate }) });
 const read = (label = 'first') => JSON.parse(screen.getByTestId(label).textContent!);
@@ -90,4 +95,87 @@ describe('shared portfolio data', () => {
     await screen.findByText('Empty portfolio');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('keeps realized and unrealized historical profits before tax in both currencies', async () => {
+    const date = (day: number) => `2024-01-${String(day).padStart(2, '0')}T12:00:00.000Z`;
+    const position: Position = {
+      id: 'history', symbol: 'TEST', display: 'Test stock', imageUrl: '',
+      entryPrice: 100, quantity: 0, entryDate: date(1), location: 'bank_one',
+      lots: [
+        { type: 'BUY', price: 100, quantity: 10, executedAt: date(1), hasCommission: false, commissionAmount: 0 },
+        { type: 'SELL', price: 120, quantity: 4, executedAt: date(10), hasCommission: false, commissionAmount: 0 },
+        { type: 'SELL', price: 130, quantity: 6, executedAt: date(20), hasCommission: false, commissionAmount: 0 },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      positions: [position], activationPositions: [position], usdToIls: 3,
+      quotes: { TEST: { c: 135 } },
+      candlesByKey: { history: [
+        { timestamp: new Date(date(2)).getTime(), close: 100 },
+        { timestamp: new Date(date(11)).getTime(), close: 110 },
+        { timestamp: new Date(date(21)).getTime(), close: 135 },
+      ] },
+    }) }));
+    render(<PortfolioDataProvider><Consumer label="first" /><TimelineConsumer /></PortfolioDataProvider>);
+    await waitFor(() => expect(read().hasData).toBe(true));
+    const { points, summary } = JSON.parse(screen.getByTestId('timeline').textContent!);
+    const partial = points.find((point: PortfolioTimelinePoint) => point.timestamp === new Date(date(11)).getTime());
+    // Four sold shares earned $80; six remaining shares earned $60. Tax is $20.
+    expect(partial).toMatchObject({ totalPnLUsd: 140, totalPnLIls: 420, netPnLUsd: 120, netPnLIls: 360 });
+    const closed = points.find((point: PortfolioTimelinePoint) => point.timestamp === new Date(date(21)).getTime());
+    // After the remaining sale, all $260 stays in actual P/L; estimated tax is $65.
+    expect(closed).toMatchObject({ totalPnLUsd: 260, totalPnLIls: 780, netPnLUsd: 195, netPnLIls: 585 });
+    expect(points.at(-1)).toMatchObject({
+      totalPnLUsd: summary.totalCurrentPnLUsd, totalPnLIls: summary.totalCurrentPnLIls,
+      netPnLUsd: summary.totalNetPnLUsd, netPnLIls: summary.totalNetPnLIls,
+    });
+  });
+
+
+  it.each([undefined, {}, { c: 0 }, { c: -1 }, { c: Number.NaN }])('does not replace a missing or invalid open market quote (%j) with its entry price', async (missingQuote) => {
+    const open: Position = {
+      id: 'missing', symbol: 'MISSING', display: 'Missing quote', imageUrl: '',
+      entryPrice: 100, quantity: 2, entryDate: '2024-01-01', location: 'bank_one',
+      lots: [{ type: 'BUY', price: 100, quantity: 2, executedAt: '2024-01-01', hasCommission: false, commissionAmount: 0 }],
+    };
+    const priced: Position = {
+      ...open, id: 'priced', symbol: 'PRICED', entryPrice: 10, quantity: 1,
+      lots: [{ type: 'BUY', price: 10, quantity: 1, executedAt: '2024-01-01', hasCommission: false, commissionAmount: 0 }],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      positions: [open, priced], activationPositions: [open, priced], usdToIls: 3,
+      quotes: { MISSING: missingQuote, PRICED: { c: 20, d: 1 } },
+    }) }));
+    render(<PortfolioDataProvider><Consumer label="first" /><TimelineConsumer /></PortfolioDataProvider>);
+    await waitFor(() => expect(read().hasData).toBe(true));
+    const { metrics, summary, openSummary, points } = JSON.parse(screen.getByTestId('timeline').textContent!);
+    // JSON represents the hook's non-finite unknown values as null, never invented zeros.
+    expect(metrics[0]).toMatchObject({ currentPrice: null, currentValue: null, positionPnLUsd: null, combined: null });
+    expect(metrics[1]).toMatchObject({ currentPrice: 20, currentValue: 20, positionPnLUsd: 10 });
+    expect(summary).toMatchObject({ totalValue: null, totalCurrentPnLUsd: null, totalCurrentPnLIls: null });
+    expect(openSummary.totalCurrentPnLUsd).toBeNull();
+    expect(Number.isFinite(summary.totalProjectedPnLUsd)).toBe(true);
+    expect(points.at(-1)).toMatchObject({ totalPnLUsd: null, totalPnLIls: null });
+    expect(read()).toMatchObject({ hasData: true, error: null });
+  });
+
+  it('preserves fully realized profit when closed holdings have no current quote', async () => {
+    const closed: Position = {
+      id: 'closed', symbol: 'SOLD', display: 'Sold stock', imageUrl: '',
+      entryPrice: 50, quantity: 0, entryDate: '2024-01-01', location: 'bank_one',
+      lots: [
+        { type: 'BUY', price: 50, quantity: 1, executedAt: '2024-01-01', hasCommission: false, commissionAmount: 0 },
+        { type: 'SELL', price: 80, quantity: 1, executedAt: '2024-01-02', hasCommission: false, commissionAmount: 0 },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      positions: [closed], activationPositions: [closed], usdToIls: 3, quotes: {},
+    }) }));
+    render(<PortfolioDataProvider><Consumer label="first" /><TimelineConsumer /></PortfolioDataProvider>);
+    await waitFor(() => expect(read().hasData).toBe(true));
+    const { metrics, summary } = JSON.parse(screen.getByTestId('timeline').textContent!);
+    expect(metrics[0]).toMatchObject({ currentPrice: null, currentValue: 0, positionPnLUsd: 0 });
+    expect(summary).toMatchObject({ totalValue: 0, totalCurrentPnLUsd: 30, totalCurrentPnLIls: 90, totalNetPnLUsd: 22.5 });
+  });
+
 });

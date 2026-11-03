@@ -62,7 +62,7 @@ describe('collapsed position cards', () => {
       expect(within(details!).getByRole('link', { hidden: true })).toHaveAttribute('tabindex', '-1');
     }
     expect(within(active).getByText('Active')).toBeInTheDocument();
-    expect(within(active).getByText('Forecast gap')).toBeInTheDocument();
+    expect(within(active).getByText('Personal target gap')).toBeInTheDocument();
     expect(within(active).getByText('Daily change')).toBeInTheDocument();
     expect(within(active).getByText(formatCurrency(20, 'USD', 'en'))).toBeInTheDocument();
     expect(within(closed).getByText('Closed · Archive')).toBeInTheDocument();

@@ -1,368 +1,60 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import type { PositionMetrics } from '@/types';
-import { useApp } from '@/lib/context';
-import { useTranslation } from '@/lib/translations';
-import { DashboardEmptyState } from '@/components/dashboard/empty-state';
-import { DailyChangeBadge } from '@/components/dashboard/daily-change-badge';
+import { LayoutDashboard, Plus, RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
+import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { DashboardContainer } from '@/components/dashboard/page-primitives';
-import {
-  SummaryCard,
-  SummaryCardGrid,
-} from '@/components/dashboard/summary/summary-card-grid';
-import { PositionsOverview } from '@/components/dashboard/positions/positions-overview';
-import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import { ArrowDownRight, ArrowUpRight, LayoutDashboard, LineChart } from 'lucide-react';
-import { formatCurrency } from '@/lib/calculations';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PerformanceChart } from '@/components/charts/performance-chart';
+import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
+import { ResearchExportButton } from '@/components/portfolio/research-export-button';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
-import { Skeleton } from '@/components/ui/skeleton';
-import { buildWeeklyMovers, buildWeeklySnapshot } from '@/lib/weekly-insights';
-import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
-import {
-  formatLastUpdatedTime,
-  formatSignedCurrency,
-  formatSignedPercent,
-  getTrendIcon,
-  getTrendTone,
-} from '@/lib/utils/portfolio-display';
+import { useApp } from '@/lib/context';
+import { formatCurrency } from '@/lib/calculations';
+import { getPerformanceTotals } from '@/lib/performance-display';
+import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 
 export default function HomePage() {
-  const { locale } = useApp();
-  const { t } = useTranslation(locale);
-  const {
-    loading,
-    refreshing,
-    metrics,
-    summary: portfolioSummary,
-    openSummary,
-    sparklineData,
-    portfolioTimeline,
-    usdToIls,
-    lastUpdate,
-    reload,
-  } = usePortfolioData();
-
+  const { locale, settings } = useApp();
+  const he = locale === 'he';
+  const { loading, refreshing, summary, metrics, positions, portfolioTimeline, sparklineData, lastUpdate, reload } = usePortfolioData();
   useReturnContext(!loading);
-
-  const lastUpdatedDisplay = formatLastUpdatedTime(lastUpdate, locale);
-
-  const hasDailyChange = metrics.some((metric) => typeof metric.dailyChange === 'number');
-  const totalDailyChangeUsd = metrics.reduce(
-    (acc, metric) => acc + (metric.dailyChange ?? 0) * metric.position.quantity,
-    0
-  );
-  const dailyChangeTone = getTrendTone(totalDailyChangeUsd);
-  const dailyChangeIcon = getTrendIcon(totalDailyChangeUsd);
-
-  const summary = openSummary ?? portfolioSummary;
-  const weeklySnapshot = useMemo(
-    () => buildWeeklySnapshot(portfolioTimeline, portfolioSummary),
-    [portfolioTimeline, portfolioSummary]
-  );
-  const weeklyMovers = useMemo(
-    () => buildWeeklyMovers(metrics, sparklineData, 2),
-    [metrics, sparklineData]
-  );
-  const currentRate = summary?.usdToIlsRate ?? usdToIls;
-  const totalValueIls = summary ? summary.totalValue * summary.usdToIlsRate : 0;
-  const totalReturnUsd = summary ? summary.totalValue - summary.totalCost : 0;
-  const totalReturnPercent = summary && summary.totalCost !== 0 ? (totalReturnUsd / summary.totalCost) * 100 : 0;
-
-  const sortByForecastGap = useCallback(
-    (items: PositionMetrics[]) => {
-      const localeKey = locale === 'he' ? 'he' : 'en';
-
-      return items
-        .slice()
-        .sort((a, b) => {
-          const aGap = Number.isFinite(a.combined) ? a.combined : Number.NEGATIVE_INFINITY;
-          const bGap = Number.isFinite(b.combined) ? b.combined : Number.NEGATIVE_INFINITY;
-
-          const gapDelta = bGap - aGap;
-
-          if (Math.abs(gapDelta) > 1e-8) {
-            return gapDelta;
-          }
-
-          const aLabel = a.position.display || a.position.symbol;
-          const bLabel = b.position.display || b.position.symbol;
-
-          return aLabel.localeCompare(bLabel, localeKey, { sensitivity: 'base' });
-        });
-    },
-    [locale]
-  );
-
-  const openMetrics = useMemo(
-    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity > 0)),
-    [metrics, sortByForecastGap]
-  );
-  const closedMetrics = useMemo(
-    () => sortByForecastGap(metrics.filter((metric) => metric.position.quantity <= 0)),
-    [metrics, sortByForecastGap]
-  );
-  const hasAnyPositions = openMetrics.length > 0 || closedMetrics.length > 0;
-
-  const dailyChangeData = hasDailyChange
-    ? {
-        value: formatSignedCurrency(totalDailyChangeUsd, 'USD', locale),
-        toneClass: dailyChangeTone.badge,
-        icon: dailyChangeIcon,
-        label: t.dashboard.dailyChange,
-      }
-    : null;
-
-  const quickActions = useMemo(
-    () =>
-      createCommonQuickActions(t, {
-        overrides: {
-          reload: {
-            onClick: reload,
-            disabled: loading || refreshing,
-            iconClassName: loading || refreshing ? 'animate-spin' : undefined,
-          },
-        },
-      }),
-    [t, reload, loading, refreshing]
-  );
-
-  const summaryCards: SummaryCard[] = summary
-    ? [
-        {
-          key: 'value',
-          label: t.dashboard.totalValue,
-          value: formatCurrency(summary.totalValue, 'USD', locale),
-          valueClass: 'text-2xl font-semibold text-slate-950',
-          secondary: {
-            label: 'ILS',
-            value: formatCurrency(totalValueIls, 'ILS', locale),
-          },
-          helper: [
-            { label: t.dashboard.totalCost, value: formatCurrency(summary.totalCost, 'USD', locale) },
-          ],
-          badge: {
-            value: formatSignedPercent(totalReturnPercent, locale),
-            label: t.dashboard.returnOnCost,
-            className: getTrendTone(totalReturnUsd).badge,
-            icon: getTrendIcon(totalReturnUsd),
-          },
-        },
-        {
-          key: 'combined',
-          label: t.dashboard.combinedPnL,
-          value: formatSignedCurrency(summary.totalCombinedUsd, 'USD', locale),
-          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCombinedUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCombinedIls, 'ILS', locale),
-          },
-        },
-        {
-          key: 'projected',
-          label: t.dashboard.projectedPnL,
-          value: formatSignedCurrency(summary.totalProjectedPnLUsd, 'USD', locale),
-          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalProjectedPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalProjectedPnLIls, 'ILS', locale),
-          },
-        },
-        {
-          key: 'current',
-          label: t.dashboard.currentPnL,
-          value: formatSignedCurrency(summary.totalCurrentPnLUsd, 'USD', locale),
-          valueClass: `text-2xl font-semibold ${getTrendTone(summary.totalCurrentPnLUsd).text}`,
-          secondary: {
-            label: 'ILS',
-            value: formatSignedCurrency(summary.totalCurrentPnLIls, 'ILS', locale),
-          },
-        },
-      ]
-    : [];
-
-  const renderSectionPlaceholder = (message: string) => (
-    <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
-      {message}
-    </div>
-  );
-
-  const renderSummarySection = () =>
-    summary && summaryCards.length > 0 ? (
-      <div className="space-y-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-semibold text-slate-900">{t.dashboard.summaryTitle}</h2>
-          {dailyChangeData && (
-            <DailyChangeBadge
-              toneClass={dailyChangeData.toneClass}
-              icon={dailyChangeData.icon}
-              value={dailyChangeData.value}
-              label={dailyChangeData.label}
-              className="self-start tabular-nums"
-            />
-          )}
-        </div>
-        <SummaryCardGrid cards={summaryCards} locale={locale} />
-      </div>
-    ) : (
-      renderSectionPlaceholder(t.dashboard.sectionSummaryEmpty)
-    );
-
-  const renderPositionsSection = () =>
-    hasAnyPositions ? (
-      <PositionsOverview
-        openTitle={t.dashboard.positionsTitle}
-        closedTitle={t.dashboard.closedPositionsTitle}
-        openMetrics={openMetrics}
-        closedMetrics={closedMetrics}
-        sparklineData={sparklineData}
-      />
-    ) : (
-      renderSectionPlaceholder(t.dashboard.sectionPositionsEmpty)
-    );
-
-  const renderWeeklyStatus = () => {
-    const hasWeeklyPortfolioData =
-      weeklySnapshot.baselineTimestamp !== null &&
-      weeklySnapshot.currentTimestamp !== null &&
-      weeklySnapshot.baselineTimestamp < weeklySnapshot.currentTimestamp;
-    const hasWeeklyStockData = openMetrics.some((metric) => {
-      const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
-      return new Set((sparklineData[key] ?? []).map((point) => point.timestamp)).size > 1;
-    });
-
-    return (
-      <section aria-labelledby="weekly-status-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="weekly-status-title" className="text-lg font-semibold text-slate-900">
-            {locale === 'he' ? 'מה השתנה השבוע' : 'What changed this week'}
-          </h2>
-          <span className="text-xs text-slate-500">
-            {locale === 'he' ? 'השוואה לנקודת הנתונים הקודמת הזמינה' : 'Compared with the previous available data point'}
-          </span>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-sm text-slate-600">
-              {locale === 'he' ? 'השינוי ברווח/הפסד נטו' : 'Net profit/loss change'}
-            </p>
-            {hasWeeklyPortfolioData ? (
-              <p className={`mt-1 text-2xl font-semibold tabular-nums ${getTrendTone(weeklySnapshot.netPnLDeltaUsd).text}`}>
-                {formatSignedCurrency(weeklySnapshot.netPnLDeltaUsd, 'USD', locale)}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-slate-500">
-                {locale === 'he' ? 'יצטברו נתונים לאחר רענון נוסף.' : 'Available after more history is collected.'}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {([
-              { key: 'improved', title: locale === 'he' ? 'עלו הכי הרבה' : 'Top gainers', items: weeklyMovers.improved, icon: ArrowUpRight, tone: 'text-emerald-700' },
-              { key: 'worsened', title: locale === 'he' ? 'ירדו הכי הרבה' : 'Top decliners', items: weeklyMovers.worsened, icon: ArrowDownRight, tone: 'text-rose-700' },
-            ] as const).map((group) => (
-              <div key={group.key}>
-                <h3 className="mb-2 text-sm font-medium text-slate-700">{group.title}</h3>
-                {group.items.length ? (
-                  <ul className="space-y-2">
-                    {group.items.map((item) => {
-                      const Icon = group.icon;
-                      return (
-                        <li key={item.key} className="flex items-center justify-between gap-2 text-sm">
-                          <Link
-                            id={`weekly-mover-${item.key}`}
-                            href={buildStockHref(item.symbol, '/')}
-                            onClick={() => rememberReturnContext(`weekly-mover-${item.key}`)}
-                            className="inline-flex min-h-9 min-w-0 items-center gap-1 rounded-md font-medium text-slate-800 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-                          >
-                            <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${group.tone}`} />
-                            <span className="truncate">{item.display}</span>
-                          </Link>
-                          <span className={`shrink-0 text-end tabular-nums ${group.tone}`}>
-                            {formatSignedPercent(item.changePercent, locale)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    {hasWeeklyStockData
-                      ? (locale === 'he' ? 'אין שינוי בולט.' : 'No notable move.')
-                      : (locale === 'he' ? 'אין עדיין מספיק נתונים.' : 'Not enough data yet.')}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  };
-
-  return (
-    <DashboardRouteShell activeKey="dashboard" locale={locale}>
-      <DashboardContainer width="full" className="space-y-5">
-        <PageHeader
-          title={t.app.title}
-          subtitle={locale === 'he' ? 'ההחזקות שלך, השווי והשינוי היומי.' : 'Your holdings, their value and today’s change.'}
-          icon={LayoutDashboard}
-          quickActionsTitle={t.dashboard.quickActions}
-          quickActions={quickActions}
-          metaBadges={[
-            {
-              key: 'updated',
-              label: `${t.app.updated} ${lastUpdatedDisplay ?? '—'}`,
-              className: 'bg-blue-50 text-blue-700 border-blue-100',
-            },
-            {
-              key: 'rate',
-              label: `1 USD ≈ ${formatCurrency(currentRate, 'ILS', locale)}`,
-            },
-          ]}
-        />
-
-        {loading ? (
-          <section aria-busy="true" aria-label={t.common.loading} className="space-y-5">
-            <Skeleton className="h-48 rounded-2xl" />
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[0, 1, 2, 3].map((key) => <Skeleton key={key} className="h-48 rounded-2xl" />)}
+  const currency = settings.currency;
+  const totals = summary ? getPerformanceTotals(summary, currency) : null;
+  const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
+  const Arrow = he ? ArrowLeft : ArrowRight;
+  const stats = [
+    { label: he ? 'שווי התיק' : 'Portfolio value', value: totals?.value },
+    { label: he ? 'רווח והפסד בפועל' : 'Actual profit / loss', value: totals?.actual, colored: true },
+    { label: he ? 'יעד אישי להיום' : 'Personal target today', value: totals?.target },
+    { label: he ? 'פער מהיעד' : 'Gap to target', value: totals?.gap, colored: true },
+  ];
+  return <DashboardRouteShell activeKey="dashboard" locale={locale}>
+    <DashboardContainer>
+      <PageHeader title={he ? 'סקירת התיק' : 'Portfolio overview'} icon={LayoutDashboard}
+        metaBadges={[{ key: 'updated', label: `${he ? 'עודכן' : 'Updated'} ${formatLastUpdatedTime(lastUpdate, locale) ?? '—'}` }]}
+        quickActionsTitle={he ? 'פעולות' : 'Actions'}
+        quickActions={[{ key: 'reload', label: he ? 'רענן' : 'Refresh', icon: RefreshCw, onClick: reload, disabled: loading || refreshing, iconClassName: refreshing ? 'animate-spin' : undefined, labelClassName: 'sr-only' }]}
+        actions={<div className="flex flex-wrap items-center gap-2"><Button asChild className="rounded-lg"><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button><ResearchExportButton /></div>} />
+      <DashboardMain className="mt-5">
+        {loading ? <div aria-busy="true" aria-label={he ? 'טוען את התיק' : 'Loading portfolio'} className="space-y-5"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-80 rounded-xl" /></div> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <>
+          <section aria-label={he ? 'תמונת מצב התיק' : 'Portfolio summary'}>
+            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:grid-cols-4">
+              {stats.map((stat) => <div key={stat.label} className="overview-stat min-w-0 px-4 py-5 sm:px-5 sm:py-6"><p className="text-xs font-medium text-slate-600 sm:text-sm">{stat.label}</p><p className={`mt-2 truncate text-[22px] font-semibold tracking-tight tabular-nums xl:text-[30px] ${stat.colored && stat.value !== undefined && stat.value !== 0 ? stat.value > 0 ? 'text-emerald-700' : 'text-rose-600' : 'text-slate-950'}`}><bdi>{money(stat.value)}</bdi></p></div>)}
             </div>
+            <p className="mt-2 px-1 text-xs leading-relaxed text-slate-500">{he ? 'יעד תשואה אישי, לא תחזית שוק. הרווח כולל ממומש ולא ממומש, לפני אומדן מס.' : 'A personal return target, not a market forecast. P/L includes realized and unrealized results, before estimated tax.'}</p>
           </section>
-        ) : !hasAnyPositions ? (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <DashboardEmptyState
-              title={t.dashboard.noPositions}
-              description={t.positions.title}
-            />
-          </section>
-        ) : (
-          <div className="space-y-5">
-            <section aria-label={t.dashboard.summaryTitle}>
-              {renderSummarySection()}
-            </section>
-            {renderWeeklyStatus()}
-            <div className="flex justify-end">
-              <Link
-                href="/portfolio"
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              >
-                <LineChart aria-hidden="true" className="h-4 w-4" />
-                {locale === 'he' ? 'ביצועים וגרפים' : 'Performance and charts'}
-              </Link>
-            </div>
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              {renderPositionsSection()}
-            </section>
-          </div>
-        )}
-      </DashboardContainer>
-    </DashboardRouteShell>
-  );
+          {summary ? <DashboardSurface className="space-y-4 rounded-xl p-4 sm:p-5">
+            <PerformanceChart data={portfolioTimeline} summary={summary} compact />
+            <Link href="/portfolio" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700">{he ? 'לכל הביצועים' : 'All performance'}<Arrow aria-hidden className="h-4 w-4" /></Link>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3"><div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"><span className="font-semibold text-slate-900">{he ? 'פערים מול היעד' : 'Gaps to target'}</span><span className="text-slate-600">{he ? 'פער מצטבר:' : 'Cumulative gap:'} <bdi className="font-semibold tabular-nums">{money(totals?.gap)}</bdi></span></div><Link href="/portfolio?view=targets" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700">{he ? 'לצפייה בפירוט' : 'View details'}<Arrow aria-hidden className="h-4 w-4" /></Link></div>
+          </DashboardSurface> : <DashboardSurface><p className="py-10 text-center text-sm text-slate-500">{he ? 'סיכום התיק אינו זמין כרגע.' : 'The portfolio summary is currently unavailable.'}</p></DashboardSurface>}
+          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} />
+        </>}
+      </DashboardMain>
+    </DashboardContainer>
+  </DashboardRouteShell>;
 }

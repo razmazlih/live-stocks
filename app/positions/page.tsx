@@ -24,6 +24,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +65,6 @@ import {
   ArrowRightLeft,
   History,
   Layers,
-  Package,
   CalendarClock,
   Search,
   ChevronLeft,
@@ -178,12 +178,21 @@ async function fetchQuotePrice(symbol: string): Promise<number | null> {
   }
 }
 
+function parseActivityState(params: URLSearchParams) {
+  return { ...parsePositionsState(params), add: params.get('action') === 'add' };
+}
+
 export default function PositionsPage() {
   const { locale, triggerRefresh, refreshTrigger } = useApp();
   const { t } = useTranslation(locale);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [chooserSearch, setChooserSearch] = useState('');
+  const [entryFromChooser, setEntryFromChooser] = useState(false);
+  const entryTriggerRef = useRef<HTMLElement | null>(null);
+  const entryTransitionRef = useRef(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [formData, setFormData] = useState<PositionFormData>({
     symbol: "",
@@ -205,7 +214,7 @@ export default function PositionsPage() {
   );
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
-  const [{ searchTerm, locationFilter, sortOption, pageSize, currentPage }, patchUrl, sourceUrl] = useUrlState(parsePositionsState);
+  const [{ searchTerm, locationFilter, sortOption, pageSize, currentPage, add }, patchUrl, sourceUrl] = useUrlState(parseActivityState);
   const setSearchTerm = (value: string) => patchUrl({ q: value, page: null });
   const setLocationFilter = (value: PositionLocationFilter) => patchUrl({ account: value === "all" ? null : value, page: null });
   const setSortOption = (value: PositionSortOption) => patchUrl({ sort: value, page: null });
@@ -262,6 +271,12 @@ export default function PositionsPage() {
       }),
     [positions],
   );
+
+  const chooserItems = useMemo(() => {
+    const query = chooserSearch.trim().toLocaleLowerCase(locale);
+    const sorted = [...positionItems].sort((a, b) => b.lastActivityTimestamp - a.lastActivityTimestamp);
+    return query ? sorted.filter(({ position }) => `${position.symbol} ${position.display}`.toLocaleLowerCase(locale).includes(query)) : sorted.slice(0, 6);
+  }, [positionItems, chooserSearch, locale]);
 
   const filteredPositionItems = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toUpperCase();
@@ -341,33 +356,18 @@ export default function PositionsPage() {
     filteredPositionItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const displayTo = Math.min(currentPage * pageSize, filteredPositionItems.length);
 
-  const overviewStats = [
-    {
-      key: "positions",
-      label: t.positions.overviewActivePositions,
-      value: formatNumber(positions.length, locale),
-      icon: Layers,
-    },
-    {
-      key: "quantity",
-      label: t.positions.overviewTotalQuantity,
-      value: formatNumber(totalQuantity, locale),
-      icon: Package,
-    },
-  ];
-
   const headerMetaBadges = [
     {
       key: "positions",
       icon: Layers,
-      label: `${t.positions.overviewActivePositions}: ${formatNumber(positions.length, locale)}`,
+      label: `${t.positions.overviewActivePositions}: ${!hasLoaded ? '—' : positions.filter((position) => position.quantity > 0).length.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}`,
       className: "bg-blue-50 text-blue-600",
       iconClassName: "text-blue-500",
     },
     {
       key: "quantity",
       icon: CalendarClock,
-      label: `${t.positions.overviewTotalQuantity}: ${formatNumber(totalQuantity, locale)}`,
+      label: `${t.positions.overviewTotalQuantity}: ${!hasLoaded ? '—' : formatNumber(totalQuantity, locale)}`,
       className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
@@ -421,7 +421,32 @@ export default function PositionsPage() {
     setDialogOpen(true);
   }, []);
 
+  const openTransactionChooser = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement && !document.activeElement.closest('[role="dialog"]')) entryTriggerRef.current = document.activeElement;
+    entryTransitionRef.current = dialogOpen || transactionDialogOpen;
+    setDialogOpen(false);
+    setTransactionDialogOpen(false);
+    setHistoryDialogOpen(false);
+    setChooserSearch('');
+    setChooserOpen(true);
+  }, [dialogOpen, transactionDialogOpen]);
+
+  const restoreEntryFocus = (event: Event) => {
+    event.preventDefault();
+    if (!entryTransitionRef.current) entryTriggerRef.current?.focus();
+    entryTransitionRef.current = false;
+  };
+
+  useEffect(() => {
+    if (add) {
+      openTransactionChooser();
+      patchUrl({ action: null, view: null });
+    }
+  }, [add, openTransactionChooser, patchUrl]);
+
   function openEditDialog(position: Position) {
+    if (document.activeElement instanceof HTMLElement) entryTriggerRef.current = document.activeElement;
+    setEntryFromChooser(false);
     setEditingPosition(position);
     setFormData({
       symbol: position.symbol,
@@ -441,6 +466,9 @@ export default function PositionsPage() {
     position: Position,
     type: PositionLotType = "BUY",
   ) {
+    if (!entryTransitionRef.current && document.activeElement instanceof HTMLElement && !document.activeElement.closest('[role="dialog"]')) entryTriggerRef.current = document.activeElement;
+    setEntryFromChooser(false);
+    setHistoryDialogOpen(false);
     setTransactionTarget(position);
     setTransactionForm({
       ...createDefaultTransactionForm(),
@@ -484,14 +512,15 @@ export default function PositionsPage() {
       {
         key: "add-position",
         icon: Plus,
-        label: t.positions.add,
-        onClick: openAddDialog,
+        label: locale === "he" ? "הוספת עסקה" : "Add transaction",
+        onClick: openTransactionChooser,
+        variant: "default",
         className:
-          "bg-[var(--color-primary-600)] text-[var(--color-neutral-white)] shadow-sm hover:bg-[var(--color-primary-650)]",
+          "bg-blue-600 text-white shadow-sm hover:bg-blue-700",
       },
       ...baseActions,
     ];
-  }, [t, triggerRefresh, loading, openAddDialog]);
+  }, [t, locale, triggerRefresh, loading, openTransactionChooser]);
 
   useEffect(() => {
     if (!dialogOpen || isEditing) {
@@ -799,19 +828,48 @@ export default function PositionsPage() {
     <DashboardRouteShell activeKey="positions" locale={locale}>
       <DashboardContainer>
         <PageHeader
-          title={t.positions.title}
-          subtitle={t.positions.subtitle}
+          title={locale === "he" ? "פעילות" : "Activity"}
+          subtitle={locale === "he" ? "ניהול העסקאות וההחזקות שלך במקום אחד." : "Manage your transactions and holdings in one place."}
           icon={Layers}
           metaBadges={headerMetaBadges}
           quickActionsTitle={t.dashboard.quickActions}
           quickActions={quickActions}
         />
 
+        <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
+          <DialogContent dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={restoreEntryFocus} className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-white p-0 shadow-2xl">
+            <DialogHeader className="border-b border-slate-100 px-5 py-6 text-start sm:px-7 sm:text-start">
+              <DialogTitle className="text-2xl font-bold text-slate-950">{locale === 'he' ? 'עסקה חדשה' : 'New transaction'}</DialogTitle>
+              <DialogDescription className="mt-2 text-sm leading-relaxed text-slate-500">{locale === 'he' ? 'מתחילים פוזיציה חדשה או מעדכנים אחת שכבר בתיק.' : 'Start a new position or update one already in your portfolio.'}</DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-7">
+              <button type="button" onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); setEntryFromChooser(true); openAddDialog(); }} className="group flex w-full items-center gap-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-start transition-colors hover:border-blue-400 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white"><Plus aria-hidden="true" className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-base font-semibold text-slate-950">{locale === 'he' ? 'פוזיציה חדשה' : 'New position'}</span><span className="mt-1 block text-sm text-slate-500">{locale === 'he' ? 'מניה חדשה בתיק, עם פרטי הקנייה הראשונה.' : 'Add a stock with the details of your first purchase.'}</span></span>
+                <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-600 ltr:rotate-180" />
+              </button>
+              <div className="mb-3 mt-6"><h2 className="font-semibold text-slate-950">{locale === 'he' ? 'הוספה לפוזיציה קיימת' : 'Add to an existing position'}</h2><p className="mt-1 text-xs text-slate-500">{locale === 'he' ? 'בחרו פוזיציה כדי לרשום קנייה או מכירה.' : 'Choose a position to record a buy or sell.'}</p></div>
+              <div className="relative"><Search aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input type="search" value={chooserSearch} onChange={(event) => setChooserSearch(event.target.value)} aria-label={locale === 'he' ? 'חיפוש פוזיציה קיימת' : 'Search existing positions'} placeholder={locale === 'he' ? 'חיפוש לפי סימול או שם מניה' : 'Search by symbol or company'} className="ps-9" /></div>
+              {loading && !hasLoaded ? <p role="status" className="py-7 text-center text-sm text-slate-500">{t.common.loading}</p> : loadError && !hasLoaded ? <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>{locale === 'he' ? 'לא הצלחנו לטעון פוזיציות קיימות.' : 'Unable to load existing positions.'}</p><Button variant="outline" size="sm" onClick={loadPositions} className="mt-3">{locale === 'he' ? 'ניסיון חוזר' : 'Try again'}</Button></div> : chooserItems.length ? <>
+                {!chooserSearch.trim() ? <p className="mb-1 mt-4 text-xs text-slate-400">{locale === 'he' ? 'פעילות אחרונה' : 'Recent activity'}</p> : null}
+                <div className="mt-2 divide-y divide-slate-100">{chooserItems.map(({ position }) => <button key={position.id} type="button" aria-label={`${locale === 'he' ? 'בחירת' : 'Select'} ${position.symbol} · ${position.display} · ${position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}`} onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); openTransactionDialog(position); setEntryFromChooser(true); }} className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-start transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600">{position.symbol.slice(0, 3)}</span>
+                  <span className="min-w-0 flex-1"><bdi className="block text-sm font-semibold text-slate-950">{position.symbol}</bdi><span className="mt-0.5 block truncate text-xs text-slate-500">{position.display}</span></span>
+                  <span className="shrink-0 text-end"><span className="block text-sm font-medium tabular-nums text-slate-700">{formatNumber(position.quantity, locale)} <span className="text-xs font-normal text-slate-400">{locale === 'he' ? 'מניות' : 'shares'}</span></span><span className="mt-0.5 block text-xs text-slate-400">{position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</span></span>
+                  <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400 ltr:rotate-180" />
+                </button>)}</div>
+              </> : <div className="py-7 text-center text-sm text-slate-500"><p>{chooserSearch.trim() ? (locale === 'he' ? 'לא נמצאו פוזיציות שמתאימות לחיפוש.' : 'No positions match your search.') : (locale === 'he' ? 'עדיין אין פוזיציות בתיק. התחילו בפוזיציה חדשה.' : 'No positions yet. Start with a new position.')}</p>{chooserSearch.trim() ? <Button variant="ghost" size="sm" onClick={() => setChooserSearch('')} className="mt-2 text-blue-700">{locale === 'he' ? 'ניקוי החיפוש' : 'Clear search'}</Button> : null}</div>}
+            </div>
+            <div className="flex shrink-0 justify-end border-t border-slate-100 px-5 py-3 sm:px-7"><Button variant="ghost" onClick={() => setChooserOpen(false)}>{t.positions.cancel}</Button></div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[color:var(--color-neutral-white)] p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
-            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
+          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[color:var(--color-neutral-white)] p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
+              {!editingPosition && entryFromChooser ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'חזרה לבחירת עסקה' : 'Back to transaction options'}</Button> : null}
               <DialogTitle>
-                {editingPosition ? t.positions.edit : t.positions.add}
+                {editingPosition ? t.positions.edit : (locale === "he" ? "פוזיציה חדשה" : "New position")}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col [&_input]:h-11 sm:[&_input]:h-10">
@@ -1071,13 +1129,15 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
-            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
+          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
+              {!isEditingTransaction ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'בחירת פוזיציה אחרת' : 'Change position'}</Button> : null}
               <DialogTitle>
                 {isEditingTransaction
                   ? t.positions.editTransaction
                   : t.positions.addTransaction}
               </DialogTitle>
+              {transactionTarget ? <p className="mt-2 text-sm text-slate-500"><bdi className="font-semibold text-slate-800">{transactionTarget.symbol}</bdi> · {transactionTarget.display} · {transactionTarget.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</p> : null}
             </DialogHeader>
             <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 [&_input]:h-11 sm:px-7 [&_input]:sm:h-10">
@@ -1250,8 +1310,8 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-2xl sm:border">
-            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-right sm:px-7">
+          <DialogContent aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-2xl sm:border">
+            <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
               <DialogTitle>{t.positions.manageHistory}</DialogTitle>
               {historyTarget && (
                 <p className="text-sm text-slate-500">
@@ -1355,41 +1415,6 @@ export default function PositionsPage() {
         <DashboardMain>
           <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
             <div className="relative z-10">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t.positions.overviewTitle}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {t.positions.overviewDescription}
-                </p>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {overviewStats.map(({ key, label, value, icon: Icon }) => (
-                  <Card
-                    key={key}
-                    className="border border-slate-200 bg-slate-50 shadow-none"
-                  >
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          {label}
-                        </p>
-                        <p className="text-lg font-semibold text-slate-900">
-                          {value}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
-            <div className="relative z-10">
               {loadError ? (
                 <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <span>{locale === "he" ? (hasLoaded ? "הרענון נכשל. הנתונים האחרונים נשמרו." : "לא הצלחנו לטעון את הפוזיציות.") : (hasLoaded ? "Refresh failed. Showing the last available data." : "Unable to load positions.")}</span>
@@ -1412,7 +1437,7 @@ export default function PositionsPage() {
                     <p className="max-w-sm text-sm text-slate-500">
                       {t.positions.emptyStateDescription}
                     </p>
-                    <Button onClick={openAddDialog} className="gap-2">
+                    <Button onClick={openTransactionChooser} className="gap-2">
                       <Plus className="h-4 w-4" />
                       {t.positions.add}
                     </Button>

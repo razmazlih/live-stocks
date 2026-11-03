@@ -471,3 +471,15 @@
     animation: none;
   }
 }
+
+/* Approved portfolio design: restrained surfaces, readable data and consistent spacing. */
+@layer components {
+  .overview-stat { border-inline-end: 1px solid #e2e8f0; }
+  .overview-stat:nth-child(2n) { border-inline-end: 0; }
+  .overview-stat:nth-child(-n+2) { border-bottom: 1px solid #e2e8f0; }
+  @media (min-width: 640px) {
+    .overview-stat:nth-child(2n) { border-inline-end: 1px solid #e2e8f0; }
+    .overview-stat:last-child { border-inline-end: 0; }
+    .overview-stat:nth-child(-n+2) { border-bottom: 0; }
+  }
+}

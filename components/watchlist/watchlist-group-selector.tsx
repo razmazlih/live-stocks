@@ -1,8 +1,6 @@
 'use client';
 
-import { DashboardEmptyPanel, DashboardLoading, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { WatchlistGroup } from '@/types';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -27,154 +25,22 @@ interface WatchlistGroupSelectorProps {
   deleteLabel?: string;
 }
 
-export function WatchlistGroupSelector({
-  groups,
-  selectedGroupId,
-  onSelect,
-  onCreate,
-  onEdit,
-  onDelete,
-  className,
-  title = 'Watchlist groups',
-  description,
-  addLabel = 'Add',
-  emptyStateText = 'No groups yet',
-  loadingText = 'Loading…',
-  isLoading = false,
-  isRefreshing = false,
-  renderTickerCount,
-  editLabel = 'Edit group',
-  deleteLabel = 'Delete group',
-}: WatchlistGroupSelectorProps) {
-  return (
-    <DashboardSurface
-      className={cn(
-        'flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-sm dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/70',
-        className
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 px-6 py-5 dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/40">
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
-          {description ? (
-            <span className="text-xs text-slate-500 dark:text-slate-400">{description}</span>
-          ) : null}
-        </div>
-        {onCreate ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCreate}
-            className="gap-1 rounded-full border-blue-100 bg-overlay-neutral-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-white"
-          >
-            <Plus className="h-4 w-4" />
-            <span>{addLabel}</span>
-          </Button>
-        ) : null}
+export function WatchlistGroupSelector({ groups, selectedGroupId, onSelect, onCreate, onEdit, onDelete, className, title = 'Watchlist groups', addLabel = 'Add', emptyStateText = 'No groups yet', loadingText = 'Loading…', isLoading = false, isRefreshing = false, renderTickerCount, editLabel = 'Edit group', deleteLabel = 'Delete group' }: WatchlistGroupSelectorProps) {
+  const selected = groups.find((group) => group.id === selectedGroupId);
+  return <section aria-label={title} className={cn('min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3', className)}>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <h2 className="shrink-0 text-sm font-medium text-slate-500">{title}</h2>
+      {isLoading ? <p role="status" className="flex items-center gap-2 py-2 text-sm text-slate-500"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />{loadingText}</p> : groups.length === 0 ? <p className="py-2 text-sm text-slate-500">{emptyStateText}</p> : <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        {groups.map((group) => <button key={group.id ?? group.name} type="button" disabled={!group.id} aria-pressed={group.id === selectedGroupId} onClick={() => group.id && onSelect(group.id)} className={cn('flex min-h-11 max-w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', group.id === selectedGroupId ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50')}>
+          <span className="truncate">{group.name}</span><span className="shrink-0 text-xs font-normal opacity-70">{renderTickerCount ? renderTickerCount(group) : group.tickers.length}</span>
+        </button>)}
+      </div>}
+      <div className="ms-auto flex shrink-0 items-center gap-1">
+        {isRefreshing ? <Loader2 aria-label={loadingText} className="me-2 h-4 w-4 animate-spin text-slate-500" /> : null}
+        {selected && onEdit ? <Button variant="ghost" size="icon" aria-label={editLabel} onClick={() => onEdit(selected)} className="text-slate-500"><Pencil aria-hidden="true" className="h-4 w-4" /></Button> : null}
+        {selected && onDelete ? <Button variant="ghost" size="icon" aria-label={deleteLabel} onClick={() => onDelete(selected)} className="text-slate-500 hover:text-rose-600"><Trash2 aria-hidden="true" className="h-4 w-4" /></Button> : null}
+        {onCreate ? <Button variant="outline" size="sm" onClick={onCreate} className="gap-2"><Plus aria-hidden="true" className="h-4 w-4" />{addLabel}</Button> : null}
       </div>
-      <ScrollArea className="flex-1">
-        <div className="space-y-4 p-6">
-          {isLoading ? (
-            <DashboardLoading
-              icon={<Loader2 className="h-4 w-4 animate-spin" />}
-              label={loadingText}
-              className="flex-row items-center justify-start gap-2 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white px-4 py-6 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300"
-            />
-          ) : groups.length === 0 ? (
-            <DashboardEmptyPanel className="gap-3 rounded-2xl border border-dashed border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/75 px-6 py-10 text-sm text-slate-600 shadow-inner dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:text-slate-300">
-              <span>{emptyStateText}</span>
-              {onCreate ? (
-                <Button size="sm" onClick={onCreate} className="gap-1 rounded-full">
-                  <Plus className="h-4 w-4" />
-                  {addLabel}
-                </Button>
-              ) : null}
-            </DashboardEmptyPanel>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {groups.map((group) => {
-                const isActive = group.id === selectedGroupId;
-
-                return (
-                  <div
-                    key={group.id ?? group.name}
-                    className={cn(
-                      'group relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-2xl border p-2 transition-all',
-                      'border-[color:var(--color-neutral-white)]/60 bg-overlay-neutral-white shadow-sm hover:border-[color:var(--color-blue-200)]/70 hover:shadow-md dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/60 dark:hover:border-slate-600',
-                      isActive &&
-                        'border-[color:var(--color-blue-400)]/70 bg-overlay-blue-50 text-blue-700 shadow-md dark:border-[color:var(--color-blue-500)]/60 dark:bg-[color:var(--color-slate-800)]/70 dark:text-blue-100'
-                    )}
-                  >
-                    <button
-                      type="button"
-                      disabled={!group.id}
-                      aria-pressed={isActive}
-                      onClick={() => group.id && onSelect(group.id)}
-                      onKeyDown={(event) => {
-                        if (!group.id) {
-                          return;
-                        }
-
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onSelect(group.id);
-                        }
-                      }}
-                      className="min-w-0 rounded-xl px-2 py-2 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-blue-300"
-                    >
-                      <span className="block truncate text-sm font-semibold text-slate-700 dark:text-slate-100">
-                        {group.name}
-                      </span>
-                      <span className="mt-0.5 block break-words text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                        {group.description || ''}
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
-                        {renderTickerCount ? renderTickerCount(group) : `${group.tickers.length}`}
-                      </span>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-1 pt-2">
-                      {onEdit ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={editLabel}
-                          className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onEdit(group);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {onDelete ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={deleteLabel}
-                          className="h-8 w-8 rounded-full text-slate-400 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDelete(group);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-      {isRefreshing ? (
-        <div className="flex items-center justify-center gap-2 border-t border-[color:var(--color-neutral-white)]/60 bg-[color:var(--color-neutral-white)]/60 px-4 py-2 text-xs text-slate-500 dark:border-[color:var(--color-slate-700)]/60 dark:bg-[color:var(--color-slate-900)]/40 dark:text-slate-400">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>{loadingText}</span>
-        </div>
-      ) : null}
-    </DashboardSurface>
-  );
+    </div>
+  </section>;
 }

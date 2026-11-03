@@ -11,7 +11,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw } from 'lucide-react';
+import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
@@ -245,11 +245,12 @@ function getTickerKey(ticker: WatchlistTickerType): string {
 interface SortableTickerCardProps {
   id: string;
   isActive: boolean;
+  disabled?: boolean;
   children: ReactNode;
 }
 
-function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function SortableTickerCard({ id, isActive, disabled = false, children }: SortableTickerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   const style: CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     transition,
@@ -260,16 +261,22 @@ function SortableTickerCard({ id, isActive, children }: SortableTickerCardProps)
       ref={setNodeRef}
       style={style}
       className={cn(
-        'h-full cursor-grab select-none touch-pan-y active:cursor-grabbing',
+        'h-full',
+        !disabled && 'cursor-grab select-none touch-pan-y active:cursor-grabbing',
         isDragging ? 'z-50' : undefined,
         isActive ? 'ring-2 ring-blue-200' : undefined
       )}
       {...attributes}
       {...listeners}
+      tabIndex={disabled ? -1 : attributes.tabIndex}
     >
       {children}
     </div>
   );
+}
+
+function parseWatchlistView(params: URLSearchParams) {
+  return { ...parseWatchlistState(params), search: (params.get('q') ?? '').slice(0, 200) };
 }
 
 export default function WatchlistPage() {
@@ -295,7 +302,7 @@ export default function WatchlistPage() {
     reorderTickers,
   } = useWatchlist();
 
-  const [{ range, customStartDate }, patchUrl, sourceUrl] = useUrlState(parseWatchlistState);
+  const [{ range, customStartDate, search }, patchUrl, sourceUrl] = useUrlState(parseWatchlistView);
   const setCustomStartDate = useCallback((date: Date | null) => patchUrl({ from: localDateParam(date) }), [patchUrl]);
   const requests = useRef(new Map<string, { identity: string; controller: AbortController }>());
   useReturnContext(!loading && Boolean(selectedGroup));
@@ -310,6 +317,10 @@ export default function WatchlistPage() {
     selectedGroup?.tickers ?? []
   );
   const [activeTickerId, setActiveTickerId] = useState<string | null>(null);
+  const normalizedSearch = search.trim().toLocaleLowerCase(locale);
+  const visibleTickers = useMemo(() => normalizedSearch
+    ? sortableTickers.filter((ticker) => `${ticker.symbol} ${ticker.display ?? ''}`.toLocaleLowerCase(locale).includes(normalizedSearch))
+    : sortableTickers, [sortableTickers, normalizedSearch, locale]);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -841,7 +852,7 @@ export default function WatchlistPage() {
       setActiveTickerId(null);
 
       const { active, over } = event;
-      if (!over || active.id === over.id) {
+      if (normalizedSearch || !over || active.id === over.id) {
         return;
       }
 
@@ -875,6 +886,7 @@ export default function WatchlistPage() {
     },
     [
       reorderTickers,
+      normalizedSearch,
       selectedGroup,
       sortableTickers,
       t.watchlist.notifications.error,
@@ -928,14 +940,15 @@ export default function WatchlistPage() {
         icon: Plus,
         label: t.watchlist.actions.newGroup,
         onClick: openCreateGroupDialog,
-        className: 'bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]',
+        variant: 'outline',
       },
       {
         key: 'newTicker',
         icon: Plus,
         label: t.watchlist.actions.newTicker,
         onClick: openCreateTickerDialog,
-        variant: 'secondary',
+        variant: 'default',
+        className: 'bg-blue-600 text-white hover:bg-blue-700',
         disabled: !selectedGroup,
       },
     ];
@@ -943,8 +956,8 @@ export default function WatchlistPage() {
     const reloadAction = baseActions.find((action) => action.key === 'reload');
 
     return [
+      ...extraActions.slice().reverse(),
       ...(reloadAction ? [reloadAction] : []),
-      ...extraActions,
     ];
   }, [
     t,
@@ -973,7 +986,6 @@ export default function WatchlistPage() {
               groups={groups}
               selectedGroupId={selectedGroupId}
               onSelect={handleSelectGroup}
-              onCreate={openCreateGroupDialog}
               onEdit={openEditGroupDialog}
               onDelete={handleDeleteGroup}
               isLoading={loading}
@@ -1102,21 +1114,21 @@ export default function WatchlistPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                          <Button
-                            size="sm"
-                            onClick={openCreateTickerDialog}
-                            className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
-                          >
-                            <Plus className="h-4 w-4" />
-                            {t.watchlist.actions.newTicker}
-                          </Button>
+
                         </div>
                         <p className="text-xs text-slate-500">{startDateSummary}</p>
                       </div>
                     </div>
                   </div>
 
-                  {sortableTickers.length ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="relative w-full sm:max-w-sm">
+                      <Search aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input type="search" aria-label={locale === 'he' ? 'חיפוש מניה בקבוצה' : 'Search stocks in group'} placeholder={locale === 'he' ? 'חיפוש לפי סימול או שם מניה' : 'Search by symbol or company'} value={search} onChange={(event) => patchUrl({ q: event.target.value })} className="bg-white ps-9" />
+                    </div>
+                    {normalizedSearch ? <p role="status" className="text-xs text-slate-500">{locale === 'he' ? `${visibleTickers.length} מתוך ${sortableTickers.length} מניות · הסדר נשמר בזמן חיפוש` : `${visibleTickers.length} of ${sortableTickers.length} stocks · Reordering paused during search`}</p> : null}
+                  </div>
+                  {visibleTickers.length ? (
                     <DndContext
                       sensors={sensors}
                       onDragStart={handleDragStart}
@@ -1124,11 +1136,11 @@ export default function WatchlistPage() {
                       onDragCancel={handleDragCancel}
                     >
                       <SortableContext
-                        items={sortableTickers.map((ticker) => getTickerKey(ticker))}
+                        items={visibleTickers.map((ticker) => getTickerKey(ticker))}
                         strategy={rectSortingStrategy}
                       >
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                          {sortableTickers.map((ticker) => {
+                          {visibleTickers.map((ticker) => {
                             const tickerKey = getTickerKey(ticker);
                             const state = tickerStates[tickerKey];
                             const historical = state?.historical ?? [];
@@ -1165,6 +1177,7 @@ export default function WatchlistPage() {
                                 key={tickerKey}
                                 id={tickerKey}
                                 isActive={activeTickerId === tickerKey}
+                                disabled={Boolean(normalizedSearch)}
                               >
                                 <TickerCard
                                   ticker={ticker}
@@ -1208,14 +1221,8 @@ export default function WatchlistPage() {
                     </DndContext>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-                      <p>{t.watchlist.status.noTickers}</p>
-                      <Button
-                        onClick={openCreateTickerDialog}
-                        className="gap-2 rounded-full bg-[var(--color-primary-500)] text-white shadow-sm hover:bg-[var(--color-primary-700)]"
-                      >
-                        <Plus className="h-4 w-4" />
-                        {t.watchlist.actions.newTicker}
-                      </Button>
+                      <p>{normalizedSearch ? (locale === 'he' ? 'לא נמצאו מניות שמתאימות לחיפוש.' : 'No stocks match your search.') : t.watchlist.status.noTickers}</p>
+                      {normalizedSearch ? <Button variant="outline" onClick={() => patchUrl({ q: null })}>{locale === 'he' ? 'ניקוי החיפוש' : 'Clear search'}</Button> : null}
                     </div>
                   )}
                 </div>

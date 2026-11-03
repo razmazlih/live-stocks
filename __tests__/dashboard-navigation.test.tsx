@@ -16,30 +16,20 @@ const items: AppRouteItem[] = [
 ];
 
 describe('dashboard navigation', () => {
-  it('keeps four mobile destinations and marks More active for secondary pages', async () => {
-    const user = userEvent.setup();
-    render(<AppSidebar items={items} activeKey="settings" locale="en" />);
-    const navigations = screen.getAllByRole('navigation', { name: 'Primary navigation' });
-    const mobile = navigations[1];
+  it('keeps exactly four direct mobile destinations without More', () => {
+    render(<AppSidebar items={items} activeKey="portfolio" locale="en" />);
+    const mobile = screen.getAllByRole('navigation', { name: 'Primary navigation' })[1];
     expect(within(mobile).getAllByRole('link')).toHaveLength(4);
-    const more = within(mobile).getByRole('button', { name: 'More' });
-    expect(more).toHaveAttribute('aria-current', 'page');
-    await user.click(more);
-    const dialog = screen.getByRole('dialog', { name: 'More tools' });
-    expect(within(dialog).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
-    await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(more).toHaveFocus();
+    expect(within(mobile).getByRole('link', { name: 'Portfolio' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument();
+    expect(within(mobile).queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
-  it('provides localized sheet labels and a close button', async () => {
-    const user = userEvent.setup();
-    render(<AppSidebar items={items} activeKey="dashboard" locale="he" />);
-    await user.click(screen.getByRole('button', { name: 'עוד' }));
-    const dialog = screen.getByRole('dialog', { name: 'כלים נוספים' });
-    expect(dialog).toHaveAttribute('dir', 'rtl');
-    await user.click(within(dialog).getByRole('button', { name: 'סגירה' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  it('keeps settings as a separate desktop utility', () => {
+    render(<AppSidebar items={items} activeKey="settings" locale="he" />);
+    const navigations = screen.getAllByRole('navigation', { name: 'ניווט ראשי' });
+    navigations.forEach((nav) => expect(within(nav).getAllByRole('link')).toHaveLength(4));
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
   });
 });
 

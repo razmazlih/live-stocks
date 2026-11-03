@@ -614,8 +614,10 @@ function usePortfolioDataState() {
           const normalizedSymbol = position.symbol.trim().toUpperCase();
           const quoteData = batchedQuotes[normalizedSymbol];
           return {
-            symbol: position.symbol,
-            currentPrice: quoteData?.c ?? position.entryPrice,
+            symbol: normalizedSymbol,
+            currentPrice: typeof quoteData?.c === 'number' && Number.isFinite(quoteData.c) && quoteData.c > 0
+              ? quoteData.c
+              : Number.NaN,
             dailyChange: quoteData?.d,
           };
         });
@@ -641,19 +643,21 @@ function usePortfolioDataState() {
         );
 
         const calculatedMetrics = activationPositions.map((position) => {
-          const quote = quoteMap.get(position.symbol);
-          const currentPrice = quote?.currentPrice ?? position.entryPrice;
+          const quote = quoteMap.get(position.symbol.trim().toUpperCase());
+          const currentPrice = quote?.currentPrice ?? Number.NaN;
           const dailyChange = quote?.dailyChange;
 
           const metrics = calculatePositionMetrics(
             position,
-            currentPrice,
+            // Closed activations have no market exposure; missing quotes must not turn zero value into NaN.
+            position.quantity <= 0 && !Number.isFinite(currentPrice) ? 0 : currentPrice,
             rate,
             settings.annualGrowthRate,
             dailyChange
           );
           return {
             ...metrics,
+            currentPrice,
             requiredExitPrice: position.quantity > 0
               ? requiredExitPriceBySymbol.get(position.symbol.trim().toUpperCase())
               : undefined,
@@ -721,6 +725,9 @@ function usePortfolioDataState() {
 
           return {
             ...point,
+            // Keep historical actual P/L on the same realized + unrealized basis as today's summary.
+            totalPnLUsd: netPnLUsdBeforeTax,
+            totalPnLIls: netPnLIlsBeforeTax,
             netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
             netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
             expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,

@@ -26,14 +26,13 @@ export function TimeRangeTabs({
       onValueChange={(next) => onChange(next as TimeRange)}
       className={cn('w-full', className)}
     >
-      <TabsList className="flex flex-wrap gap-2 rounded-none bg-transparent p-0">
+      <TabsList className="grid h-auto w-full grid-cols-4 gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:flex sm:flex-wrap">
         {ranges.map((range) => (
           <TabsTrigger
             key={range}
             value={range}
             className={cn(
-              'rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium transition-colors data-[state=active]:border-transparent data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:border-slate-700 dark:bg-slate-800 dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900',
-              'shadow-sm hover:border-slate-300 hover:bg-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-700'
+              'min-w-0 rounded-md border-0 px-2 py-1 text-xs font-medium text-slate-600 shadow-none transition-colors hover:bg-white data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none sm:flex-1'
             )}
           >
             {labels?.[range] ?? range}

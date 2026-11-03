@@ -47,6 +47,8 @@ interface SparklineProps {
   annualGrowthRate?: number;
   yearsHeld?: number;
   events?: SparklineEvent[];
+  /** Extend the time axis to actual transaction dates without adding price samples. */
+  includeEventsInDomain?: boolean;
   className?: string;
   showYAxis?: boolean;
   yAxisWidth?: number;
@@ -131,6 +133,7 @@ export function Sparkline({
   annualGrowthRate,
   yearsHeld,
   events,
+  includeEventsInDomain = false,
   className = '',
   showYAxis = false,
   yAxisWidth = 64,
@@ -212,8 +215,11 @@ export function Sparkline({
     const sortedPoints = [...points].sort((a, b) => a.timestamp - b.timestamp);
     const closes = sortedPoints.map((point) => point.close);
 
-    const firstTimestamp = sortedPoints[0]?.timestamp ?? 0;
-    const lastTimestamp = sortedPoints[sortedPoints.length - 1]?.timestamp ?? 0;
+    const eventTimestamps = includeEventsInDomain
+      ? (events ?? []).filter((event) => Number.isFinite(event.timestamp) && Number.isFinite(event.price)).map((event) => event.timestamp)
+      : [];
+    const firstTimestamp = Math.min(sortedPoints[0]?.timestamp ?? 0, ...eventTimestamps);
+    const lastTimestamp = Math.max(sortedPoints[sortedPoints.length - 1]?.timestamp ?? 0, ...eventTimestamps);
     const timeRange = Math.max(lastTimestamp - firstTimestamp, 1);
     const entryTimestamp =
       typeof activeFromTimestamp === 'number' && Number.isFinite(activeFromTimestamp)
@@ -306,7 +312,9 @@ export function Sparkline({
 
         let x = normalizedPoints[0]?.x ?? 0;
 
-        if (event.timestamp <= firstTimestamp) {
+        if (includeEventsInDomain) {
+          x = ((event.timestamp - firstTimestamp) / timeRange) * chartWidth;
+        } else if (event.timestamp <= firstTimestamp) {
           x = normalizedPoints[0]?.x ?? 0;
         } else if (event.timestamp >= lastTimestamp) {
           x = normalizedPoints[normalizedPoints.length - 1]?.x ?? chartWidth;
@@ -360,6 +368,7 @@ export function Sparkline({
     annualGrowthRate,
     yearsHeld,
     events,
+    includeEventsInDomain,
     activeFromTimestamp,
   ]);
 
@@ -854,7 +863,7 @@ export function Sparkline({
   const linePath = createSmoothPath(normalizedPoints);
   const firstPoint = normalizedPoints[0] ?? null;
   const areaPath = firstPoint
-    ? `${linePath} L ${chartWidth} ${height} L ${firstPoint.x} ${height} Z`
+    ? `${linePath} L ${includeEventsInDomain ? normalizedPoints[normalizedPoints.length - 1]?.x ?? chartWidth : chartWidth} ${height} L ${firstPoint.x} ${height} Z`
     : '';
   const lastPoint = normalizedPoints[normalizedPoints.length - 1] ?? null;
 

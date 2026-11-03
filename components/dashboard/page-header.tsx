@@ -2,12 +2,9 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
 import type { DashboardQuickAction } from './quick-actions';
-import { QuickActionsSection } from './quick-actions-section';
 
 export interface PageMetaBadge {
   key: string;
@@ -31,42 +28,21 @@ interface PageHeaderProps {
   className?: string;
 }
 
-export function PageHeader({ title, subtitle, icon: Icon, metaBadges = [], quickActionsTitle, quickActions = [], quickActionsDescription, actions, backHref, backLabel = 'Back', className }: PageHeaderProps) {
-  const singleAction = quickActions.length === 1 ? quickActions[0] : undefined;
-  const ActionIcon = singleAction?.icon;
-  const actionContent = singleAction && ActionIcon ? <><ActionIcon aria-hidden="true" className={cn('h-4 w-4', singleAction.iconClassName)} /><span className={singleAction.labelClassName}>{singleAction.label}</span></> : null;
-
-  return (
-    <header className={cn('page-shell-surface rounded-2xl border border-slate-200 px-4 py-4 shadow-sm sm:px-6', className)}>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-3">
-        {backHref ? (
-          <Button asChild variant="ghost" size="sm" className="w-fit gap-2 text-slate-600">
-            <Link href={backHref}><ArrowLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />{backLabel}</Link>
-          </Button>
-        ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Icon aria-hidden="true" className="h-5 w-5" /></div>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-2xl">{title}</h1>
-              {subtitle ? <p className="mt-1 hidden max-w-2xl text-sm leading-relaxed text-slate-500 sm:block">{subtitle}</p> : null}
-            </div>
-          </div>
-          {metaBadges.length > 0 || singleAction || actions ? (
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:justify-end">
-              {metaBadges.length > 0 ? <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
-                {metaBadges.map((badge) => {
-                  const BadgeIcon = badge.icon;
-                  return <span key={badge.key} className={cn('inline-flex items-center gap-1.5 rounded-lg px-1 py-1 tabular-nums', badge.className)}>{BadgeIcon ? <BadgeIcon aria-hidden="true" className={cn('h-3.5 w-3.5', badge.iconClassName)} /> : null}<span>{badge.label}</span></span>;
-                })}
-              </div> : null}
-              {singleAction ? <Button variant={singleAction.variant ?? 'outline'} size="sm" asChild={Boolean(singleAction.href)} onClick={singleAction.onClick} disabled={singleAction.disabled} aria-label={singleAction.ariaLabel ?? singleAction.label} className="shrink-0 rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700">{singleAction.href ? <Link href={singleAction.href}>{actionContent}</Link> : actionContent}</Button> : null}
-              {actions}
-            </div>
-          ) : null}
-        </div>
-        {quickActionsTitle && quickActions.length > 1 ? <QuickActionsSection title={quickActionsTitle} description={quickActionsDescription} actions={quickActions} /> : null}
+export function PageHeader({ title, subtitle, metaBadges = [], quickActions = [], actions, backHref, backLabel = 'Back', className }: PageHeaderProps) {
+  return <header className={cn('py-1', className)}>
+    {backHref ? <Button asChild variant="ghost" size="sm" className="mb-3 -ms-3 w-fit gap-2 text-slate-600"><Link href={backHref}><ArrowLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />{backLabel}</Link></Button> : null}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
+        {subtitle ? <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">{subtitle}</p> : null}
+        {metaBadges.length > 0 ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+          {metaBadges.map((badge) => { const BadgeIcon = badge.icon; return <span key={badge.key} className="inline-flex items-center gap-1.5 tabular-nums">{BadgeIcon ? <BadgeIcon aria-hidden="true" className="h-3.5 w-3.5" /> : null}<span>{badge.label}</span></span>; })}
+        </div> : null}
       </div>
-    </header>
-  );
+      {quickActions.length || actions ? <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {quickActions.map((action) => { const Icon = action.icon; const content = <><Icon aria-hidden="true" className={cn('h-4 w-4 shrink-0', action.iconClassName)} /><span className={action.labelClassName}>{action.label}</span></>; return <Button key={action.key} variant={action.variant ?? 'outline'} size="sm" asChild={Boolean(action.href)} onClick={action.onClick} disabled={action.disabled} aria-label={action.ariaLabel ?? action.label} className={cn('gap-2 rounded-lg', action.className)}>{action.href ? <Link href={action.href}>{content}</Link> : content}</Button>; })}
+        {actions}
+      </div> : null}
+    </div>
+  </header>;
 }

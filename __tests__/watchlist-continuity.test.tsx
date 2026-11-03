@@ -65,4 +65,23 @@ describe('watchlist request continuity', () => {
     expect(screen.getByTestId('series')).toHaveTextContent('1M:100,110');
     expect(screen.getByTestId('error').textContent).not.toBe('');
   });
+
+  it('restores URL search and clears no-match filtering without losing range or group', async () => {
+    window.history.replaceState(null, '', '/watchlist?group=g1&range=1W&q=msft');
+    render(<WatchlistPage />);
+    expect(screen.getByRole('searchbox', { name: 'Search stocks in group' })).toHaveValue('msft');
+    expect(await screen.findByText('No stocks match your search.')).toBeInTheDocument();
+    expect(screen.queryByTestId('series')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(screen.getByTestId('series')).toBeInTheDocument();
+    expect(window.location.search).not.toContain('q=');
+    expect(window.location.search).toContain('group=g1');
+    expect(window.location.search).toContain('range=1W');
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'aapl' } });
+    expect(screen.getByTestId('series')).toBeInTheDocument();
+    expect(window.location.search).toContain('q=aapl');
+    expect(screen.getByText(/Reordering paused during search/)).toBeInTheDocument();
+    expect(screen.getByTestId('series').closest('[aria-roledescription="sortable"]')).toHaveAttribute('aria-disabled', 'true');
+  });
+
 });
