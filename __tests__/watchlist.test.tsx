@@ -6,7 +6,14 @@ import { mapWatchlistGroup } from '@/lib/watchlist';
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerCard } from '@/components/watchlist/ticker-card';
+import { TickerRow } from '@/components/watchlist/ticker-row';
+import type { ReactNode } from 'react';
 import type { WatchlistGroup, WatchlistTicker, StockQuote, HistoricalPoint } from '@/types';
+
+vi.mock('recharts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('recharts')>();
+  return { ...actual, ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div> };
+});
 
 function createTicker(overrides: Partial<WatchlistTicker> = {}): WatchlistTicker {
   return {
@@ -96,7 +103,8 @@ describe('WatchlistGroupSelector', () => {
     },
   ];
 
-  it('renders groups and triggers callbacks', () => {
+  it('renders selected groups and exposes management actions in the overflow menu', async () => {
+    const user = userEvent.setup();
     const handleSelect = vi.fn();
     const handleEdit = vi.fn();
     const handleDelete = vi.fn();
@@ -120,18 +128,18 @@ describe('WatchlistGroupSelector', () => {
 
     expect(screen.getByText('Groups')).toBeInTheDocument();
     expect(screen.getByText('Add group')).toBeInTheDocument();
-    expect(screen.getByText('2 tickers')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Favorites · 2 tickers' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Secondary · 1 tickers' })).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(screen.getByText('Favorites'));
     expect(handleSelect).toHaveBeenCalledWith('g1');
 
-    const editButtons = screen.getAllByRole('button', { name: /Edit/ });
-    fireEvent.click(editButtons[0]);
-    expect(handleEdit).toHaveBeenCalled();
-
-    const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
-    fireEvent.click(deleteButtons[0]);
-    expect(handleDelete).toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Group options for Favorites' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit group' }));
+    expect(handleEdit).toHaveBeenCalledWith(groups[0]);
+    await user.click(screen.getByRole('button', { name: 'Group options for Favorites' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete group' }));
+    expect(handleDelete).toHaveBeenCalledWith(groups[0]);
 
     fireEvent.click(screen.getByText('Add group'));
     expect(handleCreate).toHaveBeenCalled();
@@ -169,7 +177,8 @@ describe('TickerCard', () => {
     { timestamp: Date.now(), close: 120 },
   ];
 
-  it('displays price, change, and note content', () => {
+  it('displays separate daily and period changes, notes, and overflow actions', async () => {
+    const user = userEvent.setup();
     const handleEdit = vi.fn();
     const handleDelete = vi.fn();
     const handleRefresh = vi.fn();
@@ -204,6 +213,8 @@ describe('TickerCard', () => {
     }
     expect(screen.getByText(/\+\$2\.00/)).toBeInTheDocument();
     expect(screen.getByText(/\+1\.69%/)).toBeInTheDocument();
+    expect(screen.getByText(/\+1\.50%/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'AAPL chart and details' })).toBeInTheDocument();
     expect(screen.getByText('Starting price')).toBeInTheDocument();
     const basePanel = screen.getByText('Starting price').closest('div');
     expect(basePanel).not.toBeNull();
@@ -213,13 +224,48 @@ describe('TickerCard', () => {
     expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Keep an eye on earnings.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh ticker' }));
-    expect(handleRefresh).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit ticker' }));
-    expect(handleEdit).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete ticker' }));
-    expect(handleDelete).toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'AAPL actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Refresh ticker' }));
+    expect(handleRefresh).toHaveBeenCalledWith(baseTicker);
+    await user.click(screen.getByRole('button', { name: 'AAPL actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit ticker' }));
+    expect(handleEdit).toHaveBeenCalledWith(baseTicker);
+    await user.click(screen.getByRole('button', { name: 'AAPL actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete ticker' }));
+    expect(handleDelete).toHaveBeenCalledWith(baseTicker);
   });
+
+  it('recomputes the displayed baseline and return when one focused card switches stocks and ranges', () => {
+    const { rerender } = render(<TickerCard ticker={baseTicker} quote={quote} historical={historical} range="1M" locale="en" />);
+    expect(screen.getByText('+1.69%')).toBeInTheDocument();
+    const next = createTicker({ id: 't2', symbol: 'MSFT' });
+    rerender(<TickerCard ticker={next} quote={{ ...quote, c: 40, dp: -1 }} historical={[
+      { timestamp: Date.now() - 365 * 86400000, close: 20 },
+      { timestamp: Date.now(), close: 40 },
+    ]} range="1Y" locale="en" returnTo="/watchlist?group=g1&range=1Y&stock=t2&q=msft" />);
+    expect(screen.getByRole('region', { name: 'MSFT chart and details' })).toBeInTheDocument();
+    expect(screen.getByText('+100.00%')).toBeInTheDocument();
+    expect(screen.getByText('$20.00')).toBeInTheDocument();
+    expect(screen.queryByText('+1.69%')).not.toBeInTheDocument();
+    const details = new URL(screen.getByRole('link', { name: 'Stock details' }).getAttribute('href')!, 'https://livestocks.local');
+    expect(details.pathname).toBe('/stock/MSFT');
+    expect(details.searchParams.get('returnTo')).toBe('/watchlist?group=g1&range=1Y&stock=t2&q=msft');
+  });
+
+  it('selects compact rows by keyboard without selecting when their action menu opens', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onEdit = vi.fn();
+    render(<TickerRow ticker={baseTicker} quote={quote} historical={historical} range="1M" locale="en" selected onSelect={onSelect} onEdit={onEdit} />);
+    const row = screen.getByRole('button', { name: 'View AAPL chart' });
+    expect(row).toHaveAttribute('aria-pressed', 'true');
+    row.focus();
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'AAPL actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit ticker' }));
+    expect(onEdit).toHaveBeenCalledWith(baseTicker);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
 });

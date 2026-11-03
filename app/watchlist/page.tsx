@@ -1,25 +1,25 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   type DragEndEvent,
   type DragStartEvent,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CalendarDays, Eye, Layers, ListChecks, Plus, RefreshCw, Search } from 'lucide-react';
+import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CalendarDays, Eye, GripVertical, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
-import { TickerCard } from '@/components/watchlist/ticker-card';
+import { TickerRow, WATCHLIST_ROW_COLUMNS } from '@/components/watchlist/ticker-row';
+import { TickerCard, type TickerCardProps } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
-import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
-import type { DashboardQuickAction } from '@/components/dashboard/quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer } from '@/components/dashboard/page-primitives';
@@ -246,43 +246,40 @@ interface SortableTickerCardProps {
   id: string;
   isActive: boolean;
   disabled?: boolean;
+  sorting: boolean;
+  symbol: string;
+  locale: 'he' | 'en';
   children: ReactNode;
 }
 
-function SortableTickerCard({ id, isActive, disabled = false, children }: SortableTickerCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
-  const style: CSSProperties = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'h-full',
-        !disabled && 'cursor-grab select-none touch-pan-y active:cursor-grabbing',
-        isDragging ? 'z-50' : undefined,
-        isActive ? 'ring-2 ring-blue-200' : undefined
-      )}
-      {...attributes}
-      {...listeners}
-      tabIndex={disabled ? -1 : attributes.tabIndex}
-    >
-      {children}
-    </div>
-  );
+function SortableTickerCard({ id, isActive, disabled = false, sorting, symbol, locale, children }: SortableTickerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: disabled || !sorting });
+  const style: CSSProperties = { transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined, transition };
+  return <div ref={setNodeRef} style={style} role="group" aria-roledescription={sorting ? 'sortable' : undefined} className={cn('relative flex min-w-0 items-center border-b border-slate-100 last:border-b-0', isDragging && 'z-30 bg-white shadow-lg', isActive && 'ring-2 ring-inset ring-blue-300')}>
+    {sorting ? <button type="button" {...attributes} {...listeners} disabled={disabled} aria-label={`${locale === 'he' ? 'הזזת' : 'Reorder'} ${symbol}`} className="ms-2 flex h-11 w-7 shrink-0 touch-none items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500"><GripVertical aria-hidden className="h-4 w-4" /></button> : null}
+    <div className="min-w-0 flex-1">{children}</div>
+  </div>;
 }
 
 function parseWatchlistView(params: URLSearchParams) {
-  return { ...parseWatchlistState(params), search: (params.get('q') ?? '').slice(0, 200) };
+  return { ...parseWatchlistState(params), search: (params.get('q') ?? '').slice(0, 200), stock: (params.get('stock') ?? '').slice(0, 200) };
 }
+
+const WIDE_WATCHLIST = '(min-width: 1280px)';
+const getWideSnapshot = () => typeof window.matchMedia === 'function' && window.matchMedia(WIDE_WATCHLIST).matches;
+const subscribeWide = (notify: () => void) => {
+  if (typeof window.matchMedia !== 'function') return () => {};
+  const media = window.matchMedia(WIDE_WATCHLIST);
+  media.addEventListener('change', notify);
+  return () => media.removeEventListener('change', notify);
+};
+const getServerWideSnapshot = () => false;
 
 export default function WatchlistPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
+  const isWide = useSyncExternalStore(subscribeWide, getWideSnapshot, getServerWideSnapshot);
 
   const {
     groups,
@@ -302,11 +299,13 @@ export default function WatchlistPage() {
     reorderTickers,
   } = useWatchlist();
 
-  const [{ range, customStartDate, search }, patchUrl, sourceUrl] = useUrlState(parseWatchlistView);
+  const [{ range, customStartDate, search, stock }, patchUrl, sourceUrl] = useUrlState(parseWatchlistView);
   const setCustomStartDate = useCallback((date: Date | null) => patchUrl({ from: localDateParam(date) }), [patchUrl]);
   const requests = useRef(new Map<string, { identity: string; controller: AbortController }>());
   useReturnContext(!loading && Boolean(selectedGroup));
   useEffect(() => () => { requests.current.forEach((request) => request.controller.abort()); }, []);
+  const formFocusRef = useRef<HTMLElement | null>(null);
+  const restoreFormFocus = (event: Event) => { event.preventDefault(); formFocusRef.current?.focus(); };
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<GroupFormState>(createEmptyGroupForm);
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
@@ -317,14 +316,29 @@ export default function WatchlistPage() {
     selectedGroup?.tickers ?? []
   );
   const [activeTickerId, setActiveTickerId] = useState<string | null>(null);
+  const [sorting, setSorting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewTransitionRef = useRef(false);
+  const previewContentRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLocaleLowerCase(locale);
   const visibleTickers = useMemo(() => normalizedSearch
     ? sortableTickers.filter((ticker) => `${ticker.symbol} ${ticker.display ?? ''}`.toLocaleLowerCase(locale).includes(normalizedSearch))
     : sortableTickers, [sortableTickers, normalizedSearch, locale]);
+  const focusedTicker = visibleTickers.find((ticker) => getTickerKey(ticker) === stock) ?? visibleTickers[0] ?? null;
+  const focusedState = focusedTicker ? tickerStates[getTickerKey(focusedTicker)] : undefined;
+  const focusedKey = focusedTicker ? `${getTickerKey(focusedTicker)}:${focusedState?.range}:${focusedState?.from}:${focusedState?.lastUpdated}` : 'empty';
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia(WIDE_WATCHLIST);
+    const close = () => { if (media.matches) setPreviewOpen(false); };
+    media.addEventListener('change', close);
+    return () => media.removeEventListener('change', close);
+  }, []);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
-    })
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const finnhubToken = settings.finnhubToken?.trim();
@@ -402,7 +416,6 @@ export default function WatchlistPage() {
     setCustomStartDate(null);
   }, [setCustomStartDate]);
 
-  const startDateSummary = t.watchlist.filters.summary(formattedStartDate);
 
   useEffect(() => {
     const validKeys = new Set(
@@ -617,7 +630,7 @@ export default function WatchlistPage() {
     tickerStates,
   ]);
 
-  const timeRangeLabels = useMemo(() => t.watchlist.timeRange, [t.watchlist.timeRange]);
+  const timeRangeLabels = useMemo(() => ({ ...t.watchlist.timeRange, All: locale === 'he' ? 'הכל' : 'All' }), [t.watchlist.timeRange, locale]);
 
   const renderTickerCount = useCallback(
     (group: WatchlistGroupType) => t.watchlist.groups.count(group.tickers.length),
@@ -639,11 +652,13 @@ export default function WatchlistPage() {
   }, []);
 
   const openCreateGroupDialog = useCallback(() => {
+    formFocusRef.current = document.getElementById('watchlist-new-group');
     setGroupForm(createEmptyGroupForm());
     setGroupDialogOpen(true);
   }, []);
 
   const openEditGroupDialog = useCallback((group: WatchlistGroupType) => {
+    formFocusRef.current = document.getElementById(`watchlist-group-menu-${group.id}`);
     setGroupForm({
       id: group.id ?? null,
       name: group.name,
@@ -653,11 +668,13 @@ export default function WatchlistPage() {
   }, []);
 
   const openCreateTickerDialog = useCallback(() => {
+    formFocusRef.current = document.getElementById('watchlist-add-stock');
     setTickerForm(createEmptyTickerForm());
     setTickerDialogOpen(true);
   }, []);
 
   const openEditTickerDialog = useCallback((ticker: WatchlistTickerType) => {
+    formFocusRef.current = document.getElementById(`watchlist-select-${getTickerKey(ticker)}`);
     setTickerForm({
       id: ticker.id ?? null,
       symbol: ticker.symbol,
@@ -834,9 +851,12 @@ export default function WatchlistPage() {
 
   const handleSelectGroup = useCallback(
     (groupId: string) => {
+      setPreviewOpen(false);
+      setSorting(false);
+      patchUrl({ stock: null });
       selectGroup(groupId);
     },
-    [selectGroup]
+    [selectGroup, patchUrl]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -894,357 +914,72 @@ export default function WatchlistPage() {
     ]
   );
 
-  const totalTickers = useMemo(
-    () => groups.reduce((acc, group) => acc + group.tickers.length, 0),
-    [groups]
-  );
-  const { groups: formatGroupCount, tickers: formatTickerCount, viewing: formatViewing } = t.watchlist.meta;
-  const groupSummary = formatGroupCount(groups.length);
-  const tickerSummary = formatTickerCount(totalTickers);
-  const selectedGroupSummary = selectedGroup
-    ? `${formatViewing(selectedGroup.name)} · ${renderTickerCount(selectedGroup)}`
-    : null;
-
-  const metaBadges = [
-    {
-      key: 'groups',
-      icon: Layers,
-      label: groupSummary,
-      className: 'bg-blue-50 text-blue-600',
-      iconClassName: 'text-blue-500',
-    },
-    {
-      key: 'tickers',
-      icon: ListChecks,
-      label: tickerSummary,
-      className: 'bg-[color:var(--color-neutral-white)]/70 text-slate-600',
-      iconClassName: 'text-overlay-blue-500',
-    },
-  ] as const;
-
-  const quickActions: DashboardQuickAction[] = useMemo(() => {
-    const baseActions = createCommonQuickActions(t, {
-      overrides: {
-        reload: {
-          label: t.watchlist.actions.refreshAll,
-          onClick: handleRefreshAll,
-          disabled: loading || refreshingTickers,
-          iconClassName: refreshingTickers ? 'animate-spin' : undefined,
-        },
-      },
-    });
-
-    const extraActions: DashboardQuickAction[] = [
-      {
-        key: 'newGroup',
-        icon: Plus,
-        label: t.watchlist.actions.newGroup,
-        onClick: openCreateGroupDialog,
-        variant: 'outline',
-      },
-      {
-        key: 'newTicker',
-        icon: Plus,
-        label: t.watchlist.actions.newTicker,
-        onClick: openCreateTickerDialog,
-        variant: 'default',
-        className: 'bg-blue-600 text-white hover:bg-blue-700',
-        disabled: !selectedGroup,
-      },
-    ];
-
-    const reloadAction = baseActions.find((action) => action.key === 'reload');
-
-    return [
-      ...extraActions.slice().reverse(),
-      ...(reloadAction ? [reloadAction] : []),
-    ];
-  }, [
-    t,
-    handleRefreshAll,
-    loading,
-    refreshingTickers,
-    openCreateGroupDialog,
-    openCreateTickerDialog,
-    selectedGroup,
-  ]);
+  const selectTicker = (ticker: WatchlistTickerType) => {
+    patchUrl({ stock: getTickerKey(ticker) });
+    if (!isWide) setPreviewOpen(true);
+  };
+  const presentationProps = (ticker: WatchlistTickerType): TickerCardProps => {
+    const state = tickerStates[getTickerKey(ticker)];
+    const historical = state?.historical ?? [];
+    const first = historical[0];
+    const last = historical[historical.length - 1];
+    const quotePrice = state?.quote?.c;
+    return {
+      ticker, quote: state?.quote, historical, range: state?.range ?? range,
+      returnTo: sourceUrl || '/watchlist', lastUpdated: state?.lastUpdated, locale,
+      loading: state?.loading ?? loading, error: state?.error,
+      onEdit: (item) => { previewTransitionRef.current = previewOpen; setPreviewOpen(false); openEditTickerDialog(item); },
+      onDelete: handleDeleteTicker,
+      onRefresh: (item) => { void fetchTickerData(item, { force: true, startDate: effectiveStartDate }); },
+      priceLabel: t.watchlist.labels.price, changeLabel: isRtl ? 'שינוי בטווח' : 'Period change',
+      noteLabel: t.watchlist.labels.note, emptySeriesLabel: t.watchlist.charts.empty,
+      errorLabel: t.watchlist.charts.error, loadingLabel: chartLoadingMessage,
+      refreshLabel: t.watchlist.actions.refreshTicker, editLabel: t.watchlist.actions.editTicker,
+      deleteLabel: t.watchlist.actions.deleteTicker,
+      basePrice: first && Number.isFinite(first.close) ? first.close : null,
+      baseDate: first && Number.isFinite(first.timestamp) ? new Date(first.timestamp) : state?.from ? new Date(state.from * 1000) : null,
+      currentPrice: typeof quotePrice === 'number' && Number.isFinite(quotePrice) ? quotePrice : last && Number.isFinite(last.close) ? last.close : null,
+      basePriceLabel: t.watchlist.labels.basePrice, hoverLabel: t.watchlist.labels.hover, startDateLabel: t.watchlist.labels.startDate,
+    };
+  };
 
   return (
     <DashboardRouteShell activeKey="watchlist" locale={locale}>
       <DashboardContainer>
-          <PageHeader
-            title={t.watchlist.title}
-            subtitle={t.watchlist.subtitle}
-            icon={Eye}
-            metaBadges={metaBadges}
-            quickActionsTitle={t.dashboard.quickActions}
-            quickActions={quickActions}
-          />
-
-          <div className="mt-5 flex flex-col gap-5">
-            <WatchlistGroupSelector
-              groups={groups}
-              selectedGroupId={selectedGroupId}
-              onSelect={handleSelectGroup}
-              onEdit={openEditGroupDialog}
-              onDelete={handleDeleteGroup}
-              isLoading={loading}
-              isRefreshing={refreshing}
-              title={t.watchlist.groups.title}
-              description={t.watchlist.groups.description}
-              addLabel={t.watchlist.actions.newGroup}
-              emptyStateText={t.watchlist.groups.empty}
-              loadingText={t.watchlist.groups.loading}
-              renderTickerCount={renderTickerCount}
-              editLabel={t.watchlist.actions.editGroup}
-              deleteLabel={t.watchlist.actions.deleteGroup}
-              className="w-full"
-            />
-
-            <div className="flex w-full flex-col gap-6">
-              {watchlistError ? (
-                <Alert
-                  variant="destructive"
-                  className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm"
-                >
-                  <AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle>
-                  <AlertDescription className="mt-2 flex flex-wrap items-center gap-2 text-rose-600">
-                    <span>{t.watchlist.status.error}</span>
-                    <Button size="sm" variant="outline" onClick={handleRefreshAll} className="gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      {t.watchlist.actions.retry}
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              {selectedGroup ? (
-                <div className="space-y-6">
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="space-y-2">
-                        <h2 className="text-2xl font-semibold text-slate-800">{selectedGroup.name}</h2>
-                        {selectedGroup.description ? (
-                          <p className="max-w-xl text-sm text-slate-500">{selectedGroup.description}</p>
-                        ) : null}
-                        <p className="text-xs font-medium text-slate-400">
-                          {renderTickerCount(selectedGroup)}
-                        </p>
-                      </div>
-                      <div
-                        className={cn(
-                          'flex w-full flex-col gap-3',
-                          isRtl ? 'lg:items-start' : 'lg:items-end'
-                        )}
-                      >
-                        <div className="flex flex-wrap items-center gap-3">
-                          <TimeRangeTabs
-                            value={range}
-                            onChange={handleRangeChange}
-                            labels={timeRangeLabels}
-                            className="min-w-[220px] lg:min-w-[260px]"
-                          />
-                          <Popover
-                            open={startDatePopoverOpen}
-                            onOpenChange={setStartDatePopoverOpen}
-                          >
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  'flex h-auto items-center gap-3 rounded-full border-slate-200 bg-white px-4 py-2 text-left text-sm shadow-sm transition-colors hover:border-blue-300 hover:bg-[color:var(--color-blue-50)]/60',
-                                  hasCustomStartDate ? 'ring-2 ring-blue-200' : undefined
-                                )}
-                              >
-                                <CalendarDays className="h-4 w-4 text-blue-500" />
-                                <div className="flex min-w-[140px] flex-col leading-tight">
-                                  <span className="text-xs font-medium text-slate-500">
-                                    {t.watchlist.filters.startDateLabel}
-                                  </span>
-                                  <span
-                                    className={cn(
-                                      'text-sm font-semibold text-slate-700',
-                                      hasCustomStartDate ? 'text-blue-600' : undefined
-                                    )}
-                                  >
-                                    {formattedStartDate}
-                                  </span>
-                                </div>
-                                {hasCustomStartDate ? (
-                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
-                                    {t.watchlist.filters.customBadge}
-                                  </span>
-                                ) : null}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              align={isRtl ? 'end' : 'start'}
-                              className="w-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                            >
-                              <div className="flex flex-col gap-3">
-                                <p className="text-sm font-medium text-slate-700">
-                                  {t.watchlist.filters.startDateDescription}
-                                </p>
-                                <Calendar
-                                  mode="single"
-                                  selected={customStartDate ?? effectiveStartDate}
-                                  defaultMonth={customStartDate ?? effectiveStartDate}
-                                  onSelect={(date) => {
-                                    if (!date) {
-                                      return;
-                                    }
-                                    handleStartDateChange(date);
-                                    setStartDatePopoverOpen(false);
-                                  }}
-                                  toDate={maxSelectableDate}
-                                  fromDate={minSelectableDate}
-                                  initialFocus
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    handleResetStartDate();
-                                    setStartDatePopoverOpen(false);
-                                  }}
-                                  className="justify-start text-slate-600 hover:text-blue-600"
-                                >
-                                  {t.watchlist.filters.resetStartDate}
-                                </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-
-                        </div>
-                        <p className="text-xs text-slate-500">{startDateSummary}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="relative w-full sm:max-w-sm">
-                      <Search aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input type="search" aria-label={locale === 'he' ? 'חיפוש מניה בקבוצה' : 'Search stocks in group'} placeholder={locale === 'he' ? 'חיפוש לפי סימול או שם מניה' : 'Search by symbol or company'} value={search} onChange={(event) => patchUrl({ q: event.target.value })} className="bg-white ps-9" />
-                    </div>
-                    {normalizedSearch ? <p role="status" className="text-xs text-slate-500">{locale === 'he' ? `${visibleTickers.length} מתוך ${sortableTickers.length} מניות · הסדר נשמר בזמן חיפוש` : `${visibleTickers.length} of ${sortableTickers.length} stocks · Reordering paused during search`}</p> : null}
-                  </div>
-                  {visibleTickers.length ? (
-                    <DndContext
-                      sensors={sensors}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      onDragCancel={handleDragCancel}
-                    >
-                      <SortableContext
-                        items={visibleTickers.map((ticker) => getTickerKey(ticker))}
-                        strategy={rectSortingStrategy}
-                      >
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                          {visibleTickers.map((ticker) => {
-                            const tickerKey = getTickerKey(ticker);
-                            const state = tickerStates[tickerKey];
-                            const historical = state?.historical ?? [];
-                            const basePoint = historical.length ? historical[0] : null;
-                            const basePriceValue =
-                              typeof basePoint?.close === 'number' && Number.isFinite(basePoint.close)
-                                ? basePoint.close
-                                : null;
-                            const baseTimestamp =
-                              typeof basePoint?.timestamp === 'number' && Number.isFinite(basePoint.timestamp)
-                                ? basePoint.timestamp
-                                : null;
-                            const baseDateValue = baseTimestamp
-                              ? (() => {
-                                  const date = new Date(baseTimestamp);
-                                  return Number.isNaN(date.getTime()) ? null : date;
-                                })()
-                              : null;
-                            const latestHistorical =
-                              historical.length > 0 ? historical[historical.length - 1] : null;
-                            const fallbackCurrentPrice =
-                              typeof latestHistorical?.close === 'number' &&
-                              Number.isFinite(latestHistorical.close)
-                                ? latestHistorical.close
-                                : null;
-                            const quotePrice =
-                              typeof state?.quote?.c === 'number' && Number.isFinite(state.quote.c)
-                                ? state.quote.c
-                                : null;
-                            const currentPriceValue = quotePrice ?? fallbackCurrentPrice ?? null;
-
-                            return (
-                              <SortableTickerCard
-                                key={tickerKey}
-                                id={tickerKey}
-                                isActive={activeTickerId === tickerKey}
-                                disabled={Boolean(normalizedSearch)}
-                              >
-                                <TickerCard
-                                  ticker={ticker}
-                                  quote={state?.quote}
-                                  historical={historical}
-                                  range={state?.range ?? range}
-                                  returnTo={sourceUrl || '/watchlist'}
-                                  lastUpdated={state?.lastUpdated}
-                                  locale={locale}
-                                  loading={state?.loading}
-                                  error={state?.error}
-                                  onEdit={openEditTickerDialog}
-                                  onDelete={handleDeleteTicker}
-                                  onRefresh={(item) =>
-                                    fetchTickerData(item, {
-                                      force: true,
-                                      startDate: effectiveStartDate,
-                                    })
-                                  }
-                                  priceLabel={t.watchlist.labels.price}
-                                  changeLabel={t.watchlist.labels.changeSince}
-                                  noteLabel={t.watchlist.labels.note}
-                                  emptySeriesLabel={t.watchlist.charts.empty}
-                                  errorLabel={t.watchlist.charts.error}
-                                  loadingLabel={chartLoadingMessage}
-                                  refreshLabel={t.watchlist.actions.refreshTicker}
-                                  editLabel={t.watchlist.actions.editTicker}
-                                  deleteLabel={t.watchlist.actions.deleteTicker}
-                                  basePrice={basePriceValue}
-                                  baseDate={baseDateValue ?? effectiveStartDate}
-                                  currentPrice={currentPriceValue}
-                                  basePriceLabel={t.watchlist.labels.basePrice}
-                                  hoverLabel={t.watchlist.labels.hover}
-                                  startDateLabel={t.watchlist.labels.startDate}
-                                />
-                              </SortableTickerCard>
-                            );
-                          })}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-                      <p>{normalizedSearch ? (locale === 'he' ? 'לא נמצאו מניות שמתאימות לחיפוש.' : 'No stocks match your search.') : t.watchlist.status.noTickers}</p>
-                      {normalizedSearch ? <Button variant="outline" onClick={() => patchUrl({ q: null })}>{locale === 'he' ? 'ניקוי החיפוש' : 'Clear search'}</Button> : null}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500 shadow-sm">
-                  <p>{t.watchlist.status.empty}</p>
-                  <Button
-                    onClick={openCreateGroupDialog}
-                    className="gap-2 rounded-full bg-[var(--color-primary-600)] text-white shadow-sm hover:bg-[var(--color-primary-650)]"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t.watchlist.actions.newGroup}
-                  </Button>
-                </div>
-              )}
+        <PageHeader className="[&_h1]:text-[32px] sm:[&_h1]:text-[40px]" title={isRtl ? 'המעקב שלי' : 'My watchlist'} subtitle={isRtl ? 'המניות שמעניינות אותך, במקום אחד.' : 'The stocks on your radar, in one place.'} icon={Eye}
+          actions={<div className="flex items-center gap-2"><Button id="watchlist-add-stock" onClick={openCreateTickerDialog} disabled={!selectedGroup || loading} className="rounded-xl px-5"><Plus aria-hidden />{t.watchlist.actions.newTicker}</Button><Button variant="outline" size="icon" aria-label={t.watchlist.actions.refreshAll} title={t.watchlist.actions.refreshAll} disabled={loading || refreshingTickers || refreshing} onClick={handleRefreshAll} className="rounded-xl bg-white"><RefreshCw aria-hidden className={cn('h-4 w-4', (refreshingTickers || refreshing) && 'animate-spin')} /></Button></div>} />
+        <main className="mt-5 space-y-5">
+          <WatchlistGroupSelector groups={groups} selectedGroupId={selectedGroupId} onSelect={handleSelectGroup} onCreate={openCreateGroupDialog} onEdit={openEditGroupDialog} onDelete={handleDeleteGroup} isLoading={loading} isRefreshing={refreshing} title={t.watchlist.groups.title} addLabel={t.watchlist.actions.newGroup} emptyStateText={t.watchlist.groups.empty} loadingText={t.watchlist.groups.loading} renderTickerCount={renderTickerCount} editLabel={t.watchlist.actions.editGroup} deleteLabel={t.watchlist.actions.deleteGroup} />
+          {watchlistError ? <Alert variant="destructive" className="rounded-xl border-amber-200 bg-amber-50 text-amber-900"><AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{t.watchlist.status.error}</span><Button variant="outline" onClick={handleRefreshAll}>{t.watchlist.actions.retry}</Button></AlertDescription></Alert> : null}
+          {loading && !selectedGroup ? <div aria-busy="true" className="min-h-[500px] animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none"><p role="status" className="p-8 text-center text-sm text-slate-500">{t.watchlist.groups.loading}</p></div> : selectedGroup ? <section aria-label={isRtl ? 'מרחב המעקב' : 'Watchlist workspace'} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex min-w-0 flex-col gap-4 border-b border-slate-200 p-4 sm:p-5 xl:flex-row xl:items-center xl:justify-between">
+              <div className="relative w-full xl:max-w-[340px]"><Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input type="search" aria-label={isRtl ? 'חיפוש מניה בקבוצה' : 'Search stocks in group'} placeholder={isRtl ? 'חיפוש מניה' : 'Find a stock'} value={search} onChange={(event) => patchUrl({ q: event.target.value })} className="rounded-xl border-slate-200 bg-white ps-9 pe-10 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none" />{search ? <button type="button" aria-label={isRtl ? 'ניקוי החיפוש' : 'Clear search'} onClick={() => patchUrl({ q: null })} className="absolute end-0 top-0 flex h-11 w-10 items-center justify-center text-slate-400 hover:text-slate-800"><X aria-hidden className="h-4 w-4" /></button> : null}</div>
+              <div className="flex min-w-0 flex-1 items-center gap-2 xl:justify-end"><TimeRangeTabs value={range} onChange={handleRangeChange} labels={timeRangeLabels} className="min-w-0 flex-1 xl:max-w-[540px]" /><Popover open={startDatePopoverOpen} onOpenChange={setStartDatePopoverOpen}><PopoverTrigger asChild><Button variant="outline" size="icon" aria-label={isRtl ? 'בחירת תאריך התחלה' : 'Choose start date'} title={isRtl ? 'בחירת תאריך התחלה' : 'Choose start date'} className={cn('shrink-0 rounded-xl border-slate-200 bg-white', hasCustomStartDate && 'border-blue-300 bg-blue-50 text-blue-700')}><CalendarDays aria-hidden className="h-4 w-4" /></Button></PopoverTrigger><PopoverContent align={isRtl ? 'end' : 'start'} className="w-auto rounded-xl bg-white p-4"><p className="mb-3 text-sm font-medium text-slate-800">{t.watchlist.filters.startDateDescription}</p><Calendar mode="single" selected={customStartDate ?? effectiveStartDate} defaultMonth={customStartDate ?? effectiveStartDate} onSelect={(date) => { if (date) { handleStartDateChange(date); setStartDatePopoverOpen(false); } }} toDate={maxSelectableDate} fromDate={minSelectableDate} initialFocus /><Button variant="ghost" className="mt-2 w-full text-blue-700" onClick={() => { handleResetStartDate(); setStartDatePopoverOpen(false); }}>{t.watchlist.filters.resetStartDate}</Button></PopoverContent></Popover></div>
             </div>
-          </div>
+            {hasCustomStartDate ? <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-blue-50/50 px-5 py-2 text-xs text-slate-600"><span>{t.watchlist.filters.summary(formattedStartDate)}</span><Button variant="ghost" size="sm" onClick={handleResetStartDate} className="text-blue-700">{t.watchlist.filters.resetStartDate}</Button></div> : null}
+            <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
+              <div className="flex min-h-[430px] min-w-0 flex-col xl:min-h-[650px]">
+                <div className="px-4 pb-4 pt-5 sm:px-5"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{isRtl ? 'מניות במעקב' : 'Stocks on your radar'}</h2><span dir="ltr" className="text-xs text-slate-400">{visibleTickers.length} / {sortableTickers.length}</span></div><p className="mt-1 text-xs text-slate-500">{isRtl ? 'בחרו מניה לצפייה בגרף.' : 'Choose a stock to explore its chart.'}</p></div>
+                {visibleTickers.length ? <>
+                  <div className="hidden items-center gap-2 border-b border-slate-100 px-4 pb-3 text-xs font-medium text-slate-500 sm:flex"><div className="grid min-w-0 flex-1 gap-2" style={{gridTemplateColumns:WATCHLIST_ROW_COLUMNS}}>{[isRtl ? 'מניה' : 'Stock', isRtl ? 'מחיר' : 'Price', isRtl ? 'יומי' : 'Today', isRtl ? 'בטווח' : 'Period', isRtl ? 'מגמה' : 'Trend'].map((label, index) => <span key={label} className={index ? 'text-end' : undefined}>{label}</span>)}</div><span className="w-10 shrink-0" /></div>
+                  <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}><SortableContext items={visibleTickers.map(getTickerKey)} strategy={verticalListSortingStrategy}>{visibleTickers.map((ticker) => <SortableTickerCard key={getTickerKey(ticker)} id={getTickerKey(ticker)} symbol={ticker.symbol} locale={locale} sorting={sorting} disabled={Boolean(normalizedSearch)} isActive={activeTickerId === getTickerKey(ticker)}><TickerRow {...presentationProps(ticker)} selected={getTickerKey(focusedTicker ?? ticker) === getTickerKey(ticker)} onSelect={() => selectTicker(ticker)} /></SortableTickerCard>)}</SortableContext></DndContext>
+                </> : <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-14 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search aria-hidden className="h-5 w-5" /></div><p className="text-sm text-slate-500">{normalizedSearch ? isRtl ? 'לא נמצאו מניות שמתאימות לחיפוש.' : 'No stocks match your search.' : t.watchlist.status.noTickers}</p><Button variant={normalizedSearch ? 'outline' : 'default'} onClick={() => normalizedSearch ? patchUrl({ q: null }) : openCreateTickerDialog()}>{normalizedSearch ? isRtl ? 'ניקוי החיפוש' : 'Clear search' : t.watchlist.actions.newTicker}</Button></div>}
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3"><p role="status" className="text-xs text-slate-400">{normalizedSearch ? isRtl ? `${visibleTickers.length} מתוך ${sortableTickers.length} מניות · הסדר נשמר בזמן חיפוש` : `${visibleTickers.length} of ${sortableTickers.length} stocks · Reordering paused during search` : selectedGroup.description || ''}</p><Button variant="ghost" size="sm" disabled={Boolean(normalizedSearch) || sortableTickers.length < 2} aria-pressed={sorting} onClick={() => setSorting((value) => !value)} className="gap-2 text-slate-500"><GripVertical aria-hidden className="h-4 w-4" />{sorting ? isRtl ? 'סיום סידור' : 'Done reordering' : isRtl ? 'סידור הרשימה' : 'Reorder list'}</Button></div>
+              </div>
+              <aside aria-label={isRtl ? 'המניה שנבחרה' : 'Selected stock'} className="hidden min-w-0 border-s border-slate-200 xl:block">{isWide && focusedTicker ? <TickerCard key={focusedKey} {...presentationProps(focusedTicker)} /> : <div className="flex h-full min-h-[400px] items-center justify-center p-8 text-center text-sm text-slate-400">{isRtl ? 'הגרף של המניה שתבחרו יופיע כאן.' : 'Your selected stock’s chart will appear here.'}</div>}</aside>
+            </div>
+          </section> : <div className="flex min-h-[430px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center"><Eye aria-hidden className="h-8 w-8 text-blue-500" /><h2 className="text-xl font-semibold text-slate-950">{isRtl ? 'מקום למניות שמעניינות אותך' : 'A home for stocks on your radar'}</h2><p className="max-w-sm text-sm text-slate-500">{isRtl ? 'צרו קבוצה ראשונה והוסיפו מניות כדי להתחיל לעקוב.' : 'Create your first group and add stocks to start following them.'}</p><Button onClick={openCreateGroupDialog}><Plus aria-hidden />{t.watchlist.actions.newGroup}</Button></div>}
+        </main>
       </DashboardContainer>
-
+      <Dialog open={!isWide && previewOpen && Boolean(focusedTicker)} onOpenChange={setPreviewOpen}>
+        <DialogContent ref={previewContentRef} onOpenAutoFocus={(event) => { event.preventDefault(); const close = previewContentRef.current?.querySelector<HTMLButtonElement>(':scope > button:last-child'); close?.setAttribute('aria-label', isRtl ? 'סגירה' : 'Close'); close?.focus(); }} dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={(event) => { event.preventDefault(); if (!previewTransitionRef.current && focusedTicker) document.getElementById(`watchlist-select-${getTickerKey(focusedTicker)}`)?.focus(); previewTransitionRef.current = false; }} className="left-0 top-auto bottom-0 max-h-[92dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-2xl border-slate-200 bg-white p-0 pt-8 [&>button:last-child]:top-1 [&>button:last-child]:rounded-full [&>button:last-child]:focus:ring-blue-500 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
+          <DialogHeader className="sr-only"><DialogTitle>{focusedTicker ? `${isRtl ? 'גרף' : 'Chart'} ${focusedTicker.symbol}` : isRtl ? 'גרף מניה' : 'Stock chart'}</DialogTitle><DialogDescription>{isRtl ? 'מחיר המניה, השינוי והגרף בטווח שנבחר.' : 'Stock price, performance and chart for the selected period.'}</DialogDescription></DialogHeader>
+          {!isWide && previewOpen && focusedTicker ? <TickerCard key={focusedKey} {...presentationProps(focusedTicker)} /> : null}
+        </DialogContent>
+      </Dialog>
       <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-2xl border-slate-200 bg-white p-5 sm:p-7">
+          <DialogHeader className="text-start sm:text-start">
             <DialogTitle>
               {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
             </DialogTitle>
@@ -1289,8 +1024,8 @@ export default function WatchlistPage() {
       </Dialog>
 
       <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-2xl border-slate-200 bg-white p-5 sm:p-7">
+          <DialogHeader className="text-start sm:text-start">
             <DialogTitle>
               {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}
             </DialogTitle>
@@ -1304,9 +1039,12 @@ export default function WatchlistPage() {
                 <Label htmlFor="ticker-symbol">{t.watchlist.tickers.symbol}</Label>
                 <Input
                   id="ticker-symbol"
+                  dir="ltr"
+                  autoComplete="off"
+                  className="h-12 rounded-xl font-semibold tracking-wide"
                   value={tickerForm.symbol}
                   onChange={(event) =>
-                    setTickerForm((prev) => ({ ...prev, symbol: event.target.value }))
+                    setTickerForm((prev) => ({ ...prev, symbol: event.target.value.toUpperCase() }))
                   }
                   placeholder={t.watchlist.tickers.symbolPlaceholder}
                   required
@@ -1323,7 +1061,7 @@ export default function WatchlistPage() {
                   placeholder={t.watchlist.tickers.displayPlaceholder}
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <details className="space-y-2 md:col-span-2"><summary className="cursor-pointer text-xs text-slate-400">{isRtl ? 'לוגו מותאם אישית (אופציונלי)' : 'Custom logo (optional)'}</summary>
                 <Label htmlFor="ticker-image">{t.watchlist.tickers.imageUrl}</Label>
                 <Input
                   id="ticker-image"
@@ -1333,7 +1071,7 @@ export default function WatchlistPage() {
                   }
                   placeholder={t.watchlist.tickers.imageUrlPlaceholder}
                 />
-              </div>
+              </details>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ticker-note">{t.watchlist.tickers.note}</Label>

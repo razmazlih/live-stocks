@@ -13,32 +13,16 @@ interface TimeRangeTabsProps {
   className?: string;
 }
 
-export function TimeRangeTabs({
-  value,
-  onChange,
-  ranges = WATCHLIST_TIME_RANGES,
-  labels,
-  className,
-}: TimeRangeTabsProps) {
-  return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => onChange(next as TimeRange)}
-      className={cn('w-full', className)}
-    >
-      <TabsList className="grid h-auto w-full grid-cols-4 gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:flex sm:flex-wrap">
-        {ranges.map((range) => (
-          <TabsTrigger
-            key={range}
-            value={range}
-            className={cn(
-              'min-w-0 rounded-md border-0 px-2 py-1 text-xs font-medium text-slate-600 shadow-none transition-colors hover:bg-white data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none sm:flex-1'
-            )}
-          >
-            {labels?.[range] ?? range}
-          </TabsTrigger>
-        ))}
+const DEFAULT_RANGES: readonly TimeRange[] = [...WATCHLIST_TIME_RANGES, 'All'];
+
+export function TimeRangeTabs({ value, onChange, ranges = DEFAULT_RANGES, labels, className }: TimeRangeTabsProps) {
+  return <Tabs value={value} onValueChange={(next) => onChange(next as TimeRange)} className={cn('min-w-0 max-w-full', className)}>
+    <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white [scrollbar-width:thin]">
+      <TabsList className="grid h-auto w-full min-w-0 grid-cols-4 gap-0 sm:flex sm:w-max sm:min-w-full sm:flex-nowrap sm:justify-start rounded-none bg-transparent p-0.5">
+        {ranges.map((range) => <TabsTrigger key={range} value={range} className="min-h-11 min-w-0 shrink-0 rounded-lg border-0 px-2 sm:min-w-11 sm:px-3 py-2 text-xs font-medium text-slate-600 shadow-none transition-colors hover:bg-slate-50 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none">
+          {labels?.[range] ?? range}
+        </TabsTrigger>)}
       </TabsList>
-    </Tabs>
-  );
+    </div>
+  </Tabs>;
 }
