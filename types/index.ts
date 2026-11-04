@@ -124,6 +124,8 @@ export interface ExchangeRateResponse {
 }
 
 export interface PositionMetrics {
+  commissionUsd?: number;
+  commissionIls?: number;
   position: Position;
   currentPrice: number;
   positionPnLUsd: number;
@@ -173,6 +175,9 @@ export interface SymbolExceptionAssessment {
 }
 
 export interface PortfolioSummary {
+  /** Cumulative transaction commissions, already deducted from P/L. */
+  totalCommissionsUsd?: number;
+  totalCommissionsIls?: number;
   totalCurrentPnLUsd: number;
   totalCurrentPnLIls: number;
   totalProjectedPnLUsd: number;
@@ -191,6 +196,9 @@ export interface PortfolioSummary {
 }
 
 export interface PortfolioTimelinePoint {
+  /** Cumulative commissions paid through this valuation, at transaction-date FX. */
+  commissionUsd?: number;
+  commissionIls?: number;
   timestamp: number;
   totalPnLUsd: number;
   totalPnLIls: number;

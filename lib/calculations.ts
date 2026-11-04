@@ -1,5 +1,5 @@
 import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale, SymbolExceptionAssessment } from '@/types';
-import { computeOpenLots, computeRealizedSales, summarizeLots } from '@/lib/positions';
+import { calculateCommissionTotals, computeOpenLots, computeRealizedSales, summarizeLots } from '@/lib/positions';
 
 export { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/display/formatting';
 
@@ -130,6 +130,7 @@ export function calculatePositionMetrics(
   }
 
   return {
+    ...calculateCommissionTotals(lots, getFxRateAt, now.getTime()),
     position: normalizedPosition,
     currentPrice,
     positionPnLUsd,
@@ -431,10 +432,14 @@ export function calculateRealizedTaxLiability(
 
 export function calculatePortfolioSummary(
   metrics: PositionMetrics[],
-  usdToIlsRate: number
+  usdToIlsRate: number,
+  commissionPositions?: Position[],
+  getFxRateAt: FxRateResolver = () => usdToIlsRate,
 ): PortfolioSummary {
   const summary = metrics.reduce(
     (acc, m) => ({
+      totalCommissionsUsd: acc.totalCommissionsUsd + (m.commissionUsd ?? 0),
+      totalCommissionsIls: acc.totalCommissionsIls + (m.commissionIls ?? 0),
       totalCurrentPnLUsd: acc.totalCurrentPnLUsd + m.positionPnLUsd,
       totalCurrentPnLIls: acc.totalCurrentPnLIls + m.positionPnLIls,
       totalProjectedPnLUsd: acc.totalProjectedPnLUsd + m.projectedPnLUsd,
@@ -445,6 +450,8 @@ export function calculatePortfolioSummary(
       totalCost: acc.totalCost + (m.position.entryPrice * m.position.quantity),
     }),
     {
+      totalCommissionsUsd: 0,
+      totalCommissionsIls: 0,
       totalCurrentPnLUsd: 0,
       totalCurrentPnLIls: 0,
       totalProjectedPnLUsd: 0,
@@ -455,6 +462,12 @@ export function calculatePortfolioSummary(
       totalCost: 0,
     }
   );
+
+  if (commissionPositions) {
+    const fees = calculateCommissionTotals(commissionPositions.flatMap(position => position.lots ?? []), getFxRateAt);
+    summary.totalCommissionsUsd = fees.commissionUsd;
+    summary.totalCommissionsIls = fees.commissionIls;
+  }
 
   return {
     ...summary,
@@ -553,6 +566,8 @@ export function buildPortfolioTimelinePointFromSummary(
 ): PortfolioTimelinePoint {
   return {
     timestamp,
+    commissionUsd: summary.totalCommissionsUsd ?? 0,
+    commissionIls: summary.totalCommissionsIls ?? 0,
     totalPnLUsd: summary.totalCurrentPnLUsd,
     totalPnLIls: summary.totalCurrentPnLIls,
     netPnLUsd: summary.totalNetPnLUsd,

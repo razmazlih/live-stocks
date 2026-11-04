@@ -6,6 +6,7 @@ import { ChevronDown, LineChart } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
+import { getPerformanceTotals, parsePerformanceOptions } from '@/lib/performance-display';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
@@ -38,8 +39,10 @@ export default function PortfolioPage() {
   const openMetrics = useMemo(() => metrics.filter((metric) => metric.position.quantity > 0), [metrics]);
   const quickActions = useMemo(() => createCommonQuickActions(t, { overrides: { reload: { onClick: reload, disabled: loading || refreshing, iconClassName: loading || refreshing ? 'animate-spin' : undefined } } }), [t, reload, loading, refreshing]);
   const currency = settings.currency;
-  const actual = currency === 'ILS' ? summary?.totalCurrentPnLIls : summary?.totalCurrentPnLUsd;
-  const target = currency === 'ILS' ? summary?.totalProjectedPnLIls : summary?.totalProjectedPnLUsd;
+  const [performanceOptions] = useUrlState(parsePerformanceOptions);
+  const totals = summary ? getPerformanceTotals(summary, currency, performanceOptions) : null;
+  const actual = totals?.actual;
+  const target = totals?.target;
   const gap = actual !== undefined && target !== undefined ? actual - target : undefined;
   const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatSignedCurrency(value, currency, locale) : '—';
 
@@ -58,12 +61,12 @@ export default function PortfolioPage() {
               <DashboardSurface>
                 <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
                   {[
-                    { label: isHebrew ? 'רווח והפסד בפועל' : 'Actual profit / loss', value: actual },
+                    { label: isHebrew ? 'רווח והפסד בתצוגה' : 'Displayed profit / loss', value: actual },
                     { label: isHebrew ? 'יעד אישי להיום' : 'Personal target to date', value: target },
                     { label: isHebrew ? 'פער מהיעד' : 'Gap to target', value: gap },
                   ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className={`mt-2 text-xl font-semibold tabular-nums sm:text-2xl ${getTrendTone(item.value ?? 0).text}`}><bdi>{money(item.value)}</bdi></dd></div>)}
                 </dl>
-                <p className="mt-4 text-xs text-slate-500">{isHebrew ? 'הרווח כולל ממומש ולא ממומש, לפני אומדן מס. היעד אישי ואינו תחזית שוק.' : 'Profit includes realized and unrealized returns before estimated tax. The personal target is not a market forecast.'}</p>
+                <p className="mt-4 text-xs text-slate-500">{isHebrew ? 'הרווח כולל ממומש ולא ממומש, לפי בחירת הניכויים בגרף. היעד אישי ואינו תחזית שוק.' : 'P/L includes realized and unrealized results, using the deduction controls below. The personal target is not a market forecast.'}</p>
               </DashboardSurface>
               <DashboardSurface><PerformanceChart data={portfolioTimeline} summary={summary} /></DashboardSurface>
               <details className="summary-details rounded-xl border border-slate-200 bg-white">

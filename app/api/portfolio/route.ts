@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       })),
     );
 
-    const baseSummary = calculatePortfolioSummary(metrics, usdToIlsRate);
+    const baseSummary = calculatePortfolioSummary(metrics, usdToIlsRate, mappedPositions, getFxRateAt);
     const enrichedSummary = enrichPortfolioSummaryWithRealized(baseSummary, realizedTotals, taxSummary);
     const totalForecastGapUsd = enrichedSummary.totalNetPnLUsd - enrichedSummary.totalProjectedPnLUsd;
     const totalForecastGapIls = enrichedSummary.totalNetPnLIls - enrichedSummary.totalProjectedPnLIls;

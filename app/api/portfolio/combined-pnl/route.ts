@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       }),
     );
 
-    const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
+    const summary = calculatePortfolioSummary(metrics, usdToIlsRate, mappedPositions, getFxRateAt);
 
     const realizedSales = mappedPositions.flatMap((position) =>
       computeRealizedSalesWithFx(position, getFxRateAt),

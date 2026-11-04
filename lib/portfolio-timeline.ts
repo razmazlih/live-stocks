@@ -1,5 +1,5 @@
 import type { HistoricalPoint, PortfolioTimelinePoint, Position, PositionLot } from '@/types';
-import { computeOpenLots, computeRealizedSalesWithFx } from '@/lib/positions';
+import { calculateCommissionTotals, computeOpenLots, computeRealizedSalesWithFx } from '@/lib/positions';
 import { calculateRealizedPortfolioTotals } from '@/lib/calculations';
 
 const DAY_MS = 86_400_000;
@@ -77,7 +77,7 @@ export function buildPositionTimeline(
     }
     const spyClose = priceAt(spy, timestamp);
     const spyPnl = spyQueue.reduce((sum, buy) => sum + (buy.buyPrice && spyClose ? buy.invested * (spyClose / buy.buyPrice - 1) : 0), spyRealized);
-    timeline.push({ timestamp, totalPnLUsd: actualUsd, totalPnLIls: actualIls, netPnLUsd: actualUsd, netPnLIls: actualIls, expectedNetPnLUsd: targetUsd, expectedNetPnLIls: targetIls, spyNetPnLUsd: spyPnl, spyNetPnLIls: spyPnl * fx });
+    timeline.push({ ...calculateCommissionTotals(activeLots, getFxRateAt, timestamp), timestamp, totalPnLUsd: actualUsd, totalPnLIls: actualIls, netPnLUsd: actualUsd, netPnLIls: actualIls, expectedNetPnLUsd: targetUsd, expectedNetPnLIls: targetIls, spyNetPnLUsd: spyPnl, spyNetPnLIls: spyPnl * fx });
   }
   return timeline;
 }

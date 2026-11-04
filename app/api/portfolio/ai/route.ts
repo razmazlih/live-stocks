@@ -71,7 +71,7 @@ export async function GET() {
       return calculatePositionMetrics(position, quote.price, fx, annualGrowthRate ?? 0, quote.dailyChange, rateAt);
     });
     const pricedMetrics = metrics.filter(m => m !== null);
-    const openSummary = missingSymbols.length ? null : calculatePortfolioSummary(pricedMetrics, fx);
+    const openSummary = missingSymbols.length ? null : calculatePortfolioSummary(pricedMetrics, fx, positions, rateAt);
     const tax = calculateRealizedTaxLiability(realizedSales.map(s => ({ profitUsd: s.profitUsd, profitIls: s.profitIls ?? 0, timestamp: new Date(s.sellDate).getTime() })));
     const realizedTotals = calculateRealizedPortfolioTotals(realizedSales, annualGrowthRate ?? 0, fx, rateAt);
     const summary = openSummary ? enrichPortfolioSummaryWithRealized(openSummary, realizedTotals, tax) : null;

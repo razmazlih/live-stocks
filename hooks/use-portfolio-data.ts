@@ -76,6 +76,8 @@ function parseTimestamp(value?: string | null): number | null {
 function buildZeroTimelinePoint(timestamp: number): PortfolioTimelinePoint {
   return {
     timestamp,
+    commissionUsd: 0,
+    commissionIls: 0,
     totalPnLUsd: 0,
     totalPnLIls: 0,
     netPnLUsd: 0,
@@ -264,6 +266,8 @@ function usePortfolioDataState() {
       }));
 
       const aggregatedTimelinePoints: PortfolioTimelinePoint[] = sortedTimestamps.map((timestamp) => {
+        let commissionUsd = 0;
+        let commissionIls = 0;
         let totalPnLUsd = 0;
         let totalPnLIls = 0;
         let netPnLUsd = 0;
@@ -280,6 +284,8 @@ function usePortfolioDataState() {
           }
 
           if (state.lastPoint && state.lastPoint.timestamp <= timestamp) {
+            commissionUsd += state.lastPoint.commissionUsd ?? 0;
+            commissionIls += state.lastPoint.commissionIls ?? 0;
             totalPnLUsd += state.lastPoint.totalPnLUsd;
             totalPnLIls += state.lastPoint.totalPnLIls;
             netPnLUsd += state.lastPoint.netPnLUsd;
@@ -293,6 +299,8 @@ function usePortfolioDataState() {
 
         return {
           timestamp,
+          commissionUsd,
+          commissionIls,
           totalPnLUsd,
           totalPnLIls,
           netPnLUsd,

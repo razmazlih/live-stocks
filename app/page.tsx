@@ -11,10 +11,11 @@ import { PerformanceChart } from '@/components/charts/performance-chart';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
 import { ResearchExportButton } from '@/components/portfolio/research-export-button';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
+import { useUrlState } from '@/hooks/use-url-state';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { useApp } from '@/lib/context';
 import { formatCurrency } from '@/lib/calculations';
-import { getPerformanceTotals } from '@/lib/performance-display';
+import { getPerformanceTotals, parsePerformanceOptions } from '@/lib/performance-display';
 import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 
 export default function HomePage() {
@@ -23,12 +24,13 @@ export default function HomePage() {
   const { loading, refreshing, summary, metrics, positions, portfolioTimeline, sparklineData, lastUpdate, reload } = usePortfolioData();
   useReturnContext(!loading);
   const currency = settings.currency;
-  const totals = summary ? getPerformanceTotals(summary, currency) : null;
+  const [performanceOptions] = useUrlState(parsePerformanceOptions);
+  const totals = summary ? getPerformanceTotals(summary, currency, performanceOptions) : null;
   const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
   const Arrow = he ? ArrowLeft : ArrowRight;
   const stats = [
     { label: he ? 'שווי התיק' : 'Portfolio value', value: totals?.value },
-    { label: he ? 'רווח והפסד בפועל' : 'Actual profit / loss', value: totals?.actual, colored: true },
+    { label: he ? 'רווח והפסד בתצוגה' : 'Displayed profit / loss', value: totals?.actual, colored: true },
     { label: he ? 'יעד אישי להיום' : 'Personal target today', value: totals?.target },
     { label: he ? 'פער מהיעד' : 'Gap to target', value: totals?.gap, colored: true },
   ];
@@ -45,7 +47,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:grid-cols-4">
               {stats.map((stat) => <div key={stat.label} className="overview-stat min-w-0 px-4 py-5 sm:px-5 sm:py-6"><p className="text-xs font-medium text-slate-600 sm:text-sm">{stat.label}</p><p className={`mt-2 truncate text-[22px] font-semibold tracking-tight tabular-nums xl:text-[30px] ${stat.colored && stat.value !== undefined && stat.value !== 0 ? stat.value > 0 ? 'text-emerald-700' : 'text-rose-600' : 'text-slate-950'}`}><bdi>{money(stat.value)}</bdi></p></div>)}
             </div>
-            <p className="mt-2 px-1 text-xs leading-relaxed text-slate-500">{he ? 'יעד תשואה אישי, לא תחזית שוק. הרווח כולל ממומש ולא ממומש, לפני אומדן מס.' : 'A personal return target, not a market forecast. P/L includes realized and unrealized results, before estimated tax.'}</p>
+            <p className="mt-2 px-1 text-xs leading-relaxed text-slate-500">{he ? 'הרווח כולל ממומש ולא ממומש, לפי בחירת הניכויים בגרף. היעד אישי ואינו תחזית שוק.' : 'P/L includes realized and unrealized results, using the deduction controls below. The personal target is not a market forecast.'}</p>
           </section>
           {summary ? <DashboardSurface className="space-y-4 rounded-xl p-4 sm:p-5">
             <PerformanceChart data={portfolioTimeline} summary={summary} compact />

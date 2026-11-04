@@ -140,6 +140,23 @@ export function mapPositionPlanRow(plan: SupabasePositionPlan): PositionPlan {
   };
 }
 
+/** Fees are cash flows on the execution date, including buys that remain open. */
+export function calculateCommissionTotals(
+  lots: PositionLot[],
+  getFxRateAt: FxRateResolver,
+  asOf = Date.now(),
+): { commissionUsd: number; commissionIls: number } {
+  return lots.reduce((totals, lot) => {
+    const timestamp = Date.parse(lot.executedAt);
+    if (!Number.isFinite(timestamp) || timestamp > asOf || !(lot.quantity > 0) || !lot.hasCommission) return totals;
+    const commission = Number.isFinite(lot.commissionAmount) ? Math.max(lot.commissionAmount, 0) : 0;
+    if (commission === 0) return totals;
+    totals.commissionUsd += commission;
+    totals.commissionIls += commission * getFxRateAt(timestamp);
+    return totals;
+  }, { commissionUsd: 0, commissionIls: 0 });
+}
+
 export function computeOpenLots(lots: PositionLot[]): OpenLot[] {
   if (!lots.length) {
     return [];

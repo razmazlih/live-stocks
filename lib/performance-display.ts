@@ -6,14 +6,24 @@ export function parsePerformanceRange(params: URLSearchParams): PerformanceRange
   const value = params.get('chartRange');
   return PERFORMANCE_RANGES.includes(value as PerformanceRange) ? value as PerformanceRange : '3M';
 }
-/** Both UI surfaces use realized + unrealized P/L before estimated tax. */
-export function getPerformanceTotals(summary: PortfolioSummary, currency: 'USD' | 'ILS') {
-  const actual = currency === 'ILS' ? summary.totalCurrentPnLIls : summary.totalCurrentPnLUsd;
+export interface PerformanceOptions {
+  includeTaxes?: boolean;
+  includeFees?: boolean;
+}
+export function parsePerformanceOptions(params: URLSearchParams): Required<PerformanceOptions> {
+  return { includeTaxes: params.get('includeTaxes') !== '0', includeFees: params.get('includeFees') !== '0' };
+}
+/** Both surfaces default to realized + unrealized P/L after fees and estimated tax. */
+export function getPerformanceTotals(summary: PortfolioSummary, currency: 'USD' | 'ILS', options: PerformanceOptions = {}) {
+  const beforeTax = currency === 'ILS' ? summary.totalCurrentPnLIls : summary.totalCurrentPnLUsd;
+  const afterTax = currency === 'ILS' ? summary.totalNetPnLIls : summary.totalNetPnLUsd;
+  const fees = currency === 'ILS' ? summary.totalCommissionsIls : summary.totalCommissionsUsd;
+  const actual = selectActual(beforeTax, afterTax, fees, options);
   const target = currency === 'ILS' ? summary.totalProjectedPnLIls : summary.totalProjectedPnLUsd;
   const value = currency === 'ILS' ? summary.totalValue * summary.usdToIlsRate : summary.totalValue;
   return { actual, target, gap: actual - target, value };
 }
-export function getPerformanceSeries(data: PortfolioTimelinePoint[], range: PerformanceRange, currency: 'USD' | 'ILS') {
+export function getPerformanceSeries(data: PortfolioTimelinePoint[], range: PerformanceRange, currency: 'USD' | 'ILS', options: PerformanceOptions = {}) {
   const sorted = data.filter((p) => Number.isFinite(p.timestamp)).slice().sort((a, b) => a.timestamp - b.timestamp);
   const end = sorted.at(-1)?.timestamp;
   if (end === undefined) return [];
@@ -24,9 +34,29 @@ export function getPerformanceSeries(data: PortfolioTimelinePoint[], range: Perf
   start.setUTCHours(0, 0, 0, 0);
   return sorted.filter((p) => range === 'All' || p.timestamp >= start.getTime()).map((p) => ({
     timestamp: p.timestamp,
-    actual: finiteOrNull(currency === 'ILS' ? p.totalPnLIls : p.totalPnLUsd),
+    ...performanceBreakdown(
+      currency === 'ILS' ? p.totalPnLIls : p.totalPnLUsd,
+      currency === 'ILS' ? p.netPnLIls : p.netPnLUsd,
+      currency === 'ILS' ? p.commissionIls : p.commissionUsd,
+    ),
+    actual: finiteOrNull(selectActual(
+      currency === 'ILS' ? p.totalPnLIls : p.totalPnLUsd,
+      currency === 'ILS' ? p.netPnLIls : p.netPnLUsd,
+      currency === 'ILS' ? p.commissionIls : p.commissionUsd,
+      options,
+    )),
     target: finiteOrNull(currency === 'ILS' ? p.expectedNetPnLIls : p.expectedNetPnLUsd),
   }));
+}
+function performanceBreakdown(beforeTax: number, afterTax: number, paidFees: number | undefined) {
+  const fees = paidFees ?? 0;
+  return { gross: finiteOrNull(beforeTax + fees), fees: finiteOrNull(fees), tax: finiteOrNull(beforeTax - afterTax), net: finiteOrNull(afterTax) };
+}
+function selectActual(beforeTax: number, afterTax: number, fees: number | undefined, options: PerformanceOptions) {
+  // Keep missing historical values unknown even if another basis happens to be present.
+  if (!Number.isFinite(beforeTax)) return Number.NaN;
+  const actual = options.includeTaxes === false ? beforeTax : afterTax;
+  return actual + (options.includeFees === false ? fees ?? 0 : 0);
 }
 function finiteOrNull(value: number) { return Number.isFinite(value) ? value : null; }
 
