@@ -36,6 +36,7 @@ import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
+import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
 import { STOCK_DETAIL_TIME_RANGES } from '@/lib/display/time-ranges';
 import {
   calculatePositionMetrics,
@@ -304,7 +305,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
-  const [usdToIls, setUsdToIls] = useState(3.7);
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const position = useMemo(() => combinePositions(positions), [positions]);
@@ -398,16 +398,25 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           quoteParams.set('forceRefresh', '1');
         }
         const quoteUrl = quoteParams ? `/api/quote?${quoteParams.toString()}` : null;
-        const [quoteResponse, rateResponse] = await Promise.all([
+        const activityTimestamps = mappedPositions.flatMap((position) => [
+          new Date(position.entryDate).getTime(),
+          ...(position.lots ?? []).map((lot) => new Date(lot.executedAt).getTime()),
+        ]).filter(Number.isFinite);
+        const earliestActivity = activityTimestamps.length ? Math.min(...activityTimestamps) : Date.now();
+        const [quoteResponse, rateResponse, fxHistory] = await Promise.all([
           quoteUrl ? fetch(quoteUrl) : Promise.resolve<null | Response>(null),
           fetch('/api/exchange-rate'),
+          fetchUsdIlsHistoricalPoints(
+            Math.max(0, Math.floor(earliestActivity / 1000) - 10 * DAY_SECONDS),
+            Math.floor(Date.now() / 1000),
+          ).catch(() => []),
         ]);
 
         let fetchedQuote: StockQuote | null = null;
         if (quoteResponse) {
           if (quoteResponse.ok) {
             const quoteData = (await quoteResponse.json()) as QuoteResponse;
-            if (!quoteData.error && quoteData.c) {
+            if (!quoteData.error && Number.isFinite(quoteData.c) && quoteData.c > 0) {
               fetchedQuote = quoteData;
             } else if (loadedSymbol.current === normalizedSymbol) {
               throw new Error(quoteData.error || 'Quote unavailable');
@@ -420,15 +429,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           }
         }
 
-        let rate = 3.7;
+        let rate = Number.NaN;
         if (rateResponse.ok) {
           const rateData = await rateResponse.json();
-          rate = rateData.usdToIls || rate;
+          if (Number.isFinite(rateData.usdToIls) && rateData.usdToIls > 0) rate = rateData.usdToIls;
         } else {
           console.warn(`Exchange rate request failed with status ${rateResponse.status}`);
         }
 
-        const currentPrice = fetchedQuote?.c ?? combinedPosition.entryPrice;
+        const currentPrice = fetchedQuote?.c ?? Number.NaN;
         const dailyChange = fetchedQuote?.d;
 
         const baseMetrics = calculatePositionMetrics(
@@ -436,7 +445,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           currentPrice,
           rate,
           settings.annualGrowthRate,
-          dailyChange
+          dailyChange,
+          buildUsdIlsRateResolver(fxHistory, rate, { allowFallback: false }),
         );
         const computedMetrics = {
           ...baseMetrics,
@@ -449,7 +459,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
         setPositions(mappedPositions);
         setQuote(fetchedQuote);
-        setUsdToIls(rate);
         setMetrics(computedMetrics);
         loadedSymbol.current = normalizedSymbol;
         setLastUpdated(new Date());
@@ -522,29 +531,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     []
   );
 
-  const formatSignedUsdCurrency = useCallback(
-    (valueUsd: number) =>
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        signDisplay: 'always',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(valueUsd),
-    []
-  );
-
-  const formatSignedIlsCurrency = useCallback(
-    (valueIls: number) =>
-      new Intl.NumberFormat('he-IL', {
-        style: 'currency',
-        currency: 'ILS',
-        signDisplay: 'always',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(valueIls),
-    []
-  );
 
   const chartData = useMemo(
     () =>
@@ -599,32 +585,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       }, [])
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [chartData, formatUsdCurrency, locale, t.positions.buy, t.positions.sell, transactions]);
-
-  const buildSparklineHoverDetails = useCallback(
-    (point: { price: number; timestamp: number }) => {
-      if (!metrics) {
-        return [];
-      }
-
-      const pnlUsd = (point.price - metrics.position.entryPrice) * metrics.position.quantity;
-      const pnlIls = pnlUsd * usdToIls;
-      const valueClassName = pnlUsd >= 0 ? 'text-emerald-700' : 'text-rose-700';
-
-      return [
-        {
-          label: locale === 'he' ? 'רווח/הפסד $' : 'P/L USD',
-          value: formatSignedUsdCurrency(pnlUsd),
-          valueClassName,
-        },
-        {
-          label: locale === 'he' ? 'רווח/הפסד ₪' : 'P/L ILS',
-          value: formatSignedIlsCurrency(pnlIls),
-          valueClassName,
-        },
-      ];
-    },
-    [formatSignedIlsCurrency, formatSignedUsdCurrency, locale, metrics, usdToIls]
-  );
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
@@ -861,7 +821,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                             year: 'numeric',
                           })
                         }
-                        hoverDetails={buildSparklineHoverDetails}
                         interactive
                       />
                     </div>

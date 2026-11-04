@@ -43,6 +43,15 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.realized.totals.profitIls).toBeNull();
     expect(data.dataQuality.completeMarketValuation).toBe(false);
   });
+  it('keeps USD valuation but omits historical ILS calculations when FX history is missing', async () => {
+    const data = await (await GET()).json();
+    expect(data.holdings[0].marketValueUsd).toBe(240);
+    expect(data.holdings[0].unrealizedPnlUsd).toBe(40);
+    expect(data.holdings[0].unrealizedPnlIls).toBeNull();
+    expect(data.summary.totalCurrentPnLIls).toBeNull();
+    expect(data.summary.totalProjectedPnLIls).toBeNull();
+    expect(data.dataQuality.warnings.join(' ')).toContain('affected ILS calculations are omitted');
+  });
   it('fails explicitly when a required table cannot be read', async () => {
     mocks.from.mockImplementation(() => ({ select: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'denied' } }) }) }) }));
     expect((await GET()).status).toBe(500);

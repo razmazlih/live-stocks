@@ -109,6 +109,7 @@ describe('shared portfolio data', () => {
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
       positions: [position], activationPositions: [position], usdToIls: 3,
+      fxHistoryPoints: [{ timestamp: Date.parse(date(1)), close: 3 }],
       quotes: { TEST: { c: 135 } },
       candlesByKey: { history: [
         { timestamp: new Date(date(2)).getTime(), close: 100 },
@@ -119,10 +120,10 @@ describe('shared portfolio data', () => {
     render(<PortfolioDataProvider><Consumer label="first" /><TimelineConsumer /></PortfolioDataProvider>);
     await waitFor(() => expect(read().hasData).toBe(true));
     const { points, summary } = JSON.parse(screen.getByTestId('timeline').textContent!);
-    const partial = points.find((point: PortfolioTimelinePoint) => point.timestamp === new Date(date(11)).getTime());
+    const partial = points.find((point: PortfolioTimelinePoint) => point.timestamp === Date.parse('2024-01-11T23:59:59.999Z'));
     // Four sold shares earned $80; six remaining shares earned $60. Tax is $20.
     expect(partial).toMatchObject({ totalPnLUsd: 140, totalPnLIls: 420, netPnLUsd: 120, netPnLIls: 360 });
-    const closed = points.find((point: PortfolioTimelinePoint) => point.timestamp === new Date(date(21)).getTime());
+    const closed = points.find((point: PortfolioTimelinePoint) => point.timestamp === Date.parse('2024-01-21T23:59:59.999Z'));
     // After the remaining sale, all $260 stays in actual P/L; estimated tax is $65.
     expect(closed).toMatchObject({ totalPnLUsd: 260, totalPnLIls: 780, netPnLUsd: 195, netPnLIls: 585 });
     expect(points.at(-1)).toMatchObject({
@@ -170,6 +171,7 @@ describe('shared portfolio data', () => {
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
       positions: [closed], activationPositions: [closed], usdToIls: 3, quotes: {},
+      fxHistoryPoints: [{ timestamp: Date.parse('2024-01-01'), close: 3 }],
     }) }));
     render(<PortfolioDataProvider><Consumer label="first" /><TimelineConsumer /></PortfolioDataProvider>);
     await waitFor(() => expect(read().hasData).toBe(true));

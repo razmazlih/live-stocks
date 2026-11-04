@@ -60,7 +60,8 @@ export function calculatePositionMetrics(
   currentPrice: number,
   usdToIlsRate: number,
   annualGrowthRate: number = 0.05,
-  dailyChange?: number
+  dailyChange?: number,
+  getFxRateAt: FxRateResolver = () => usdToIlsRate,
 ): PositionMetrics {
   const lots = position.lots ?? [];
   const now = new Date();
@@ -85,17 +86,28 @@ export function calculatePositionMetrics(
   const yearsHeld = summary ? summary.weightedHoldingYears || fallbackYearsHeld : fallbackYearsHeld;
 
   const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
-  const positionPnLIls = positionPnLUsd * usdToIlsRate;
+  const openLots = hasLots ? computeOpenLots(lots) : [{
+    quantity: normalizedQuantity,
+    totalCost: normalizedEntryPrice * normalizedQuantity,
+    executedAt: normalizedEntryDate,
+  }];
+  const costBasisIls = openLots.reduce((sum, lot) =>
+    sum + lot.totalCost * getFxRateAt(new Date(lot.executedAt).getTime()), 0);
+  const positionPnLIls = currentPrice * normalizedQuantity * usdToIlsRate - costBasisIls;
 
-  const projectedPrice = normalizedQuantity > 0
+  const projectedPrice = normalizedQuantity > 0 && hasLots
     ? calculateWeightedProjectedPrice(lots, annualGrowthRate, now)
     : normalizedEntryPrice * Math.pow(1 + annualGrowthRate, yearsHeld);
 
   const projectedPnLUsd = (projectedPrice - normalizedEntryPrice) * normalizedQuantity;
-  const projectedPnLIls = projectedPnLUsd * usdToIlsRate;
+  const projectedPnLIls = openLots.reduce((sum, lot) => {
+    const timestamp = new Date(lot.executedAt).getTime();
+    const years = Number.isFinite(timestamp) ? Math.max((now.getTime() - timestamp) / MS_PER_YEAR, 0) : 0;
+    return sum + lot.totalCost * getFxRateAt(timestamp) * (Math.pow(1 + annualGrowthRate, years) - 1);
+  }, 0);
 
   const combined = positionPnLUsd - projectedPnLUsd;
-  const combinedIls = combined * usdToIlsRate;
+  const combinedIls = positionPnLIls - projectedPnLIls;
 
   const currentValue = currentPrice * normalizedQuantity;
   const currentValueIls = currentValue * usdToIlsRate;
@@ -170,6 +182,18 @@ export function calculateWeightedProjectedPrice(
   return weightedSum / totalQuantity;
 }
 
+function calculateRealizedSaleTargetUsd(sale: RealizedSale, annualGrowthRate: number): number {
+  if (sale.matchedLots) {
+    const sellTimestamp = new Date(sale.sellDate).getTime();
+    return sale.matchedLots.reduce((sum, lot) => {
+      const years = Math.max((sellTimestamp - lot.buyTimestamp) / MS_PER_YEAR, 0);
+      return sum + lot.costBasisUsd * (Math.pow(1 + annualGrowthRate, years) - 1);
+    }, 0);
+  }
+  const years = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
+  return sale.costBasisUsd * (Math.pow(1 + annualGrowthRate, years) - 1);
+}
+
 /**
  * Returns the per-share exit price required today for all open shares of one symbol.
  * Realized sales keep their actual holding period; open lots are projected through `asOf`.
@@ -215,11 +239,9 @@ export function calculateRequiredExitPrice(
   const realizedSales = positions.flatMap((position) => computeRealizedSales(position));
   const realized = realizedSales.reduce(
     (acc, sale) => {
-      const yearsHeld = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
-      const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       return {
         actualProfit: acc.actualProfit + sale.profitUsd,
-        expectedProfit: acc.expectedProfit + sale.costBasisUsd * (expectedFactor - 1),
+        expectedProfit: acc.expectedProfit + calculateRealizedSaleTargetUsd(sale, annualGrowthRate),
       };
     },
     { actualProfit: 0, expectedProfit: 0 },
@@ -273,11 +295,9 @@ export function calculateSymbolExceptionAssessment(
   const realizedSales = positions.flatMap((position) => computeRealizedSales(position));
   const realized = realizedSales.reduce(
     (acc, sale) => {
-      const yearsHeld = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
-      const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
       return {
         actualProfit: acc.actualProfit + sale.profitUsd,
-        expectedProfit: acc.expectedProfit + sale.costBasisUsd * (expectedFactor - 1),
+        expectedProfit: acc.expectedProfit + calculateRealizedSaleTargetUsd(sale, annualGrowthRate),
       };
     },
     { actualProfit: 0, expectedProfit: 0 },
@@ -455,9 +475,14 @@ export function calculateRealizedPortfolioTotals(
   getFxRateAt: FxRateResolver = () => usdToIlsRate,
 ): RealizedPortfolioTotals {
   return sales.reduce<RealizedPortfolioTotals>((acc, sale) => {
-    const holdingYears = Math.max((sale.holdingPeriodDays ?? 0) / 365.25, 0);
-    const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
-    const expectedProfitUsd = sale.costBasisUsd * (expectedFactor - 1);
+    const matchedTargets = sale.matchedLots?.map((lot) => {
+      const years = Math.max((new Date(sale.sellDate).getTime() - lot.buyTimestamp) / MS_PER_YEAR, 0);
+      const profit = lot.costBasisUsd * (Math.pow(1 + annualGrowthRate, years) - 1);
+      return { usd: profit, ils: profit * getFxRateAt(lot.buyTimestamp) };
+    });
+    const expectedProfitUsd = matchedTargets
+      ? matchedTargets.reduce((sum, target) => sum + target.usd, 0)
+      : calculateRealizedSaleTargetUsd(sale, annualGrowthRate);
     const sellTimestamp = new Date(sale.sellDate).getTime();
     const sellFxRate = getFxRateAt(sellTimestamp);
 
@@ -468,7 +493,9 @@ export function calculateRealizedPortfolioTotals(
     acc.proceedsIls += sale.proceedsIls ?? sale.proceedsUsd * usdToIlsRate;
     acc.costIls += sale.costBasisIls ?? sale.costBasisUsd * usdToIlsRate;
     acc.profitIls += sale.profitIls ?? sale.profitUsd * usdToIlsRate;
-    acc.expectedProfitIls += expectedProfitUsd * sellFxRate;
+    acc.expectedProfitIls += matchedTargets
+      ? matchedTargets.reduce((sum, target) => sum + target.ils, 0)
+      : expectedProfitUsd * sellFxRate;
     return acc;
   }, { ...EMPTY_REALIZED_PORTFOLIO_TOTALS });
 }

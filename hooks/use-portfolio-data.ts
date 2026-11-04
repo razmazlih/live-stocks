@@ -25,6 +25,7 @@ import {
   PortfolioTimelinePoint,
   RealizedSale,
 } from '@/types';
+import { buildPositionTimeline } from '@/lib/portfolio-timeline';
 import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
 
 interface SparklineResult {
@@ -59,13 +60,6 @@ interface PortfolioDashboardPayload {
   candlesByKey?: Record<string, HistoricalPoint[]>;
   spyPoints?: HistoricalPoint[];
 }
-
-type NormalizedLot = {
-  type: 'BUY' | 'SELL';
-  price: number;
-  quantity: number;
-  timestamp: number;
-};
 
 type FxRateResolver = (timestamp: number) => number;
 const msPerDay = 24 * 60 * 60 * 1000;
@@ -182,252 +176,6 @@ function buildContinuousTimeline(
   return points;
 }
 
-function buildPositionTimeline(
-  position: Position,
-  points: HistoricalPoint[],
-  annualGrowthRate: number,
-  spyPoints: HistoricalPoint[],
-  getFxRateAt: FxRateResolver,
-): PortfolioTimelinePoint[] {
-  if (!points.length) {
-    return [];
-  }
-
-  const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
-  const normalizedLots: NormalizedLot[] = Array.isArray(position.lots)
-    ? position.lots
-        .map((lot, index) => ({
-          type: lot.type,
-          price: Number.isFinite(lot.price) ? lot.price : 0,
-          quantity: Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0,
-          timestamp: new Date(lot.executedAt).getTime(),
-          index,
-        }))
-        .filter((lot) => lot.quantity > 0 && Number.isFinite(lot.timestamp))
-        .sort((a, b) => {
-          if (a.timestamp === b.timestamp) {
-            return a.index - b.index;
-          }
-          return a.timestamp - b.timestamp;
-        })
-        .map(({ index: _index, ...lot }) => lot)
-    : [];
-
-  if (normalizedLots.length === 0 && position.quantity > 0) {
-    const entryTimestamp = new Date(position.entryDate).getTime();
-    if (Number.isFinite(entryTimestamp)) {
-      normalizedLots.push({
-        type: 'BUY',
-        price: position.entryPrice,
-        quantity: position.quantity,
-        timestamp: entryTimestamp,
-      });
-    }
-  }
-
-  if (normalizedLots.length === 0) {
-    if (position.quantity <= 0) {
-      return points.map((point) => ({
-        timestamp: point.timestamp,
-        totalPnLUsd: 0,
-        totalPnLIls: 0,
-        netPnLUsd: 0,
-        netPnLIls: 0,
-        expectedNetPnLUsd: 0,
-        expectedNetPnLIls: 0,
-        spyNetPnLUsd: 0,
-        spyNetPnLIls: 0,
-      }));
-    }
-
-    const entryTimestamp = new Date(position.entryDate).getTime();
-    const baselineTimestamp = Number.isFinite(entryTimestamp) ? entryTimestamp : points[0]?.timestamp ?? 0;
-
-    const timeline = points.map((point) => {
-      const openPnL = (point.close - position.entryPrice) * position.quantity;
-      const fxAtPoint = getFxRateAt(point.timestamp);
-      const fxAtEntry = getFxRateAt(baselineTimestamp);
-      const yearsHeld = Math.max(0, (point.timestamp - baselineTimestamp) / msPerYear);
-      const expectedFactor = Math.pow(1 + annualGrowthRate, yearsHeld);
-      const expectedPnL = position.entryPrice * position.quantity * (expectedFactor - 1);
-      const openPnLIls =
-        point.close * position.quantity * fxAtPoint - position.entryPrice * position.quantity * fxAtEntry;
-      const expectedPnLIls = position.entryPrice * position.quantity * fxAtEntry * (expectedFactor - 1);
-
-      // SPY Calculation for simple position
-      let spyPnL = 0;
-      if (spyPoints.length > 0) {
-        const entrySpyPoint = spyPoints.find(p => Math.abs(p.timestamp - baselineTimestamp) < 24 * 60 * 60 * 1000) || spyPoints[0];
-        const currentSpyPoint = spyPoints.find(p => Math.abs(p.timestamp - point.timestamp) < 24 * 60 * 60 * 1000);
-        
-        if (entrySpyPoint && currentSpyPoint && entrySpyPoint.close > 0) {
-           const spyQuantity = (position.entryPrice * position.quantity) / entrySpyPoint.close;
-           spyPnL = (spyQuantity * currentSpyPoint.close) - (position.entryPrice * position.quantity);
-        }
-      }
-
-      return {
-        timestamp: point.timestamp,
-        totalPnLUsd: openPnL,
-        totalPnLIls: openPnLIls,
-        netPnLUsd: openPnL,
-        netPnLIls: openPnLIls,
-        expectedNetPnLUsd: expectedPnL,
-        expectedNetPnLIls: expectedPnLIls,
-        spyNetPnLUsd: spyPnL,
-        spyNetPnLIls: spyPnL * fxAtPoint,
-      };
-    });
-
-    if (Number.isFinite(baselineTimestamp) && baselineTimestamp < (timeline[0]?.timestamp ?? baselineTimestamp)) {
-      timeline.unshift(buildZeroTimelinePoint(baselineTimestamp));
-    }
-
-    return timeline;
-  }
-
-  // Create SPY price map for O(1) lookup
-  const spyMap = new Map<number, number>();
-  spyPoints.forEach(p => {
-     // Normalize to midnight for better matching
-     const date = new Date(p.timestamp);
-     date.setHours(0,0,0,0);
-     spyMap.set(date.getTime(), p.close);
-  });
-
-  const getSpyPrice = (ts: number): number | null => {
-      const date = new Date(ts);
-      date.setHours(0,0,0,0);
-      const key = date.getTime();
-      if (spyMap.has(key)) return spyMap.get(key)!;
-      
-      // Fallback: find nearest previous
-      // Since map is not sorted by key, we might need a sorted array or just accept exact match for now.
-      // Given daily resolution, exact match on date should work most of the time.
-      // Let's try to find a close match in the array if map fails
-      const found = spyPoints.find(p => Math.abs(p.timestamp - ts) < 24 * 60 * 60 * 1000);
-      return found ? found.close : null;
-  };
-
-  const openLots: Array<{ quantity: number; price: number; timestamp: number; fxAtBuy: number }> = [];
-  const timeline: PortfolioTimelinePoint[] = [];
-  const firstBuyTimestamp = normalizedLots.find((lot) => lot.type === 'BUY')?.timestamp ?? null;
-  const firstPointTimestamp = points[0]?.timestamp ?? null;
-  if (
-    firstBuyTimestamp !== null &&
-    firstPointTimestamp !== null &&
-    Number.isFinite(firstBuyTimestamp) &&
-    firstBuyTimestamp < firstPointTimestamp
-  ) {
-    timeline.push(buildZeroTimelinePoint(firstBuyTimestamp));
-  }
-  let realizedPnL = 0;
-  let realizedPnLIls = 0;
-  let expectedRealizedPnL = 0;
-  let expectedRealizedPnLIls = 0;
-  let realizedSpyPnL = 0;
-  let lotIndex = 0;
-
-  for (const point of points) {
-    const timestamp = point.timestamp;
-
-    while (lotIndex < normalizedLots.length && normalizedLots[lotIndex].timestamp <= timestamp) {
-      const lot = normalizedLots[lotIndex];
-      lotIndex += 1;
-
-      const quantity = Math.max(lot.quantity, 0);
-      if (quantity === 0) {
-        continue;
-      }
-
-      if (lot.type === 'BUY') {
-        openLots.push({
-          quantity,
-          price: lot.price,
-          timestamp: lot.timestamp,
-          fxAtBuy: getFxRateAt(lot.timestamp),
-        });
-        continue;
-      }
-
-      const fxAtSell = getFxRateAt(lot.timestamp);
-      let remaining = quantity;
-      while (remaining > 0 && openLots.length) {
-        const current = openLots[0];
-        const matched = Math.min(remaining, current.quantity);
-        realizedPnL += matched * (lot.price - current.price);
-        realizedPnLIls += matched * (lot.price * fxAtSell - current.price * current.fxAtBuy);
-        const holdingYears = Math.max(0, (lot.timestamp - current.timestamp) / msPerYear);
-        const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
-        expectedRealizedPnL += matched * current.price * (expectedFactor - 1);
-        expectedRealizedPnLIls += matched * current.price * current.fxAtBuy * (expectedFactor - 1);
-
-        // Realized SPY PnL
-        const buySpyPrice = getSpyPrice(current.timestamp);
-        const sellSpyPrice = getSpyPrice(lot.timestamp);
-        if (buySpyPrice && sellSpyPrice && buySpyPrice > 0) {
-            const spyQty = (matched * current.price) / buySpyPrice;
-            realizedSpyPnL += (spyQty * sellSpyPrice) - (matched * current.price);
-        }
-
-        current.quantity -= matched;
-        remaining -= matched;
-
-        if (current.quantity <= 1e-8) {
-          openLots.shift();
-        }
-      }
-    }
-
-    const openQuantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
-    const costBasis = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price, 0);
-    const costBasisIls = openLots.reduce((sum, lot) => sum + lot.quantity * lot.price * lot.fxAtBuy, 0);
-    const openPnL = openQuantity > 0 ? point.close * openQuantity - costBasis : 0;
-    const fxAtPoint = getFxRateAt(timestamp);
-    const openPnLIls = openQuantity > 0 ? point.close * openQuantity * fxAtPoint - costBasisIls : 0;
-    const netPnL = openPnL + realizedPnL;
-    const netPnLIls = openPnLIls + realizedPnLIls;
-    const expectedOpenPnL = openLots.reduce((sum, lot) => {
-      const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
-      const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
-      return sum + lot.quantity * lot.price * (expectedFactor - 1);
-    }, 0);
-    const expectedOpenPnLIls = openLots.reduce((sum, lot) => {
-      const holdingYears = Math.max(0, (timestamp - lot.timestamp) / msPerYear);
-      const expectedFactor = Math.pow(1 + annualGrowthRate, holdingYears);
-      return sum + lot.quantity * lot.price * lot.fxAtBuy * (expectedFactor - 1);
-    }, 0);
-    const expectedNetPnL = expectedOpenPnL + expectedRealizedPnL;
-    const expectedNetPnLIls = expectedOpenPnLIls + expectedRealizedPnLIls;
-
-    // Open SPY PnL
-    const openSpyPnL = openLots.reduce((sum, lot) => {
-        const buySpyPrice = getSpyPrice(lot.timestamp);
-        const currentSpyPrice = getSpyPrice(timestamp);
-        if (buySpyPrice && currentSpyPrice && buySpyPrice > 0) {
-            const spyQty = (lot.quantity * lot.price) / buySpyPrice;
-            return sum + ((spyQty * currentSpyPrice) - (lot.quantity * lot.price));
-        }
-        return sum;
-    }, 0);
-    const netSpyPnL = openSpyPnL + realizedSpyPnL;
-
-    timeline.push({
-      timestamp,
-      totalPnLUsd: openPnL,
-      totalPnLIls: openPnLIls,
-      netPnLUsd: netPnL,
-      netPnLIls,
-      expectedNetPnLUsd: expectedNetPnL,
-      expectedNetPnLIls,
-      spyNetPnLUsd: netSpyPnL,
-      spyNetPnLIls: netSpyPnL * fxAtPoint,
-    });
-  }
-
-  return timeline;
-}
-
 function usePortfolioDataState() {
   const { settings, settingsReady, refreshTrigger } = useApp();
 
@@ -461,6 +209,7 @@ function usePortfolioDataState() {
       }
 
       const spyPoints = options.spyPoints ?? [];
+      const valuationTime = Date.now();
       const results: SparklineResult[] = positionsList.map((position) => {
         const key = position.activationId ?? position.id ?? position.symbol;
         const points = options.candlesByKey[key] ?? [];
@@ -470,6 +219,7 @@ function usePortfolioDataState() {
           settings.annualGrowthRate,
           spyPoints,
           getFxRateAt,
+          valuationTime,
         );
 
         return {
@@ -605,9 +355,9 @@ function usePortfolioDataState() {
         : mappedPositions.flatMap((position) => expandPositionActivations(position));
       const rate = Number.isFinite(payload.usdToIls) && (payload.usdToIls ?? 0) > 0
         ? (payload.usdToIls as number)
-        : 3.7;
+        : Number.NaN;
       const fxHistoryPoints = Array.isArray(payload.fxHistoryPoints) ? payload.fxHistoryPoints : [];
-      const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate);
+      const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate, { allowFallback: false });
       const batchedQuotes = payload.quotes ?? {};
 
         const quoteEntries = mappedPositions.map((position) => {
@@ -653,7 +403,8 @@ function usePortfolioDataState() {
             position.quantity <= 0 && !Number.isFinite(currentPrice) ? 0 : currentPrice,
             rate,
             settings.annualGrowthRate,
-            dailyChange
+            dailyChange,
+            getFxRateAt,
           );
           return {
             ...metrics,
@@ -737,9 +488,7 @@ function usePortfolioDataState() {
           };
         });
 
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const startOfTodayMs = startOfToday.getTime();
+        const startOfTodayMs = toUtcDayStart(Date.now());
         const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
 
         const timelineWithoutToday = adjustedTimeline.filter(

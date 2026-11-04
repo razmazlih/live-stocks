@@ -18,10 +18,10 @@ export function getPerformanceSeries(data: PortfolioTimelinePoint[], range: Perf
   const end = sorted.at(-1)?.timestamp;
   if (end === undefined) return [];
   const start = new Date(end);
-  if (range === 'YTD') start.setMonth(0, 1);
-  else if (range === '1Y') start.setFullYear(start.getFullYear() - 1);
-  else if (range !== 'All') start.setMonth(start.getMonth() - Number.parseInt(range, 10));
-  start.setHours(0, 0, 0, 0);
+  if (range === 'YTD') start.setUTCMonth(0, 1);
+  else if (range === '1Y') start.setUTCFullYear(start.getUTCFullYear() - 1);
+  else if (range !== 'All') start.setUTCMonth(start.getUTCMonth() - Number.parseInt(range, 10));
+  start.setUTCHours(0, 0, 0, 0);
   return sorted.filter((p) => range === 'All' || p.timestamp >= start.getTime()).map((p) => ({
     timestamp: p.timestamp,
     actual: finiteOrNull(currency === 'ILS' ? p.totalPnLIls : p.totalPnLUsd),

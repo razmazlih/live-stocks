@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mapCandleDataToPoints } from '@/lib/calculations';
 import { expandPositionActivations, mapPositionRow } from '@/lib/positions';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
+import { normalizeToUtcDay } from '@/lib/services/historical-fx';
 import {
   fetchFinnhubQuoteCached,
   FinnhubConfigError,
@@ -45,19 +46,11 @@ function buildRangeInfo(position: Position): RangeInfo {
       : null;
   const activationStartBoundaryMs =
     activationStartMs !== null
-      ? (() => {
-          const startOfDay = new Date(activationStartMs);
-          startOfDay.setHours(0, 0, 0, 0);
-          return startOfDay.getTime();
-        })()
+      ? normalizeToUtcDay(activationStartMs)
       : null;
   const activationEndBoundaryMs =
     activationEndMs !== null
-      ? (() => {
-          const endOfDay = new Date(activationEndMs);
-          endOfDay.setHours(23, 59, 59, 999);
-          return endOfDay.getTime();
-        })()
+      ? normalizeToUtcDay(activationEndMs) + 24 * 60 * 60 * 1000 - 1
       : null;
   const entryDate = position.entryDate ? new Date(position.entryDate) : null;
   const entryTimestamp = entryDate instanceof Date && !Number.isNaN(entryDate.getTime())
@@ -81,7 +74,9 @@ function buildRangeInfo(position: Position): RangeInfo {
     baselineTimestamp = to - 60 * 60 * 24 * 5;
   }
 
-  let from = Math.min(baselineTimestamp, to);
+  // Yahoo's daily candle timestamp can precede an intraday purchase. Request
+  // from midnight so that the purchase day's closing price is retained.
+  let from = Math.floor(normalizeToUtcDay(Math.min(baselineTimestamp, to) * 1000) / 1000);
   if (from === to) {
     from = Math.max(0, to - 60 * 60 * 24 * 5);
   }
@@ -150,7 +145,7 @@ export async function GET(request: NextRequest) {
     const minFrom = validFroms.length > 0 ? Math.min(...validFroms) : 0;
     const maxTo = validTos.length > 0 ? Math.max(...validTos) : 0;
 
-    const usdToIlsPromise = getUsdToIlsRate();
+    const usdToIlsPromise = getUsdToIlsRate({ allowFallback: false });
 
     const fxHistoryPromise = (async (): Promise<HistoricalPoint[]> => {
       const allTimestamps = mappedPositions.flatMap((position) =>
@@ -172,7 +167,7 @@ export async function GET(request: NextRequest) {
       );
       const fxFrom = Math.max(
         0,
-        Math.floor(((minFxTimestamp ?? Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000) - 2 * 24 * 60 * 60),
+        Math.floor(normalizeToUtcDay(minFxTimestamp ?? Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000) - 10 * 24 * 60 * 60,
       );
 
       try {

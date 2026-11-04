@@ -79,6 +79,7 @@ export interface RealizedSale {
   costBasisIls?: number;
   profitIls?: number;
   sellUsdToIls?: number;
+  matchedLots?: Array<{ buyTimestamp: number; costBasisUsd: number }>;
 }
 
 export interface StockQuote {

@@ -5,6 +5,7 @@ export function resolveIntlLocale(locale: Locale = 'he'): string {
 }
 
 export function formatCurrency(value: number, currency: 'USD' | 'ILS', locale: Locale = 'he'): string {
+  if (!Number.isFinite(value)) return '—';
   return new Intl.NumberFormat(resolveIntlLocale(locale), {
     style: 'currency',
     currency,
@@ -14,6 +15,7 @@ export function formatCurrency(value: number, currency: 'USD' | 'ILS', locale: L
 }
 
 export function formatNumber(value: number, locale: Locale = 'he'): string {
+  if (!Number.isFinite(value)) return '—';
   return new Intl.NumberFormat(resolveIntlLocale(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -21,6 +23,7 @@ export function formatNumber(value: number, locale: Locale = 'he'): string {
 }
 
 export function formatPercent(value: number, locale: Locale = 'he'): string {
+  if (!Number.isFinite(value)) return '—';
   return new Intl.NumberFormat(resolveIntlLocale(locale), {
     style: 'percent',
     minimumFractionDigits: 2,

@@ -11,7 +11,11 @@ export function normalizeToUtcDay(timestamp: number): number {
 export function buildUsdIlsRateResolver(
   points: HistoricalPoint[],
   fallbackRate: number,
+  options: { allowFallback?: boolean } = {},
 ): (timestamp: number) => number {
+  // A current quote is not evidence of the exchange rate on an earlier date.
+  // Strict consumers leave the value unavailable rather than rewriting history.
+  const missingRate = options.allowFallback === false ? Number.NaN : fallbackRate;
   const validPoints = points
     .map((point) => ({
       day: normalizeToUtcDay(point.timestamp),
@@ -27,7 +31,7 @@ export function buildUsdIlsRateResolver(
 
   return (timestamp: number): number => {
     if (!Number.isFinite(timestamp)) {
-      return fallbackRate;
+      return missingRate;
     }
 
     const targetDay = normalizeToUtcDay(timestamp);
@@ -57,7 +61,7 @@ export function buildUsdIlsRateResolver(
       }
     }
 
-    return candidate ?? fallbackRate;
+    return candidate ?? missingRate;
   };
 }
 

@@ -6,7 +6,7 @@ import {
   calculateRealizedTaxLiability,
   enrichPortfolioSummaryWithRealized,
 } from '@/lib/calculations';
-import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
+import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints, normalizeToUtcDay } from '@/lib/services/historical-fx';
 import { computeRealizedSalesWithFx, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
@@ -61,29 +61,13 @@ export async function GET(request: NextRequest) {
     const openPositions = mappedPositions
       .filter(position => isFiniteNumber(position.quantity) && position.quantity > 0);
 
-    const usdToIlsRate = await getUsdToIlsRate();
+    const usdToIlsRate = await getUsdToIlsRate({ allowFallback: false });
 
     const annualGrowthRate = settingsResult.data && isFiniteNumber(settingsResult.data.annual_growth_rate)
       ? settingsResult.data.annual_growth_rate
       : DEFAULT_GROWTH_RATE;
 
     const finnhubToken = settingsResult.data?.finnhub_token || process.env.FINNHUB_TOKEN;
-
-    const metrics = await Promise.all(
-      openPositions.map(async (position) => {
-        const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
-        const currentPrice = quote?.price && quote.price > 0 ? quote.price : position.entryPrice;
-
-        return calculatePositionMetrics(
-          position,
-          currentPrice,
-          usdToIlsRate,
-          annualGrowthRate,
-        );
-      }),
-    );
-
-    const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
 
     const lotTimestamps = mappedPositions.flatMap((position) =>
       (Array.isArray(position.lots) ? position.lots : [])
@@ -94,11 +78,29 @@ export async function GET(request: NextRequest) {
       ? Math.min(...lotTimestamps)
       : Date.now() - 365 * 24 * 60 * 60 * 1000;
     const fxPoints = await fetchUsdIlsHistoricalPoints(
-      Math.floor(earliestLotTimestamp / 1000),
+      Math.max(0, Math.floor(normalizeToUtcDay(earliestLotTimestamp) / 1000) - 10 * 86400),
       Math.floor(Date.now() / 1000),
       { baseUrl: request.nextUrl.origin },
     );
-    const getFxRateAt = buildUsdIlsRateResolver(fxPoints, usdToIlsRate);
+    const getFxRateAt = buildUsdIlsRateResolver(fxPoints, usdToIlsRate, { allowFallback: false });
+
+    const metrics = await Promise.all(
+      openPositions.map(async (position) => {
+        const quote = await fetchFinnhubQuote(position.symbol, { token: finnhubToken ?? undefined });
+        const currentPrice = quote?.price && Number.isFinite(quote.price) && quote.price > 0 ? quote.price : position.quantity <= 0 ? 0 : Number.NaN;
+
+        return calculatePositionMetrics(
+          position,
+          currentPrice,
+          usdToIlsRate,
+          annualGrowthRate,
+          undefined,
+          getFxRateAt,
+        );
+      }),
+    );
+
+    const summary = calculatePortfolioSummary(metrics, usdToIlsRate);
 
     const realizedSales = mappedPositions.flatMap((position) =>
       computeRealizedSalesWithFx(position, getFxRateAt),

@@ -523,6 +523,7 @@ function computeRealizedSalesInternal(
     let costBasisUsd = 0;
     let costBasisIls = 0;
     let weightedHoldingDays = 0;
+    const matchedLots: NonNullable<RealizedSale['matchedLots']> = [];
 
     while (remaining > 0 && openBuys.length) {
       const current = openBuys[0];
@@ -535,6 +536,7 @@ function computeRealizedSalesInternal(
       const costPerUnit = current.quantity > 0 ? current.totalCost / current.quantity : current.price;
       const costPortion = costPerUnit * matched;
       costBasisUsd += costPortion;
+      matchedLots.push({ buyTimestamp: current.timestamp, costBasisUsd: costPortion });
       costBasisIls += shouldIncludeFx ? costPortion * getFxRateAt(current.timestamp) : 0;
       matchedQuantity += matched;
 
@@ -578,6 +580,7 @@ function computeRealizedSalesInternal(
       profitPercent,
       averageEntryPrice,
       holdingPeriodDays,
+      matchedLots,
     };
 
     if (shouldIncludeFx) {

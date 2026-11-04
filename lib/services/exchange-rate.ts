@@ -37,10 +37,11 @@ export function extractExchangeRate(
 interface UsdToIlsRateOptions extends Partial<RetryOptions> {
   init?: RequestInit;
   fallback?: number;
+  allowFallback?: boolean;
 }
 
 export async function getUsdToIlsRate(options: UsdToIlsRateOptions = {}): Promise<number> {
-  const { init, fallback: customFallback, ...retryOptions } = options;
+  const { init, fallback: customFallback, allowFallback = true, ...retryOptions } = options;
 
   const fallback = isFiniteNumber(customFallback) && customFallback > 0
     ? customFallback
@@ -54,10 +55,10 @@ export async function getUsdToIlsRate(options: UsdToIlsRateOptions = {}): Promis
       return rate;
     }
 
-    console.warn('ILS rate missing from exchange response, using fallback');
+    console.warn('ILS rate missing from exchange response');
   } catch (error) {
-    console.error('Failed to fetch exchange rate, using fallback:', error);
+    console.error('Failed to fetch exchange rate:', error);
   }
 
-  return fallback;
+  return allowFallback ? fallback : Number.NaN;
 }

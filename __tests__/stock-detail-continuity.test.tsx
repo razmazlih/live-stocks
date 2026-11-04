@@ -23,6 +23,7 @@ beforeEach(() => {
   nextCandleRequests = [];
   failQuotes = false;
   vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+    if (input.startsWith('/api/candles?symbol=ILS%3DX')) return candles(3.7);
     if (input.startsWith('/api/candles')) return nextCandleRequests.shift()?.promise ?? candles(110);
     if (input.startsWith('/api/quote')) {
       if (failQuotes) throw new Error('Offline');
@@ -38,6 +39,9 @@ describe('stock detail continuity', () => {
     render(<StockDetailView symbol="AAPL" />);
     await screen.findByTestId('stock-chart');
     expect(screen.getByTestId('route-shell')).toHaveAttribute('data-active', 'positions');
+    const fxRequest = vi.mocked(fetch).mock.calls.map(([input]) => String(input)).find((url) => url.startsWith('/api/candles?symbol=ILS%3DX'));
+    expect(fxRequest).toBeDefined();
+    expect(Number(new URL(fxRequest!, 'http://localhost').searchParams.get('from'))).toBeLessThanOrEqual(1735689600 - 10 * 86400);
     expect(screen.getByRole('link', { name: /Back to/ })).toHaveAttribute('href', '/positions?q=apple');
     const older = deferred();
     const newer = deferred();

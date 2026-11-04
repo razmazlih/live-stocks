@@ -5,7 +5,7 @@ import { calculatePositionMetrics, calculatePortfolioSummary, calculateSymbolExc
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { fetchExchangeRateResponse, extractExchangeRate } from '@/lib/services/exchange-rate';
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
-import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
+import { buildUsdIlsRateResolver, normalizeToUtcDay } from '@/lib/services/historical-fx';
 import type { HistoricalPoint } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -53,12 +53,14 @@ export async function GET() {
     const timestamps = lotRows.map(lot => new Date(lot.executed_at).getTime()).filter(Number.isFinite);
     if (timestamps.length) {
       try {
-        fxHistory = mapCandleDataToPoints(await fetchYahooCandlesData('ILS=X', Math.floor(Math.min(...timestamps) / 1000) - 7 * 86400, Math.floor(Date.now() / 1000), 'D'));
+        fxHistory = mapCandleDataToPoints(await fetchYahooCandlesData('ILS=X', Math.floor(normalizeToUtcDay(Math.min(...timestamps)) / 1000) - 10 * 86400, Math.floor(Date.now() / 1000), 'D'));
       } catch { /* Explicitly reported below; USD calculations remain available. */ }
     }
-    if (timestamps.length) warnings.push('Historical ILS values use available daily FX, falling back to current FX where history is missing.');
     const fx = fxResult ?? 1;
-    const rateAt = buildUsdIlsRateResolver(fxHistory, fx);
+    const rateAt = buildUsdIlsRateResolver(fxHistory, fx, { allowFallback: false });
+    if (timestamps.some(timestamp => !Number.isFinite(rateAt(timestamp)))) {
+      warnings.push('Historical USD/ILS rates are missing for recorded transactions; affected ILS calculations are omitted.');
+    }
     const realizedSales = positions.flatMap(p => computeRealizedSalesWithFx(p, rateAt)).sort((a,b) => a.sellDate.localeCompare(b.sellDate));
     const open = activations.filter(p => p.quantity > 0 && !p.isHistoricalActivation);
     const missingSymbols = [...new Set(open.filter(p => !quotes.get(p.symbol.trim().toUpperCase())).map(p => p.symbol.trim().toUpperCase()))];
@@ -66,7 +68,7 @@ export async function GET() {
     const metrics = open.map(position => {
       const quote = quotes.get(position.symbol.trim().toUpperCase());
       if (!quote) return null;
-      return calculatePositionMetrics(position, quote.price, fx, annualGrowthRate ?? 0, quote.dailyChange);
+      return calculatePositionMetrics(position, quote.price, fx, annualGrowthRate ?? 0, quote.dailyChange, rateAt);
     });
     const pricedMetrics = metrics.filter(m => m !== null);
     const openSummary = missingSymbols.length ? null : calculatePortfolioSummary(pricedMetrics, fx);
@@ -110,7 +112,7 @@ export async function GET() {
         'Quotes are last available market observations, possibly delayed or from a prior trading session; generatedAt is not a market timestamp.',
         'Allocation denominator includes recorded open securities only; cash, deposits, withdrawals, dividends, liabilities, sector exposure, risk tolerance and investment horizon are not tracked and are unknown.',
         'Tax is an application estimate using a 25% model, not actual paid tax or a complete tax assessment. Summary totalTaxesPaid fields mean estimated tax.',
-        'ILS amounts use daily historical FX where available and current FX as fallback; open P&L conversion does not isolate FX gains.',
+        'ILS profit includes currency gains and losses using daily historical purchase/sale FX and current FX for open market value. Missing historical FX makes affected ILS amounts unavailable; non-trading days use the last available past rate.',
         'Position lots include recorded commissions; future sale costs and slippage are unknown. Pending plans are intentions, not holdings.',
         'Historical prices, volatility, drawdowns, benchmark returns and company fundamentals are not included; obtain them separately before making recommendations.',
       ],
