@@ -11,10 +11,12 @@ const PADDING = 8;
 const DURATION = 420;
 const EMPTY_EVENTS: SparklineEvent[] = [];
 const COLORS = { profit: '#059669', loss: '#e11d48', neutral: '#64748b', belowTarget: '#2563eb' };
+const validNumber = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 const validPrice = (value: number | undefined): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 interface HoldingTrendBackgroundProps {
   points: HistoricalPoint[];
+  profitPoints?: { timestamp: number; actual: number | null; target: number | null }[];
   tone?: 'profit' | 'loss' | 'neutral';
   expanded?: boolean;
   baseline?: number;
@@ -25,7 +27,7 @@ interface HoldingTrendBackgroundProps {
 }
 
 /** One persistent price path morphs from a decorative trend to the detailed chart. */
-export function HoldingTrendBackground({ points, tone = 'neutral', expanded = false, baseline, targetPrice, events = EMPTY_EVENTS, references, locale = 'he' }: HoldingTrendBackgroundProps) {
+export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral', expanded = false, baseline, targetPrice, events = EMPTY_EVENTS, references, locale = 'he' }: HoldingTrendBackgroundProps) {
   const color = COLORS[tone];
   const gradientId = useId();
   const strokeId = `${gradientId}-stroke`;
@@ -56,17 +58,35 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
   }, [expanded, reducedMotion]);
 
   const data = useMemo(() => {
-    const history = Array.from(new Map(points
-      .filter((point) => Number.isFinite(point.timestamp) && validPrice(point.close))
-      .map((point) => [point.timestamp, point])).values())
-      .sort((left, right) => left.timestamp - right.timestamp);
-    if (history.length < 2) return null;
-    const trades = events.filter((event) => (event.type === 'BUY' || event.type === 'SELL') && Number.isFinite(event.timestamp) && validPrice(event.price) && event.quantity > 0 && Number.isFinite(event.quantity));
-    let low = history[0].close;
+    const profitMode = profitPoints !== undefined;
+    const validValue = profitMode ? validNumber : (value: number | null | undefined) => validPrice(value ?? undefined);
+    const history: { timestamp: number; close: number | null }[] = profitMode
+      ? Array.from(new Map(profitPoints.filter((point) => Number.isFinite(point.timestamp)).map((point) => [point.timestamp, { timestamp: point.timestamp, close: validNumber(point.actual) ? point.actual : null }])).values()).sort((a, b) => a.timestamp - b.timestamp)
+      : Array.from(new Map(points.filter((point) => Number.isFinite(point.timestamp) && validPrice(point.close)).map((point) => [point.timestamp, { timestamp: point.timestamp, close: point.close }])).values()).sort((a, b) => a.timestamp - b.timestamp);
+    const known = history.filter((point): point is { timestamp: number; close: number } => validNumber(point.close));
+    if (known.length < 2) return null;
+    const actualAt = (timestamp: number) => {
+      let left = 0;
+      let right = history.length - 1;
+      while (left <= right) {
+        const middle = Math.floor((left + right) / 2);
+        if (history[middle].timestamp === timestamp) return history[middle].close;
+        if (history[middle].timestamp < timestamp) left = middle + 1;
+        else right = middle - 1;
+      }
+      const before = history[right];
+      const after = history[left];
+      if (!before || !after || !validNumber(before.close) || !validNumber(after.close)) return null;
+      return before.close + (after.close - before.close) * (timestamp - before.timestamp) / (after.timestamp - before.timestamp);
+    };
+    const trades = events.filter((event) => (event.type === 'BUY' || event.type === 'SELL') && Number.isFinite(event.timestamp) && validPrice(event.price) && event.quantity > 0 && Number.isFinite(event.quantity))
+      .map((trade) => ({ ...trade, plotValue: profitMode ? actualAt(trade.timestamp) : trade.price }))
+      .filter((trade): trade is SparklineEvent & { plotValue: number } => validNumber(trade.plotValue));
+    let low = known[0].close;
     let high = low;
     let start = history[0].timestamp;
     let end = history[history.length - 1].timestamp;
-    for (const point of history) {
+    for (const point of known) {
       low = Math.min(low, point.close);
       high = Math.max(high, point.close);
     }
@@ -74,16 +94,19 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
       start = Math.min(start, trade.timestamp);
       end = Math.max(end, trade.timestamp);
     }
-    const referencePoints = references === undefined
+    const suppliedReferences = profitMode
+      ? profitPoints.map((point) => ({ timestamp: point.timestamp, baseline: 0, target: validNumber(point.target) ? point.target : null }))
+      : references;
+    const referencePoints = suppliedReferences === undefined
       ? [history[0].timestamp, history[history.length - 1].timestamp].map((timestamp) => ({ timestamp, baseline: validPrice(baseline) ? baseline : null, target: validPrice(targetPrice) ? targetPrice : null }))
-      : Array.from(new Map(references.filter((point) => Number.isFinite(point.timestamp)).map((point) => [point.timestamp, point])).values()).sort((a, b) => a.timestamp - b.timestamp);
+      : Array.from(new Map(suppliedReferences.filter((point) => Number.isFinite(point.timestamp)).map((point) => [point.timestamp, point])).values()).sort((a, b) => a.timestamp - b.timestamp);
     const referenceAt = (timestamp: number) => {
       let left = 0;
       let right = referencePoints.length - 1;
       while (left <= right) {
         const middle = Math.floor((left + right) / 2);
         const point = referencePoints[middle];
-        if (point.timestamp === timestamp) return { baseline: validPrice(point.baseline ?? undefined) ? point.baseline : null, target: validPrice(point.target ?? undefined) ? point.target : null };
+        if (point.timestamp === timestamp) return { baseline: validValue(point.baseline) ? point.baseline : null, target: validValue(point.target) ? point.target : null };
         if (point.timestamp < timestamp) left = middle + 1;
         else right = middle - 1;
       }
@@ -92,29 +115,32 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
       // Unknown spans and times outside recorded reference history stay unknown.
       if (!before || !after) return { baseline: null, target: null };
       const ratio = (timestamp - before.timestamp) / (after.timestamp - before.timestamp);
-      const interpolate = (key: 'baseline' | 'target') => validPrice(before[key] ?? undefined) && validPrice(after[key] ?? undefined)
+      const interpolate = (key: 'baseline' | 'target') => validValue(before[key]) && validValue(after[key])
         ? before[key]! + (after[key]! - before[key]!) * ratio : null;
       return { baseline: interpolate('baseline'), target: interpolate('target') };
     };
     let expandedLow = low;
     let expandedHigh = high;
     const referencePrices = referencePoints.filter((point) => point.timestamp >= start && point.timestamp <= end).flatMap((point) => [point.baseline, point.target]);
-    for (const price of [...referencePrices, ...trades.map((trade) => trade.price)]) {
-      if (validPrice(price ?? undefined)) {
-        expandedLow = Math.min(expandedLow, price!);
-        expandedHigh = Math.max(expandedHigh, price!);
+    for (const value of [...referencePrices, ...trades.map((trade) => trade.plotValue)]) {
+      if (validValue(value)) {
+        expandedLow = Math.min(expandedLow, value!);
+        expandedHigh = Math.max(expandedHigh, value!);
       }
     }
     const x = (timestamp: number) => PADDING + (timestamp - start) / (end - start) * (WIDTH - PADDING * 2);
-    const classify = (price: number, timestamp: number) => {
+    const classify = (value: number, timestamp: number) => {
       const reference = referenceAt(timestamp);
-      return reference.baseline === null ? COLORS.neutral : price < reference.baseline ? COLORS.loss : reference.target === null ? COLORS.neutral : price >= reference.target ? COLORS.profit : COLORS.belowTarget;
+      return reference.baseline === null ? COLORS.neutral : value < reference.baseline ? COLORS.loss : reference.target === null ? COLORS.neutral : value >= reference.target ? COLORS.profit : COLORS.belowTarget;
     };
     const stops: { offset: number; color: string }[] = [];
     for (let index = 1; index < history.length; index++) {
       const left = history[index - 1];
       const right = history[index];
-      const priceAt = (timestamp: number) => left.close + (right.close - left.close) * (timestamp - left.timestamp) / (right.timestamp - left.timestamp);
+      if (!validNumber(left.close) || !validNumber(right.close)) continue;
+      const leftValue = left.close;
+      const rightValue = right.close;
+      const valueAt = (timestamp: number) => leftValue + (rightValue - leftValue) * (timestamp - left.timestamp) / (right.timestamp - left.timestamp);
       const times = [left.timestamp, ...referencePoints.filter((point) => point.timestamp > left.timestamp && point.timestamp < right.timestamp).map((point) => point.timestamp), right.timestamp];
       for (let part = 1; part < times.length; part++) {
         const fromTime = times[part - 1];
@@ -125,8 +151,8 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
         const cuts = [0, 1];
         for (const key of ['baseline', 'target'] as const) {
           if (before[key] === null || after[key] === null || middle[key] === null) continue;
-          const fromGap = priceAt(fromTime) - before[key]!;
-          const toGap = priceAt(toTime) - after[key]!;
+          const fromGap = valueAt(fromTime) - before[key]!;
+          const toGap = valueAt(toTime) - after[key]!;
           if (fromGap * toGap < 0) cuts.push(fromGap / (fromGap - toGap));
         }
         cuts.sort((a, b) => a - b);
@@ -135,30 +161,38 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
           const to = fromTime + (toTime - fromTime) * cuts[cut];
           if (to <= from) continue;
           const center = (from + to) / 2;
-          const segmentColor = classify(priceAt(center), center);
+          const segmentColor = classify(valueAt(center), center);
           stops.push({ offset: x(from) / WIDTH, color: segmentColor }, { offset: x(to) / WIDTH, color: segmentColor });
         }
       }
     }
-    return { history, trades, referencePoints, low, high, expandedLow, expandedHigh, x, stops, classify };
-
-  }, [points, events, baseline, targetPrice, references]);
+    return { history, known, trades, referencePoints, low, high, expandedLow, expandedHigh, x, stops, classify, validValue };
+  }, [points, profitPoints, events, baseline, targetPrice, references]);
 
   if (!data) return null;
   const domainProgress = reducedMotion || typeof requestAnimationFrame === 'undefined' ? Number(expanded) : progress;
   const low = data.low + (data.expandedLow - data.low) * domainProgress;
   const high = data.high + (data.expandedHigh - data.high) * domainProgress;
   const y = (price: number) => high > low ? HEIGHT - 24 - (price - low) / (high - low) * (HEIGHT - 48) : HEIGHT / 2;
-  const coordinates = data.history.map((point) => ({ x: data.x(point.timestamp), y: y(point.close) }));
-  const line = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
-  const first = coordinates[0];
-  const last = coordinates[coordinates.length - 1];
-  const area = `${line} L${last.x},${HEIGHT} L${first.x},${HEIGHT} Z`;
+  const segments: { x: number; y: number }[][] = [];
+  let activeSegment: { x: number; y: number }[] | null = null;
+  for (const point of data.history) {
+    if (!validNumber(point.close)) { activeSegment = null; continue; }
+    if (!activeSegment) { activeSegment = []; segments.push(activeSegment); }
+    activeSegment.push({ x: data.x(point.timestamp), y: y(point.close) });
+  }
+  const line = segments.map((segment) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ')).join(' ');
+  const area = segments.filter((segment) => segment.length >= 2).map((segment) => {
+    const line = segment.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+    return `${line} L${segment[segment.length - 1].x},${HEIGHT} L${segment[0].x},${HEIGHT} Z`;
+  }).join(' ');
+  const latest = data.known[data.known.length - 1];
+  const last = { x: data.x(latest.timestamp), y: y(latest.close) };
   const referencePath = (key: 'baseline' | 'target') => {
     let connected = false;
     return data.referencePoints.map((point) => {
       const value = point[key];
-      if (!validPrice(value ?? undefined)) { connected = false; return ''; }
+      if (!data.validValue(value)) { connected = false; return ''; }
       const command = connected ? 'L' : 'M';
       connected = true;
       return `${command}${data.x(point.timestamp).toFixed(2)},${y(value!).toFixed(2)}`;
@@ -187,9 +221,9 @@ export function HoldingTrendBackground({ points, tone = 'neutral', expanded = fa
       {targetPath ? <path data-reference="target" d={targetPath} fill="none" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" /> : null}
     </g>
     <path data-price-line="true" d={line} fill="none" stroke={`url(#${strokeId})`} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    <g data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded ? data.classify(data.history[data.history.length - 1].close, data.history[data.history.length - 1].timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
+    <g data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded ? data.classify(latest.close, latest.timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
     <g style={detailStyle}>
-      {data.trades.map((trade, index) => <g key={trade.id ?? index} data-event={trade.type} data-event-time={trade.timestamp} data-event-price={trade.price} style={{ pointerEvents: expanded ? 'all' : 'none' }} transform={`translate(${data.x(trade.timestamp)},${y(trade.price)})`}>
+      {data.trades.map((trade, index) => <g key={trade.id ?? index} data-event={trade.type} data-event-time={trade.timestamp} data-event-price={trade.price} style={{ pointerEvents: expanded ? 'all' : 'none' }} transform={`translate(${data.x(trade.timestamp)},${y(trade.plotValue)})`}>
         <g style={markerStyle}>
           <circle r="7" fill={trade.type === 'BUY' ? '#059669' : '#e11d48'} fillOpacity="0.12" />
           {trade.type === 'BUY'

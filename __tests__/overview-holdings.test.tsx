@@ -125,7 +125,8 @@ describe('overview holdings continuity', () => {
   it('keeps one price graph mounted while expanding and collapsing its card', async () => {
     const user = userEvent.setup();
     const history = [{ timestamp: Date.UTC(2025, 0, 1), close: 80 }, { timestamp: Date.UTC(2025, 0, 3), close: 100 }];
-    render(<OverviewHoldings metrics={metrics} sparklineData={{ AAPL: history }} />);
+    const apple = { ...metrics[0], position: { ...metrics[0].position, entryDate: '2025-01-01T00:00:00Z', lots: [{ type: 'BUY' as const, executedAt: '2025-01-01T00:00:00Z', price: 80, quantity: 1, hasCommission: false, commissionAmount: 0 }] } };
+    render(<OverviewHoldings metrics={[apple, metrics[1]]} sparklineData={{ AAPL: history }} />);
     const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
     const card = toggle.closest('article')!;
     const graph = card.querySelector('.holding-trend-layer svg');
@@ -134,7 +135,7 @@ describe('overview holdings continuity', () => {
     expect(within(card).queryByRole('img')).not.toBeInTheDocument();
     await user.click(toggle);
     expect(card.querySelector('.holding-trend-layer svg')).toBe(graph);
-    expect(within(card).getByRole('img', { name: /AAPL USD share prices/ })).toBeInTheDocument();
+    expect(within(card).getByRole('img', { name: /AAPL cumulative USD profit/ })).toBeInTheDocument();
     await user.click(toggle);
     expect(card.querySelector('.holding-trend-layer svg')).toBe(graph);
     expect(within(card).queryByRole('img')).not.toBeInTheDocument();

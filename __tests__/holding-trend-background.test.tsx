@@ -176,4 +176,50 @@ describe('HoldingTrendBackground', () => {
     expect(container.querySelector('[data-event="SELL"] rect')).toBeNull();
   });
 
+
+  it('plots signed cumulative profit with a literal zero baseline and a profit goal', () => {
+    const { container } = render(<HoldingTrendBackground expanded points={[{ timestamp: 0, close: 999000 }, { timestamp: 1000, close: 999999 }]} baseline={999000} targetPrice={999999} profitPoints={[
+      { timestamp: 0, actual: -100, target: 20 }, { timestamp: 1000, actual: 100, target: 40 },
+    ]} />);
+    expect(container.querySelector('[data-price-line]')).toHaveAttribute('d', 'M8.00,136.00 L992.00,24.00');
+    expect(container.querySelector('[data-reference="baseline"]')).toHaveAttribute('d', 'M8.00,80.00 L992.00,80.00');
+    expect(container.querySelector('[data-reference="target"]')).toHaveAttribute('d', 'M8.00,68.80 L992.00,57.60');
+    const colors = [...container.querySelectorAll('[data-price-stroke] stop')].map((stop) => stop.getAttribute('stop-color'));
+    expect(colors).toEqual(['#e11d48', '#e11d48', '#2563eb', '#2563eb', '#059669', '#059669']);
+  });
+
+  it('places trades on interpolated profit rather than their raw share prices', () => {
+    const { container } = render(<HoldingTrendBackground expanded points={[]} profitPoints={[
+      { timestamp: 0, actual: -100, target: 20 }, { timestamp: 1000, actual: 100, target: 40 },
+    ]} events={[
+      { id: 'buy', type: 'BUY', timestamp: 250, price: 500000, quantity: 1 },
+      { id: 'sell', type: 'SELL', timestamp: 750, price: 1, quantity: 1 },
+    ]} />);
+    expect(container.querySelector('[data-event="BUY"]')).toHaveAttribute('transform', 'translate(254,108)');
+    expect(container.querySelector('[data-event="SELL"]')).toHaveAttribute('transform', 'translate(746,52)');
+    expect(container.querySelector('[data-event="BUY"] title')?.textContent).toContain('$500000');
+    expect(container.querySelector('[data-reference="baseline"]')).toHaveAttribute('d', 'M8.00,80.00 L992.00,80.00');
+  });
+
+  it('breaks profit line and area across unknown values and omits trades within the gap', () => {
+    const { container } = render(<HoldingTrendBackground expanded points={[]} profitPoints={[
+      { timestamp: 0, actual: -100, target: 10 },
+      { timestamp: 1000, actual: null, target: 20 },
+      { timestamp: 2000, actual: 50, target: 30 },
+      { timestamp: 3000, actual: 100, target: 40 },
+    ]} events={[
+      { id: 'unknown', type: 'BUY', timestamp: 1500, price: 200, quantity: 1 },
+      { id: 'known', type: 'SELL', timestamp: 2500, price: 250, quantity: 1 },
+    ]} />);
+    const line = container.querySelector('[data-price-line]')?.getAttribute('d');
+    expect(line?.match(/M/g)).toHaveLength(2);
+    expect(line?.match(/L/g)).toHaveLength(1);
+    const area = container.querySelector('[data-price-area]')?.getAttribute('d');
+    expect(area?.match(/M/g)).toHaveLength(1);
+    expect(container.querySelectorAll('[data-event]')).toHaveLength(1);
+    expect(container.querySelector('[data-event="BUY"]')).toBeNull();
+    expect(container.querySelector('[data-event="SELL"]')).toHaveAttribute('data-event-time', '2500');
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
+  });
+
 });
