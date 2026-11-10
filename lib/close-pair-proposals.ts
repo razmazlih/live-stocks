@@ -56,10 +56,10 @@ function fullCloseLeg(metric: PositionMetrics, asOf: number): ClosePairLeg | und
 }
 
 /**
- * Independent full-close alternatives, before tax and unknown future sale fees.
+ * Non-overlapping full-close pairs, before tax and unknown future sale fees.
  * FIFO costs include only the buy fees allocated to the shares still open.
- * Prefer the largest loss covered, then the greatest remaining profit. An
- * alternative may reuse a position; these are not a simultaneous trading plan.
+ * Greedily prefer the largest loss covered, then the greatest remaining profit.
+ * Each normalized ticker appears at most once, including across accounts.
  */
 export function buildClosePairProposals(
   metrics: PositionMetrics[],
@@ -84,7 +84,23 @@ export function buildClosePairProposals(
       });
     }
   }
-  return proposals.sort((a, b) => b.lossUsd - a.lossUsd || b.netProfitUsd - a.netProfitUsd ||
-    a.winner.position.symbol.localeCompare(b.winner.position.symbol) ||
-    a.loser.position.symbol.localeCompare(b.loser.position.symbol)).slice(0, Math.floor(limit));
+  const symbolKey = (leg: ClosePairLeg) => leg.position.symbol.trim().toUpperCase();
+  const ranked = proposals.sort((a, b) => b.lossUsd - a.lossUsd || b.netProfitUsd - a.netProfitUsd ||
+    symbolKey(a.winner).localeCompare(symbolKey(b.winner)) ||
+    symbolKey(a.loser).localeCompare(symbolKey(b.loser)) ||
+    a.winner.position.location.localeCompare(b.winner.position.location) ||
+    (a.winner.position.id ?? '').localeCompare(b.winner.position.id ?? '') ||
+    (a.loser.position.id ?? '').localeCompare(b.loser.position.id ?? ''));
+  const usedSymbols = new Set<string>();
+  const selected: ClosePairProposal[] = [];
+  for (const proposal of ranked) {
+    const winnerSymbol = symbolKey(proposal.winner);
+    const loserSymbol = symbolKey(proposal.loser);
+    if (usedSymbols.has(winnerSymbol) || usedSymbols.has(loserSymbol)) continue;
+    selected.push(proposal);
+    usedSymbols.add(winnerSymbol);
+    usedSymbols.add(loserSymbol);
+    if (selected.length >= Math.floor(limit)) break;
+  }
+  return selected;
 }

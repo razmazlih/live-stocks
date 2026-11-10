@@ -14,7 +14,7 @@ const lot = (overrides: Partial<PositionLot> = {}): PositionLot => ({
   hasCommission: true, commissionAmount: 10, ...overrides,
 });
 
-describe('full-close pair alternatives', () => {
+describe('non-overlapping full-close pairs', () => {
   it('closes both full quantities and retains a positive combined profit', () => {
     const result = buildClosePairProposals([metric('WIN', 130), metric('LOSS', 80)], 3, asOf);
     expect(result).toHaveLength(1);
@@ -54,8 +54,37 @@ describe('full-close pair alternatives', () => {
   it('ranks larger covered losses first, then remaining profit, with a bounded list', () => {
     const results = buildClosePairProposals([metric('W1', 160), metric('W2', 150), metric('L1', 80), metric('L2', 90)], 3, asOf);
     expect(results.map(({ winner, loser }) => [winner.position.symbol, loser.position.symbol]))
-      .toEqual([['W1', 'L1'], ['W2', 'L1'], ['W1', 'L2']]);
-    expect(buildClosePairProposals([metric('W', 160), metric('L', 80)], 0, asOf)).toEqual([]);
+      .toEqual([['W1', 'L1'], ['W2', 'L2']]);
+    expect(new Set(results.flatMap(pair => [pair.winner.position.symbol, pair.loser.position.symbol])).size).toBe(4);
+  });
+
+  it('never reuses a ticker in either role across accounts, ignoring casing and whitespace', () => {
+    const metrics = [metric('WIN', 160), metric('LOSS', 80),
+      metric(' win ', 150, { location: 'bank_two' }), metric('OTHER', 90, { location: 'bank_two' }),
+      metric('THIRD', 140, { location: 'bank_two' }), metric(' loss ', 90, { location: 'bank_two' }),
+      metric(' win ', 90, { location: 'bank_two' }), metric(' loss ', 150, { location: 'bank_two' }),
+      metric('FREE', 95, { location: 'bank_two' })];
+    const results = buildClosePairProposals(metrics, 3, asOf);
+    expect(results.map(({ winner, loser }) => [winner.position.symbol, loser.position.symbol]))
+      .toEqual([['WIN', 'LOSS'], ['THIRD', 'OTHER']]);
+    const tickers = results.flatMap(pair => [pair.winner, pair.loser])
+      .map(leg => leg.position.symbol.trim().toUpperCase());
+    expect(new Set(tickers).size).toBe(tickers.length);
+  });
+
+  it('keeps equal-priority selection deterministic and respects zero, invalid, and positive limits', () => {
+    const metrics = [metric('WB', 150), metric('WA', 150), metric('WC', 150), metric('WD', 150),
+      metric('LB', 90), metric('LA', 90), metric('LC', 90), metric('LD', 90)];
+    const symbols = (items: typeof metrics) => buildClosePairProposals(items, 3, asOf)
+      .map(pair => `${pair.winner.position.symbol}/${pair.loser.position.symbol}`);
+    expect(symbols(metrics)).toEqual(['WA/LA', 'WB/LB', 'WC/LC']);
+    expect(symbols([...metrics].reverse())).toEqual(symbols(metrics));
+    expect(buildClosePairProposals(metrics, undefined, asOf)).toHaveLength(3);
+    expect(buildClosePairProposals(metrics, 1, asOf)).toHaveLength(1);
+    expect(buildClosePairProposals(metrics, 2.9, asOf)).toHaveLength(2);
+    for (const limit of [0, -1, 0.9, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(buildClosePairProposals(metrics, limit, asOf)).toEqual([]);
+    }
   });
 
   it('rejects invalid quotes, malformed or future lots, oversells, and historical activations', () => {

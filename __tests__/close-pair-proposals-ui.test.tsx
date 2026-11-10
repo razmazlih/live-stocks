@@ -2,10 +2,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
+import { toast } from 'sonner';
 import { calculatePositionMetrics } from '@/lib/calculations';
 import type { Position } from '@/types';
 
 const context = vi.hoisted(() => ({ locale: 'en' }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/context', () => ({ useApp: () => context }));
 const metric = (symbol: string, price: number) => calculatePositionMetrics({
   id: symbol, symbol, display: symbol, imageUrl: '', entryPrice: 100,
@@ -52,4 +54,37 @@ describe('close pair disclosure', () => {
     expect(screen.getByText(/הדמיה בדולרים/)).toBeInTheDocument();
     expect(screen.getAllByText(/כל 2 המניות/)).toHaveLength(2);
   });
+  it('copies exactly the non-overlapping displayed pairs without opening details', async () => {
+    context.locale = 'en';
+    const user = userEvent.setup();
+    const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+    render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80), metric('OTHER', 95)]} />);
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    const toggle = screen.getByRole('button', { name: /Two-position exit ideas/ });
+    await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const prompt = write.mock.calls[0][0];
+    const snapshot = JSON.parse(prompt.slice(prompt.indexOf('{')));
+    expect(snapshot.pairs).toHaveLength(1);
+    expect(snapshot.pairs[0].legs.map((leg: {symbol: string}) => leg.symbol)).toEqual(['WIN', 'LOSS']);
+    expect(snapshot.pairs[0].combinedProfitUsd).toBe(20);
+    expect(snapshot.pairs[0].legs[0]).toMatchObject({quantity: 2, referencePriceUsd: 130, remainingFifoCostUsd: 200});
+    expect(prompt).toContain('The document generation time is not a quote timestamp');
+    expect(prompt).not.toContain('bank_one');
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('reports clipboard errors and allows retry', async () => {
+    context.locale = 'en';
+    const user = userEvent.setup();
+    const write = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Blocked')).mockResolvedValue();
+    render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
+    const copy = screen.getByRole('button', { name: 'Copy prompt for AI review' });
+    await user.click(copy);
+    expect(toast.error).toHaveBeenCalledWith('Copy failed. Please try again.');
+    expect(copy).toBeEnabled();
+    await user.click(copy);
+    expect(write).toHaveBeenCalledTimes(2);
+  });
+
 });
