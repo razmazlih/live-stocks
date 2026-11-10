@@ -37,6 +37,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StockAvatarImage } from "@/components/ui/stock-avatar-image";
 import { Switch } from "@/components/ui/switch";
+import { PositionAssetPicker } from "@/components/portfolio/position-asset-picker";
 import {
   Select,
   SelectContent,
@@ -632,9 +633,7 @@ export default function PositionsPage() {
           .update({
             symbol: formData.symbol,
             display: formData.display,
-            image_url:
-              formData.imageUrl ||
-              `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
+            image_url: formData.imageUrl,
             location: formData.location,
             updated_at: new Date().toISOString(),
           })
@@ -654,9 +653,7 @@ export default function PositionsPage() {
           .insert({
             symbol: formData.symbol,
             display: formData.display,
-            image_url:
-              formData.imageUrl ||
-              `https://logo.clearbit.com/${formData.symbol.toLowerCase()}.com`,
+            image_url: formData.imageUrl,
             entry_price: formData.initialPrice,
             quantity: formData.initialQuantity,
             entry_date: formData.initialDate,
@@ -852,12 +849,29 @@ export default function PositionsPage() {
               <div className="relative"><Search aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input type="search" value={chooserSearch} onChange={(event) => setChooserSearch(event.target.value)} aria-label={locale === 'he' ? 'חיפוש פוזיציה קיימת' : 'Search existing positions'} placeholder={locale === 'he' ? 'חיפוש לפי סימול או שם מניה' : 'Search by symbol or company'} className="ps-9" /></div>
               {loading && !hasLoaded ? <p role="status" className="py-7 text-center text-sm text-slate-500">{t.common.loading}</p> : loadError && !hasLoaded ? <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>{locale === 'he' ? 'לא הצלחנו לטעון פוזיציות קיימות.' : 'Unable to load existing positions.'}</p><Button variant="outline" size="sm" onClick={loadPositions} className="mt-3">{locale === 'he' ? 'ניסיון חוזר' : 'Try again'}</Button></div> : chooserItems.length ? <>
                 {!chooserSearch.trim() ? <p className="mb-1 mt-4 text-xs text-slate-400">{locale === 'he' ? 'פעילות אחרונה' : 'Recent activity'}</p> : null}
-                <div className="mt-2 divide-y divide-slate-100">{chooserItems.map(({ position }) => <button key={position.id} type="button" aria-label={`${locale === 'he' ? 'בחירת' : 'Select'} ${position.symbol} · ${position.display} · ${position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}`} onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); openTransactionDialog(position); setEntryFromChooser(true); }} className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-start transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600">{position.symbol.slice(0, 3)}</span>
-                  <span className="min-w-0 flex-1"><bdi className="block text-sm font-semibold text-slate-950">{position.symbol}</bdi><span className="mt-0.5 block truncate text-xs text-slate-500">{position.display}</span></span>
-                  <span className="shrink-0 text-end"><span className="block text-sm font-medium tabular-nums text-slate-700">{formatNumber(position.quantity, locale)} <span className="text-xs font-normal text-slate-400">{locale === 'he' ? 'מניות' : 'shares'}</span></span><span className="mt-0.5 block text-xs text-slate-400">{position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</span></span>
-                  <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400 ltr:rotate-180" />
-                </button>)}</div>
+                <div className="mt-3 space-y-2.5">{chooserItems.map(({ position }) => (
+                  <button
+                    key={position.id}
+                    type="button"
+                    aria-label={`${locale === 'he' ? 'בחירת' : 'Select'} ${position.symbol} · ${position.display} · ${position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}`}
+                    onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); openTransactionDialog(position); setEntryFromChooser(true); }}
+                    className="group flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:gap-4"
+                  >
+                    <Avatar className="h-12 w-12 shrink-0 rounded-xl border border-slate-100 bg-white shadow-sm">
+                      <StockAvatarImage symbol={position.symbol} display={position.display} imageUrl={position.imageUrl} plain className="p-2" />
+                      <AvatarFallback className="rounded-xl bg-blue-50 text-sm font-semibold text-blue-700">{position.symbol.slice(0, 2)}</AvatarFallback>
+                    </Avatar>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-base font-bold tracking-tight text-slate-950"><bdi>{position.symbol}</bdi></span>
+                      <span className="mt-1 block truncate text-xs leading-5 text-slate-500"><bdi>{position.display}</bdi></span>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1.5">
+                      <span className="flex items-baseline gap-1 text-sm font-semibold tabular-nums text-slate-800"><bdi>{formatNumber(position.quantity, locale)}</bdi><span className="text-[11px] font-normal text-slate-500">{locale === 'he' ? 'מניות' : 'shares'}</span></span>
+                      <span dir="ltr" className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide", position.location === 'bank_one' ? 'bg-slate-100 text-slate-600' : 'bg-pink-50 text-pink-700')}>{position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</span>
+                    </span>
+                    <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-600 ltr:rotate-180" />
+                  </button>
+                ))}</div>
               </> : <div className="py-7 text-center text-sm text-slate-500"><p>{chooserSearch.trim() ? (locale === 'he' ? 'לא נמצאו פוזיציות שמתאימות לחיפוש.' : 'No positions match your search.') : (locale === 'he' ? 'עדיין אין פוזיציות בתיק. התחילו בפוזיציה חדשה.' : 'No positions yet. Start with a new position.')}</p>{chooserSearch.trim() ? <Button variant="ghost" size="sm" onClick={() => setChooserSearch('')} className="mt-2 text-blue-700">{locale === 'he' ? 'ניקוי החיפוש' : 'Clear search'}</Button> : null}</div>}
             </div>
             <div className="flex shrink-0 justify-end border-t border-slate-100 px-5 py-3 sm:px-7"><Button variant="ghost" onClick={() => setChooserOpen(false)}>{t.positions.cancel}</Button></div>
@@ -877,48 +891,14 @@ export default function PositionsPage() {
                 <section className="space-y-4">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "פרטי הנכס" : "Asset details"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "איך לזהות את הפוזיציה בתיק." : "How this position appears in your portfolio."}</p>
+                    <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "בחרו סימול — שם החברה והלוגו יתמלאו אוטומטית." : "Choose a symbol to fill the company name and logo automatically."}</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <Label htmlFor="symbol">{t.positions.symbol}</Label>
-                  <Input
-                    id="symbol"
-                    value={formData.symbol}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        symbol: e.target.value.toUpperCase(),
-                      })
-                    }
-                    placeholder="AAPL"
-                    required
+                  <PositionAssetPicker
+                    locale={locale}
+                    value={formData}
+                    knownAssets={positions}
+                    onChange={(asset) => setFormData((previous) => ({ ...previous, ...asset }))}
                   />
-                </div>
-                <div className="sm:col-span-1">
-                  <Label htmlFor="display">{t.positions.display}</Label>
-                  <Input
-                    id="display"
-                    value={formData.display}
-                    onChange={(e) =>
-                      setFormData({ ...formData, display: e.target.value })
-                    }
-                    placeholder="Apple Inc."
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="imageUrl">{t.positions.imageUrl}</Label>
-                <Input
-                  id="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, imageUrl: e.target.value })
-                  }
-                  placeholder="https://logo.clearbit.com/apple.com"
-                />
-              </div>
                 </section>
               <div>
                 <div className="mb-3">
@@ -942,7 +922,7 @@ export default function PositionsPage() {
                     <RadioGroupItem
                       value="bank_one"
                       id="position-location-one"
-                      className="sr-only"
+                      className="sr-only min-h-0 min-w-0"
                     />
                     <BankBadge
                       bank="bank_one"
@@ -960,7 +940,7 @@ export default function PositionsPage() {
                     <RadioGroupItem
                       value="bank_two"
                       id="position-location-two"
-                      className="sr-only"
+                      className="sr-only min-h-0 min-w-0"
                     />
                     <BankBadge
                       bank="bank_two"
@@ -1157,11 +1137,11 @@ export default function PositionsPage() {
                   className="grid grid-cols-2 gap-3"
                 >
                   <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "BUY" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "BUY" }))}>
-                    <RadioGroupItem value="BUY" id="transaction-buy" className="sr-only" />
+                    <RadioGroupItem value="BUY" id="transaction-buy" className="sr-only min-h-0 min-w-0" />
                     {t.positions.buy}
                   </label>
                   <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "SELL" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "SELL" }))}>
-                    <RadioGroupItem value="SELL" id="transaction-sell" className="sr-only" />
+                    <RadioGroupItem value="SELL" id="transaction-sell" className="sr-only min-h-0 min-w-0" />
                     {t.positions.sell}
                   </label>
                 </RadioGroup>
