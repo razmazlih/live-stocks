@@ -10,13 +10,14 @@ import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { buildStockHref } from '@/lib/navigation-context';
 import type { ClosePairProposal } from '@/lib/close-pair-proposals';
-import type { PositionMetrics } from '@/types';
+import { ClosePairChart } from './close-pair-chart';
+import type { HistoricalPoint, PositionMetrics } from '@/types';
 
 function pairKey(proposal: ClosePairProposal) {
   return JSON.stringify([proposal.winner.position.location, proposal.winner.position.id, proposal.winner.position.symbol, proposal.loser.position.id, proposal.loser.position.symbol]);
 }
 
-export function ClosePairProposals({ metrics }: { metrics: PositionMetrics[] }) {
+export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]> }) {
   const { locale } = useApp();
   const he = locale === 'he';
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(() => new Set());
@@ -62,6 +63,7 @@ export function ClosePairProposals({ metrics }: { metrics: PositionMetrics[] }) 
           </> : null}
           <ChevronDown aria-hidden className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />
         </button>
+        <ClosePairChart proposal={proposal} sparklineData={sparklineData} locale={locale} />
         <div id={`${panelId}-${index}`} aria-hidden={!expanded} ref={element => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
           <div className="min-h-0 overflow-hidden">
             <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">

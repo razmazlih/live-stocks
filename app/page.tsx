@@ -74,7 +74,7 @@ export default function HomePage() {
             </div>
           </DashboardSurface> : <DashboardSurface><p className="py-10 text-center text-sm text-slate-500">{he ? 'סיכום התיק אינו זמין כרגע.' : 'The portfolio summary is currently unavailable.'}</p></DashboardSurface>}
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} />
-          <ClosePairProposals metrics={metrics} />
+          <ClosePairProposals metrics={metrics} sparklineData={sparklineData} />
         </>}
       </DashboardMain>
     </DashboardContainer>
