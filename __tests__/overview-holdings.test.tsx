@@ -2,7 +2,8 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
-import type { PositionMetrics } from '@/types';
+import type { Position, PositionMetrics } from '@/types';
+import { calculatePositionMetrics, calculateRequiredExitPrice, formatCurrency } from '@/lib/calculations';
 import { validateReturnTo } from '@/lib/navigation-context';
 
 vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { currency: 'USD' } }) }));
@@ -10,6 +11,7 @@ const metric = (symbol: string, gap: number, quantity = 1): PositionMetrics => (
   position: { id: symbol, symbol, display: symbol === 'AAPL' ? 'Apple' : 'Microsoft', quantity },
   currentPrice: 100, currentValue: 100 * quantity, currentValueIls: 320 * quantity,
   positionPnLUsd: 20, positionPnLIls: 64, combined: gap, combinedIls: gap * 3.2,
+  requiredExitPrice: 100 - gap,
   dailyChangePercent: symbol === 'AAPL' ? -2.5 : undefined, roiPercent: 25,
 } as PositionMetrics);
 const metrics = [metric('AAPL', -10), metric('MSFT', 20), metric('CLOSED', -30, 0)];
@@ -25,6 +27,47 @@ describe('overview holdings continuity', () => {
     expect(apple.getByText('today')).toBeInTheDocument();
     expect(apple.getByText('since entry')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /MSFT/ })).getByText('—')).toBeInTheDocument();
+  });
+  it('shows a sale target recovering earlier partial losses in the collapsed card', () => {
+    const asOf = new Date('2025-01-01T00:00:00Z');
+    const position: Position = {
+      id: 'TEST', symbol: 'TEST', display: 'Test Corp', imageUrl: '',
+      entryPrice: 100, quantity: 6, entryDate: '2024-01-01T00:00:00Z', location: 'bank_one',
+      lots: [
+        { type: 'BUY', price: 100, quantity: 10, executedAt: '2024-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+        { type: 'SELL', price: 90, quantity: 4, executedAt: '2025-01-01T00:00:00Z', hasCommission: false, commissionAmount: 0 },
+      ],
+    };
+    const requiredExitPrice = calculateRequiredExitPrice([position], 0.1, asOf);
+    const holding = { ...calculatePositionMetrics(position, 100, 3.2, 0), requiredExitPrice, projectedPrice: 110 };
+    render(<OverviewHoldings metrics={[holding]} />);
+    const button = screen.getByRole('button', { name: 'Expand TEST details' });
+    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(summary.getByText(formatCurrency(123.37, 'USD', 'en'))).toBeInTheDocument();
+    expect(summary.getByText(/23\.37%/)).toBeInTheDocument();
+    expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
+  });
+  it('rounds the target upward to a tradable cent before comparing it with today’s price', () => {
+    render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), requiredExitPrice: 100.001 }]} />);
+    const button = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    expect(summary.getByText(formatCurrency(100.01, 'USD', 'en'))).toBeInTheDocument();
+    expect(summary.getByText(/0\.01%/)).toBeInTheDocument();
+  });
+  it('measures an already exceeded target relative to the target price', () => {
+    render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), currentPrice: 125, requiredExitPrice: 100 }]} />);
+    const button = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    expect(summary.getByText(/25\.00%/)).toBeInTheDocument();
+    expect(summary.queryByText(/20\.00%/)).not.toBeInTheDocument();
+  });
+  it('leaves an unavailable full-history sale target unknown instead of using the open-lot target', () => {
+    render(<OverviewHoldings metrics={[{ ...metric('AAPL', -10), requiredExitPrice: undefined, projectedPrice: 110 }]} />);
+    const button = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    expect(summary.getAllByText('—').length).toBeGreaterThan(0);
+    expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
   });
   it('expands mobile details by keyboard, keeps a single card open, and restores stock return context', async () => {
     const user = userEvent.setup();

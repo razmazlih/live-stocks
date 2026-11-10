@@ -5,7 +5,7 @@ import { Sparkline, type SparklineEvent } from '@/components/charts/sparkline';
 import { useApp } from '@/lib/context';
 import type { HistoricalPoint, PositionMetrics } from '@/types';
 
-export function StockMiniChart({ metric, points, compact = false }: { metric: PositionMetrics; points: HistoricalPoint[]; compact?: boolean }) {
+export function StockMiniChart({ metric, points, compact = false, targetPrice }: { metric: PositionMetrics; points: HistoricalPoint[]; compact?: boolean; targetPrice?: number | null }) {
   const { locale } = useApp();
   const he = locale === 'he';
   const history = useMemo(() => Array.from(new Map(points
@@ -35,7 +35,7 @@ export function StockMiniChart({ metric, points, compact = false }: { metric: Po
   const start = date(Math.min(history[0].timestamp, ...events.map((event) => event.timestamp)));
   const end = date(Math.max(history[history.length - 1].timestamp, ...events.map((event) => event.timestamp)));
   const baseline = Number.isFinite(metric.position.entryPrice) ? metric.position.entryPrice : undefined;
-  const target = Number.isFinite(metric.projectedPrice) ? metric.projectedPrice : undefined;
+  const target = targetPrice === null ? undefined : Number.isFinite(targetPrice ?? metric.projectedPrice) ? targetPrice ?? metric.projectedPrice : undefined;
   return <div role="img" aria-label={he ? `גרף מחיר ${metric.position.symbol}, מ־${start} עד ${end}; ${buyCount} כניסות, ${sellCount} יציאות` : `${metric.position.symbol} price chart, ${start} to ${end}; ${buyCount} entries, ${sellCount} exits`} className={className} dir="ltr">
     <div ref={(element) => { element?.setAttribute('inert', ''); }} aria-hidden="true" className="pointer-events-none">
     <Sparkline includeEventsInDomain events={events} points={history} width={compact ? 128 : 320} height={compact ? 44 : 60} interactive={false} baseline={baseline} projectedPrice={target} baselineColor="#cbd5e1" projectedLineColor="#94a3b8" belowEntryColor="#dc2626" betweenProjectedColor="#2563eb" aboveProjectedColor="#059669" />
