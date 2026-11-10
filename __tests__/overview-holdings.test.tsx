@@ -26,6 +26,42 @@ describe('overview holdings continuity', () => {
     expect(apple.getByText('since entry')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /MSFT/ })).getByText('—')).toBeInTheDocument();
   });
+  it('expands mobile details by keyboard, keeps a single card open, and restores stock return context', async () => {
+    const user = userEvent.setup();
+    render(<OverviewHoldings metrics={metrics} />);
+    const apple = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const microsoft = screen.getByRole('button', { name: 'Expand MSFT details' });
+    const panel = document.getElementById(apple.getAttribute('aria-controls')!)!;
+    expect(apple).toHaveAttribute('aria-expanded', 'false');
+    expect(panel).toHaveAttribute('inert');
+    expect(screen.queryByRole('link', { name: 'View AAPL details' })).not.toBeInTheDocument();
+    apple.focus();
+    await user.keyboard('{Enter}');
+    expect(apple).toHaveAttribute('aria-expanded', 'true');
+    expect(panel).not.toHaveAttribute('inert');
+    expect(apple).toHaveFocus();
+    expect(new URLSearchParams(window.location.search).get('holding')).toBe('AAPL');
+    const link = screen.getByRole('link', { name: 'View AAPL details' });
+    expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y&holding=AAPL');
+    // Prevent navigation in jsdom while exercising the return-context handler.
+    link.addEventListener('click', event => event.preventDefault());
+    await user.click(link);
+    expect(JSON.parse(sessionStorage.getItem('livestocks:return-context')!).focusId).toBe(apple.id);
+    await user.click(microsoft);
+    expect(apple).toHaveAttribute('aria-expanded', 'false');
+    expect(panel).toHaveAttribute('aria-hidden', 'true');
+    expect(panel).toHaveAttribute('inert');
+    expect(microsoft).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard(' ');
+    expect(microsoft).toHaveAttribute('aria-expanded', 'false');
+    expect(new URLSearchParams(window.location.search).get('holding')).toBeNull();
+  });
+  it('reopens the selected mobile holding from its return URL', () => {
+    window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');
+    render(<OverviewHoldings metrics={metrics} />);
+    expect(screen.getByRole('button', { name: 'Collapse MSFT details' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'View MSFT details' })).toBeInTheDocument();
+  });
   it('filters active holdings, preserves the chart range and links back to the exact overview state', async () => {
     const user = userEvent.setup();
     render(<OverviewHoldings metrics={metrics} />);

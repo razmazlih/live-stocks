@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Circle, Search } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Circle, Search } from 'lucide-react';
 import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -15,7 +15,7 @@ import type { HistoricalPoint, PositionMetrics } from '@/types';
 const FILTERS = ['all', 'winners', 'losers', 'ahead', 'lagging'] as const;
 function parseHoldings(params: URLSearchParams) {
   const filter = params.get('filter');
-  return { q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
+  return { holding: params.get('holding'), q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
 }
 
 export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]> }) {
@@ -47,11 +47,35 @@ export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: Pos
         const gap = currency === 'ILS' ? m.combinedIls : m.combined;
         return <tr key={id} className="hover:bg-slate-50/70"><td className="px-3 py-3"><Link id={id} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-11 flex-col justify-center rounded text-start"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></Link></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(price(m))}</bdi><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></td><td className={`px-3 py-3 text-end font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block text-xs"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className={`px-3 py-3 text-end font-medium tabular-nums ${tone(gap)}`}><bdi>{money(gap)}</bdi></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact /></td></tr>;
       })}</tbody></table>
-      <div className="divide-y divide-slate-100 xl:hidden">{filtered.map((m) => {
-        const id = `overview-mobile-${m.position.activationId ?? m.position.id ?? m.position.symbol}`;
+      <div className="space-y-2 xl:hidden">{filtered.map((m) => {
+        const key = m.position.activationId ?? m.position.id ?? m.position.symbol;
+        const id = `overview-mobile-${key}`;
+        const expanded = state.holding === key;
         const pnl = currency === 'ILS' ? m.positionPnLIls : m.positionPnLUsd;
         const gap = currency === 'ILS' ? m.combinedIls : m.combined;
-        return <Link key={id} id={id} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="block rounded-lg py-4 focus-visible:ring-2 focus-visible:ring-blue-500"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold text-slate-950">{m.position.symbol}</p><p className="text-xs text-slate-500">{m.position.display}</p></div><bdi className="font-semibold tabular-nums">{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></div><dl className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><dt className="text-slate-500">{columns[1]}</dt><dd className="mt-1 tabular-nums"><bdi>{money(price(m))}</bdi><span className={`mt-1 block ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></dd></div><div><dt className="text-slate-500">{columns[3]}</dt><dd className={`mt-1 font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></dd></div><div><dt className="text-slate-500">{columns[4]}</dt><dd className={`mt-1 font-medium tabular-nums ${tone(gap)}`}><bdi>{money(gap)}</bdi></dd></div></dl><div className="mt-4"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} /></div></Link>;
+        return <article key={id} className={`holding-card ${expanded ? 'holding-card-open' : ''}`}>
+          <button id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={() => patch({ holding: expanded ? null : key })} className="holding-toggle grid w-full grid-cols-[minmax(0,1fr)_auto_20px] items-center gap-3 rounded-xl px-3 py-3.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:px-4">
+            <span className="flex min-w-0 items-center gap-3">
+              <span aria-hidden="true" className={`holding-monogram flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-bold ${expanded ? 'border-blue-200 bg-blue-100 text-blue-700' : 'border-slate-200/70 bg-white text-slate-600'}`}>{m.position.symbol.slice(0, 2)}</span>
+              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="mt-0.5 block truncate text-[11px] text-slate-500">{m.position.display}</span></span>
+            </span>
+            <span id={`${id}-summary`} className="text-end tabular-nums"><span className="sr-only">{he ? 'שווי ההחזקה' : 'Holding value'} </span><span className="block text-sm font-semibold text-slate-950"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></span><span className={`mt-1 block text-xs font-medium ${tone(pnl)}`}><span className="sr-only">{columns[3]} </span><bdi>{money(pnl)}</bdi></span></span>
+            <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
+          </button>
+          <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
+            <div className="min-h-0 overflow-hidden">
+              <div className="holding-detail-content px-3 pb-3 sm:px-4 sm:pb-4">
+                <dl className="grid grid-cols-3 gap-2 border-t border-slate-200/70 pt-4 text-xs">
+                  <div><dt className="text-[11px] text-slate-500">{columns[1]}</dt><dd className="mt-1.5 font-medium tabular-nums text-slate-900"><bdi>{money(price(m))}</bdi><span className={`mt-1 block text-[11px] ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-500">{he ? 'יומי' : 'today'}</span></span></dd></div>
+                  <div><dt className="text-[11px] text-slate-500">{he ? 'תשואה מהקנייה' : 'Return since entry'}</dt><dd className={`mt-1.5 font-medium tabular-nums ${tone(m.roiPercent ?? 0)}`}><bdi>{percent(m.roiPercent)}</bdi></dd></div>
+                  <div><dt className="text-[11px] text-slate-500">{columns[4]}</dt><dd className={`mt-1.5 font-medium tabular-nums ${tone(gap)}`}><bdi>{money(gap)}</bdi></dd></div>
+                </dl>
+                <div className="mt-4 rounded-lg border border-white bg-white/80 px-3 py-2"><p className="mb-2 text-[10px] font-medium text-slate-500">{columns[5]}</p><StockMiniChart metric={m} points={sparklineData[key] ?? []} /></div>
+                <Link href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`}<ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 rtl:-scale-x-100" /></Link>
+              </div>
+            </div>
+          </div>
+        </article>;
       })}</div>
     </> : <p className="py-10 text-center text-sm text-slate-500">{he ? 'אין החזקות פעילות התואמות לסינון.' : 'No active holdings match your filters.'}</p>}
   </DashboardSurface>;
