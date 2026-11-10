@@ -122,4 +122,22 @@ describe('overview holdings continuity', () => {
     });
     expect(within(screen.getByRole('table')).getByRole('link', { name: /AAPL/ })).toBeInTheDocument();
   });
+  it('keeps one price graph mounted while expanding and collapsing its card', async () => {
+    const user = userEvent.setup();
+    const history = [{ timestamp: Date.UTC(2025, 0, 1), close: 80 }, { timestamp: Date.UTC(2025, 0, 3), close: 100 }];
+    render(<OverviewHoldings metrics={metrics} sparklineData={{ AAPL: history }} />);
+    const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const card = toggle.closest('article')!;
+    const graph = card.querySelector('.holding-trend-layer svg');
+    expect(graph).not.toBeNull();
+    expect(card.querySelectorAll('.holding-trend-layer svg')).toHaveLength(1);
+    expect(within(card).queryByRole('img')).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(card.querySelector('.holding-trend-layer svg')).toBe(graph);
+    expect(within(card).getByRole('img', { name: /AAPL USD share prices/ })).toBeInTheDocument();
+    await user.click(toggle);
+    expect(card.querySelector('.holding-trend-layer svg')).toBe(graph);
+    expect(within(card).queryByRole('img')).not.toBeInTheDocument();
+  });
+
 });

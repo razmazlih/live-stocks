@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, ChevronDown, Circle, Search, Target } from 'lucide-react';
+import { Circle, Search } from 'lucide-react';
 import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -10,24 +10,14 @@ import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context'
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Input } from '@/components/ui/input';
 import { StockMiniChart } from './stock-mini-chart';
+import { OverviewHoldingCard } from './overview-holding-card';
+import { getHoldingTarget } from '@/lib/holding-display';
 import type { HistoricalPoint, PositionMetrics } from '@/types';
 
 const FILTERS = ['all', 'winners', 'losers', 'ahead', 'lagging'] as const;
 function parseHoldings(params: URLSearchParams) {
   const filter = params.get('filter');
   return { holding: params.get('holding'), q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
-}
-
-function getHoldingTarget(metric: PositionMetrics) {
-  const raw = metric.requiredExitPrice;
-  // Round upward to a tradable cent so display rounding never lowers the exit goal.
-  const salePrice = typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.ceil(raw * 100 - 1e-8) / 100 : undefined;
-  const current = metric.currentPrice;
-  const difference = salePrice !== undefined && Number.isFinite(current) && current >= 0 ? current - salePrice : Number.NaN;
-  const distancePercent = !Number.isFinite(difference) ? undefined : difference < 0
-    ? current > 0 ? -difference / current * 100 : undefined
-    : salePrice !== undefined && salePrice > 0 ? difference / salePrice * 100 : undefined;
-  return { salePrice, difference, distancePercent };
 }
 
 export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]> }) {
@@ -62,52 +52,9 @@ export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: Pos
         const target = getHoldingTarget(m);
         return <tr key={id} className="hover:bg-slate-50/70"><td className="px-3 py-3"><Link id={id} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-11 flex-col justify-center rounded text-start"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></Link></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{usd(m.currentPrice)}</bdi><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></td><td className={`px-3 py-3 text-end font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi><span className="mt-1 block text-xs font-normal">{gapLabel(target.difference)}</span></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></td><td className={`px-3 py-3 text-end tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block text-xs"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact targetPrice={target.salePrice ?? null} /></td></tr>;
       })}</tbody></table>
-      <div className="space-y-2 xl:hidden">{filtered.map((m) => {
-        const key = m.position.activationId ?? m.position.id ?? m.position.symbol;
-        const id = `overview-mobile-${key}`;
-        const expanded = state.holding === key;
-        const pnl = currency === 'ILS' ? m.positionPnLIls : m.positionPnLUsd;
-        const target = getHoldingTarget(m);
-        const value = currency === 'ILS' ? m.currentValueIls : m.currentValue;
-        const cost = value - pnl;
-        const holdingReturn = Number.isFinite(cost) && cost > 0 ? pnl / cost * 100 : undefined;
-        const allocation = Number.isFinite(value) && portfolioValue > 0 ? value / portfolioValue * 100 : undefined;
-        const entryDate = new Date(m.position.entryDate);
-        const entryLabel = Number.isFinite(entryDate.getTime()) ? entryDate.toLocaleDateString(he ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-        return <article key={id} className={`holding-card ${expanded ? 'holding-card-open' : ''}`}>
-          <button id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={() => patch({ holding: expanded ? null : key })} className="holding-toggle block w-full rounded-2xl px-4 pb-4 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:px-5">
-            <span className="flex items-center justify-between gap-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <span aria-hidden="true" className="holding-monogram flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-xs font-bold text-slate-600">{m.position.symbol.slice(0, 2)}</span>
-                <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
-              </span>
-              <span className="flex shrink-0 items-center gap-3">
-                <span className="text-end"><span className="block text-[11px] text-slate-500">{he ? 'מחיר כעת · USD' : 'Current · USD'}</span><span className="mt-1 block text-lg font-semibold tabular-nums tracking-tight text-slate-950"><bdi>{usd(m.currentPrice)}</bdi></span></span>
-                <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
-              </span>
-            </span>
-            <span id={`${id}-summary`} className="mt-4 grid grid-cols-[1.25fr_1fr_0.9fr] items-start gap-3 sm:gap-5">
-              <span><span className="inline-flex items-center gap-1.5 text-xs font-medium leading-5 text-slate-600"><Target aria-hidden className="h-3.5 w-3.5 text-blue-500" />{he ? 'מכירה ליעד' : 'Sell for target'}</span><span className="mt-1 block text-lg font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></span></span>
-              <span><span className="block text-xs leading-5 text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-lg font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
-              <span><span className="block text-xs leading-5 text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</span><span className="mt-1 block text-sm font-medium tabular-nums text-slate-700"><bdi>{money(value)}</bdi></span></span>
-            </span>
-            <span className="mt-2 block text-[11px] text-slate-500">{he ? 'יעד להיום · כולל מכירות קודמות' : 'Today’s target · includes previous sales'}</span>
-          </button>
-          <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
-            <div className="min-h-0 overflow-hidden">
-              <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
-                <dl className="grid grid-cols-2 gap-x-5 gap-y-4 pt-1 sm:grid-cols-3">
-                  <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
-                  <div><dt className="text-xs text-slate-500">{he ? 'שינוי היום' : 'Today’s change'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></dd></div>
-                  <div className="col-span-2 flex items-center justify-between gap-3 text-xs sm:col-span-1 sm:block"><dt className="text-slate-500">{he ? 'רווח / הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`font-medium tabular-nums sm:mt-1.5 sm:text-sm ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="ms-2 inline-block text-xs"><bdi>{percent(holdingReturn)}</bdi></span></dd></div>
-                </dl>
-                <div className="mt-5"><div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"><span>{he ? 'מחיר המניה לאורך זמן' : 'Share price history'}</span><span className="flex items-center gap-3 text-[11px]"><span className="inline-flex items-center gap-1"><span aria-hidden className="w-3 border-t border-dashed border-slate-300" />{he ? 'עלות קנייה' : 'Buy cost'}</span><span className="inline-flex items-center gap-1"><span aria-hidden className="w-3 border-t border-dashed border-slate-400" />{he ? 'מכירה ליעד' : 'Sale target'}</span></span></div><StockMiniChart metric={m} points={sparklineData[key] ?? []} targetPrice={target.salePrice ?? null} /></div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><p className="text-xs text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p><Link href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`}<ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 rtl:-scale-x-100" /></Link></div>
-                <details className="group text-[11px] leading-relaxed text-slate-500"><summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center gap-1 rounded font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><ChevronDown aria-hidden className="h-3 w-3 transition-transform group-open:rotate-180" />{he ? 'אופן החישוב' : 'Calculation details'}</summary><p className="max-w-2xl pb-2">{he ? 'מחיר המכירה נדרש לעמידה ביעד האישי להיום במכירת כל יתרת המניות של הסימול, כולל רווחים והפסדים ממכירות קודמות ובחשבונות אחרים. עמלות שכבר הוזנו נכללות; מס ועמלת מכירה עתידית אינם נכללים. המחיר מעוגל מעלה לסנט. מחירי המניה והגרף בדולרים. הרווח הפתוח מתייחס רק להחזקה הזו, במטבע התיק. נתונים חסרים מוצגים במקף.' : 'The sale price meets today’s personal target when selling all remaining shares of this symbol, accounting for prior realized gains and losses across accounts. Recorded fees are included; tax and future sale fees are excluded. The price rounds upward to a cent. Share prices and the chart are USD. Unrealized P/L covers this holding only, in your portfolio currency. Missing data is shown as a dash.'}</p></details>
-              </div>
-            </div>
-          </div>
-        </article>;
+      <div className="space-y-2 xl:hidden">{filtered.map((metric) => {
+        const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
+        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} />;
       })}</div>
     </> : <p className="py-10 text-center text-sm text-slate-500">{he ? 'אין החזקות פעילות התואמות לסינון.' : 'No active holdings match your filters.'}</p>}
   </DashboardSurface>;

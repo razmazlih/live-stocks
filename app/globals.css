@@ -486,35 +486,74 @@
 
 /* Mobile holdings: intrinsic-height accordion, including an animated close. */
 .holding-card {
+  position: relative;
+  isolation: isolate;
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
   background: #fff;
-  transition: border-color 240ms ease, background-color 240ms ease, box-shadow 240ms ease;
+  transition: border-color 420ms ease, background-color 420ms ease, box-shadow 420ms ease;
 }
 .holding-card-open {
   border-color: #bfdbfe;
   background: #f8fbff;
   box-shadow: 0 4px 16px -8px rgb(37 99 235 / 18%);
 }
-.holding-toggle { -webkit-tap-highlight-color: transparent; }
+.holding-toggle {
+  position: relative;
+  z-index: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.holding-summary-content {
+  position: relative;
+  z-index: 1;
+  display: block;
+  text-shadow: 0 0 5px #fff, 0 1px 2px #fff;
+}
+.holding-trend-layer {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  width: var(--chart-w, 100%);
+  height: var(--chart-h, 100px);
+  transform: translate3d(var(--chart-x, 0px), var(--chart-y, 70px), 0);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.46;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms ease;
+}
+.holding-trend-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 96%), rgb(255 255 255 / 66%) 38%, rgb(255 255 255 / 12%) 80%, rgb(255 255 255 / 72%));
+  transition: opacity 420ms ease;
+}
+.holding-card:not(.holding-card-open)[data-trend="profit"] { background-color: #f9fdfb; }
+.holding-card:not(.holding-card-open)[data-trend="loss"] { background-color: #fffafb; }
+.holding-card-open .holding-trend-layer { opacity: 1; }
+.holding-card-open .holding-trend-layer::after { opacity: 0; }
+.holding-status { text-shadow: none; }
+.holding-card-open .holding-summary-content { text-shadow: none; }
 .holding-toggle:active { background-color: rgb(219 234 254 / 35%); }
 .holding-monogram { transition: background-color 240ms ease, border-color 240ms ease, color 240ms ease; }
-.holding-chevron { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), color 240ms ease; }
+.holding-chevron { transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), color 240ms ease; }
 .holding-card-open .holding-chevron { transform: rotate(180deg); color: #2563eb; }
 .holding-reveal {
   display: grid;
   grid-template-rows: 0fr;
   visibility: hidden;
-  transition: grid-template-rows 360ms cubic-bezier(0.22, 1, 0.36, 1), visibility 360ms;
+  transition: grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 420ms;
 }
 .holding-card-open .holding-reveal { grid-template-rows: 1fr; visibility: visible; }
 .holding-detail-content {
   opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 200ms ease, transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  z-index: 1;
+  transition: opacity 220ms ease;
 }
-.holding-card-open .holding-detail-content { opacity: 1; transform: translateY(0); }
+.holding-card-open .holding-detail-content { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .holding-card, .holding-monogram, .holding-chevron, .holding-reveal, .holding-detail-content { transition: none; }
+  .holding-card, .holding-monogram, .holding-chevron, .holding-reveal, .holding-detail-content, .holding-trend-layer, .holding-trend-layer::after { transition: none; }
   .holding-detail-content { transform: none; }
 }
