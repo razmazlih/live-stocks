@@ -15,6 +15,7 @@ import {
   DEFAULT_COMMISSION_USD,
   mapPositionRow,
 } from "@/lib/positions";
+import { recordPositionPurchase } from "@/lib/position-purchase";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/calculations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,6 +190,9 @@ export default function PositionsPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [savingPosition, setSavingPosition] = useState(false);
+  const positionSaveLock = useRef(false);
+  const purchaseRequestRef = useRef<{ key: string; id: string } | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [chooserSearch, setChooserSearch] = useState('');
   const [entryFromChooser, setEntryFromChooser] = useState(false);
@@ -226,6 +230,10 @@ export default function PositionsPage() {
   const requestIdRef = useRef(0);
   useReturnContext(hasLoaded && Boolean(sourceUrl));
   const lastFetchedSymbolRef = useRef<string | null>(null);
+  const matchingPosition = positions.find((position) =>
+    position.symbol.trim().toUpperCase() === formData.symbol.trim().toUpperCase() &&
+    position.location === formData.location,
+  );
   const isEditing = Boolean(editingPosition);
   const isEditingTransaction = Boolean(transactionForm.id);
   const isRtl = locale === "he";
@@ -406,6 +414,7 @@ export default function PositionsPage() {
   }, [loadPositions, refreshTrigger]);
 
   const openAddDialog = useCallback(() => {
+    purchaseRequestRef.current = null;
     setEditingPosition(null);
     setFormData({
       symbol: "",
@@ -602,6 +611,7 @@ export default function PositionsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (positionSaveLock.current) return;
 
     if (!formData.symbol || !formData.display) {
       toast.error(
@@ -625,13 +635,15 @@ export default function PositionsPage() {
       }
     }
 
+    positionSaveLock.current = true;
+    setSavingPosition(true);
     try {
       const supabase = getSupabaseClient();
       if (editingPosition) {
         const { error } = await supabase
           .from("positions")
           .update({
-            symbol: formData.symbol,
+            symbol: formData.symbol.trim().toUpperCase(),
             display: formData.display,
             image_url: formData.imageUrl,
             location: formData.location,
@@ -648,46 +660,40 @@ export default function PositionsPage() {
           ? Math.max(formData.initialCommissionAmount, 0)
           : 0;
 
-        const { data, error } = await supabase
-          .from("positions")
-          .insert({
-            symbol: formData.symbol,
-            display: formData.display,
-            image_url: formData.imageUrl,
-            entry_price: formData.initialPrice,
-            quantity: formData.initialQuantity,
-            entry_date: formData.initialDate,
-            location: formData.location,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        if (data) {
-          const { error: lotError } = await supabase
-            .from("position_lots")
-            .insert({
-              position_id: data.id,
-              side: "BUY",
-              price: formData.initialPrice,
-              quantity: formData.initialQuantity,
-              executed_at: formData.initialDate,
-              has_commission: formData.initialHasCommission,
-              commission_amount: initialCommissionAmount,
-            });
-
-          if (lotError) throw lotError;
+        const input = {
+          symbol: formData.symbol.trim().toUpperCase(),
+          display: formData.display,
+          imageUrl: formData.imageUrl,
+          location: formData.location,
+          price: formData.initialPrice,
+          quantity: formData.initialQuantity,
+          executedAt: formData.initialDate,
+          hasCommission: formData.initialHasCommission,
+          commissionAmount: initialCommissionAmount,
+        };
+        const key = JSON.stringify(input);
+        if (purchaseRequestRef.current?.key !== key) {
+          purchaseRequestRef.current = { key, id: crypto.randomUUID() };
         }
-
-        toast.success(locale === "he" ? "הפוזיציה נוספה" : "Position added");
+        const result = await recordPositionPurchase(supabase, {
+          ...input,
+          requestId: purchaseRequestRef.current.id,
+        });
+        toast.success(result.reused
+          ? (locale === "he" ? "הקנייה נוספה לפוזיציה הקיימת וההיסטוריה נשמרה" : "Purchase added to the existing position; history preserved")
+          : (locale === "he" ? "הפוזיציה נוספה" : "Position added"));
       }
 
       setDialogOpen(false);
       triggerRefresh();
     } catch (error) {
       console.error("Error saving position:", error);
-      toast.error(t.common.error);
+      toast.error(typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
+        ? (locale === 'he' ? 'כבר קיימת פוזיציה בסימול ובחשבון האלה. יש להוסיף לה עסקה במקום ליצור פוזיציה נוספת.' : 'A position already exists for this symbol and account. Add a transaction to it instead.')
+        : t.common.error);
+    } finally {
+      positionSaveLock.current = false;
+      setSavingPosition(false);
     }
   }
 
@@ -883,7 +889,11 @@ export default function PositionsPage() {
             <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
               {!editingPosition && entryFromChooser ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'חזרה לבחירת עסקה' : 'Back to transaction options'}</Button> : null}
               <DialogTitle>
-                {editingPosition ? t.positions.edit : (locale === "he" ? "פוזיציה חדשה" : "New position")}
+                {editingPosition ? t.positions.edit : matchingPosition
+                  ? (matchingPosition.quantity > 0
+                    ? (locale === "he" ? "הוספת קנייה לפוזיציה" : "Add purchase to position")
+                    : (locale === "he" ? "פתיחה מחדש של פוזיציה" : "Reopen position"))
+                  : (locale === "he" ? "פוזיציה חדשה" : "New position")}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col [&_input]:h-11 sm:[&_input]:h-10">
@@ -899,6 +909,10 @@ export default function PositionsPage() {
                     knownAssets={positions}
                     onChange={(asset) => setFormData((previous) => ({ ...previous, ...asset }))}
                   />
+                  {!isEditing && matchingPosition ? <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">
+                    <p className="font-semibold">{locale === 'he' ? (matchingPosition.quantity > 0 ? 'הפוזיציה כבר פעילה בחשבון הזה' : 'הפוזיציה נסגרה בעבר בחשבון הזה') : (matchingPosition.quantity > 0 ? 'This position is already active in this account' : 'This position was previously closed in this account')}</p>
+                    <p>{locale === 'he' ? 'הקנייה תתווסף לאותה פוזיציה, עם כל העסקאות וההיסטוריה הקיימות. לא תיווצר פוזיציה נוספת.' : 'This purchase will continue the same position and preserve all existing transactions and history.'}</p>
+                  </div> : null}
                 </section>
               <div>
                 <div className="mb-3">
@@ -970,13 +984,20 @@ export default function PositionsPage() {
                 </section>
               ) : (
                 <section className="space-y-4">
+                  {matchingPosition ? <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-900">{locale === 'he' ? 'הפוזיציה לפני הקנייה' : 'Position before this purchase'}</p>
+                    <dl className="mt-3 grid grid-cols-2 gap-3">
+                      <div><dt className="text-xs text-slate-500">{locale === 'he' ? 'כמות מוחזקת כעת' : 'Current shares'}</dt><dd className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{formatNumber(matchingPosition.quantity, locale)}</bdi></dd></div>
+                      <div><dt className="text-xs text-slate-500">{matchingPosition.quantity > 0 ? (locale === 'he' ? 'מחיר קנייה ממוצע נוכחי' : 'Current average entry price') : (locale === 'he' ? 'מצב הפוזיציה' : 'Position status')}</dt><dd className="mt-1 font-semibold tabular-nums text-slate-900">{matchingPosition.quantity > 0 ? <bdi>{formatCurrency(matchingPosition.entryPrice, 'USD', locale)}</bdi> : (locale === 'he' ? 'סגורה · תיפתח מחדש בקנייה' : 'Closed · reopens with this purchase')}</dd></div>
+                    </dl>
+                  </div> : null}
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "רכישה ראשונה" : "Initial purchase"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "הפרטים של הפעולה הראשונה בפוזיציה." : "Details for the first transaction in this position."}</p>
+                    <p className="text-sm font-semibold text-slate-900">{matchingPosition ? (locale === "he" ? "פרטי הקנייה החדשה" : "New purchase details") : (locale === "he" ? "רכישה ראשונה" : "Initial purchase")}</p>
+                    <p className="mt-1 text-xs text-slate-500">{matchingPosition ? (locale === "he" ? "פרטי הקנייה שתתווסף לפוזיציה הקיימת." : "Details of the purchase added to the existing position.") : (locale === "he" ? "הפרטים של הפעולה הראשונה בפוזיציה." : "Details for the first transaction in this position.")}</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="sm:col-span-1">
-                      <Label htmlFor="initialPrice">{t.positions.initialPrice}</Label>
+                      <Label htmlFor="initialPrice">{matchingPosition ? t.positions.transactionPrice : t.positions.initialPrice}</Label>
                       <Input
                         id="initialPrice"
                         type="number"
@@ -998,7 +1019,7 @@ export default function PositionsPage() {
                     </div>
                     <div className="sm:col-span-1">
                       <Label htmlFor="initialQuantity">
-                        {t.positions.initialQuantity}
+                        {matchingPosition ? t.positions.transactionQuantity : t.positions.initialQuantity}
                       </Label>
                       <Input
                         id="initialQuantity"
@@ -1020,7 +1041,7 @@ export default function PositionsPage() {
                       />
                     </div>
                     <div className="sm:col-span-1">
-                      <Label htmlFor="initialDate">{t.positions.initialDate}</Label>
+                      <Label htmlFor="initialDate">{matchingPosition ? t.positions.transactionDate : t.positions.initialDate}</Label>
                       <Input
                         id="initialDate"
                         type="date"
@@ -1093,7 +1114,7 @@ export default function PositionsPage() {
                 <Button type="button" variant="outline" className="h-11 sm:h-10" onClick={() => setDialogOpen(false)}>
                   {t.positions.cancel}
                 </Button>
-                <Button type="submit" className="h-11 sm:h-10">{t.positions.save}</Button>
+                <Button type="submit" disabled={savingPosition} className="h-11 sm:h-10">{savingPosition ? t.common.loading : !isEditing && matchingPosition ? (locale === "he" ? "הוספת קנייה לפוזיציה" : "Add purchase to position") : t.positions.save}</Button>
               </div>
             </form>
           </DialogContent>
