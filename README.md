@@ -183,8 +183,9 @@ npm run dev
 - `npm test` הרצת בדיקות Vitest
 
 ## iOS widget
-קוד ה-widget ל-Scriptable מנוהל כמקור יחיד בקובץ המקומי
-`Stocks Status.js` שבתיקיית Scriptable ב-iCloud. אין בפרויקט עותק נוסף של קוד ה-widget.
+עותק להפצה של קוד ה-widget ל-Scriptable נמצא ב־[`output/widget/Stocks Status.js`](output/widget/Stocks%20Status.js), לצד [הוראות ובדיקות](output/widget/README.md). להתקנה יש להעתיק אותו ל־Scriptable ב־iCloud. התצוגות המקדימות משתמשות בנתוני דוגמה; הרינדור המקורי ב־iPhone לא אומת.
+
+![תצוגה מקדימה של הווידג׳ט](output/widget/preview-dark.png)
 
 ה-widget קורא ל-`POST /api/portfolio` עם `includeWeightedPrice: true` ו-`targetCurrency: "ILS"`, ולכן הוא נשאר מסונכרן עם אותו חוזה API של האפליקציה.
 
