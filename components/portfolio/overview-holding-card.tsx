@@ -7,8 +7,10 @@ import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 import { getHoldingTarget } from '@/lib/holding-display';
+import { buildHoldingChartReferences } from '@/lib/holding-chart-history';
 import { HoldingTrendBackground } from './holding-trend-background';
-import type { HistoricalPoint, PositionMetrics } from '@/types';
+import type { SparklineEvent } from '@/components/charts/sparkline';
+import type { HistoricalPoint, Position, PositionMetrics } from '@/types';
 
 interface OverviewHoldingCardProps {
   metric: PositionMetrics;
@@ -17,9 +19,10 @@ interface OverviewHoldingCardProps {
   onToggle: () => void;
   sourceUrl: string;
   portfolioValue: number;
+  historyPositions: Position[];
 }
 
-export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sourceUrl, portfolioValue }: OverviewHoldingCardProps) {
+export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sourceUrl, portfolioValue, historyPositions }: OverviewHoldingCardProps) {
   const { locale, settings } = useApp();
   const he = locale === 'he';
   const currency = settings.currency;
@@ -32,12 +35,24 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
   const tone = (value: number) => value > 0.01 ? 'text-emerald-700' : value < -0.01 ? 'text-rose-600' : 'text-slate-600';
   const percent = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? `${value > 0 ? '+' : ''}${formatPercent(value, locale)}` : '—';
   const gapLabel = (difference: number) => !Number.isFinite(difference) ? (he ? 'עלייה ליעד' : 'Rise to target') : difference < -0.001 ? (he ? 'עלייה ליעד' : 'Rise to target') : difference > 0.001 ? (he ? 'מעל היעד' : 'Above target') : (he ? 'ביעד' : 'On target');
+  const events = useMemo<SparklineEvent[]>(() => {
+    const lots = m.position.lots ?? [];
+    const recorded = lots.flatMap((lot, index) => {
+      const timestamp = new Date(lot.executedAt).getTime();
+      if ((lot.type !== 'BUY' && lot.type !== 'SELL') || !Number.isFinite(timestamp) || !Number.isFinite(lot.price) || lot.price <= 0 || !Number.isFinite(lot.quantity) || lot.quantity <= 0) return [];
+      return [{ id: lot.id ?? `${m.position.symbol}-${lot.type}-${index}`, timestamp, type: lot.type, price: lot.price, quantity: lot.quantity, typeLabel: lot.type === 'BUY' ? (he ? 'כניסה' : 'Entry') : (he ? 'יציאה' : 'Exit') }];
+    });
+    const entryTime = new Date(m.position.entryDate).getTime();
+    if (!lots.length && Number.isFinite(entryTime) && Number.isFinite(m.position.entryPrice) && m.position.entryPrice > 0 && m.position.quantity > 0) recorded.push({ id: `${m.position.symbol}-entry`, timestamp: entryTime, type: 'BUY', price: m.position.entryPrice, quantity: m.position.quantity, typeLabel: he ? 'כניסה' : 'Entry' });
+    return recorded.sort((a, b) => a.timestamp - b.timestamp);
+  }, [m.position, he]);
+  const references = useMemo(() => buildHoldingChartReferences(historyPositions, points, settings.annualGrowthRate), [historyPositions, points, settings.annualGrowthRate]);
   const historyRange = useMemo(() => {
     const timestamps = [...new Set(points.filter((point) => Number.isFinite(point.timestamp) && Number.isFinite(point.close) && point.close >= 0).map((point) => point.timestamp))].sort((a, b) => a - b);
     if (timestamps.length < 2) return null;
     const date = (timestamp: number) => new Date(timestamp).toLocaleDateString(he ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-    return { start: date(timestamps[0]), end: date(timestamps[timestamps.length - 1]) };
-  }, [points, he]);
+    return { start: date(Math.min(timestamps[0], ...events.map(event => event.timestamp))), end: date(Math.max(timestamps[timestamps.length - 1], ...events.map(event => event.timestamp))) };
+  }, [points, events, he]);
 
   useLayoutEffect(() => {
     const card = cardRef.current;
@@ -56,6 +71,8 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
       graph.style.setProperty('--chart-y', `${y}px`);
       graph.style.setProperty('--chart-w', `${width}px`);
       graph.style.setProperty('--chart-h', `${height}px`);
+      graph.style.setProperty('--chart-marker-x', `${width > 0 ? 1000 / width : 1}`);
+      graph.style.setProperty('--chart-marker-y', `${height > 0 ? 160 / height : 1}`);
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -77,8 +94,8 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
   const entryDate = new Date(m.position.entryDate);
   const entryLabel = Number.isFinite(entryDate.getTime()) ? entryDate.toLocaleDateString(he ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
   return <article ref={cardRef} data-trend={holdingTone} className={`holding-card ${expanded ? 'holding-card-open' : ''}`}>
-    <div ref={graphRef} aria-hidden="true" className="holding-trend-layer"><HoldingTrendBackground points={points} tone={holdingTone} /></div>
-    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={onToggle} className="holding-toggle block w-full rounded-2xl px-4 pb-4 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:px-5">
+    <div ref={graphRef} aria-hidden="true" className="holding-trend-layer"><HoldingTrendBackground points={points} tone={holdingTone} expanded={expanded} baseline={m.position.entryPrice} targetPrice={target.salePrice} events={events} locale={locale} references={references} /></div>
+    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={onToggle} className="holding-toggle block w-full rounded-2xl px-4 pb-4 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
       
       <span className="holding-summary-content">
       <span className="flex items-center justify-between gap-3">
@@ -111,13 +128,18 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
             <div className="col-span-2 flex items-center justify-between gap-3 text-xs sm:col-span-1 sm:block"><dt className="text-slate-500">{he ? 'רווח / הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`font-medium tabular-nums sm:mt-1.5 sm:text-sm ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="ms-2 inline-block text-xs"><bdi>{percent(holdingReturn)}</bdi></span></dd></div>
           </dl>
           <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500"><span>{he ? 'מחיר המניה · USD' : 'Share price · USD'}</span>{historyRange ? <span className="text-[10px]"><bdi>{historyRange.start} – {historyRange.end}</bdi></span> : null}</div>
-            <div ref={chartSlotRef} className="holding-chart-slot relative h-36 w-full sm:h-40" role={historyRange ? 'img' : undefined} aria-label={historyRange ? (he ? `גרף מחיר ${m.position.symbol} בדולר, מ־${historyRange.start} עד ${historyRange.end}. הצבע לפי הרווח או ההפסד בהחזקה כעת.` : `${m.position.symbol} USD share prices from ${historyRange.start} to ${historyRange.end}. Color reflects the holding's current profit or loss.`) : undefined}>
+            <div data-chart-meta="" className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500"><span>{he ? 'מחיר המניה · USD' : 'Share price · USD'}</span>{historyRange ? <span className="text-[10px]"><bdi>{historyRange.start} – {historyRange.end}</bdi></span> : null}</div>
+            <div data-chart-meta="" className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[10px] text-slate-500">
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-rose-500" />{he ? 'הפסד' : 'Loss'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-blue-500" />{he ? 'מתחת ליעד' : 'Below target'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{he ? 'ביעד ומעלה' : 'At / above target'}</span></span>
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><i aria-hidden className="w-3 border-t border-dashed border-slate-400" />{he ? 'איזון (0) לפי יום' : 'Daily break-even (0)'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="w-3 border-t border-dashed border-blue-400" />{he ? 'יעד לפי יום' : 'Daily target'}</span></span>
+            </div>
+            <div data-chart-meta="" className="mb-2 flex items-center gap-3 text-[10px] text-slate-500"><span className="inline-flex items-center gap-1.5"><i aria-hidden className="h-2 w-2 rounded-full border-2 border-emerald-600 bg-white" />{he ? 'קנייה' : 'Buy'}</span><span className="inline-flex items-center gap-1.5"><i aria-hidden className="h-2 w-2 rounded-sm border-2 border-rose-600 bg-white" />{he ? 'מכירה' : 'Sell'}</span></div>
+            <div ref={chartSlotRef} className="holding-chart-slot relative h-48 w-full sm:h-52" role={historyRange ? 'img' : undefined} aria-label={historyRange ? (he ? `גרף מחיר ${m.position.symbol} בדולר, מ־${historyRange.start} עד ${historyRange.end}. אדום מתחת לעלות, כחול מתחת ליעד וירוק ביעד ומעלה. ${events.filter(event => event.type === 'BUY').length} כניסות, ${events.filter(event => event.type === 'SELL').length} יציאות.` : `${m.position.symbol} USD share prices from ${historyRange.start} to ${historyRange.end}. Red below cost, blue below target, green at or above target. ${events.filter(event => event.type === 'BUY').length} entries, ${events.filter(event => event.type === 'SELL').length} exits.`) : undefined}>
               {!historyRange ? <p className="flex h-full items-center text-xs text-slate-400">{he ? 'אין מספיק נתוני מחיר להצגת מגמה' : 'Not enough price data to show a trend'}</p> : null}
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><p className="text-xs text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p><Link href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`}<ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 rtl:-scale-x-100" /></Link></div>
-          <details className="group text-[11px] leading-relaxed text-slate-500"><summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center gap-1 rounded font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><ChevronDown aria-hidden className="h-3 w-3 transition-transform group-open:rotate-180" />{he ? 'אופן החישוב' : 'Calculation details'}</summary><p className="max-w-2xl pb-2">{he ? 'מחיר המכירה נדרש לעמידה ביעד האישי להיום במכירת כל יתרת המניות של הסימול, כולל רווחים והפסדים ממכירות קודמות ובחשבונות אחרים. עמלות שכבר הוזנו נכללות; מס ועמלת מכירה עתידית אינם נכללים. המחיר מעוגל מעלה לסנט. מחירי המניה והגרף בדולרים. הרווח הפתוח מתייחס רק להחזקה הזו, במטבע התיק. צבע הרקע מציין את הרווח או ההפסד בהחזקה כעת; קו הרקע מציג מחירים היסטוריים בדולר. נתונים חסרים מוצגים במקף.' : 'The sale price meets today’s personal target when selling all remaining shares of this symbol, accounting for prior realized gains and losses across accounts. Recorded fees are included; tax and future sale fees are excluded. The price rounds upward to a cent. Share prices and the chart are USD. Unrealized P/L covers this holding only, in your portfolio currency. The background color reflects current holding P/L; its line shows historical USD share prices. Missing data is shown as a dash.'}</p></details>
+          <details className="group text-[11px] leading-relaxed text-slate-500"><summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center gap-1 rounded font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><ChevronDown aria-hidden className="h-3 w-3 transition-transform group-open:rotate-180" />{he ? 'אופן החישוב' : 'Calculation details'}</summary><p className="max-w-2xl pb-2">{he ? 'מחיר המכירה נדרש לעמידה ביעד האישי להיום במכירת כל יתרת המניות של הסימול, כולל רווחים והפסדים ממכירות קודמות ובחשבונות אחרים. עמלות שכבר הוזנו נכללות; מס ועמלת מכירה עתידית אינם נכללים. המחיר מעוגל מעלה לסנט. מחירי המניה והגרף בדולרים. הרווח הפתוח מתייחס רק להחזקה הזו, במטבע התיק. צבע הרקע המכווץ מציין את הרווח או ההפסד בהחזקה כעת. בגרף הפתוח העלות והיעד מחושבים לכל יום בנפרד, לפי העסקאות עד סוף אותו יום ב־UTC ושיעור התשואה השנתי שמוגדר כעת, ללא עסקאות מימים עתידיים. גם צבע הקו וההצללה נקבעים מול הקווים באותו יום. קו האיזון (0) הוא העלות למניה, ולא מחיר מניה של אפס. הנקודות מציינות עסקאות שנרשמו בפועל. נתונים חסרים מוצגים במקף.' : 'The sale price meets today’s personal target when selling all remaining shares of this symbol, accounting for prior realized gains and losses across accounts. Recorded fees are included; tax and future sale fees are excluded. The price rounds upward to a cent. Share prices and the chart are USD. Unrealized P/L covers this holding only, in your portfolio currency. The collapsed background color reflects current holding P/L. Expanded references are calculated per day using trades through that UTC day and the currently configured annual return goal, excluding future-day trades. Line and fill colors use those daily references. Break-even (0) is the cost per share, not a zero share price. Markers represent recorded transactions. Missing data is shown as a dash.'}</p></details>
         </div>
       </div>
     </div>

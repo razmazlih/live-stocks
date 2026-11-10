@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { StockMiniChart } from './stock-mini-chart';
 import { OverviewHoldingCard } from './overview-holding-card';
 import { getHoldingTarget } from '@/lib/holding-display';
-import type { HistoricalPoint, PositionMetrics } from '@/types';
+import type { HistoricalPoint, Position, PositionMetrics } from '@/types';
 
 const FILTERS = ['all', 'winners', 'losers', 'ahead', 'lagging'] as const;
 function parseHoldings(params: URLSearchParams) {
@@ -20,10 +20,18 @@ function parseHoldings(params: URLSearchParams) {
   return { holding: params.get('holding'), q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
 }
 
-export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]> }) {
+export function OverviewHoldings({ metrics, sparklineData = {}, positions }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]>; positions?: Position[] }) {
   const { locale, settings } = useApp();
   const he = locale === 'he';
   const [state, patch, sourceUrl] = useUrlState(parseHoldings);
+  const historyBySymbol = useMemo(() => {
+    const grouped = new Map<string, Position[]>();
+    for (const position of positions ?? metrics.map(metric => metric.position)) {
+      const symbol = position.symbol.trim().toUpperCase();
+      grouped.set(symbol, [...(grouped.get(symbol) ?? []), position]);
+    }
+    return grouped;
+  }, [positions, metrics]);
   const labels = he ? ['הכל', 'ברווח', 'בהפסד', 'מעל היעד', 'מתחת ליעד'] : ['All', 'In profit', 'In loss', 'Above target', 'Below target'];
   const filtered = useMemo(() => metrics.filter((m) => {
     if (m.position.quantity <= 0 || !`${m.position.symbol} ${m.position.display}`.toLowerCase().includes(state.q.trim().toLowerCase())) return false;
@@ -54,7 +62,7 @@ export function OverviewHoldings({ metrics, sparklineData = {} }: { metrics: Pos
       })}</tbody></table>
       <div className="space-y-2 xl:hidden">{filtered.map((metric) => {
         const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
-        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} />;
+        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} historyPositions={historyBySymbol.get(metric.position.symbol.trim().toUpperCase()) ?? []} />;
       })}</div>
     </> : <p className="py-10 text-center text-sm text-slate-500">{he ? 'אין החזקות פעילות התואמות לסינון.' : 'No active holdings match your filters.'}</p>}
   </DashboardSurface>;

@@ -487,6 +487,7 @@
 /* Mobile holdings: intrinsic-height accordion, including an animated close. */
 .holding-card {
   position: relative;
+  overflow: hidden;
   isolation: isolate;
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
@@ -550,9 +551,15 @@
   opacity: 0;
   position: relative;
   z-index: 1;
+  pointer-events: none;
   transition: opacity 220ms ease;
 }
 .holding-card-open .holding-detail-content { opacity: 1; }
+.holding-detail-content a,
+.holding-detail-content details,
+.holding-detail-content dl,
+.holding-detail-content p,
+.holding-detail-content [data-chart-meta] { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
   .holding-card, .holding-monogram, .holding-chevron, .holding-reveal, .holding-detail-content, .holding-trend-layer, .holding-trend-layer::after { transition: none; }
   .holding-detail-content { transform: none; }
