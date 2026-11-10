@@ -55,7 +55,7 @@ export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: P
           <div className="relative isolate">
           <div className="px-4 pb-4 pt-4 sm:px-5">
             <span className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-[11px] text-slate-500"><span className="font-medium text-slate-600">{he ? `זוג ${index + 1}` : `Pair ${index + 1}`}</span><span aria-hidden className="h-0.5 w-0.5 rounded-full bg-slate-300" />{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
+              <span className="flex items-center gap-2 text-[11px] text-slate-500">{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
               <span className="rounded-full bg-slate-100/80 px-2 py-1 text-[10px] font-medium text-slate-500">{he ? 'סגירה מלאה' : 'Full exit'}</span>
             </span>
             <span className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
