@@ -2,7 +2,7 @@
 
 import { useId, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock3, MoreVertical, Pencil, RefreshCw, Trash2, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 import { formatCurrency, formatDate, formatPercent } from '@/lib/calculations';
@@ -84,19 +84,25 @@ export function TickerCard(props: TickerCardProps) {
 
   return <section aria-label={he ? `גרף ומידע ${ticker.symbol}` : `${ticker.symbol} chart and details`} className={cn('min-w-0 bg-white p-5 sm:p-6', className)} dir={he ? 'rtl' : 'ltr'}>
     <header className="flex items-start justify-between gap-3">
-      <TickerIdentity ticker={ticker} />
-      <Link id={`watchlist-link-${ticker.id ?? ticker.symbol}`} href={buildStockHref(ticker.symbol, returnTo)} onClick={() => rememberReturnContext(`watchlist-select-${ticker.id ?? ticker.symbol}`)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 sm:text-sm">{he ? 'לפרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden="true" className="h-4 w-4 ltr:rotate-180" /></Link>
+      <div className="min-w-0"><p className="mb-2 text-[11px] font-medium tracking-wide text-slate-500">{he ? 'מבט על המניה' : 'Stock overview'} <span className="mx-1.5 text-slate-300">/</span> <bdi>{currency}</bdi></p><TickerIdentity ticker={ticker} /></div>
+      <div className="pt-6"><TickerActions {...props} /></div>
     </header>
 
-    <div className="mt-6 flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
-      <div><p className="sr-only">{props.priceLabel ?? (he ? 'מחיר' : 'Price')}</p><p className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(data.currentPrice)}</bdi></p><p className="mt-2 text-xs text-slate-500">{currency} · {he ? 'היום' : 'Today'} <bdi className={cn('ms-1 font-semibold', watchlistTrendTone(data.dailyPercent))}>{percent(data.dailyPercent)}</bdi></p></div>
-      <div className="text-end"><p className="text-xs text-slate-500">{props.changeLabel ?? (he ? 'שינוי בטווח' : 'Period change')} · <bdi>{rangeLabel}</bdi></p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.periodPercent))}><bdi>{percent(data.periodPercent)}</bdi></p><p className={cn('text-xs tabular-nums', watchlistTrendTone(data.periodAbsolute))}><bdi>{data.periodAbsolute !== null ? `${data.periodAbsolute > 0 ? '+' : ''}${money(data.periodAbsolute)}` : '—'}</bdi></p></div>
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+      <p className="text-xs font-medium text-slate-600">{props.priceLabel ?? (he ? 'מחיר מניה נוכחי' : 'Current share price')}</p>
+      <p className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-950 sm:text-[42px]"><bdi>{money(data.currentPrice)}</bdi></p>
+      <div className="mt-3 grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-3">
+        <div><p className="text-xs text-slate-500">{he ? 'שינוי יומי' : 'Daily change'}</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.dailyPercent))}><bdi className="font-semibold">{percent(data.dailyPercent)}</bdi></p><p className="mt-0.5 text-[11px] text-slate-500">{he ? 'לעומת סגירת המסחר הקודמת' : 'Since the previous close'}</p></div>
+        <div className="border-s border-slate-200/80 ps-4"><p className="text-xs text-slate-500">{props.changeLabel ?? (he ? 'שינוי בטווח' : 'Period change')} · <bdi>{rangeLabel}</bdi></p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.periodPercent))}><bdi>{percent(data.periodPercent)}</bdi></p><p className={cn('mt-0.5 text-[11px] tabular-nums', watchlistTrendTone(data.periodAbsolute))}><bdi>{data.periodAbsolute !== null ? `${data.periodAbsolute > 0 ? '+' : ''}${money(data.periodAbsolute)}` : '—'}</bdi> <span className="text-slate-500">{he ? 'למניה' : 'per share'}</span></p></div>
+      </div>
     </div>
 
-    <div className="mt-5 min-h-[280px]">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900"><TrendingUp aria-hidden className="h-4 w-4 text-slate-400" />{he ? 'תנועת המחיר' : 'Price history'}</h3><span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">{rangeLabel}</span></div>
+    <div className="mt-2 min-h-[210px]">
+
       {loading ? <p role="status" className="mb-2 text-xs text-slate-500">{seriesAvailable ? he ? 'מעדכן… מוצגים הנתונים האחרונים עד לסיום.' : 'Updating… Showing the last available data until ready.' : props.loadingLabel ?? (he ? 'טוען…' : 'Loading…')}</p> : null}
       {error ? <p role="alert" className="mb-2 text-xs text-amber-700">{error || props.errorLabel}{seriesAvailable ? he ? ' מוצגים הנתונים האחרונים.' : ' Showing the last available data.' : ''}</p> : null}
-      {seriesAvailable ? <div className="h-[260px] w-full" dir="ltr" role="img" aria-label={he ? `מחיר ${ticker.symbol} מ־${formatDate(new Date(data.history[0].timestamp), locale)} עד ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}` : `${ticker.symbol} prices from ${formatDate(new Date(data.history[0].timestamp), locale)} to ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}`}>
+      {seriesAvailable ? <div className="h-[200px] w-full" dir="ltr" role="img" aria-label={he ? `מחיר ${ticker.symbol} מ־${formatDate(new Date(data.history[0].timestamp), locale)} עד ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}` : `${ticker.symbol} prices from ${formatDate(new Date(data.history[0].timestamp), locale)} to ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}`}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <AreaChart data={data.history} margin={{ top: 14, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
             <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.18} /><stop offset="100%" stopColor={color} stopOpacity={0.02} /></linearGradient></defs>
@@ -107,15 +113,15 @@ export function TickerCard(props: TickerCardProps) {
             <Area dataKey="close" type="linear" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} activeDot={{ r: 4 }} />
           </AreaChart>
         </ResponsiveContainer>
-      </div> : !loading && !error ? <p className="flex h-[260px] items-center justify-center text-center text-sm text-slate-500">{props.emptySeriesLabel ?? (he ? 'אין נתונים לטווח שנבחר.' : 'No data available for this range.')}</p> : null}
+      </div> : !loading && !error ? <p className="flex h-[200px] items-center justify-center text-center text-sm text-slate-500">{props.emptySeriesLabel ?? (he ? 'אין נתונים לטווח שנבחר.' : 'No data available for this range.')}</p> : null}
     </div>
 
-    <div className="grid grid-cols-2 gap-5 border-t border-slate-200 py-4 text-sm">
-      <div><p className="text-xs text-slate-500">{props.basePriceLabel ?? (he ? 'מחיר בתחילת התקופה' : 'Starting price')}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{money(data.basePrice)}</bdi></p>{data.baseDate ? <p className="mt-1 text-[11px] text-slate-400">{props.startDateLabel ? `${props.startDateLabel} ` : ''}{formatDate(data.baseDate, locale)}</p> : null}</div>
-      <div className="text-end"><p className="text-xs text-slate-500">{he ? 'עודכן' : 'Updated'}</p><p className="mt-1 font-medium tabular-nums text-slate-900"><bdi>{validUpdated ? validUpdated.toLocaleTimeString(he ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</bdi></p></div>
+    <div className="mt-1 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+      <div><p className="text-[11px] text-slate-500">{props.basePriceLabel ?? (he ? 'מחיר בתחילת התקופה' : 'Starting price')}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{money(data.basePrice)}</bdi></p>{data.baseDate ? <p className="mt-1 text-[11px] text-slate-500">{formatDate(data.baseDate, locale)}</p> : null}</div>
+      <div className="border-s border-slate-200 ps-4"><p className="inline-flex items-center gap-1 text-[11px] text-slate-500"><Clock3 aria-hidden className="h-3 w-3" />{he ? 'רענון נתונים אחרון' : 'Last data refresh'}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{validUpdated ? validUpdated.toLocaleTimeString(he ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</bdi></p><p className="mt-1 text-[11px] text-slate-500">{he ? 'המחירים עשויים להיות מושהים' : 'Prices may be delayed'}</p></div>
     </div>
 
-    <div className="border-t border-slate-200 py-3"><div className="flex items-center justify-between gap-3"><p className="text-xs text-slate-500">{props.noteLabel ?? (he ? 'הערה' : 'Notes')}</p>{onEdit ? <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-500" onClick={() => onEdit(ticker)} aria-label={he ? `עריכת הערה ${ticker.symbol}` : `Edit ${ticker.symbol} note`}><Pencil aria-hidden="true" className="h-4 w-4" /></Button> : null}</div><p className="break-words whitespace-pre-line text-sm leading-relaxed text-slate-700">{ticker.note || (he ? 'אין הערה למניה.' : 'No note for this ticker.')}</p></div>
-    <div className="flex justify-end border-t border-slate-100 pt-2"><TickerActions {...props} /></div>
+    <div className="mt-3 flex items-start justify-between gap-3 border-t border-slate-100 pt-3"><div className="min-w-0"><p className="text-xs font-medium text-slate-600">{props.noteLabel ?? (he ? 'הערה אישית' : 'Personal note')}</p><p className="mt-1 break-words whitespace-pre-line text-sm leading-relaxed text-slate-500">{ticker.note || (he ? 'מה חשוב לך לזכור על המניה?' : 'What would you like to remember about this stock?')}</p></div>{onEdit ? <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => onEdit(ticker)} aria-label={he ? `עריכת הערה ${ticker.symbol}` : `Edit ${ticker.symbol} note`}><Pencil aria-hidden="true" className="h-4 w-4" /></Button> : null}</div>
+    <Link id={`watchlist-link-${ticker.id ?? ticker.symbol}`} href={buildStockHref(ticker.symbol, returnTo)} onClick={() => rememberReturnContext(`watchlist-select-${ticker.id ?? ticker.symbol}`)} className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'לפרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden="true" className="h-4 w-4 ltr:rotate-180" /></Link>
   </section>;
 }
