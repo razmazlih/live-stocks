@@ -34,4 +34,13 @@ describe('combined pair chart', () => {
     expect(screen.getByText(/Last close/)).toHaveTextContent('Last close · Oct 2: +$20.00');
   });
 
+  it('keeps the chart accessible in compact mode while deferring explanations', () => {
+    const sparklineData = {'active-WIN': history([90, 120]), 'active-LOSS': history([95, 90])};
+    const { rerender } = render(<ClosePairChart proposal={proposal} locale="en" sparklineData={sparklineData} compact />);
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Combined target surplus/);
+    expect(screen.getByText('Gap to personal target over time').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
+    rerender(<ClosePairChart proposal={proposal} locale="en" sparklineData={sparklineData} compact={false} />);
+    expect(screen.getByText('Gap to personal target over time').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'false');
+  });
+
 });

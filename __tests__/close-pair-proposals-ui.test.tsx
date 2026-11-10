@@ -111,12 +111,15 @@ describe('close pair disclosure', () => {
     expect(screen.getByRole('link', { name: /^W2/ })).toBeInTheDocument();
   });
 
-  it('uses the configured annual target and separates exit profit from surplus', () => {
+  it('uses the configured annual target and reveals the calculation only when opened', async () => {
+    const user = userEvent.setup();
     context.locale = 'en';
     const positions = [metric('WIN', 130), metric('LOSS', 80)];
     const { rerender } = render(<ClosePairProposals metrics={positions} />);
     expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
-    expect(screen.getByText('Combined exit profit')).toBeInTheDocument();
+    expect(screen.getByText('Combined exit profit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
+    await user.click(screen.getByRole('button', {name: 'Expand WIN + LOSS details'}));
+    expect(screen.getByText('Combined exit profit')).toBeVisible();
     expect(screen.getByText('Profit target to date')).toBeInTheDocument();
     context.settings.annualGrowthRate = 100;
     rerender(<ClosePairProposals metrics={positions} />);

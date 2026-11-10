@@ -53,25 +53,17 @@ export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: P
         const expanded = expandedPairs.has(key);
         return <article key={key} className={`holding-card min-w-0 overflow-hidden ${expanded ? 'holding-card-open' : ''}`}>
           <div className="relative isolate">
-          <div className="px-4 pb-4 pt-4 sm:px-5">
-            <span className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-[11px] text-slate-500">{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
-            </span>
-            <span className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="px-4 pb-3 pt-3 sm:px-5">
+            <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-1.5" dir="ltr"><span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-base font-semibold tracking-tight text-slate-950">{proposal.winner.position.symbol}</span><span className="text-xs text-slate-400"> + </span><span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-base font-semibold tracking-tight text-slate-950">{proposal.loser.position.symbol}</span></span>
-                <span className="mt-2 block text-[11px] leading-4 text-slate-500">{he ? 'סגירה מלאה של שתי ההחזקות' : 'Close both holdings in full'}</span>
+                <span className="flex flex-wrap items-center gap-1.5" dir="ltr"><span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold tracking-tight text-slate-950">{proposal.winner.position.symbol}</span><span className="text-xs text-slate-400"> + </span><span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold tracking-tight text-slate-950">{proposal.loser.position.symbol}</span></span>
+                <span className="mt-1 block text-[10px] leading-4 text-slate-500">{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
               </span>
-              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'מעל היעד האישי · USD' : 'Above personal target · USD'}</span><span className="mt-1 block text-[28px] font-semibold leading-tight tracking-tight text-emerald-700"><bdi>+{money(proposal.surplusUsd)}</bdi></span></span>
+              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'מעל היעד האישי · USD' : 'Above personal target · USD'}</span><span className="mt-1 block text-2xl font-semibold leading-tight tracking-tight text-emerald-700"><bdi>+{money(proposal.surplusUsd)}</bdi></span></span>
             </span>
           </div>
-          <dl className="mx-4 mb-3 grid grid-cols-2 gap-2 text-xs sm:mx-5">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5"><dt className="text-[11px] text-slate-600">{he ? 'רווח משולב בסגירה' : 'Combined exit profit'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900"><bdi>{money(proposal.netProfitUsd)}</bdi></dd></div>
-            <div className="rounded-xl border border-blue-100/60 bg-blue-50/40 px-3 py-2.5 text-end"><dt className="text-[11px] text-slate-600">{he ? 'יעד הרווח להיום' : 'Profit target to date'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-blue-700"><bdi>{money(proposal.targetProfitUsd)}</bdi></dd></div>
-          </dl>
-          <p className="mx-4 mb-4 text-[10px] leading-4 text-slate-500 sm:mx-5">{he ? 'מעל היעד = רווח בסגירה פחות יעד הרווח להיום' : 'Above target = exit profit minus profit target to date'}</p>
-        <ClosePairChart proposal={proposal} sparklineData={sparklineData} locale={locale} />
-          <div className="mx-4 flex min-h-11 items-center justify-between gap-3 border-t border-slate-100 pb-3 pt-2 sm:mx-5">
+        <ClosePairChart proposal={proposal} sparklineData={sparklineData} locale={locale} compact={!expanded} />
+          <div className="mx-4 flex min-h-8 items-center justify-between gap-3 border-t border-slate-100 pb-2 pt-1.5 sm:mx-5">
             <span className="text-[10px] text-slate-500">{he ? 'לפני מס ועלויות מכירה' : 'Before tax & exit costs'}</span>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700">{expanded ? (he ? 'פחות פרטים' : 'Less detail') : (he ? 'לפירוט הסגירה' : 'View exit details')}<ChevronDown aria-hidden className="holding-chevron h-3.5 w-3.5 text-slate-400" /></span>
           </div>
@@ -80,6 +72,12 @@ export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: P
         <div id={`${panelId}-${index}`} aria-hidden={!expanded} ref={element => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
           <div className="min-h-0 overflow-hidden">
             <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
+          <dl className="mb-3 grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5"><dt className="text-[11px] text-slate-600">{he ? 'רווח משולב בסגירה' : 'Combined exit profit'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900"><bdi>{money(proposal.netProfitUsd)}</bdi></dd></div>
+            <div className="rounded-xl border border-blue-100/60 bg-blue-50/40 px-3 py-2.5 text-end"><dt className="text-[11px] text-slate-600">{he ? 'יעד הרווח להיום' : 'Profit target to date'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-blue-700"><bdi>{money(proposal.targetProfitUsd)}</bdi></dd></div>
+          </dl>
+          <p className="mb-4 text-[10px] leading-4 text-slate-500">{he ? 'מעל היעד = רווח בסגירה פחות יעד הרווח להיום' : 'Above target = exit profit minus profit target to date'}</p>
+
               <ul className={`border-t border-slate-200/70 pt-2 text-sm ${proposals.length === 1 ? 'grid gap-x-8 gap-y-1 sm:grid-cols-2' : 'space-y-1'}`}>
                 {[proposal.winner, proposal.loser].map(leg => <li key={leg.position.symbol} className="flex items-center justify-between gap-3">
                   <Link href={buildStockHref(leg.position.symbol, typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-blue-700 underline-offset-4 transition-colors hover:text-blue-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
