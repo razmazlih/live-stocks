@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LineChart } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { AppRouteItem, AppRouteKey } from './navigation';
 
@@ -33,7 +33,7 @@ export function AppSidebar({ items, activeKey, locale }: AppSidebarProps) {
   return <>
     <aside className="hidden w-[216px] shrink-0 border-e border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
       <Link href="/" aria-label="LiveStocks" className="flex h-24 shrink-0 items-center gap-2 px-6 text-slate-950">
-        <LineChart aria-hidden="true" className="h-8 w-8 text-blue-600" />
+        <Image src="/brand/livestocks.svg" alt="" width={32} height={32} className="h-8 w-8 shrink-0" />
         <span className="text-xl font-bold tracking-tight">LiveStocks</span>
       </Link>
       <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-2" aria-label={dashboardLabel}>

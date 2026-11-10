@@ -1,5 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,7 +57,10 @@ export const DashboardPageShell = React.forwardRef<
 
           <div className={cn("dashboard-content-enter flex min-w-0 flex-1 flex-col", contentClassName)}>
             {hasNavigation ? <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 lg:hidden">
-              <Link href="/" className="text-base font-bold tracking-tight text-slate-950">LiveStocks</Link>
+              <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-950">
+                <Image src="/brand/livestocks.svg" alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
+                LiveStocks
+              </Link>
               <Link href="/settings" aria-label={locale === 'he' ? 'הגדרות' : 'Settings'} aria-current={activeKey === 'settings' ? 'page' : undefined} className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-700"><Settings aria-hidden="true" className="h-5 w-5" /></Link>
             </div> : null}
             {children}

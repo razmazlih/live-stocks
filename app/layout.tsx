@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   title: 'Stocks Status',
   description: 'Advanced stock portfolio tracker with analytics',
   icons: {
-    icon: 'https://res.cloudinary.com/dvdgfcniz/image/upload/c_crop,w_167,h_167,ar_1:1/v1761288262/image_sa6vpb.jpg',
+    icon: [
+      { url: '/brand/livestocks.svg', type: 'image/svg+xml' },
+      { url: '/brand/favicon-32.png', type: 'image/png', sizes: '32x32' },
+    ],
+    shortcut: '/brand/favicon-32.png',
+    apple: { url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
   },
 };
 
