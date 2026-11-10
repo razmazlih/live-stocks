@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PerformanceChart } from '@/components/charts/performance-chart';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
+import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
 import { ResearchExportButton } from '@/components/portfolio/research-export-button';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -71,6 +72,7 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3"><div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"><span className="font-semibold text-slate-900">{he ? 'פערים מול היעד' : 'Gaps to target'}</span><span className="text-slate-600">{he ? 'פער מצטבר:' : 'Cumulative gap:'} <bdi className="font-semibold tabular-nums">{money(totals?.gap)}</bdi></span></div><Link href="/portfolio?view=targets" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700">{he ? 'לצפייה בפירוט' : 'View details'}<Arrow aria-hidden className="h-4 w-4" /></Link></div>
           </DashboardSurface> : <DashboardSurface><p className="py-10 text-center text-sm text-slate-500">{he ? 'סיכום התיק אינו זמין כרגע.' : 'The portfolio summary is currently unavailable.'}</p></DashboardSurface>}
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} />
+          <ClosePairProposals metrics={metrics} />
         </>}
       </DashboardMain>
     </DashboardContainer>
