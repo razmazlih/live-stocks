@@ -20,4 +20,23 @@ describe('pair research verdict instructions', () => {
     expect(prompt).toContain('OPPOSE executing now due to missing verification');
     expect(prompt).toContain('Do not execute trades');
   });
+  it('requests replacement research only for supported exits and uses their gross proceeds', () => {
+    const prompt = buildClosePairReviewPrompt([], 'he');
+    expect(prompt).toContain('רק אם אתה תומך בסגירת זוג אחד או יותר');
+    expect(prompt).toContain('אל תשתמש ברווח או ביתרה מעל היעד כתקציב');
+    expect(prompt).toContain('אל תכלול תמורה מזוג שהתנגדת לסגירתו');
+    expect(prompt).toContain('חקור לעומק כל מועמדת סופית');
+    expect(prompt).toContain('מניה אחת, כמה מניות או מזומן בינתיים');
+    expect(prompt).toContain('אין לבצע מכירה או קנייה');
+  });
+  it('preserves conditional alternatives, budget boundaries and cash comparison in English', () => {
+    const prompt = buildClosePairReviewPrompt([], 'en');
+    expect(prompt).toContain('ONLY if you support closing one or more pairs');
+    expect(prompt).toContain('exclude proceeds from pairs you opposed');
+    expect(prompt).toContain('Deeply research EACH finalist');
+    expect(prompt).toContain('one stock, several stocks, or cash for now');
+    expect(prompt).toContain('do not exceed 100%');
+    expect(prompt).toContain('Do not execute sales or purchases');
+  });
+
 });
