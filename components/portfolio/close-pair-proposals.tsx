@@ -56,7 +56,6 @@ export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: P
           <div className="px-4 pb-4 pt-4 sm:px-5">
             <span className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-[11px] text-slate-500">{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
-              <span className="rounded-full bg-slate-100/80 px-2 py-1 text-[10px] font-medium text-slate-500">{he ? `יעד שנתי ${(settings.annualGrowthRate * 100).toLocaleString('he-IL', {maximumFractionDigits: 2})}%` : `${(settings.annualGrowthRate * 100).toLocaleString('en-US', {maximumFractionDigits: 2})}% annual target`}</span>
             </span>
             <span className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
               <span className="min-w-0">
