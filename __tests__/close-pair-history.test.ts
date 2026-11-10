@@ -10,11 +10,12 @@ const point = (offset: number, close: number): HistoricalPoint => ({ timestamp: 
 function leg(symbol: string, quantity: number, costBasisUsd: number): ClosePairLeg {
   return { position: { symbol, display: symbol, imageUrl: '', location: 'bank_one',
     quantity, entryPrice: costBasisUsd / quantity, entryDate: new Date(start).toISOString() },
-  quantity, currentPrice: 150, costBasisUsd, proceedsUsd: quantity * 150, pnlUsd: quantity * 150 - costBasisUsd };
+  quantity, currentPrice: 150, costBasisUsd, proceedsUsd: quantity * 150, pnlUsd: quantity * 150 - costBasisUsd, targetProfitUsd: 0, surplusUsd: quantity * 150 - costBasisUsd };
 }
 function proposal(): ClosePairProposal {
   return { winner: leg('WIN', 2, 200), loser: leg('LOSS', 3, 300),
-    profitUsd: 100, lossUsd: 50, netProfitUsd: 50, proceedsUsd: 550 };
+    profitUsd: 100, lossUsd: 50, netProfitUsd: 50, proceedsUsd: 550, targetProfitUsd: 0, surplusUsd: 50,
+    annualGrowthRate: 0, targetAsOf: asOf, coveredShortfallUsd: 50, excessProfitUsd: 100 };
 }
 const buy = (offset: number, quantity: number, price = 100): PositionLot => ({
   type: 'BUY', quantity, price, executedAt: new Date(start + offset * day).toISOString(),
@@ -22,6 +23,51 @@ const buy = (offset: number, quantity: number, price = 100): PositionLot => ({
 });
 
 describe('combined close-pair history', () => {
+  it('subtracts the compounded target at UTC day end and caps today at asOf', () => {
+    const pair = proposal();
+    pair.annualGrowthRate = .1;
+    const time = start + 1.5 * day;
+    const result = buildClosePairHistory(pair, [point(0.9, 140), point(1.1, 140)],
+      [point(0.9, 100), point(1.1, 100)], time);
+    expect(result[0].close).toBeCloseTo(80 - 500 * (Math.pow(1.1, (day - 1) / (365.25 * day)) - 1), 8);
+    expect(result[1].close).toBeCloseTo(80 - 500 * (Math.pow(1.1, 1.5 / 365.25) - 1), 8);
+  });
+
+  it('uses each remaining FIFO buy date and cost for the historical target', () => {
+    const pair = proposal();
+    pair.annualGrowthRate = .1;
+    pair.winner.position.lots = [{ ...buy(0, 5), hasCommission: true, commissionAmount: 10 },
+      { ...buy(1, 4), type: 'SELL' }, buy(2, 1, 98)];
+    // Remaining cost: one share at 102 (allocated original fee) + one at 98.
+    pair.loser.position.entryDate = new Date(start + day).toISOString();
+    const [result] = buildClosePairHistory(pair, [point(3.5, 140)], [point(3.5, 100)], start + 3.75 * day);
+    const target = 102 * (Math.pow(1.1, 3.75 / 365.25) - 1) +
+      98 * (Math.pow(1.1, 1.75 / 365.25) - 1) + 300 * (Math.pow(1.1, 2.75 / 365.25) - 1);
+    expect(result.close).toBeCloseTo(80 - target, 8);
+  });
+
+  it('does not silently assume a zero target when the annual rate is missing or invalid', () => {
+    for (const rate of [undefined, null, Number.NaN, Infinity, -1]) {
+      const pair = proposal();
+      pair.annualGrowthRate = rate as number;
+      expect(buildClosePairHistory(pair, [point(0, 100)], [point(0, 100)], asOf)).toEqual([]);
+    }
+    const pair = proposal();
+    pair.annualGrowthRate = -.05;
+    expect(buildClosePairHistory(pair, [point(1, 100)], [point(1, 100)], asOf)[0].close).toBeGreaterThan(0);
+  });
+
+  it('defaults to the proposal target timestamp so refreshing the graph does not advance its target', () => {
+    const pair = proposal();
+    pair.annualGrowthRate = .1;
+    pair.targetAsOf = start + 1.5 * day;
+    const winner = [point(1.1, 140), point(2.1, 140)];
+    const loser = [point(1.2, 100), point(2.2, 100)];
+    const result = buildClosePairHistory(pair, winner, loser);
+    expect(result).toHaveLength(1);
+    expect(result[0].close).toBeCloseTo(80 - 500 * (Math.pow(1.1, 1.5 / 365.25) - 1), 8);
+  });
+
   it('calculates a fixed-quantity USD simulation that can cross zero', () => {
     const result = buildClosePairHistory(proposal(), [point(0, 90), point(1, 140)],
       [point(0, 80), point(1, 100)], asOf);

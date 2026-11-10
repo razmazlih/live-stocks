@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
 import { toast } from 'sonner';
 import { calculatePositionMetrics } from '@/lib/calculations';
 import type { Position } from '@/types';
 
-const context = vi.hoisted(() => ({ locale: 'en' }));
+const context = vi.hoisted(() => ({ locale: 'en', settings: {annualGrowthRate: 0} }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/context', () => ({ useApp: () => context }));
 const metric = (symbol: string, price: number) => calculatePositionMetrics({
@@ -15,6 +15,7 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
 } satisfies Position, price, 3.5);
 
 describe('close pair disclosure', () => {
+  beforeEach(() => { context.settings.annualGrowthRate = 0; });
   it('starts collapsed, opens with the keyboard and hides links when collapsed', async () => {
     context.locale = 'en';
     const user = userEvent.setup();
@@ -67,7 +68,8 @@ describe('close pair disclosure', () => {
     const snapshot = JSON.parse(prompt.slice(prompt.indexOf('{')));
     expect(snapshot.pairs).toHaveLength(1);
     expect(snapshot.pairs[0].legs.map((leg: {symbol: string}) => leg.symbol)).toEqual(['WIN', 'LOSS']);
-    expect(snapshot.pairs[0].combinedProfitUsd).toBe(20);
+    expect(snapshot.pairs[0]).toMatchObject({combinedProfitUsd: 20, personalTargetProfitUsd: 0, surplusAboveTargetUsd: 20, annualPersonalReturnRate: 0});
+    expect(prompt).toContain('not a market forecast');
     expect(snapshot.pairs[0].legs[0]).toMatchObject({quantity: 2, referencePriceUsd: 130, remainingFifoCostUsd: 200});
     expect(prompt).toContain('The document generation time is not a quote timestamp');
     expect(prompt).not.toContain('bank_one');
@@ -107,6 +109,18 @@ describe('close pair disclosure', () => {
     expect(second).toHaveAttribute('aria-expanded', 'true');
     expect(screen.queryByRole('link', { name: /^W1/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^W2/ })).toBeInTheDocument();
+  });
+
+  it('uses the configured annual target and separates exit profit from surplus', () => {
+    context.locale = 'en';
+    const positions = [metric('WIN', 130), metric('LOSS', 80)];
+    const { rerender } = render(<ClosePairProposals metrics={positions} />);
+    expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
+    expect(screen.getByText('Combined exit profit')).toBeInTheDocument();
+    expect(screen.getByText('Profit target to date')).toBeInTheDocument();
+    context.settings.annualGrowthRate = 100;
+    rerender(<ClosePairProposals metrics={positions} />);
+    expect(screen.queryByRole('region', { name: 'Two-position exit ideas' })).not.toBeInTheDocument();
   });
 
 });

@@ -1,5 +1,6 @@
 import { computeOpenLots } from '@/lib/positions';
 import type { ClosePairLeg, ClosePairProposal } from '@/lib/close-pair-proposals';
+import { calculateClosePairLegTargetProfitUsd } from '@/lib/close-pair-proposals';
 import type { HistoricalPoint } from '@/types';
 
 const DAY_MS = 86_400_000;
@@ -29,7 +30,10 @@ function pricesByDay(history: HistoricalPoint[], startDay: number, asOf: number)
 
 /**
  * Retrospective USD simulation of today's remaining shares and FIFO cost basis:
- * qWinner * historicalPriceWinner + qLoser * historicalPriceLoser - currentCost.
+ * qWinner * historicalPriceWinner + qLoser * historicalPriceLoser - currentCost
+ * minus the personal annual target accrued from each remaining buy through that
+ * UTC day's end (capped at asOf). Zero represents meeting the target, not merely
+ * breaking even. The same 365.25-day compound model is used for current ideas.
  * This is not actual historical portfolio P/L: quantities/costs stay fixed and
  * realized sales, taxes and future exit fees are excluded. Begin on the UTC day
  * of the latest buy still represented in either remaining holding. Only days
@@ -41,10 +45,11 @@ export function buildClosePairHistory(
   proposal: ClosePairProposal,
   winnerHistory: HistoricalPoint[],
   loserHistory: HistoricalPoint[],
-  asOf = Date.now(),
+  asOf = proposal.targetAsOf,
 ): HistoricalPoint[] {
   const legs = [proposal.winner, proposal.loser];
-  if (!Number.isFinite(asOf) || legs.some(leg =>
+  if (!Number.isFinite(asOf) || !Number.isFinite(proposal.annualGrowthRate) ||
+      proposal.annualGrowthRate <= -1 || legs.some(leg =>
     !Number.isFinite(leg.quantity) || leg.quantity <= 0 ||
     !Number.isFinite(leg.costBasisUsd) || leg.costBasisUsd <= 0)) return [];
   const latestBuy = Math.max(...legs.map(latestRemainingBuy));
@@ -56,7 +61,10 @@ export function buildClosePairHistory(
   return [...winnerPrices.entries()].sort(([a], [b]) => a - b).flatMap(([timestamp, winner]) => {
     const loser = loserPrices.get(timestamp);
     if (!loser) return [];
-    const close = proposal.winner.quantity * winner.close + proposal.loser.quantity * loser.close - cost;
+    const targetAsOf = Math.min(timestamp + DAY_MS - 1, asOf);
+    const targetProfit = legs.reduce((sum, leg) =>
+      sum + calculateClosePairLegTargetProfitUsd(leg, proposal.annualGrowthRate, targetAsOf), 0);
+    const close = proposal.winner.quantity * winner.close + proposal.loser.quantity * loser.close - cost - targetProfit;
     return Number.isFinite(close) ? [{ timestamp, close }] : [];
   });
 }
