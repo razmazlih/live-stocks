@@ -19,7 +19,7 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    const toggle = screen.getByRole('button', { name: /Two-position exit ideas/ });
+    const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByTestId('close-pair-preview')).toHaveTextContent(/WIN.*LOSS/);
@@ -50,7 +50,7 @@ describe('close pair disclosure', () => {
     context.locale = 'he';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /הצעות לסגירת שתי פוזיציות/ }));
+    await user.click(screen.getByRole('button', { name: /פתיחת פרטי WIN \+ LOSS/ }));
     expect(screen.getByText(/הדמיה בדולרים/)).toBeInTheDocument();
     expect(screen.getAllByText(/כל 2 המניות/)).toHaveLength(2);
   });
@@ -60,7 +60,7 @@ describe('close pair disclosure', () => {
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80), metric('OTHER', 95)]} />);
     expect(screen.getAllByRole('article')).toHaveLength(1);
-    const toggle = screen.getByRole('button', { name: /Two-position exit ideas/ });
+    const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     const prompt = write.mock.calls[0][0];
@@ -85,6 +85,28 @@ describe('close pair disclosure', () => {
     expect(copy).toBeEnabled();
     await user.click(copy);
     expect(write).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens and closes pairs independently and can keep multiple pairs open', async () => {
+    context.locale = 'en';
+    const user = userEvent.setup();
+    render(<ClosePairProposals metrics={[metric('W1', 140), metric('W2', 130), metric('L1', 80), metric('L2', 90)]} />);
+    const first = screen.getByRole('button', { name: 'Expand W1 + L1 details' });
+    const second = screen.getByRole('button', { name: 'Expand W2 + L2 details' });
+    await user.click(first);
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    expect(second).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('link', { name: /^W1/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^W2/ })).not.toBeInTheDocument();
+    second.focus();
+    await user.keyboard('{Enter}');
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    expect(second).toHaveAttribute('aria-expanded', 'true');
+    await user.click(first);
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    expect(second).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('link', { name: /^W1/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^W2/ })).toBeInTheDocument();
   });
 
 });
