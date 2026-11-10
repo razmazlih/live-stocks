@@ -20,16 +20,23 @@ describe('close pair disclosure', () => {
     const toggle = screen.getByRole('button', { name: /Two-position exit ideas/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByTestId('close-pair-preview')).toHaveTextContent(/WIN.*LOSS/);
+    expect(screen.getByTestId('close-pair-preview')).toHaveTextContent('+$20.00');
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!.split(' ')[0])!;
+    expect(panel).toHaveAttribute('inert');
     toggle.focus();
     await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(panel).not.toHaveAttribute('inert');
     expect(screen.getByText('+$20.00')).toBeInTheDocument();
     expect(screen.getAllByText(/All 2 shares/)).toHaveLength(2);
     expect(screen.getByText(/USD simulation/)).toHaveTextContent('Tax, exit fees and price changes are excluded');
-    expect(screen.getByRole('link', { name: 'WIN' })).toHaveAttribute('href', expect.stringContaining('/stock/WIN'));
+    expect(screen.getByRole('link', { name: /^WIN/ })).toHaveAttribute('href', expect.stringContaining('/stock/WIN'));
     await user.keyboard(' ');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(panel).toHaveAttribute('inert');
+    expect(screen.getByTestId('close-pair-preview')).toHaveTextContent('+$20.00');
   });
 
   it('leaves no extra surface when there is no profitable pair', () => {
