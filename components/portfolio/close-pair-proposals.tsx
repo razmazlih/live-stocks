@@ -52,24 +52,31 @@ export function ClosePairProposals({ metrics, sparklineData = {} }: { metrics: P
         const key = pairKey(proposal);
         const expanded = expandedPairs.has(key);
         return <article key={key} className={`holding-card min-w-0 overflow-hidden ${expanded ? 'holding-card-open' : ''}`}>
-          <button type="button" aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${proposal.winner.position.symbol} + ${proposal.loser.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${proposal.winner.position.symbol} + ${proposal.loser.position.symbol} details`} aria-expanded={expanded} aria-controls={`${panelId}-${index}`} onClick={() => setExpandedPairs(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} className="holding-toggle block w-full px-4 pb-4 pt-3 text-start transition-colors hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5 sm:pt-4">
+          <div className="relative isolate">
+          <div className="px-4 pb-4 pt-4 sm:px-5">
             <span className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-[11px] text-slate-500"><span className="font-medium text-slate-600">{he ? `זוג ${index + 1}` : `Pair ${index + 1}`}</span><span aria-hidden className="h-0.5 w-0.5 rounded-full bg-slate-300" />{proposal.winner.position.location === 'bank_two' ? (he ? 'בנק 2' : 'Bank 2') : (he ? 'בנק 1' : 'Bank 1')}</span>
-              <span className="flex min-h-8 items-center gap-1.5 rounded-full px-2 text-[11px] font-medium text-slate-500"><span>{expanded ? (he ? 'פחות פרטים' : 'Less') : (he ? 'פרטים' : 'Details')}</span><ChevronDown aria-hidden className="holding-chevron h-3.5 w-3.5 text-slate-400" /></span>
+              <span className="rounded-full bg-slate-100/80 px-2 py-1 text-[10px] font-medium text-slate-500">{he ? 'סגירה מלאה' : 'Full exit'}</span>
             </span>
-            <span className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+            <span className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
               <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-1.5" dir="ltr"><span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold tracking-tight text-slate-950">{proposal.winner.position.symbol}</span><span className="text-xs text-slate-400"> + </span><span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold tracking-tight text-slate-950">{proposal.loser.position.symbol}</span></span>
-                <span className="mt-2 block text-[11px] leading-4 text-slate-500">{he ? 'סגירה מלאה של שתי ההחזקות' : 'Close both holdings in full'}</span>
+                <span className="flex flex-wrap items-center gap-1.5" dir="ltr"><span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-base font-semibold tracking-tight text-slate-950">{proposal.winner.position.symbol}</span><span className="text-xs text-slate-400"> + </span><span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-base font-semibold tracking-tight text-slate-950">{proposal.loser.position.symbol}</span></span>
+                <span className="mt-2 block text-[11px] leading-4 text-slate-500">{he ? 'שתי החזקות · הצעה אחת' : 'Two holdings · one proposal'}</span>
               </span>
-              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'רווח משולב · USD' : 'Combined profit · USD'}</span><span className="mt-1 block text-2xl font-semibold tracking-tight text-emerald-700"><bdi>+{money(proposal.netProfitUsd)}</bdi></span></span>
+              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'רווח שיישאר · USD' : 'Remaining profit · USD'}</span><span className="mt-1 block text-[28px] font-semibold leading-tight tracking-tight text-emerald-700"><bdi>+{money(proposal.netProfitUsd)}</bdi></span></span>
             </span>
-          </button>
-          <dl className="mx-4 mb-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-2.5 text-xs sm:mx-5">
-            <div><dt className="text-[11px] text-slate-500">{he ? 'רווח בפוזיציה' : 'Winning position'}</dt><dd className="mt-1 font-medium tabular-nums text-emerald-700"><bdi>+{money(proposal.profitUsd)}</bdi></dd></div>
-            <div className="text-end"><dt className="text-[11px] text-slate-500">{he ? 'הפסד מכוסה' : 'Loss covered'}</dt><dd className="mt-1 font-medium tabular-nums text-rose-600"><bdi>{money(-proposal.lossUsd)}</bdi></dd></div>
+          </div>
+          <dl className="mx-4 mb-4 grid grid-cols-2 gap-2 text-xs sm:mx-5">
+            <div className="rounded-xl bg-emerald-50/60 px-3 py-2.5"><dt className="text-[11px] text-slate-600">{he ? `רווח ב־${proposal.winner.position.symbol}` : `${proposal.winner.position.symbol} gain`}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-emerald-700"><bdi>+{money(proposal.profitUsd)}</bdi></dd></div>
+            <div className="rounded-xl bg-rose-50/60 px-3 py-2.5 text-end"><dt className="text-[11px] text-slate-600">{he ? `כיסוי הפסד ב־${proposal.loser.position.symbol}` : `${proposal.loser.position.symbol} loss covered`}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-rose-600"><bdi>{money(-proposal.lossUsd)}</bdi></dd></div>
           </dl>
         <ClosePairChart proposal={proposal} sparklineData={sparklineData} locale={locale} />
+          <div className="mx-4 flex min-h-11 items-center justify-between gap-3 border-t border-slate-100 pb-3 pt-2 sm:mx-5">
+            <span className="text-[10px] text-slate-500">{he ? 'לפני מס ועלויות מכירה' : 'Before tax & exit costs'}</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700">{expanded ? (he ? 'פחות פרטים' : 'Less detail') : (he ? 'לפירוט הסגירה' : 'View exit details')}<ChevronDown aria-hidden className="holding-chevron h-3.5 w-3.5 text-slate-400" /></span>
+          </div>
+          <button type="button" aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${proposal.winner.position.symbol} + ${proposal.loser.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${proposal.winner.position.symbol} + ${proposal.loser.position.symbol} details`} aria-expanded={expanded} aria-controls={`${panelId}-${index}`} onClick={() => setExpandedPairs(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} title={he ? 'לחצו בכל מקום בכרטיס, גם על הגרף, לפתיחה או לסגירה' : 'Click anywhere in the preview, including the chart, to expand or collapse'} className="absolute inset-0 z-10 w-full cursor-pointer rounded-2xl transition-colors hover:bg-blue-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 motion-reduce:transition-none" />
+          </div>
         <div id={`${panelId}-${index}`} aria-hidden={!expanded} ref={element => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
           <div className="min-h-0 overflow-hidden">
             <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
