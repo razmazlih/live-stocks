@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 interface StockAvatarImageProps {
   symbol: string;
   display: string;
   imageUrl?: string | null;
+  className?: string;
+  plain?: boolean;
+  sourceOverride?: string;
 }
 
 const PREFERRED_LOGO_STORAGE_KEY = 'stock-avatar-preferred-logos:v1';
@@ -75,13 +79,14 @@ function buildLogoCandidates(symbol: string, imageUrl?: string | null, preferred
   return [...new Set(candidates)];
 }
 
-export function StockAvatarImage({ symbol, display, imageUrl }: StockAvatarImageProps) {
+export function StockAvatarImage({ symbol, display, imageUrl, className, plain = false, sourceOverride }: StockAvatarImageProps) {
   const normalizedSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const [preferredLogoUrl, setPreferredLogoUrl] = useState<string | null>(null);
-  const logoCandidates = useMemo(
-    () => buildLogoCandidates(symbol, imageUrl, preferredLogoUrl),
-    [imageUrl, preferredLogoUrl, symbol]
-  );
+  const logoCandidates = useMemo(() => {
+    const candidates = buildLogoCandidates(symbol, imageUrl, preferredLogoUrl).filter(candidate =>
+      !plain || candidate === imageUrl || (!candidate.startsWith('https://ui-avatars.com/') && !candidate.startsWith('https://logo.clearbit.com/')));
+    return [...new Set([sourceOverride?.trim(), ...candidates].filter((candidate): candidate is string => Boolean(candidate)))];
+  }, [imageUrl, preferredLogoUrl, symbol, plain, sourceOverride]);
   const [activeSrc, setActiveSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -153,14 +158,14 @@ export function StockAvatarImage({ symbol, display, imageUrl }: StockAvatarImage
 
   return (
     <>
-      <span
+      {!plain ? <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_28%_24%,#f8fafc_0%,#e2e8f0_58%,#cbd5e1_100%)]"
-      />
+      /> : null}
       <AvatarImage
         src={activeSrc}
         alt={display}
-        className="relative z-10 h-full w-full rounded-[inherit] object-cover [filter:drop-shadow(0_0_1px_rgba(15,23,42,0.55))_drop-shadow(0_1px_2px_rgba(15,23,42,0.25))_drop-shadow(0_0_1px_rgba(255,255,255,0.95))]"
+        className={cn(plain ? 'relative z-10 h-full w-full object-contain' : 'relative z-10 h-full w-full rounded-[inherit] object-cover [filter:drop-shadow(0_0_1px_rgba(15,23,42,0.55))_drop-shadow(0_1px_2px_rgba(15,23,42,0.25))_drop-shadow(0_0_1px_rgba(255,255,255,0.95))]', className)}
       />
     </>
   );

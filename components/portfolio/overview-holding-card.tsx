@@ -9,6 +9,7 @@ import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context'
 import { getHoldingTarget } from '@/lib/holding-display';
 import { buildHoldingPerformanceHistory } from '@/lib/holding-chart-history';
 import { HoldingTrendBackground } from './holding-trend-background';
+import { StockLogo } from '@/components/ui/stock-logo';
 import type { SparklineEvent } from '@/components/charts/sparkline';
 import type { HistoricalPoint, Position, PositionMetrics } from '@/types';
 
@@ -102,7 +103,7 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
       <span className="holding-summary-content">
       <span className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-3">
-          <span aria-hidden="true" className="holding-monogram flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-xs font-bold text-slate-600">{m.position.symbol.slice(0, 2)}</span>
+          <StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} />
           <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
