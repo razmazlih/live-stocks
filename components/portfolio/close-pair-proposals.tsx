@@ -1,16 +1,15 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { ArrowLeftRight, ChevronDown, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildClosePairReviewPrompt } from '@/lib/close-pair-review-prompt';
 import { buildClosePairProposals } from '@/lib/close-pair-proposals';
 import { formatCurrency } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
-import { buildStockHref } from '@/lib/navigation-context';
 import type { ClosePairProposal } from '@/lib/close-pair-proposals';
 import { ClosePairChart } from './close-pair-chart';
+import { ClosePairDetails } from './close-pair-details';
 import type { HistoricalPoint, Position, PositionMetrics } from '@/types';
 
 function pairKey(proposal: ClosePairProposal) {
@@ -72,22 +71,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
         <div id={`${panelId}-${index}`} aria-hidden={!expanded} ref={element => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
           <div className="min-h-0 overflow-hidden">
             <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
-          <dl className="mb-3 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5"><dt className="text-[11px] text-slate-600">{he ? 'רווח מצטבר לאחר הסגירה' : 'Cumulative profit after exit'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900"><bdi>{money(proposal.netProfitUsd)}</bdi></dd></div>
-            <div className="rounded-xl border border-blue-100/60 bg-blue-50/40 px-3 py-2.5 text-end"><dt className="text-[11px] text-slate-600">{he ? 'יעד הרווח להיום' : 'Profit target to date'}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-blue-700"><bdi>{money(proposal.targetProfitUsd)}</bdi></dd></div>
-          </dl>
-          <p className="mb-4 text-[10px] leading-4 text-slate-500">{he ? 'מעל היעד = תוצאות כל המכירות הקודמות + רווח/הפסד בהחזקות הנוכחיות − יעד הרווח של כל הסבבים' : 'Above target = all previous realized results + current unrealized P/L − the profit target for all cycles'}</p>
-
-              <ul className={`border-t border-slate-200/70 pt-2 text-sm ${proposals.length === 1 ? 'grid gap-x-8 gap-y-1 sm:grid-cols-2' : 'space-y-1'}`}>
-                {[proposal.winner, proposal.loser].map(leg => <li key={leg.position.symbol} className="flex items-center justify-between gap-3">
-                  <Link href={buildStockHref(leg.position.symbol, typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-blue-700 underline-offset-4 transition-colors hover:text-blue-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                    <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${leg.surplusUsd >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="min-w-0"><bdi className="block font-medium">{leg.position.symbol}</bdi><span className="mt-0.5 block text-[11px] text-slate-500">{he ? 'כל' : 'All'} {leg.quantity.toLocaleString(locale, { maximumFractionDigits: 8 })} {he ? 'המניות' : 'shares'} · <bdi>{money(leg.currentPrice)}</bdi> {he ? 'למניה' : '/ share'}</span><span className="mt-1 block text-[10px] text-slate-500">{he ? 'רווח מצטבר' : 'Cumulative P/L'} <bdi>{money(leg.pnlUsd)}</bdi> · {he ? 'יעד' : 'Target'} <bdi>{money(leg.targetProfitUsd)}</bdi></span><span className="mt-1 block text-[10px] text-slate-500">{he ? 'ממומש בעבר' : 'Previously realized'} <bdi>{money(leg.realizedPnlUsd ?? 0)}</bdi> · {he ? 'בהחזקה הנוכחית' : 'Current unrealized'} <bdi>{money(leg.unrealizedPnlUsd ?? leg.pnlUsd)}</bdi></span></span>
-                  </Link>
-                  <div className="shrink-0 text-end"><p className="text-[10px] text-slate-500">{he ? 'פער מהיעד' : 'Gap to target'}</p><bdi className={`mt-0.5 block text-sm font-semibold tabular-nums ${leg.surplusUsd >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{leg.surplusUsd > 0 ? '+' : ''}{money(leg.surplusUsd)}</bdi></div>
-                </li>)}
-              </ul>
-              <dl className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-blue-100/60 bg-blue-50/50 px-3 py-3 text-xs"><dt className="text-slate-500">{he ? 'תמורת מכירה משוערת' : 'Estimated sale proceeds'}</dt><dd className="font-medium tabular-nums text-slate-900"><bdi>{money(proposal.proceedsUsd)}</bdi></dd></dl>
+              <ClosePairDetails proposal={proposal} locale={locale} />
             </div>
           </div>
         </div>
@@ -98,6 +82,6 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
       <p>{he ? 'יעד אישי להיום · USD · לפני מס ועלויות מכירה' : 'Personal target to date · USD · before tax & exit costs'}</p>
       <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל זוג' : 'Copy a prompt for research and a verdict on each pair'} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-blue-100 bg-blue-50/70 px-4 text-xs font-semibold text-blue-700 transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-100/70 hover:shadow-sm active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 motion-reduce:transform-none motion-reduce:transition-none"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>
     </div>
-    <div className={anyExpanded ? 'holding-card-open' : ''}><div aria-hidden={!anyExpanded} ref={element => { if (anyExpanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal"><div className="min-h-0 overflow-hidden"><p className="holding-detail-content px-4 pb-4 text-[11px] leading-relaxed text-slate-500 sm:px-5">{he ? 'הדמיה בדולרים לפי המחירים הזמינים ועלות FIFO, כולל עמלות קנייה ומכירה שהוזנו ותוצאות כל המכירות הקודמות של כל סימול בכל החשבונות. יעד התשואה השנתי האישי נצבר לכל מנת קנייה עד מכירתה או עד היום אם היא עדיין פתוחה, ואינו תחזית שוק. מוצגים רק זוגות שהרווח בסגירתם חיובי וגם מכסה את יעד הרווח של שתיהן. מס, עמלות מכירה ושינויי מחיר אינם כלולים ועשויים לשנות את התוצאה. מיון לפי החוסר המכוסה מול היעד ואז היתרה מעל היעד; כל מניה מופיעה בזוג אחד בלבד. הפרומפט כולל את כמויות וסכומי ההצעות המוצגות, להדבקה ידנית ב־AI. ההצעות אינן מבצעות מכירה.' : 'USD simulation using available prices and FIFO cost, including recorded buy and sell fees and every prior sale result for each symbol across accounts. The personal annual return target accrues for each purchase until it is sold, or until today while open; it is not a market forecast. Pairs must have positive exit profit and also cover both personal profit targets. Tax, exit fees and price changes are excluded and may change the result. Ranked by covered target shortfall, then surplus above target; each stock appears in one pair only. The prompt includes the displayed quantities and amounts for manually pasting into your AI. These ideas do not execute trades.'}</p></div></div></div>
+    <div className={anyExpanded ? 'holding-card-open' : ''}><div aria-hidden={!anyExpanded} ref={element => { if (anyExpanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal"><div className="min-h-0 overflow-hidden"><details className="px-4 pb-3 text-[11px] leading-relaxed text-slate-500 sm:px-5"><summary className="flex min-h-11 cursor-pointer items-center text-blue-700">{he ? 'מה כלול בחישוב?' : 'What’s included?'}</summary><p>{he ? 'הדמיה בדולרים לפי המחירים הזמינים ועלות FIFO, כולל עמלות קנייה ומכירה שהוזנו ותוצאות כל המכירות הקודמות של כל סימול בכל החשבונות. יעד התשואה השנתי האישי נצבר לכל מנת קנייה עד מכירתה או עד היום אם היא עדיין פתוחה, ואינו תחזית שוק. מוצגים רק זוגות שהרווח בסגירתם חיובי וגם מכסה את יעד הרווח של שתיהן. מס, עמלות מכירה ושינויי מחיר אינם כלולים ועשויים לשנות את התוצאה. מיון לפי החוסר המכוסה מול היעד ואז היתרה מעל היעד; כל מניה מופיעה בזוג אחד בלבד. הפרומפט כולל את כמויות וסכומי ההצעות המוצגות, להדבקה ידנית ב־AI. ההצעות אינן מבצעות מכירה.' : 'USD simulation using available prices and FIFO cost, including recorded buy and sell fees and every prior sale result for each symbol across accounts. The personal annual return target accrues for each purchase until it is sold, or until today while open; it is not a market forecast. Pairs must have positive exit profit and also cover both personal profit targets. Tax, exit fees and price changes are excluded and may change the result. Ranked by covered target shortfall, then surplus above target; each stock appears in one pair only. The prompt includes the displayed quantities and amounts for manually pasting into your AI. These ideas do not execute trades.'}</p></details></div></div></div>
   </section>;
 }

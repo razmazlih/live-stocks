@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
@@ -68,8 +68,12 @@ describe('close pair disclosure', () => {
     render(<ClosePairProposals metrics={[win, calculatePositionMetrics({ ...loss, lots: loss.lots!.slice(-1) }, 90, 3.5)]} positions={[win.position, loss]} />);
     await user.click(screen.getByRole('button', { name: 'Expand WIN + LOSS details' }));
     expect(screen.getAllByText(/Previously realized/)).toHaveLength(2);
-    expect(screen.getByRole('link', { name: /^LOSS/ })).toHaveTextContent('-$30.00');
-    expect(screen.getByRole('link', { name: /^LOSS/ })).toHaveTextContent('-$20.00');
+    const lossCard = screen.getByRole('link', { name: /^LOSS/ }).closest('li')!;
+    expect(within(lossCard).getByText('Previously realized')).not.toBeVisible();
+    await user.click(within(lossCard).getByText('Profit & target breakdown'));
+    expect(within(lossCard).getByText('Previously realized')).toBeVisible();
+    expect(screen.getByRole('link', { name: /^LOSS/ }).closest('li')).toHaveTextContent('-$30.00');
+    expect(screen.getByRole('link', { name: /^LOSS/ }).closest('li')).toHaveTextContent('-$20.00');
     await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
     const prompt = write.mock.calls[0][0];
     const snapshot = JSON.parse(prompt.slice(prompt.indexOf('{')));
@@ -152,10 +156,10 @@ describe('close pair disclosure', () => {
     const positions = [metric('WIN', 130), metric('LOSS', 80)];
     const { rerender } = render(<ClosePairProposals metrics={positions} />);
     expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
-    expect(screen.getByText('Cumulative profit after exit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Cumulative profit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
     await user.click(screen.getByRole('button', {name: 'Expand WIN + LOSS details'}));
-    expect(screen.getByText('Cumulative profit after exit')).toBeVisible();
-    expect(screen.getByText('Profit target to date')).toBeInTheDocument();
+    expect(screen.getByText('Cumulative profit')).toBeVisible();
+    expect(screen.getByText('Target to date')).toBeInTheDocument();
     context.settings.annualGrowthRate = 100;
     rerender(<ClosePairProposals metrics={positions} />);
     expect(screen.queryByRole('region', { name: 'Two-position exit ideas' })).not.toBeInTheDocument();
