@@ -4,10 +4,13 @@ vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: mocks.from 
 vi.mock('@/lib/services/finnhub', () => ({ fetchFinnhubQuote: mocks.quote }));
 vi.mock('@/lib/services/exchange-rate', () => ({ fetchExchangeRateResponse: mocks.fx, extractExchangeRate: (data: { rates: { ILS: number } }) => data.rates.ILS }));
 vi.mock('@/lib/services/yahoo-candles', () => ({ fetchYahooCandlesData: vi.fn().mockResolvedValue({ c: [], t: [], s: 'ok' }) }));
-import { GET } from '@/app/api/portfolio/ai/route';
+vi.mock('next/cache', () => ({ unstable_cache: (load: () => Promise<unknown>) => load }));
+let GET: typeof import('@/app/api/portfolio/ai/route').GET;
 
 const rows: Record<string, unknown[]> = {};
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ GET } = await import('@/app/api/portfolio/ai/route'));
   vi.clearAllMocks();
   rows.positions = [{ id: 'p1', symbol: 'ABC', display: 'ABC', quantity: 2, entry_price: 100, entry_date: '2025-01-01', location: 'bank_one' }];
   rows.position_lots = [{ id: 'l1', position_id: 'p1', side: 'BUY', price: 100, quantity: 2, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 }];
@@ -54,7 +57,11 @@ describe('GET portfolio AI snapshot', () => {
   });
   it('fails explicitly when a required table cannot be read', async () => {
     mocks.from.mockImplementation(() => ({ select: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'denied' } }) }) }) }));
-    expect((await GET()).status).toBe(500);
+    const response = await GET();
+    expect(response.status).toBe(500);
+    expect(response.headers.get('retry-after')).toBe('30');
+    await GET();
+    expect(mocks.from).toHaveBeenCalledTimes(4);
   });
   it('reads beyond the first page and deduplicates market requests', async () => {
     rows.positions = Array.from({ length: 501 }, (_, i) => ({ ...(rows.positions[0] as object), id: `p${i}` }));
