@@ -96,6 +96,24 @@ describe('shared portfolio data', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('keeps pre-entry chart context separate from valuation candles and portfolio history', async () => {
+    const timestamp = Date.UTC(2026, 10, 10, 12);
+    const position: Position = { id: 'context-test', symbol: 'TEST', display: 'Test', imageUrl: '', quantity: 1, entryPrice: 100, entryDate: new Date(timestamp).toISOString(), location: 'bank_one', lots: [{ type: 'BUY', price: 100, quantity: 1, executedAt: new Date(timestamp).toISOString(), hasCommission: false, commissionAmount: 0 }] };
+    const normal = [{ timestamp: timestamp + 86400000, close: 110 }];
+    const context = [{ timestamp: timestamp - 7 * 86400000, close: 999999 }, ...normal];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ positions: [position], activationPositions: [position], usdToIls: 3.7, quotes: { TEST: { c: 120 } }, fxHistoryPoints: [{ timestamp, close: 3.7 }], candlesByKey: { 'context-test': normal }, contextCandlesByKey: { 'context-test': context } }) }));
+    function ContextConsumer() {
+      const data = usePortfolioData();
+      return <output data-testid="context-data">{JSON.stringify({ normal: data.sparklineData, context: data.contextSparklineData, points: data.portfolioTimeline })}</output>;
+    }
+    render(<PortfolioDataProvider><Consumer label="first" /><ContextConsumer /></PortfolioDataProvider>);
+    await waitFor(() => expect(read().hasData).toBe(true));
+    const data = JSON.parse(screen.getByTestId('context-data').textContent!);
+    expect(data.normal['context-test']).toEqual(normal);
+    expect(data.context['context-test']).toEqual(context);
+    expect(data.points.every((point: PortfolioTimelinePoint) => point.timestamp >= timestamp)).toBe(true);
+  });
+
   it('keeps realized and unrealized historical profits before tax in both currencies', async () => {
     const date = (day: number) => `2024-01-${String(day).padStart(2, '0')}T12:00:00.000Z`;
     const position: Position = {

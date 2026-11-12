@@ -20,6 +20,8 @@ interface HoldingTrendBackgroundProps {
   tone?: 'profit' | 'loss' | 'neutral';
   expanded?: boolean;
   baseline?: number;
+  /** Price context before this actual entry stays neutral, including when collapsed. */
+  activeFromTimestamp?: number;
   targetPrice?: number;
   events?: SparklineEvent[];
   references?: HoldingChartReference[];
@@ -27,7 +29,7 @@ interface HoldingTrendBackgroundProps {
 }
 
 /** One persistent price path morphs from a decorative trend to the detailed chart. */
-export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral', expanded = false, baseline, targetPrice, events = EMPTY_EVENTS, references, locale = 'he' }: HoldingTrendBackgroundProps) {
+export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral', expanded = false, baseline, activeFromTimestamp, targetPrice, events = EMPTY_EVENTS, references, locale = 'he' }: HoldingTrendBackgroundProps) {
   const color = COLORS[tone];
   const gradientId = useId();
   const strokeId = `${gradientId}-stroke`;
@@ -59,6 +61,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
 
   const data = useMemo(() => {
     const profitMode = profitPoints !== undefined;
+    const activeEntry = !profitMode && validNumber(activeFromTimestamp) ? activeFromTimestamp : undefined;
     const validValue = profitMode ? validNumber : (value: number | null | undefined) => validPrice(value ?? undefined);
     const history: { timestamp: number; close: number | null }[] = profitMode
       ? Array.from(new Map(profitPoints.filter((point) => Number.isFinite(point.timestamp)).map((point) => [point.timestamp, { timestamp: point.timestamp, close: validNumber(point.actual) ? point.actual : null }])).values()).sort((a, b) => a.timestamp - b.timestamp)
@@ -130,6 +133,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
     }
     const x = (timestamp: number) => PADDING + (timestamp - start) / (end - start) * (WIDTH - PADDING * 2);
     const classify = (value: number, timestamp: number) => {
+      if (activeEntry !== undefined && timestamp < activeEntry) return COLORS.neutral;
       const reference = referenceAt(timestamp);
       return reference.baseline === null ? COLORS.neutral : value < reference.baseline ? COLORS.loss : reference.target === null ? COLORS.neutral : value >= reference.target ? COLORS.profit : COLORS.belowTarget;
     };
@@ -141,7 +145,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
       const leftValue = left.close;
       const rightValue = right.close;
       const valueAt = (timestamp: number) => leftValue + (rightValue - leftValue) * (timestamp - left.timestamp) / (right.timestamp - left.timestamp);
-      const times = [left.timestamp, ...referencePoints.filter((point) => point.timestamp > left.timestamp && point.timestamp < right.timestamp).map((point) => point.timestamp), right.timestamp];
+      const times = [...new Set([left.timestamp, ...referencePoints.filter((point) => point.timestamp > left.timestamp && point.timestamp < right.timestamp).map((point) => point.timestamp), ...(activeEntry !== undefined && activeEntry > left.timestamp && activeEntry < right.timestamp ? [activeEntry] : []), right.timestamp])].sort((a, b) => a - b);
       for (let part = 1; part < times.length; part++) {
         const fromTime = times[part - 1];
         const toTime = times[part];
@@ -166,8 +170,8 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
         }
       }
     }
-    return { history, known, trades, referencePoints, low, high, expandedLow, expandedHigh, x, stops, classify, validValue };
-  }, [points, profitPoints, events, baseline, targetPrice, references]);
+    return { history, known, trades, referencePoints, low, high, expandedLow, expandedHigh, x, stops, classify, validValue, activeEntry };
+  }, [points, profitPoints, events, baseline, activeFromTimestamp, targetPrice, references]);
 
   if (!data) return null;
   const domainProgress = reducedMotion || typeof requestAnimationFrame === 'undefined' ? Number(expanded) : progress;
@@ -212,7 +216,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
       </linearGradient>
       <mask id={areaMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={WIDTH} height={HEIGHT}><rect width={WIDTH} height={HEIGHT} fill={`url(#${gradientId})`} /></mask>
       <linearGradient data-price-stroke="true" id={strokeId} x1="0" x2={WIDTH} y1="0" y2="0" gradientUnits="userSpaceOnUse">
-        {data.stops.map((stop, index) => <stop key={index} offset={stop.offset} stopColor={expanded ? stop.color : color} style={{ transition }} />)}
+        {data.stops.map((stop, index) => <stop key={index} offset={stop.offset} stopColor={expanded || data.activeEntry !== undefined ? stop.color : color} style={{ transition }} />)}
       </linearGradient>
     </defs>
     <path data-price-area="true" d={area} fill={`url(#${strokeId})`} mask={`url(#${areaMaskId})`} />
@@ -221,7 +225,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
       {targetPath ? <path data-reference="target" d={targetPath} fill="none" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" /> : null}
     </g>
     <path data-price-line="true" d={line} fill="none" stroke={`url(#${strokeId})`} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    <g data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded ? data.classify(latest.close, latest.timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
+    <g data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded || data.activeEntry !== undefined ? data.classify(latest.close, latest.timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
     <g style={detailStyle}>
       {data.trades.map((trade, index) => <g key={trade.id ?? index} data-event={trade.type} data-event-time={trade.timestamp} data-event-price={trade.price} style={{ pointerEvents: expanded ? 'all' : 'none' }} transform={`translate(${data.x(trade.timestamp)},${y(trade.plotValue)})`}>
         <g style={markerStyle}>

@@ -222,4 +222,35 @@ describe('HoldingTrendBackground', () => {
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 
+  it('keeps price context gray until the exact entry between real closing samples', () => {
+    const { container } = render(<HoldingTrendBackground expanded activeFromTimestamp={500} baseline={15} targetPrice={25} points={[
+      { timestamp: 0, close: 10 }, { timestamp: 1000, close: 30 },
+    ]} />);
+    const stops = [...container.querySelectorAll('[data-price-stroke] stop')];
+    const entryOffset = .5;
+    const before = stops.filter(stop => Number(stop.getAttribute('offset')) < entryOffset);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.every(stop => stop.getAttribute('stop-color') === '#64748b')).toBe(true);
+    const atEntry = stops.filter(stop => Number(stop.getAttribute('offset')) === entryOffset);
+    expect(atEntry.map(stop => stop.getAttribute('stop-color'))).toEqual(['#64748b', '#2563eb']);
+    expect(stops.at(-1)).toHaveAttribute('stop-color', '#059669');
+    expect(container.querySelector('[data-price-line]')?.getAttribute('d')?.match(/L/g)).toHaveLength(1);
+    expect(container.querySelector('[data-price-area]')?.getAttribute('fill')).toBe(container.querySelector('[data-price-line]')?.getAttribute('stroke'));
+  });
+
+  it('keeps the whole earlier week neutral and colors an active loss even when collapsed', () => {
+    const points = [{ timestamp: 0, close: 10 }, { timestamp: 1000, close: 12 }];
+    const { container, rerender } = render(<HoldingTrendBackground activeFromTimestamp={1500} tone="loss" baseline={15} targetPrice={25} points={points} />);
+    expect([...container.querySelectorAll('[data-price-stroke] stop')].every(stop => stop.getAttribute('stop-color') === '#64748b')).toBe(true);
+    rerender(<HoldingTrendBackground activeFromTimestamp={500} tone="profit" baseline={15} targetPrice={25} points={points} />);
+    const stops = [...container.querySelectorAll('[data-price-stroke] stop')];
+    expect(stops.map(stop => stop.getAttribute('stop-color'))).toEqual(['#64748b', '#64748b', '#e11d48', '#e11d48']);
+  });
+
+  it('does not apply the context-entry cutoff to cumulative profit mode', () => {
+    const profitPoints = [{ timestamp: 0, actual: -100, target: 20 }, { timestamp: 1000, actual: 100, target: 40 }];
+    const { container } = render(<HoldingTrendBackground expanded activeFromTimestamp={1500} points={[]} profitPoints={profitPoints} />);
+    expect([...container.querySelectorAll('[data-price-stroke] stop')].map(stop => stop.getAttribute('stop-color'))).toEqual(['#e11d48', '#e11d48', '#2563eb', '#2563eb', '#059669', '#059669']);
+  });
+
 });

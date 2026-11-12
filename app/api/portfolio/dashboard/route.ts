@@ -22,6 +22,7 @@ type RangeInfo = {
   key: string;
   symbol: string;
   from: number;
+  contextFrom: number;
   to: number;
   activationStartBoundaryMs: number | null;
   activationEndBoundaryMs: number | null;
@@ -85,6 +86,7 @@ function buildRangeInfo(position: Position): RangeInfo {
     key,
     symbol: position.symbol,
     from,
+    contextFrom: Math.max(0, (activationStartBoundaryMs !== null ? Math.floor(activationStartBoundaryMs / 1000) : from) - 7 * 24 * 60 * 60),
     to,
     activationStartBoundaryMs,
     activationEndBoundaryMs,
@@ -220,13 +222,18 @@ export async function GET(request: NextRequest) {
       return quotes;
     })();
 
-    const candlesByKeyPromise = (async (): Promise<Record<string, HistoricalPoint[]>> => {
+    const candlesByKeyPromise = (async () => {
       const entries = await Promise.all(
         rangeInfoList.map(async (range) => {
           try {
-            const candleData = await fetchYahooCandlesData(range.symbol, range.from, range.to, 'D');
+            const candleData = await fetchYahooCandlesData(range.symbol, Math.min(range.from, range.contextFrom), range.to, 'D');
             const points = mapCandleDataToPoints(candleData);
-            const filteredPoints = points.filter((point) => {
+            // Context prices are presentation-only. Portfolio valuation must keep
+            // the original activation range and must never acquire pre-entry P/L.
+            const contextPoints = points.filter(point => point.timestamp >= range.contextFrom * 1000 && point.timestamp <= range.to * 1000
+              && (range.activationEndBoundaryMs === null || point.timestamp <= range.activationEndBoundaryMs));
+            const originalPoints = points.filter(point => point.timestamp >= range.from * 1000);
+            const filteredPoints = originalPoints.filter((point) => {
               if (range.activationStartBoundaryMs !== null && point.timestamp < range.activationStartBoundaryMs) {
                 return false;
               }
@@ -235,15 +242,18 @@ export async function GET(request: NextRequest) {
               }
               return true;
             });
-            return [range.key, filteredPoints.length > 0 ? filteredPoints : points] as const;
+            return { key: range.key, points: filteredPoints.length > 0 ? filteredPoints : originalPoints, contextPoints };
           } catch (error) {
             console.error(`Failed to fetch candles for ${range.symbol}:`, error);
-            return [range.key, [] as HistoricalPoint[]] as const;
+            return { key: range.key, points: [] as HistoricalPoint[], contextPoints: [] as HistoricalPoint[] };
           }
         }),
       );
 
-      return Object.fromEntries(entries);
+      return {
+        candlesByKey: Object.fromEntries(entries.map(entry => [entry.key, entry.points])),
+        contextCandlesByKey: Object.fromEntries(entries.map(entry => [entry.key, entry.contextPoints])),
+      };
     })();
 
     const spyPointsPromise = (async (): Promise<HistoricalPoint[]> => {
@@ -260,7 +270,7 @@ export async function GET(request: NextRequest) {
       }
     })();
 
-    const [usdToIls, fxHistoryPoints, quotes, candlesByKey, spyPoints] = await Promise.all([
+    const [usdToIls, fxHistoryPoints, quotes, candles, spyPoints] = await Promise.all([
       usdToIlsPromise,
       fxHistoryPromise,
       quotesPromise,
@@ -275,7 +285,8 @@ export async function GET(request: NextRequest) {
         usdToIls,
         fxHistoryPoints,
         quotes,
-        candlesByKey,
+        candlesByKey: candles.candlesByKey,
+        contextCandlesByKey: candles.contextCandlesByKey,
         spyPoints,
       },
       { headers: NO_STORE_HEADERS },

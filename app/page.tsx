@@ -22,7 +22,7 @@ import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 export default function HomePage() {
   const { locale, settings } = useApp();
   const he = locale === 'he';
-  const { loading, refreshing, summary, metrics, positions, portfolioTimeline, sparklineData, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, summary, metrics, positions, portfolioTimeline, sparklineData, contextSparklineData, lastUpdate, reload } = usePortfolioData();
   useReturnContext(!loading);
   const currency = settings.currency;
   const [performanceOptions] = useUrlState(parsePerformanceOptions);
@@ -73,7 +73,7 @@ export default function HomePage() {
               <Link href="/portfolio" className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'כל הביצועים' : 'All performance'}<Arrow aria-hidden className="h-4 w-4" /></Link>
             </div>
           </DashboardSurface> : <DashboardSurface><p className="py-10 text-center text-sm text-slate-500">{he ? 'סיכום התיק אינו זמין כרגע.' : 'The portfolio summary is currently unavailable.'}</p></DashboardSurface>}
-          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} positions={positions} />
+          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
           <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
         </>}
       </DashboardMain>

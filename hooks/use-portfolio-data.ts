@@ -58,6 +58,7 @@ interface PortfolioDashboardPayload {
   fxHistoryPoints?: HistoricalPoint[];
   quotes?: Record<string, { c?: number; d?: number }>;
   candlesByKey?: Record<string, HistoricalPoint[]>;
+  contextCandlesByKey?: Record<string, HistoricalPoint[]>;
   spyPoints?: HistoricalPoint[];
 }
 
@@ -192,6 +193,7 @@ function usePortfolioDataState() {
   const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [openSummary, setOpenSummary] = useState<PortfolioSummary | null>(null);
+  const [contextSparklineData, setContextSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [sparklineData, setSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
   const [usdToIls, setUsdToIls] = useState(3.7);
@@ -527,6 +529,7 @@ function usePortfolioDataState() {
         setSummary(enrichedSummary);
         setOpenSummary(normalizedOpenSummary);
         setSparklineData(nextSparklineData);
+        setContextSparklineData(payload.contextCandlesByKey ?? {});
         setPortfolioTimeline(continuousTimeline);
         setHistoricalIlsNetPnL(
           continuousTimeline[continuousTimeline.length - 1]?.netPnLIls ?? enrichedSummary.totalNetPnLIls
@@ -603,6 +606,7 @@ function usePortfolioDataState() {
     summary,
     openSummary,
     sparklineData,
+    contextSparklineData,
     portfolioTimeline,
     usdToIls,
     historicalIlsNetPnL,

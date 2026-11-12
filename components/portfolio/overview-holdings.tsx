@@ -21,7 +21,7 @@ function parseHoldings(params: URLSearchParams) {
   return { holding: params.get('holding'), q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
 }
 
-export function OverviewHoldings({ metrics, sparklineData = {}, positions }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]>; positions?: Position[] }) {
+export function OverviewHoldings({ metrics, sparklineData = {}, contextSparklineData = {}, positions }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]>; contextSparklineData?: Record<string, HistoricalPoint[]>; positions?: Position[] }) {
   const { locale, settings } = useApp();
   const he = locale === 'he';
   const [state, patch, sourceUrl] = useUrlState(parseHoldings);
@@ -63,7 +63,7 @@ export function OverviewHoldings({ metrics, sparklineData = {}, positions }: { m
       })}</tbody></table>
       <div className="space-y-2 xl:hidden">{filtered.map((metric) => {
         const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
-        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} historyPositions={historyBySymbol.get(metric.position.symbol.trim().toUpperCase()) ?? []} />;
+        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} contextPoints={contextSparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} historyPositions={historyBySymbol.get(metric.position.symbol.trim().toUpperCase()) ?? []} />;
       })}</div>
     </> : <p className="py-10 text-center text-sm text-slate-500">{he ? 'אין החזקות פעילות התואמות לסינון.' : 'No active holdings match your filters.'}</p>}
   </DashboardSurface>;

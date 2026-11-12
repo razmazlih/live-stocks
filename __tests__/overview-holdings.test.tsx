@@ -6,7 +6,7 @@ import type { Position, PositionMetrics } from '@/types';
 import { calculatePositionMetrics, calculateRequiredExitPrice, formatCurrency } from '@/lib/calculations';
 import { validateReturnTo } from '@/lib/navigation-context';
 
-vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { currency: 'USD' } }) }));
+vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { currency: 'USD', annualGrowthRate: 0.1 } }) }));
 const metric = (symbol: string, gap: number, quantity = 1): PositionMetrics => ({
   position: { id: symbol, symbol, display: symbol === 'AAPL' ? 'Apple' : 'Microsoft', quantity },
   currentPrice: 100, currentValue: 100 * quantity, currentValueIls: 320 * quantity,
@@ -28,6 +28,25 @@ describe('overview holdings continuity', () => {
     expect(apple.getByText('since entry')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /MSFT/ })).getByText('—')).toBeInTheDocument();
   });
+  it('shows real pre-entry price context for a fresh holding without calling it historical profit', async () => {
+    const entry = Date.UTC(2026, 10, 12, 12);
+    const position: Position = { id: 'fresh', activationId: 'fresh::activation-1', activationStart: new Date(entry).toISOString(), symbol: 'FRESH', display: 'Fresh', imageUrl: '', quantity: 2, entryPrice: 100, entryDate: new Date(entry).toISOString(), location: 'bank_one', lots: [
+      { type: 'BUY', price: 100, quantity: 2, executedAt: new Date(entry).toISOString(), hasCommission: false, commissionAmount: 0 },
+    ] };
+    const holding = { ...calculatePositionMetrics(position, 110, 3.2, .1), requiredExitPrice: 110 };
+    const context = [5, 6, 9, 10, 11].map((day, index) => ({timestamp: Date.UTC(2026, 10, day, 14), close: 90 + index}));
+    const latest = {timestamp: entry + 3_600_000, close: 110};
+    render(<OverviewHoldings metrics={[holding]} positions={[position]} sparklineData={{'fresh::activation-1': [latest]}} contextSparklineData={{'fresh::activation-1': [...context, latest]}} />);
+    await userEvent.click(screen.getByRole('button', {name: 'Expand FRESH details'}));
+    expect(screen.getByRole('img', {name: /FRESH price chart/})).toBeInTheDocument();
+    expect(screen.getByText('Share price · USD')).toBeVisible();
+    expect(screen.getByText(/One week before entry in gray/)).toBeVisible();
+    expect(screen.queryByText('Not enough price data to show a trend')).not.toBeInTheDocument();
+    const stroke = document.querySelector('[data-price-stroke="true"]');
+    expect(stroke?.querySelector('stop')).toHaveAttribute('stop-color', '#64748b');
+    expect(document.querySelector('[data-price-line="true"]')).toBeInTheDocument();
+  });
+
   it('shows a sale target recovering earlier partial losses in the collapsed card', () => {
     const asOf = new Date('2025-01-01T00:00:00Z');
     const position: Position = {
