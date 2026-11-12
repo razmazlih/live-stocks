@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
+import { StockDetailsLink } from './stock-navigation';
 import { ArrowLeft, ChevronDown, Target } from 'lucide-react';
 import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
@@ -143,9 +143,9 @@ export function OverviewHoldingCard({ metric: m, points, expanded, onToggle, sou
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p>
-            <Link href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs font-medium text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none">
+            <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-blue-100 bg-white/90 px-4 text-sm font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
               {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
-            </Link>
+            </StockDetailsLink>
           </div>
 
         </div>

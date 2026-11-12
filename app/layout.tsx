@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { AppProvider } from '@/lib/context';
+import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
 import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className="font-sans">
         <AppProvider>
-          {children}
+          <StockNavigationProvider>{children}</StockNavigationProvider>
           <Toaster />
         </AppProvider>
       </body>

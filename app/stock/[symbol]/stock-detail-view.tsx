@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BankBadge } from '@/components/branding/bank-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StockLogo } from '@/components/ui/stock-logo';
 import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -31,6 +32,7 @@ import {
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
+import { useStockNavigationPreview, useStockNavigationReady } from '@/components/portfolio/stock-navigation';
 import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
 
 import { getSupabaseClient } from '@/lib/supabase';
@@ -223,10 +225,10 @@ function buildHoldingPeriodLabel(
   );
 }
 
-function StockDetailSkeleton() {
+function StockDetailSkeleton({ hideIdentity = false }: { hideIdentity?: boolean }) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className={hideIdentity ? 'hidden' : 'flex flex-col gap-4 md:flex-row md:items-center md:justify-between'}>
         <div className="flex items-center gap-4">
           <Skeleton className="h-16 w-16 rounded-full" />
           <div className="space-y-2">
@@ -313,6 +315,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const holdingCycles = useMemo(() => buildStockHoldingCycles(positions), [positions]);
   const currentCycleStart = holdingCycles.filter((cycle) => cycle.current).reduce<number | undefined>((start, cycle) => start === undefined ? cycle.start : Math.min(start, cycle.start), undefined);
   const chartDate = (timestamp: number) => new Date(timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const navigationPreview = useStockNavigationPreview(normalizedSymbol);
+  useStockNavigationReady(!loading || Boolean(navigationPreview));
   const position = useMemo(() => combinePositions(positions), [positions]);
   const locationBreakdowns = useMemo(() => buildLocationBreakdowns(positions), [positions]);
   const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
@@ -679,20 +683,26 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
   return (
     <DashboardRouteShell activeKey={sourceRoute?.key ?? "portfolio"} locale={locale} portfolioFeedback={false}>
-      <DashboardContainer>
+      <DashboardContainer className="stock-detail-arrival">
         <Link href={returnTo} scroll={false} className="mb-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
           <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
           {locale === 'he' ? `חזרה ל${sourceRoute?.label ?? t.portfolio.title}` : `Back to ${sourceRoute?.label ?? t.portfolio.title}`}
         </Link>
         <PageHeader
-          title={position?.display ?? normalizedSymbol}
+          title={position?.display ?? navigationPreview?.display ?? normalizedSymbol}
           subtitle={loading ? t.stock.detailView.states.loading : position ? t.stock.overview : normalizedSymbol}
           icon={TrendingUp}
         />
 
         <DashboardMain>
           {loading ? (
-            <StockDetailSkeleton />
+            <div className="space-y-5">
+              {navigationPreview ? <DashboardSurface className="stock-detail-destination min-h-[210px] border-slate-200 bg-white p-4 sm:p-5" aria-busy="true">
+                <div className="flex items-center gap-3"><StockLogo {...navigationPreview} /><div><p className="font-semibold text-slate-900" dir="ltr">{navigationPreview.symbol}</p><p className="mt-1 text-xs text-slate-500">{t.stock.detailView.states.loading}</p></div></div>
+                <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3"><Skeleton className="col-span-2 h-16 sm:col-span-1" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+              </DashboardSurface> : null}
+              <StockDetailSkeleton hideIdentity={Boolean(navigationPreview)} />
+            </div>
           ) : error && !metrics ? (
             <DashboardSurface className="border-red-200 text-red-700">
               <div className="flex flex-col items-center gap-4 py-10">
@@ -717,7 +727,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                   <Button variant="outline" size="sm" disabled={refreshing} onClick={() => setReloadKey((value) => value + 1)}>{t.stock.detailView.states.retry}</Button>
                 </div>
               )}
-              <DashboardSurface className="border-slate-200 bg-white p-4 sm:p-5">
+              <DashboardSurface className="stock-detail-destination border-slate-200 bg-white p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3" aria-busy={refreshing}>
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="h-11 w-11 rounded-xl border border-slate-200 bg-slate-100">
