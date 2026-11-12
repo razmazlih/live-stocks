@@ -49,6 +49,8 @@ import {
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow, summarizeLots } from '@/lib/positions';
 import { cn } from '@/lib/utils';
+import { buildStockHoldingCycles } from '@/lib/stock-holding-cycles';
+import { buildHoldingChartReferences } from '@/lib/holding-chart-history';
 import {
   CandleData,
   HistoricalPoint,
@@ -307,6 +309,10 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [holdingScope, setHoldingScope] = useState<'current' | 'all'>('all');
+  const holdingCycles = useMemo(() => buildStockHoldingCycles(positions), [positions]);
+  const currentCycleStart = holdingCycles.filter((cycle) => cycle.current).reduce<number | undefined>((start, cycle) => start === undefined ? cycle.start : Math.min(start, cycle.start), undefined);
+  const chartDate = (timestamp: number) => new Date(timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   const position = useMemo(() => combinePositions(positions), [positions]);
   const locationBreakdowns = useMemo(() => buildLocationBreakdowns(positions), [positions]);
   const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
@@ -497,7 +503,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     [normalizedSymbol, settings.finnhubToken]
   );
 
-  const historicalEntryDate = position?.entryDate;
+  const historicalEntryDate = holdingCycles.length > 0 ? new Date(holdingCycles[0].start).toISOString() : position?.entryDate;
   useEffect(() => {
     if (!historicalEntryDate) return;
     const controller = new AbortController();
@@ -532,15 +538,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   );
 
 
-  const chartData = useMemo(
-    () =>
-      historical.map((point) => ({
-        timestamp: point.timestamp,
-        close: point.close,
-        volume: point.volume,
-      })),
-    [historical]
-  );
+  const chartData = useMemo(() => {
+    if (holdingCycles.length <= 1 || holdingScope !== 'current' || currentCycleStart === undefined) return historical;
+    // Keep a week of market context before the rebuy. If it happened after the
+    // latest candle, keep two real closes rather than inventing a live sample.
+    const recent = historical.filter((point) => point.timestamp >= currentCycleStart - 7 * DAY_SECONDS * 1000);
+    return recent.length >= 2 ? recent : historical.slice(-2);
+  }, [historical, holdingScope, currentCycleStart, holdingCycles.length]);
 
   const entryTimestamp = useMemo(() => {
     if (!metrics?.position.entryDate) {
@@ -556,7 +560,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
       return [];
     }
 
-    const rangeStart = chartData[0]?.timestamp ?? Number.NEGATIVE_INFINITY;
+    const rangeStart = holdingCycles.length <= 1 || holdingScope === 'all' ? getRangeParams(displayedRange ?? range, historicalEntryDate).from * 1000 : chartData[0]?.timestamp ?? Number.NEGATIVE_INFINITY;
     const rangeEnd = chartData[chartData.length - 1]?.timestamp ?? Number.POSITIVE_INFINITY;
 
     return transactions
@@ -566,7 +570,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return events;
         }
 
-        if (timestamp < rangeStart || timestamp > rangeEnd) {
+        if (timestamp < rangeStart || timestamp > Math.max(rangeEnd, Date.now())) {
           return events;
         }
 
@@ -584,7 +588,14 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         return events;
       }, [])
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [chartData, formatUsdCurrency, locale, t.positions.buy, t.positions.sell, transactions]);
+  }, [chartData, displayedRange, range, historicalEntryDate, holdingScope, holdingCycles.length, formatUsdCurrency, locale, t.positions.buy, t.positions.sell, transactions]);
+
+  const holdingReferences = useMemo(() => positions.some((item) => item.lots?.length)
+    ? buildHoldingChartReferences(positions, [
+      ...chartData,
+      ...sparklineEvents.map((event) => ({ timestamp: event.timestamp, close: event.price })),
+    ], settings.annualGrowthRate)
+    : undefined, [positions, chartData, sparklineEvents, settings.annualGrowthRate]);
 
   const dailyChangeValue = quote?.d;
   const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
@@ -746,17 +757,25 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                 </p>
               </DashboardSurface>
 
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              <Card>
-                <CardHeader className="gap-2">
+            <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <Card className="min-w-0">
+                <CardHeader className="gap-2 p-4 sm:p-6">
                   <div>
                     <CardTitle className="text-lg font-semibold text-gray-900">
                       {t.stock.detailView.chartTitle}
                     </CardTitle>
                     <p className="text-sm text-gray-500">{t.stock.detailView.chartSubtitle}</p>
                   </div>
+                  {holdingCycles.length > 1 ? <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 sm:w-auto" role="group" aria-label={locale === 'he' ? 'תצוגת סבבי החזקה' : 'Holding cycle view'}>
+                      {(['current', 'all'] as const).map((scope) => <button key={scope} type="button" aria-pressed={holdingScope === scope} onClick={() => setHoldingScope(scope)} className={cn('min-h-11 flex-1 rounded-lg px-3 text-xs font-medium transition-colors sm:flex-none sm:px-4 sm:text-sm', holdingScope === scope ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900')}>
+                        {scope === 'current' ? locale === 'he' ? 'ההחזקה הנוכחית' : 'Current holding' : locale === 'he' ? 'כל הסבבים' : 'All cycles'}
+                      </button>)}
+                    </div>
+                    <span className="text-xs text-slate-500">{locale === 'he' ? 'כל קנייה מחדש פותחת סבב חדש' : 'Buying again starts a new cycle'}</span>
+                  </div> : null}
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
                       {STOCK_DETAIL_TIME_RANGES.map((option) => (
                         <Button
                           key={option}
@@ -772,7 +791,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent aria-busy={historicalLoading}>
+                <CardContent className="min-w-0 p-4 pt-0 sm:p-6 sm:pt-0" aria-busy={historicalLoading}>
                   <div role="status" className="mb-2 min-h-5 text-xs text-slate-500">
                     {(historicalLoading || historicalError) && chartData.length > 0 && displayedRange && (
                       <span>{locale === 'he' ? `מוצגים נתוני ${t.timeRange[displayedRange]}. ` : `Showing ${t.timeRange[displayedRange]} data. `}</span>
@@ -784,14 +803,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       </span>
                     ) : null}
                   </div>
+                  <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {[
+                      { label: locale === 'he' ? 'עלות ממוצעת · ההחזקה הנוכחית' : 'Average cost · current holding', value: formatUsdCurrency(metrics.position.entryPrice), tone: 'border-slate-200 bg-slate-50 text-slate-700' },
+                      { label: locale === 'he' ? 'יעד אישי · ההחזקה הנוכחית' : 'Personal target · current holding', value: formatUsdCurrency(metrics.projectedPrice), tone: 'border-blue-100 bg-blue-50/70 text-blue-700' },
+                      ...(visibleRequiredExitPrice === undefined ? [] : [{ label: locale === 'he' ? 'מחיר יציאה · כולל סבבים קודמים' : 'Exit price · including earlier cycles', value: formatUsdCurrency(visibleRequiredExitPrice), tone: 'border-violet-100 bg-violet-50/70 text-violet-700' }]),
+                    ].map((item) => <div key={item.label} className={cn('min-w-0 rounded-xl border px-3 py-3 last:col-span-2 sm:last:col-span-1', item.tone)}><p className="text-[11px] font-medium">{item.label}</p><p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl" dir="ltr">{item.value}</p></div>)}
+                  </div>
+                  {visibleRequiredExitPrice !== undefined ? <p className="mb-4 text-xs leading-relaxed text-slate-500">{locale === 'he' ? 'מחיר היציאה הכולל משקלל גם רווח או הפסד שמומשו ואת היעד שנצבר בסבבים קודמים. היעד הסגול בגרף מתייחס להיסטוריה המלאה; היעד הכחול להחזקה הנוכחית.' : 'The overall exit price includes realized gains or losses and targets accrued in earlier cycles. The purple chart target covers the full history; the blue target covers the current holding.'}</p> : null}
                   {historicalLoading && chartData.length === 0 ? (
                     <Skeleton className="h-80 w-full" />
-                  ) : chartData.length === 0 ? (
+                  ) : chartData.length < 2 ? (
                     <div className="flex h-80 items-center justify-center text-sm text-gray-500">
-                      {t.stock.historyUnavailable}
+                      {chartData.length === 1 ? locale === 'he' ? 'עדיין אין מספיק מחירי סגירה בטווח הזה. בחר טווח ארוך יותר.' : 'Not enough closing prices in this range yet. Choose a longer range.' : t.stock.historyUnavailable}
                     </div>
                   ) : (
-                    <div className="h-[320px] w-full rounded-xl border border-slate-200 bg-slate-50/70 p-3 [direction:ltr] sm:h-[360px] sm:p-4">
+                    <div className="h-[268px] w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 p-3 [direction:ltr] sm:h-[360px] sm:p-4">
                       <Sparkline
                         points={chartData}
                         height={320}
@@ -810,6 +837,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                         annualGrowthRate={settings.annualGrowthRate}
                         yearsHeld={metrics.yearsHeld}
                         events={sparklineEvents}
+                        includeEventsInDomain
+                        holdingPeriods={holdingCycles}
+                        holdingReferences={holdingReferences}
                         className="h-full w-full"
                         showYAxis
                         yAxisWidth={76}
@@ -825,7 +855,22 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
                       />
                     </div>
                   )}
-                  <p className="mt-4 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
+                  {chartData.length > 0 ? <div className="mt-2 flex justify-between text-[11px] text-slate-400" dir="ltr"><span>{chartDate(Math.min(chartData[0].timestamp, ...sparklineEvents.map((event) => event.timestamp)))}</span><span>{chartDate(Math.max(chartData[chartData.length - 1].timestamp, ...sparklineEvents.map((event) => event.timestamp)))}</span></div> : null}
+                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+                    <span><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-emerald-500" />{locale === 'he' ? 'קנייה' : 'Buy'}</span>
+                    <span><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-rose-500" />{locale === 'he' ? 'מכירה' : 'Sell'}</span>
+                    <span><span className="me-1.5 inline-block h-1.5 w-4 rounded bg-blue-600" />{locale === 'he' ? 'סבב פעיל' : 'Active cycle'}</span>
+                    <span><span className="me-1.5 inline-block h-1.5 w-4 rounded bg-slate-400" />{locale === 'he' ? 'סבב שנסגר' : 'Closed cycle'}</span>
+                    <span>{locale === 'he' ? 'הקו: אדום מתחת לעלות · כחול מתחת ליעד · ירוק ביעד · אפור ללא החזקה' : 'Line: red below cost · blue below target · green at target · gray outside holdings'}</span>
+                  </div>
+                  {holdingCycles.length > 1 ? <ol className="mt-5 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label={locale === 'he' ? 'ציר סבבי ההחזקה' : 'Holding cycle timeline'}>
+                    {holdingCycles.map((cycle, index) => <li key={cycle.id} className={cn('min-w-0 rounded-xl border p-3', cycle.current ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-slate-50/60')}>
+                      <div className="flex items-center justify-between gap-3 text-xs font-semibold"><span>{locale === 'he' ? `סבב ${index + 1}` : `Cycle ${index + 1}`}</span><span className={cycle.current ? 'text-blue-600' : 'text-slate-500'}>{cycle.current ? locale === 'he' ? 'פעיל כעת' : 'Active now' : locale === 'he' ? 'נסגר' : 'Closed'}</span></div>
+                      <p className="mt-2 text-xs text-slate-600">{chartDate(cycle.start)}{cycle.end !== null ? ` — ${chartDate(cycle.end)}` : locale === 'he' ? ' — היום' : ' — today'}</p>
+                    </li>)}
+                  </ol> : null}
+                  <p className="mt-3 text-xs leading-relaxed text-gray-500">{locale === 'he' ? 'הרקע והפס התחתון מסמנים תקופות החזקה; הרווח ביניהן הוא זמן ללא החזקה באותו סבב. הנקודות הן עסקאות בפועל, והקו מציג מחירי סגירה בלבד. בקנייה חדשה מוצג גם מעט רקע מהימים שלפניה. היעד האישי אינו תחזית.' : 'Shading and the bottom rail mark holding periods; gaps show time outside those cycles. Dots are actual trades; the line uses closing prices only. A new purchase includes a little earlier price context. The personal target is not a forecast.'}</p>
+                  <p className="mt-2 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
                 </CardContent>
               </Card>
 

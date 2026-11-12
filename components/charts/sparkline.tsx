@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from 'react';
 
 import { HistoricalPoint, PositionLotType } from '@/types';
+import type { HoldingChartReference } from '@/lib/holding-chart-history';
 
 export interface SparklineEvent {
   id: string;
@@ -27,7 +28,16 @@ export interface SparklineHoverDetail {
   valueClassName?: string;
 }
 
+export interface SparklineHoldingPeriod {
+  id: string;
+  start: number;
+  end: number | null;
+  current: boolean;
+}
+
 interface SparklineProps {
+  holdingPeriods?: SparklineHoldingPeriod[];
+  holdingReferences?: HoldingChartReference[];
   points: HistoricalPoint[];
   width?: number;
   height?: number;
@@ -85,6 +95,8 @@ type NormalizedData = {
   requiredExitY: number | null;
   projectionPoints: { x: number; y: number }[] | null;
   projectionStartX: number;
+  firstTimestamp: number;
+  lastTimestamp: number;
   events: NormalizedEvent[];
   min: number;
   max: number;
@@ -115,6 +127,8 @@ function SparklineEventMetric({
 
 export function Sparkline({
   points,
+  holdingPeriods,
+  holdingReferences,
   width = 320,
   height = 96,
   color = 'var(--color-primary-500)',
@@ -272,8 +286,9 @@ export function Sparkline({
         .map((event) => event.price)
         .filter((price): price is number => typeof price === 'number' && Number.isFinite(price))),
     ];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const padding = holdingPeriods ? Math.max(Math.max(...values) - Math.min(...values), 1) * 0.08 : 0;
+    const min = Math.min(...values) - padding;
+    const max = Math.max(...values) + padding;
     const range = max - min || 1;
 
     const normalizedPoints: NormalizedPoint[] = sortedPoints.map((point) => {
@@ -353,6 +368,8 @@ export function Sparkline({
       requiredExitY,
       projectionPoints,
       projectionStartX,
+      firstTimestamp,
+      lastTimestamp,
       events: normalizedEvents,
       min,
       max,
@@ -369,6 +386,7 @@ export function Sparkline({
     yearsHeld,
     events,
     includeEventsInDomain,
+    holdingPeriods,
     activeFromTimestamp,
   ]);
 
@@ -377,122 +395,60 @@ export function Sparkline({
       return [] as SparklineSegment[];
     }
 
-    const thresholds = [
-      ...(typeof baseline === 'number' ? [baseline] : []),
-      ...(typeof projectedPrice === 'number' ? [projectedPrice] : []),
-    ];
-
-    const uniqueThresholds = Array.from(new Set(thresholds)).sort((a, b) => a - b);
-
-    const determineColor = (value: number, timestamp: number) => {
-      if (
-        typeof activeFromTimestamp === 'number' &&
-        Number.isFinite(activeFromTimestamp) &&
-        timestamp < activeFromTimestamp
-      ) {
-        return inactiveBeforeColor;
-      }
-
-      if (typeof baseline === 'number' && value < baseline) {
-        return belowEntryColor;
-      }
-
-      if (typeof projectedPrice === 'number') {
-        if (value >= projectedPrice) {
-          return aboveProjectedColor;
+    const references = holdingReferences ? [...holdingReferences].sort((a, b) => a.timestamp - b.timestamp) : undefined;
+    const referenceAt = (timestamp: number) => {
+      if (holdingPeriods && !holdingPeriods.some((period) => timestamp >= period.start && (period.end === null || timestamp < period.end))) return null;
+      if (references) {
+        // Use only the latest known reference, never a later purchase or target.
+        let reference: HoldingChartReference | null = null;
+        for (const candidate of references) {
+          if (candidate.timestamp > timestamp) break;
+          reference = candidate;
         }
-
-        return betweenProjectedColor;
+        return reference;
       }
-
-      return color;
+      if (!holdingPeriods && typeof activeFromTimestamp === 'number' && timestamp < activeFromTimestamp) return null;
+      return { baseline: baseline ?? null, target: projectedPrice ?? null };
     };
-
     const computed: SparklineSegment[] = [];
-
+    const boundaries = [
+      ...(holdingPeriods?.flatMap((period) => [period.start, ...(period.end === null ? [] : [period.end])]) ?? []),
+      ...(references?.map((reference) => reference.timestamp) ?? []),
+      ...(typeof activeFromTimestamp === 'number' ? [activeFromTimestamp] : []),
+    ];
     for (let index = 1; index < normalized.points.length; index += 1) {
-      const startPoint = normalized.points[index - 1];
-      const endPoint = normalized.points[index];
-      const startValue = normalized.closes[index - 1];
-      const endValue = normalized.closes[index];
-      const startTimestamp = startPoint.timestamp;
-      const endTimestamp = endPoint.timestamp;
-
-      const priceBreakpoints = uniqueThresholds
-        .map((threshold) => {
-          if (endValue === startValue) {
-            return null;
-          }
-
-          const crosses =
-            (startValue < threshold && endValue > threshold) ||
-            (startValue > threshold && endValue < threshold);
-
-          if (!crosses) {
-            return null;
-          }
-
-          const ratio = (threshold - startValue) / (endValue - startValue);
-
-          return {
-            ratio,
-            point: {
-              x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
-              y: startPoint.y + (endPoint.y - startPoint.y) * ratio,
-            },
-          };
-        })
-        .filter((breakpoint): breakpoint is { ratio: number; point: { x: number; y: number } } =>
-          breakpoint !== null && breakpoint.ratio > 0 && breakpoint.ratio < 1,
-        );
-
-      const timeBreakpoint =
-        typeof activeFromTimestamp === 'number' &&
-        Number.isFinite(activeFromTimestamp) &&
-        startTimestamp < activeFromTimestamp &&
-        endTimestamp > activeFromTimestamp
-          ? (() => {
-              const ratio = (activeFromTimestamp - startTimestamp) / (endTimestamp - startTimestamp || 1);
-              return {
-                ratio,
-                point: {
-                  x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
-                  y: startPoint.y + (endPoint.y - startPoint.y) * ratio,
-                },
-              };
-            })()
-          : null;
-
-      const breakpoints = [...priceBreakpoints, ...(timeBreakpoint ? [timeBreakpoint] : [])]
-        .sort((a, b) => a.ratio - b.ratio);
-
-      let segmentStartPoint: { x: number; y: number } = { x: startPoint.x, y: startPoint.y };
-      let currentColor = determineColor(startValue, startTimestamp);
-
-      breakpoints.forEach((breakpoint) => {
-        computed.push({
-          color: currentColor,
-          start: segmentStartPoint,
-          end: breakpoint.point,
-        });
-
-        segmentStartPoint = breakpoint.point;
-        const afterRatio = Math.min(1, breakpoint.ratio + 1e-4);
-        const nextValue = startValue + (endValue - startValue) * afterRatio;
-        const nextTimestamp = startTimestamp + (endTimestamp - startTimestamp) * afterRatio;
-        currentColor = determineColor(nextValue, nextTimestamp);
-      });
-
-      computed.push({
-        color: currentColor,
-        start: segmentStartPoint,
-        end: endPoint,
-      });
+      const start = normalized.points[index - 1];
+      const end = normalized.points[index];
+      const duration = end.timestamp - start.timestamp || 1;
+      const timeRatios = [0, ...boundaries.filter((time) => time > start.timestamp && time < end.timestamp).map((time) => (time - start.timestamp) / duration), 1];
+      const cuts = [...new Set(timeRatios)].sort((a, b) => a - b);
+      const valueAt = (ratio: number) => start.close + (end.close - start.close) * ratio;
+      const pointAt = (ratio: number) => ({ x: start.x + (end.x - start.x) * ratio, y: start.y + (end.y - start.y) * ratio });
+      for (let part = 1; part < cuts.length; part += 1) {
+        const left = cuts[part - 1];
+        const right = cuts[part];
+        const reference = referenceAt(start.timestamp + duration * (left + right) / 2);
+        const thresholds = [reference?.baseline, reference?.target].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+        const priceCuts = end.close === start.close ? [] : thresholds.map((value) => (value - start.close) / (end.close - start.close)).filter((ratio) => ratio > left && ratio < right);
+        const pieces = [left, ...new Set(priceCuts), right].sort((a, b) => a - b);
+        for (let piece = 1; piece < pieces.length; piece += 1) {
+          const from = pieces[piece - 1];
+          const to = pieces[piece];
+          const value = valueAt((from + to) / 2);
+          const segmentColor = !reference || (references && reference.baseline === null) ? inactiveBeforeColor
+            : reference.baseline !== null && value < reference.baseline ? belowEntryColor
+            : reference.target !== null ? value >= reference.target ? aboveProjectedColor : betweenProjectedColor
+            : color;
+          computed.push({ color: segmentColor, start: pointAt(from), end: pointAt(to) });
+        }
+      }
     }
 
     return computed;
   }, [
     normalized,
+    holdingPeriods,
+    holdingReferences,
     baseline,
     projectedPrice,
     belowEntryColor,
@@ -701,7 +657,7 @@ export function Sparkline({
   const comparisonPrice = isSellEvent
     ? (activeEvent?.price ?? null)
     : latestClose;
-  const changeFromEvent = buyReferencePrice !== null && comparisonPrice !== null && activeEvent
+  const changeFromEvent = holdingPeriods ? null : buyReferencePrice !== null && comparisonPrice !== null && activeEvent
     ? {
         amount: (comparisonPrice - buyReferencePrice) * activeEvent.quantity,
         percent: buyReferencePrice !== 0
@@ -818,7 +774,7 @@ export function Sparkline({
 
   if (!normalized) {
     return (
-      <div className={`relative ${className}`} style={{ width: '100%', height }}>
+      <div className={`relative ${className}`} style={{ width: '100%', height: className.split(' ').includes('h-full') ? '100%' : height }}>
         <div className="flex h-full w-full">
           {renderSkeleton}
           {showYAxis ? (
@@ -868,7 +824,7 @@ export function Sparkline({
   const lastPoint = normalizedPoints[normalizedPoints.length - 1] ?? null;
 
   return (
-    <div className={`relative ${className}`} style={{ width: '100%', height }}>
+    <div className={`relative ${className}`} style={{ width: '100%', height: className.split(' ').includes('h-full') ? '100%' : height }}>
       <div className="flex h-full w-full">
           <div
             ref={chartRef}
@@ -929,6 +885,18 @@ export function Sparkline({
               </linearGradient>
             </defs>
 
+            {normalized && holdingPeriods?.map((period) => {
+              const duration = Math.max(normalized.lastTimestamp - normalized.firstTimestamp, 1);
+              const x = Math.max(0, (period.start - normalized.firstTimestamp) / duration * chartWidth);
+              const end = Math.min(chartWidth, ((period.end ?? normalized.lastTimestamp) - normalized.firstTimestamp) / duration * chartWidth);
+              if (end < x || x > chartWidth) return null;
+              return <g key={period.id} data-testid="holding-period-band">
+                <rect x={x} y={0} width={Math.max(end - x, 2)} height={height} fill={period.current ? '#2563eb' : '#64748b'} opacity={period.current ? 0.055 : 0.035} />
+                <rect x={x} y={height - 4} width={Math.max(end - x, 2)} height={4} rx={2} fill={period.current ? '#2563eb' : '#94a3b8'} />
+                {period.start >= normalized.firstTimestamp ? <line x1={x} x2={x} y1={0} y2={height} stroke={period.current ? '#2563eb' : '#94a3b8'} strokeDasharray="3 5" opacity={0.4} /> : null}
+              </g>;
+            })}
+
             {!showYAxis ? (
               <g opacity={0.08}>
                 <line x1="0" y1={height} x2={chartWidth} y2={height} stroke={color} strokeWidth="1" strokeDasharray="2 7" />
@@ -953,7 +921,7 @@ export function Sparkline({
 
             {baselineY !== null && (
               <line
-                x1={0}
+                x1={holdingPeriods ? normalized?.projectionStartX ?? 0 : 0}
                 y1={baselineY}
                 x2={chartWidth}
                 y2={baselineY}

@@ -59,3 +59,49 @@ describe('Sparkline transaction date domain', () => {
     expect(container.querySelector('path[stroke-width="2.35"]')?.getAttribute('d')).toMatch(/^M 0 /);
   });
 });
+
+describe('Sparkline historical holding colors', () => {
+  const start = Date.UTC(2025, 0, 1);
+  const day = 86_400_000;
+  const history = Array.from({ length: 8 }, (_, index) => ({ timestamp: start + index * day, close: 105 }));
+  const periods = [
+    { id: 'old', start, end: start + 3 * day, current: false },
+    { id: 'new', start: start + 5 * day, end: null, current: true },
+  ];
+  const colorAt = (container: HTMLElement, fraction: number) => {
+    const stops = Array.from(container.querySelectorAll('linearGradient:first-child stop'));
+    return stops.filter((stop) => Number.parseFloat(stop.getAttribute('offset') ?? '0') <= fraction * 100).at(-1)?.getAttribute('stop-color');
+  };
+
+  it.each([
+    { baseline: 110, target: 120, expected: '#f00' },
+    { baseline: 100, target: 110, expected: '#00f' },
+    { baseline: 90, target: 100, expected: '#0f0' },
+  ])('uses the old holding reference for $expected while keeping time outside holdings gray', ({ baseline, target, expected }) => {
+    const holdingReferences = history.map((point, index) => ({
+      timestamp: point.timestamp,
+      baseline: index < 3 ? baseline : index < 5 ? null : 200,
+      target: index < 3 ? target : index < 5 ? null : 220,
+    }));
+    const { container } = render(<Sparkline
+      points={history} holdingPeriods={periods} holdingReferences={holdingReferences}
+      baseline={200} projectedPrice={220} activeFromTimestamp={start + 5 * day}
+      belowEntryColor="#f00" betweenProjectedColor="#00f" aboveProjectedColor="#0f0" inactiveBeforeColor="#888"
+    />);
+
+    // The latest entry/target must not recolor the earlier, already closed cycle.
+    expect(colorAt(container, 1.5 / 7)).toBe(expected);
+    expect(colorAt(container, 4 / 7)).toBe('#888');
+    expect(colorAt(container, 6 / 7)).toBe('#f00');
+  });
+
+  it('leaves an earlier active interval gray when its own reference is missing', () => {
+    const { container } = render(<Sparkline
+      points={history} holdingPeriods={periods}
+      holdingReferences={history.map((point, index) => ({ timestamp: point.timestamp, baseline: index < 5 ? null : 100, target: index < 5 ? null : 110 }))}
+      baseline={100} projectedPrice={110} belowEntryColor="#f00" betweenProjectedColor="#00f" aboveProjectedColor="#0f0" inactiveBeforeColor="#888"
+    />);
+    expect(colorAt(container, 1.5 / 7)).toBe('#888');
+    expect(colorAt(container, 6 / 7)).toBe('#00f');
+  });
+});
