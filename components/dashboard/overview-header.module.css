@@ -1,0 +1,38 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding-block: 2px 6px;
+}
+.titleRow { display: flex; min-width: 0; align-items: center; gap: 14px; }
+.titleBlock { min-width: 0; padding-inline-start: 13px; border-inline-start: 3px solid #2563eb; }
+.titleBlock h1 { color: #0f172a; font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.04em; }
+.status { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: #94a3b8; font-size: 11px; line-height: 1.4; }
+.status svg { width: 12px; height: 12px; }
+.refresh { min-width: 44px; min-height: 44px; border: 1px solid transparent; border-radius: 12px; color: #64748b; transition: color 180ms, background-color 180ms, border-color 180ms; }
+.refresh:hover { color: #1d4ed8; background: #eff6ff; border-color: #dbeafe; }
+.actions { display: flex; align-items: stretch; gap: 8px; }
+.primary { min-height: 44px; padding-inline: 16px; border: 1px solid #2563eb; border-radius: 12px; background: #2563eb; color: #fff; box-shadow: 0 3px 8px rgb(37 99 235 / .12); transition: background-color 180ms, box-shadow 180ms, transform 180ms; }
+.primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgb(37 99 235 / .2); }
+.primary:active { transform: scale(.98); }
+.primary svg { width: 17px; height: 17px; }
+.export { display: flex; }
+.export > button { min-height: 44px; border-color: #dbe3ef; border-radius: 12px; background: #fff; color: #475569; box-shadow: none; transition: background-color 180ms, border-color 180ms, color 180ms; }
+.export > button:hover { border-color: #bfdbfe; background: #f8faff; color: #1d4ed8; }
+.spinning { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 639px) {
+  .header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-block: 0 2px; }
+  .titleRow { justify-content: space-between; gap: 12px; }
+  .titleBlock h1 { font-size: 25px; }
+  .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .primary { padding-inline: 10px; font-size: 12px; }
+  .export > button { width: 100%; padding-inline: 10px; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh, .primary, .export > button { transition: none; }
+  .primary:active { transform: none; }
+  .spinning { animation: none; }
+}

@@ -1,34 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Plus, RefreshCw, ArrowLeft, ArrowRight, Wallet, TrendingUp, Target, ArrowLeftRight, ChevronDown } from 'lucide-react';
+import { Plus, Wallet, TrendingUp, Target, ArrowLeftRight, ChevronDown } from 'lucide-react';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
-import { PageHeader } from '@/components/dashboard/page-header';
+import { OverviewHeader } from '@/components/dashboard/overview-header';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PerformanceChart } from '@/components/charts/performance-chart';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
 import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
-import { ResearchExportButton } from '@/components/portfolio/research-export-button';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { useApp } from '@/lib/context';
 import { formatCurrency } from '@/lib/calculations';
 import { getPerformanceTotals, parsePerformanceOptions } from '@/lib/performance-display';
-import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 
 export default function HomePage() {
   const { locale, settings } = useApp();
   const he = locale === 'he';
-  const { loading, refreshing, summary, metrics, positions, portfolioTimeline, sparklineData, contextSparklineData, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, summary, metrics, positions, sparklineData, contextSparklineData, lastUpdate, reload } = usePortfolioData();
   useReturnContext(!loading);
   const currency = settings.currency;
   const [performanceOptions] = useUrlState(parsePerformanceOptions);
   const totals = summary ? getPerformanceTotals(summary, currency, performanceOptions) : null;
   const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
-  const Arrow = he ? ArrowLeft : ArrowRight;
   const gap = totals?.gap;
   const hasGap = gap !== undefined && Number.isFinite(gap);
   const deductionBasis = performanceOptions.includeFees
@@ -42,11 +38,7 @@ export default function HomePage() {
   ];
   return <DashboardRouteShell activeKey="dashboard" locale={locale}>
     <DashboardContainer>
-      <PageHeader title={he ? 'סקירת התיק' : 'Portfolio overview'} icon={LayoutDashboard}
-        metaBadges={[{ key: 'updated', label: `${he ? 'עודכן' : 'Updated'} ${formatLastUpdatedTime(lastUpdate, locale) ?? '—'}` }]}
-        quickActionsTitle={he ? 'פעולות' : 'Actions'}
-        quickActions={[{ key: 'reload', label: he ? 'רענן' : 'Refresh', icon: RefreshCw, onClick: reload, disabled: loading || refreshing, iconClassName: refreshing ? 'animate-spin' : undefined, labelClassName: 'sr-only' }]}
-        actions={<div className="flex flex-wrap items-center gap-2"><Button asChild className="rounded-lg"><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button><ResearchExportButton /></div>} />
+      <OverviewHeader locale={locale} lastUpdate={lastUpdate} loading={loading} refreshing={refreshing} onRefresh={reload} />
       <DashboardMain className="mt-5">
         {loading ? <div aria-busy="true" aria-label={he ? 'טוען את התיק' : 'Loading portfolio'} className="space-y-5"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-80 rounded-xl" /></div> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <>
           <section aria-label={he ? 'תמונת מצב התיק' : 'Portfolio summary'} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -62,19 +54,12 @@ export default function HomePage() {
                 <div className="max-w-xl space-y-3 pb-3 pt-3 leading-relaxed">
                   <p>{he ? 'הנתונים מצטברים מתחילת ההשקעה ועד היום, במטבע התיק.' : 'Cumulative from your first investment to today, in your portfolio currency.'}</p>
                   <dl className="space-y-2">{stats.map((stat, index) => <div key={index}><dt className="font-medium text-slate-700">{stat.label}</dt><dd>{stat.detail}</dd></div>)}</dl>
-                  <p>{he ? 'הרווח מחושב לפי אפשרויות החישוב בגרף. המס הוא אומדן על מימושים, לא מס ששולם בפועל. היעד אישי ואינו תחזית שוק.' : 'Profit uses the chart’s calculation settings. Tax is estimated on realized gains, not actual tax paid. The personal target is not a market forecast.'}</p>
+                  <p>{he ? 'הרווח מחושב לפי אפשרויות החישוב בדף הביצועים. המס הוא אומדן על מימושים, לא מס ששולם בפועל. היעד אישי ואינו תחזית שוק.' : 'Profit uses the calculation settings from the performance page. Tax is estimated on realized gains, not actual tax paid. The personal target is not a market forecast.'}</p>
                 </div>
             </details>
           </section>
-          {summary ? <DashboardSurface className="overflow-hidden rounded-2xl p-0 sm:p-0">
-            <div className="p-4 sm:p-5"><PerformanceChart data={portfolioTimeline} summary={summary} compact /></div>
-            <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-4 py-2 sm:px-5">
-              <Link href="/portfolio?view=targets" className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-medium text-slate-600 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><Target aria-hidden className="h-4 w-4" />{he ? 'פירוט יעדים' : 'Target details'}</Link>
-              <Link href="/portfolio" className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'כל הביצועים' : 'All performance'}<Arrow aria-hidden className="h-4 w-4" /></Link>
-            </div>
-          </DashboardSurface> : <DashboardSurface><p className="py-10 text-center text-sm text-slate-500">{he ? 'סיכום התיק אינו זמין כרגע.' : 'The portfolio summary is currently unavailable.'}</p></DashboardSurface>}
-          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
           <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
+          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
         </>}
       </DashboardMain>
     </DashboardContainer>
