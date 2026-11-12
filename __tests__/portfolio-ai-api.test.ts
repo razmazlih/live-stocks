@@ -35,6 +35,19 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.quotes.ABC.marketTimestamp).toBeTruthy();
     expect(JSON.stringify(data)).not.toContain('secret-do-not-export');
   });
+  it('offers escaped HTML for browsing tools with the same complete snapshot', async () => {
+    rows.positions[0] = { ...(rows.positions[0] as object), display: '<script>alert("x")</script>' };
+    const response = await GET(new Request('https://example.com/api/portfolio/ai?format=html'));
+    const html = await response.text();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+    expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('generatedAt');
+    expect(html).toContain('realizedSales');
+    expect(html).not.toContain('secret-do-not-export');
+  });
   it('does not fabricate prices, full valuations or FX', async () => {
     mocks.quote.mockResolvedValue(null);
     mocks.fx.mockRejectedValue(new Error('offline'));

@@ -124,9 +124,17 @@ async function buildSnapshot() {
 
 const getSnapshot = cachePortfolioAiSnapshot(buildSnapshot);
 
-export async function GET() {
+export async function GET(request?: Request) {
   try {
-    return NextResponse.json(await getSnapshot(), { headers });
+    const snapshot = await getSnapshot();
+    if (request && new URL(request.url).searchParams.get('format') === 'html') {
+      const json = JSON.stringify(snapshot, null, 2)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portfolio snapshot for AI analysis</title></head><body><h1>Portfolio snapshot for AI analysis</h1><p>Read-only portfolio data. All amounts, timestamps, sources and limitations are included in the JSON below. This snapshot uses the same five-minute server cache as the JSON API.</p><pre>${json}</pre></body></html>`, {
+        headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", 'X-Content-Type-Options': 'nosniff' },
+      });
+    }
+    return NextResponse.json(snapshot, { headers });
   } catch {
     return NextResponse.json({ error: 'Failed to load complete portfolio snapshot' }, { status: 500, headers: { ...headers, 'Retry-After': '30' } });
   }
