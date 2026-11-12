@@ -42,6 +42,41 @@ describe('close pair disclosure', () => {
     expect(screen.getByTestId('close-pair-preview')).toHaveTextContent('+$20.00');
   });
 
+  it('excludes the CAPR pair when prior partial-sale losses outweigh current profits', () => {
+    context.locale = 'en';
+    const capr: Position = { ...metric('CAPR', 10).position, quantity: 22, entryPrice: 20.3, entryDate: '2026-07-17', lots: [
+      { type: 'BUY', quantity: 44, price: 20.3, executedAt: '2026-07-17', hasCommission: false, commissionAmount: 0 },
+      { type: 'SELL', quantity: 22, price: 3.87, executedAt: '2026-08-03', hasCommission: false, commissionAmount: 0 },
+    ] };
+    const cme: Position = { ...metric('CME', 316.9).position, quantity: 5, entryPrice: 261.07, entryDate: '2026-08-05' };
+    const caprOpenSlice = { ...capr, lots: [{ ...capr.lots![0], quantity: 22 }] };
+    const metrics = [calculatePositionMetrics(cme, 316.9, 3.5), calculatePositionMetrics(caprOpenSlice, 10, 3.5)];
+    const { container } = render(<ClosePairProposals metrics={metrics} positions={[cme, capr]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('explains and exports realized plus unrealized results without adding old proceeds to new cash', async () => {
+    context.locale = 'en';
+    const user = userEvent.setup();
+    const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+    const loss: Position = { ...metric('LOSS', 90).position, lots: [
+      { type: 'BUY', quantity: 1, price: 100, executedAt: '2025-01-01', hasCommission: false, commissionAmount: 0 },
+      { type: 'SELL', quantity: 1, price: 70, executedAt: '2025-02-01', hasCommission: false, commissionAmount: 0 },
+      { type: 'BUY', quantity: 2, price: 100, executedAt: '2026-01-01', hasCommission: false, commissionAmount: 0 },
+    ] };
+    const win = metric('WIN', 140);
+    render(<ClosePairProposals metrics={[win, calculatePositionMetrics({ ...loss, lots: loss.lots!.slice(-1) }, 90, 3.5)]} positions={[win.position, loss]} />);
+    await user.click(screen.getByRole('button', { name: 'Expand WIN + LOSS details' }));
+    expect(screen.getAllByText(/Previously realized/)).toHaveLength(2);
+    expect(screen.getByRole('link', { name: /^LOSS/ })).toHaveTextContent('-$30.00');
+    expect(screen.getByRole('link', { name: /^LOSS/ })).toHaveTextContent('-$20.00');
+    await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
+    const prompt = write.mock.calls[0][0];
+    const snapshot = JSON.parse(prompt.slice(prompt.indexOf('{')));
+    expect(snapshot.pairs[0]).toMatchObject({combinedProfitUsd: 30, combinedRealizedProfitUsd: -30, combinedUnrealizedProfitUsd: 60, estimatedProceedsUsd: 460});
+    expect(snapshot.pairs[0].legs[1]).toMatchObject({realizedProfitUsd: -30, unrealizedProfitUsd: -20, cumulativeProfitUsd: -50});
+  });
+
   it('leaves no extra surface when there is no profitable pair', () => {
     const { container } = render(<ClosePairProposals metrics={[metric('WIN', 110), metric('LOSS', 80)]} />);
     expect(container).toBeEmptyDOMElement();
@@ -117,9 +152,9 @@ describe('close pair disclosure', () => {
     const positions = [metric('WIN', 130), metric('LOSS', 80)];
     const { rerender } = render(<ClosePairProposals metrics={positions} />);
     expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
-    expect(screen.getByText('Combined exit profit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Cumulative profit after exit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
     await user.click(screen.getByRole('button', {name: 'Expand WIN + LOSS details'}));
-    expect(screen.getByText('Combined exit profit')).toBeVisible();
+    expect(screen.getByText('Cumulative profit after exit')).toBeVisible();
     expect(screen.getByText('Profit target to date')).toBeInTheDocument();
     context.settings.annualGrowthRate = 100;
     rerender(<ClosePairProposals metrics={positions} />);

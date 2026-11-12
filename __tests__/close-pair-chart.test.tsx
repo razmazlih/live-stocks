@@ -21,13 +21,13 @@ describe('combined pair chart', () => {
     expect(capture).toHaveBeenLastCalledWith(expect.objectContaining({baseline: 0, interactive: false, points: [
       {timestamp: Date.UTC(2026, 9, 1), close: -30}, {timestamp: Date.UTC(2026, 9, 2), close: 20},
     ]}));
-    expect(screen.getByText(/current remaining quantities/i)).toBeInTheDocument();
+    expect(screen.getByText(/All holding cycles and previous sales/i)).toBeInTheDocument();
     expect(screen.queryByText(/Last close/)).not.toBeInTheDocument();
   });
   it('does not fabricate a chart when either history is missing', () => {
     render(<ClosePairChart proposal={proposal} locale="he" sparklineData={{'active-WIN': history([90, 120])}} />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.getByText('אין מספיק נתונים היסטוריים משותפים לשתי המניות')).toBeInTheDocument();
+    expect(screen.getByText('אין מספיק נתונים היסטוריים לחישוב הפער מהיעד')).toBeInTheDocument();
   });
   it('labels a historical close separately when it differs from the live proposal', () => {
     render(<ClosePairChart proposal={{...proposal, surplusUsd: 25}} locale="en" sparklineData={{'active-WIN': history([90, 120]), 'active-LOSS': history([95, 90])}} />);

@@ -12,11 +12,11 @@ export interface HoldingChartReference {
   target: number | null;
 }
 
-function dailyHoldingStates(positions: Position[], points: HistoricalPoint[]) {
+function dailyHoldingStates(positions: Position[], points: HistoricalPoint[], through = Number.POSITIVE_INFINITY) {
   const history = Array.from(new Map(points
     .filter((point) => Number.isFinite(point.timestamp)
       && Number.isFinite(new Date(point.timestamp).getTime())
-      && Number.isFinite(point.close) && point.close >= 0)
+      && point.timestamp <= through && Number.isFinite(point.close) && point.close >= 0)
     .map((point) => [point.timestamp, point])).values())
     .sort((left, right) => left.timestamp - right.timestamp);
   const symbols = new Set(positions.map((position) => position.symbol.trim().toUpperCase()));
@@ -27,7 +27,7 @@ function dailyHoldingStates(positions: Position[], points: HistoricalPoint[]) {
   }));
 
   return history.map((point) => {
-    const cutoff = Math.floor(point.timestamp / DAY_MS) * DAY_MS + DAY_MS - 1;
+    const cutoff = Math.min(Math.floor(point.timestamp / DAY_MS) * DAY_MS + DAY_MS - 1, through);
     const asOf = new Date(cutoff);
     const asOfPositions = datedPositions.flatMap(({ position, entryTimestamp, lots }) => {
       const eligible: PositionLot[] = lots.filter((entry) => entry.timestamp <= cutoff).map((entry) => entry.lot);
@@ -87,17 +87,20 @@ export interface HoldingPerformancePoint {
  * partially sold, fully closed or reopened. A sold portion's goal stops accruing
  * at its sale time; remaining shares accrue through the sample's UTC day-end.
  * No future sale fee or tax is estimated, and missing goals do not hide known P/L.
+ * Optional asOf caps both eligible transactions and target accrual within the
+ * current UTC day; samples after it are omitted. Default remains day-end.
  */
 export function buildHoldingPerformanceHistory(
   positions: Position[],
   points: HistoricalPoint[],
   annualGrowthRate: number,
+  asOf = Number.POSITIVE_INFINITY,
 ): HoldingPerformancePoint[] {
   const MS_PER_YEAR = 365.25 * DAY_MS;
   const expectedProfit = (cost: number, boughtAt: number, through: number) =>
     cost * (Math.pow(1 + annualGrowthRate, Math.max((through - boughtAt) / MS_PER_YEAR, 0)) - 1);
 
-  return dailyHoldingStates(positions, points).map(({ point: { timestamp, close }, cutoff, asOfPositions, valid }) => {
+  return dailyHoldingStates(positions, points, asOf).map(({ point: { timestamp, close }, cutoff, asOfPositions, valid }) => {
     if (!valid) return { timestamp, actual: null, target: null };
     const openLots = asOfPositions.flatMap((position) => computeOpenLots(position.lots ?? []));
     const realized = asOfPositions.flatMap(computeRealizedSales);

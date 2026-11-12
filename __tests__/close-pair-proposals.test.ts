@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildClosePairProposals } from '@/lib/close-pair-proposals';
-import { calculatePositionMetrics } from '@/lib/calculations';
+import { calculatePositionMetrics, calculateSymbolExceptionAssessment } from '@/lib/calculations';
 import type { Position, PositionLot } from '@/types';
 
 const entryDate = '2026-01-01T00:00:00Z';
@@ -53,19 +53,21 @@ describe('non-overlapping full-close pairs', () => {
     expect(pair.coveredShortfallUsd).toBeCloseTo(30);
   });
 
-  it('compounds remaining FIFO costs including allocated fees from each original buy date', () => {
+  it('compounds open FIFO targets and freezes sold-share targets at each sale', () => {
     const yearMs = 365.25 * 86_400_000;
     const start = Date.parse(entryDate);
     const winner = metric('WIN', 200, { lots: [lot(), lot({ quantity: 5, price: 110,
       executedAt: new Date(start + yearMs / 2).toISOString(), commissionAmount: 5 }),
     lot({ type: 'SELL', quantity: 12, price: 150, executedAt: new Date(start + yearMs * .75).toISOString() })] });
     const [result] = buildClosePairProposals([winner, metric('LOSS', 98)], 3, start + yearMs, .1);
-    const winnerTarget = 333 * (Math.pow(1.1, .5) - 1);
+    const winnerTarget = 333 * (Math.pow(1.1, .5) - 1)
+      + 1010 * (Math.pow(1.1, .75) - 1) + 222 * (Math.pow(1.1, .25) - 1);
     expect(result.winner.quantity).toBe(3);
     expect(result.winner.targetProfitUsd).toBeCloseTo(winnerTarget);
     expect(result.loser.targetProfitUsd).toBeCloseTo(100);
     expect(result.targetProfitUsd).toBeCloseTo(winnerTarget + 100);
-    expect(result.surplusUsd).toBeCloseTo(247 - winnerTarget - 100);
+    expect(result.winner.realizedPnlUsd).toBeCloseTo(558);
+    expect(result.surplusUsd).toBeCloseTo(805 - winnerTarget - 100);
   });
 
   it('ranks equal covered losses by surplus over target rather than raw profit', () => {
@@ -99,16 +101,19 @@ describe('non-overlapping full-close pairs', () => {
     expect(buildClosePairProposals([metric('WIN', 120.001), metric('LOSS', 80)], 3, asOf, 0)).toHaveLength(1);
   });
 
-  it('uses the remaining FIFO shares and allocated buy fees after partial sales', () => {
+  it('includes partial-sale losses and both buy and sell fees before proposing a close', () => {
     const winner = metric('WIN', 130, { lots: [lot(), lot({ quantity: 5, price: 110,
       executedAt: '2026-02-01T00:00:00Z', commissionAmount: 5 }), lot({ type: 'SELL', quantity: 12,
       price: 105, executedAt: '2026-03-01T00:00:00Z', commissionAmount: 100 })] });
-    const [result] = buildClosePairProposals([winner, metric('LOSS', 98)], 3, asOf, 0);
+    expect(buildClosePairProposals([winner, metric('LOSS', 98)], 3, asOf, 0)).toEqual([]);
+    const [result] = buildClosePairProposals([{ ...winner, currentPrice: 200 }, metric('LOSS', 98)], 3, asOf, 0);
     expect(result.winner.quantity).toBe(3);
     expect(result.winner.costBasisUsd).toBe(333);
-    expect(result.profitUsd).toBe(57);
+    expect(result.winner.realizedPnlUsd).toBe(-72);
+    expect(result.winner.unrealizedPnlUsd).toBe(267);
+    expect(result.profitUsd).toBe(195);
     expect(result.lossUsd).toBe(20);
-    expect(result.netProfitUsd).toBe(37);
+    expect(result.netProfitUsd).toBe(175);
   });
 
   it('does not treat the original quantity of a fully sold position as still open', () => {
@@ -172,5 +177,117 @@ describe('non-overlapping full-close pairs', () => {
   it('counts recorded buy fees when deciding whether a winner actually covers a loss', () => {
     expect(buildClosePairProposals([metric('WIN', 121, { lots: [lot({ commissionAmount: 20 })] }),
       metric('LOSS', 80)], 3, asOf, 0)).toEqual([]);
+  });
+});
+
+
+describe('complete original history supplied by the portfolio', () => {
+  const reopen = (symbol: string, realizedPrice = 50): Position => ({
+    ...metric(symbol, 90).position, id: `${symbol}-original`,
+    lots: [lot({ hasCommission: false }),
+      lot({ type: 'SELL', price: realizedPrice, hasCommission: false, executedAt: '2026-02-01T00:00:00Z' }),
+      lot({ price: 100, hasCommission: false, executedAt: '2026-03-01T00:00:00Z' })],
+  });
+
+  it('rejects a CAPR pair which appears profitable only when the earlier loss is omitted', () => {
+    const winner = metric('CME', 130);
+    const currentCapr = metric('CAPR', 90, { id: 'CAPR-original', originalId: 'CAPR-original', activationId: 'CAPR::activation-2',
+      lots: [lot({ price: 100, hasCommission: false, executedAt: '2026-03-01T00:00:00Z' })] });
+    expect(buildClosePairProposals([winner, currentCapr], 3, asOf, 0)).toHaveLength(1);
+    expect(buildClosePairProposals([winner, currentCapr], 3, asOf, 0, [winner.position, reopen('CAPR')])).toEqual([]);
+  });
+
+  it('includes realized history exactly once despite activation metrics and keeps only current cash proceeds', () => {
+    const winner = metric('CME', 200);
+    const capr = reopen('CAPR');
+    const current = metric('CAPR', 90, { ...capr, lots: [capr.lots![2]], activationId: 'capr-current' });
+    const previous = metric('CAPR', 90, { ...capr, lots: capr.lots!.slice(0, 2), quantity: 0, isHistoricalActivation: true });
+    const [pair] = buildClosePairProposals([winner, current, previous], 3, asOf, 0, [winner.position, capr]);
+    expect(pair.loser).toMatchObject({ realizedPnlUsd: -500, unrealizedPnlUsd: -100, pnlUsd: -600, quantity: 10, proceedsUsd: 900 });
+    expect(pair.netProfitUsd).toBe(400);
+    expect(pair.proceedsUsd).toBe(2900);
+    expect(pair.loser.historicalPositions).toHaveLength(1);
+  });
+
+  it('can use a prior realized gain while stopping its personal target at the sale', () => {
+    const capr = reopen('CAPR', 150);
+    const loser = metric('LOSS', 90);
+    const caprMetric = metric('CAPR', 105);
+    const [pair] = buildClosePairProposals([caprMetric, loser], 3, asOf, .05, [capr, loser.position]);
+    expect(pair.winner).toMatchObject({ realizedPnlUsd: 500, unrealizedPnlUsd: 50, pnlUsd: 550 });
+    const target = 1000 * (Math.pow(1.05, 31 / 365.25) - 1)
+      + 1000 * (Math.pow(1.05, (asOf - Date.parse('2026-03-01T00:00:00Z')) / (365.25 * 86_400_000)) - 1);
+    expect(pair.winner.targetProfitUsd).toBeCloseTo(target);
+  });
+
+  it('aggregates every open account while keeping each account FIFO separate', () => {
+    const one = reopen('CAPR', 50);
+    const two = { ...metric(' capr ', 90, { location: 'bank_two', quantity: 3, entryPrice: 70 }).position, id: 'capr-two' };
+    const winner = metric('CME', 200, { location: 'bank_two' });
+    const [pair] = buildClosePairProposals([winner, metric('CAPR', 90)], 3, asOf, 0, [one, two, winner.position]);
+    expect(pair.loser.quantity).toBe(13);
+    expect(pair.loser.proceedsUsd).toBe(1170);
+    expect(pair.loser.costBasisUsd).toBe(1210);
+    expect(pair.loser.realizedPnlUsd).toBe(-500);
+    expect(pair.loser.pnlUsd).toBe(-540);
+    expect(pair.loser.locations).toEqual(['bank_one', 'bank_two']);
+    expect(pair.proceedsUsd).toBe(3170);
+  });
+
+  it('includes closed-account losses even when shares remain only in a different account', () => {
+    const closed = reopen('CAPR');
+    closed.lots = closed.lots!.slice(0, 2);
+    closed.quantity = 0;
+    const active = metric('CAPR', 90, { id: 'capr-active', location: 'bank_two' });
+    const winner = metric('CME', 200, { location: 'bank_one' });
+    const [pair] = buildClosePairProposals([winner, active], 3, asOf, 0, [closed, active.position, winner.position]);
+    expect(pair.loser.realizedPnlUsd).toBe(-500);
+    expect(pair.loser.locations).toEqual(['bank_two']);
+    expect(pair.netProfitUsd).toBe(400);
+  });
+
+  it('does not cover a sell in one account using buys from another account', () => {
+    const bad = { ...metric('CAPR', 90).position, id: 'bad', lots: [lot({ type: 'SELL' })] };
+    const active = metric('CAPR', 90, { id: 'active', location: 'bank_two' });
+    const winner = metric('CME', 200);
+    expect(buildClosePairProposals([winner, active], 3, asOf, 0, [bad, active.position, winner.position])).toEqual([]);
+  });
+
+  it('matches the owning symbol assessment for mixed sales, rebuys and recorded fees', () => {
+    const source = reopen('CAPR', 50);
+    source.lots = [lot({ commissionAmount: 20 }),
+      lot({ type: 'SELL', quantity: 4, price: 70, commissionAmount: 3, executedAt: '2026-02-01T00:00:00Z' }),
+      lot({ type: 'SELL', quantity: 6, price: 95, commissionAmount: 4, executedAt: '2026-03-01T00:00:00Z' }),
+      lot({ quantity: 3, price: 90, commissionAmount: 5, executedAt: '2026-04-01T00:00:00Z' }),
+      lot({ type: 'SELL', quantity: 1, price: 110, commissionAmount: 2, executedAt: '2026-05-01T00:00:00Z' })];
+    const secondAccount = { ...metric('CAPR', 80, { location: 'bank_two', quantity: 2, entryPrice: 85 }).position, id: 'capr-second',
+      lots: [lot({ quantity: 2, price: 85, commissionAmount: 1 })] };
+    const winner = metric('CME', 250);
+    const [pair] = buildClosePairProposals([winner, metric('CAPR', 80)], 3, asOf, .08,
+      [source, secondAccount, winner.position]);
+    const assessment = calculateSymbolExceptionAssessment([source, secondAccount], 80, .08, new Date(asOf));
+    expect(assessment?.status).toBe('open');
+    expect(pair.loser.pnlUsd).toBeCloseTo(assessment!.actualProfitUsd);
+    expect(pair.loser.realizedPnlUsd).toBeCloseTo(assessment!.realizedProfitUsd);
+    expect(pair.loser.targetProfitUsd).toBeCloseTo(assessment!.expectedProfitUsd);
+    expect(pair.loser.surplusUsd).toBeCloseTo(assessment!.profitGapUsd);
+    expect(pair.loser.quantity).toBeCloseTo(assessment!.openQuantity);
+  });
+
+  it('fails closed when a legacy closed record has no transaction history to account for its cash', () => {
+    const winner = metric('CME', 250);
+    const active = metric('CAPR', 80, { id: 'active' });
+    const unknownClosed = { ...active.position, id: 'unknown-closed', quantity: 0, lots: [] };
+    expect(buildClosePairProposals([winner, active], 3, asOf, 0,
+      [winner.position, active.position, unknownClosed])).toEqual([]);
+  });
+
+  it('does not fall back to activation slices when original history is missing or invalid', () => {
+    const metrics = [metric('CME', 200), metric('CAPR', 90)];
+    for (const positions of [[], [metrics[0].position], [metrics[0].position, { ...reopen('CAPR'), lots: [lot({ executedAt: '2030-01-01' })] }],
+      [metrics[0].position, { ...reopen('CAPR'), activationId: 'capr-slice' }],
+      [metrics[0].position, reopen('CAPR'), reopen('CAPR')]]) {
+      expect(buildClosePairProposals(metrics, 3, asOf, 0, positions)).toEqual([]);
+    }
   });
 });

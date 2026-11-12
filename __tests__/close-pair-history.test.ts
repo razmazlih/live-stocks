@@ -130,3 +130,105 @@ describe('combined close-pair history', () => {
     }
   });
 });
+
+
+describe('full-history close-pair performance', () => {
+  function historicalPair() {
+    const pair = proposal();
+    pair.winner.historicalPositions = [{ ...pair.winner.position, lots: [buy(0, 2)] }];
+    pair.loser.historicalPositions = [{ ...pair.loser.position, lots: [
+      buy(0, 3), { ...buy(1, 3, 70), type: 'SELL' }, buy(2, 3),
+    ] }];
+    return pair;
+  }
+
+  it('retains losses from the old closed cycle when the same symbol is bought again', () => {
+    const pair = historicalPair();
+    const histories = [0, 1, 2, 3].map((offset) => point(offset, 100));
+    const result = buildClosePairHistory(pair, histories.map((item) => ({ ...item, close: 140 })), histories);
+    // Winner +80; losing cycle -90 persists through the rebuy and its zero P/L.
+    expect(result.map((item) => item.close)).toEqual([80, -10, -10, -10]);
+  });
+
+  it('keeps actual historical quantities instead of applying the final rebuy to earlier samples', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions![0].lots![2] = buy(2, 1, 50);
+    const result = buildClosePairHistory(pair, [point(0, 140), point(1, 140), point(2, 140)],
+      [point(0, 110), point(1, 110), point(2, 110)]);
+    expect(result.map((item) => item.close)).toEqual([110, -10, 50]);
+  });
+
+  it('does not leak a future sale into an earlier day or beyond the current asOf on the same day', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions![0].lots = [buy(0, 3), { ...buy(1.8, 3, 70), type: 'SELL' }, buy(2, 3)];
+    pair.annualGrowthRate = .1;
+    const result = buildClosePairHistory(pair, [point(0, 140), point(1.1, 140), point(1.9, 999)],
+      [point(0, 100), point(1.1, 100), point(1.9, 999)], start + 1.5 * day);
+    expect(result).toHaveLength(2);
+    expect(result[0].close).toBeCloseTo(80 - 500 * (Math.pow(1.1, (day - 1) / (365.25 * day)) - 1), 8);
+    expect(result[1].close).toBeCloseTo(80 - 500 * (Math.pow(1.1, 1.5 / 365.25) - 1), 8);
+  });
+
+  it('freezes sold-lot targets while open lots continue to accrue and includes sale commissions', () => {
+    const pair = historicalPair();
+    pair.annualGrowthRate = .1;
+    pair.loser.historicalPositions![0].lots![1] = { ...buy(1, 3, 70), type: 'SELL', hasCommission: true, commissionAmount: 5 };
+    const [result] = buildClosePairHistory(pair, [point(3, 140)], [point(3, 100)], start + 3.5 * day);
+    const expectedTarget = 200 * (Math.pow(1.1, 3.5 / 365.25) - 1)
+      + 300 * (Math.pow(1.1, 1 / 365.25) - 1)
+      + 300 * (Math.pow(1.1, 1.5 / 365.25) - 1);
+    expect(result.close).toBeCloseTo(-15 - expectedTarget, 8);
+  });
+
+  it('counts zero before the second symbol was first bought, without backdating its later investment', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions![0].lots = [buy(2, 3)];
+    const result = buildClosePairHistory(pair, [point(0, 140), point(2, 140)], [point(0, 999), point(2, 100)]);
+    expect(result.map((item) => item.close)).toEqual([80, 80]);
+  });
+
+  it('uses the union of observed dates before the later symbol was first purchased, then combines both', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions![0].lots = [buy(2, 3)];
+    const result = buildClosePairHistory(pair, [point(-1, 140), point(0, 140), point(1, 150), point(2, 140), point(3, 150)],
+      [point(2, 110), point(3, 120)]);
+    expect(result).toEqual([point(0, 80), point(1, 100), point(2, 110), point(3, 160)]);
+  });
+
+  it('keeps prior realized losses and sold-lot targets on dates without a price for the closed symbol', () => {
+    const pair = historicalPair();
+    pair.annualGrowthRate = .1;
+    pair.loser.historicalPositions![0].lots = [buy(0, 3), { ...buy(1, 3, 70), type: 'SELL' }, buy(5, 3)];
+    const result = buildClosePairHistory(pair, [point(2, 140), point(3, 140)], []);
+    expect(result).toHaveLength(2);
+    for (const [index, offset] of [2, 3].entries()) {
+      const winnerTarget = 200 * (Math.pow(1.1, ((offset + 1) * day - 1) / (365.25 * day)) - 1);
+      const frozenSoldTarget = 300 * (Math.pow(1.1, 1 / 365.25) - 1);
+      expect(result[index].close).toBeCloseTo(-10 - winnerTarget - frozenSoldTarget, 8);
+    }
+  });
+
+  it('joins disjoint closed and later holding periods, preserving the old loss until a last-day rebuy', () => {
+    const pair = historicalPair();
+    pair.winner.historicalPositions![0].lots = [buy(3, 2)];
+    pair.loser.historicalPositions![0].lots = [buy(0, 3), { ...buy(2, 3, 70), type: 'SELL' }, buy(5, 3)];
+    const result = buildClosePairHistory(pair, [point(3, 120), point(4, 130), point(5, 140)],
+      [point(0, 140), point(1, 130), point(2, 999), point(5, 110)]);
+    expect(result).toEqual([point(0, 120), point(1, 90), point(2, -90), point(3, -50), point(4, -30), point(5, 20)]);
+  });
+
+  it('omits a union date when either symbol has open shares but its price is unavailable', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions![0].lots = [buy(2, 3)];
+    const result = buildClosePairHistory(pair, [point(0, 140), point(1, 140), point(2, 140), point(4, 140)],
+      [point(2, 100), point(3, 100)]);
+    // Day 3 misses the winner price; day 4 misses the loser's. Neither may show a partial total.
+    expect(result).toEqual([point(0, 80), point(1, 80), point(2, 80)]);
+  });
+
+  it('requires complete authoritative histories for both legs instead of silently using a partial activation', () => {
+    const pair = historicalPair();
+    pair.loser.historicalPositions = undefined;
+    expect(buildClosePairHistory(pair, [point(0, 100)], [point(0, 100)])).toEqual([]);
+  });
+});
