@@ -7,33 +7,22 @@ import { validateReturnTo } from '@/lib/navigation-context';
 import { createAppRouteItems } from '@/components/dashboard/navigation';
 import {
   ArrowLeft,
-  DollarSign,
+  ArrowLeftRight,
+  ChevronDown,
   RefreshCcw,
-  Target,
-  TrendingUp,
   Wallet,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BankBadge } from '@/components/branding/bank-badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StockLogo } from '@/components/ui/stock-logo';
-import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
-import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { useStockNavigationPreview, useStockNavigationReady } from '@/components/portfolio/stock-navigation';
-import { Sparkline, SparklineEvent } from '@/components/charts/sparkline';
+import type { SparklineEvent } from '@/components/charts/sparkline';
+import { StockDetailChart } from '@/components/portfolio/stock-detail-chart';
+import styles from './stock-detail-view.module.css';
 
 import { getSupabaseClient } from '@/lib/supabase';
 import { useApp } from '@/lib/context';
@@ -42,6 +31,7 @@ import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/serv
 import { STOCK_DETAIL_TIME_RANGES } from '@/lib/display/time-ranges';
 import {
   calculatePositionMetrics,
+  calculateSymbolExceptionAssessment,
   calculateRequiredExitPrice,
   hasMaterialExitPriceGap,
   formatDate,
@@ -204,84 +194,6 @@ function getRangeParams(range: TimeRange, entryDate?: string) {
   }
 }
 
-function buildHoldingPeriodLabel(
-  yearsHeld: number | undefined,
-  t: ReturnType<typeof useTranslation>['t'],
-  locale: 'he' | 'en'
-) {
-  if (yearsHeld === undefined || !Number.isFinite(yearsHeld) || yearsHeld <= 0) {
-    return t.stock.detailView.holdingPeriod.lessThanMonth;
-  }
-
-  const months = Math.round(yearsHeld * 12);
-  if (months > 0 && months < 12) {
-    return t.stock.detailView.holdingPeriod.months.replace('{{count}}', months.toString());
-  }
-
-  const yearsRounded = Math.max(Math.round(yearsHeld * 10) / 10, 0.1);
-  return t.stock.detailView.holdingPeriod.years.replace(
-    '{{count}}',
-    formatNumber(yearsRounded, locale)
-  );
-}
-
-function StockDetailSkeleton({ hideIdentity = false }: { hideIdentity?: boolean }) {
-  return (
-    <div className="space-y-6">
-      <div className={hideIdentity ? 'hidden' : 'flex flex-col gap-4 md:flex-row md:items-center md:justify-between'}>
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-16 w-16 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <div className="space-y-2 text-right">
-          <Skeleton className="ml-auto h-4 w-20" />
-          <Skeleton className="ml-auto h-8 w-32" />
-          <Skeleton className="ml-auto h-4 w-24" />
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="space-y-2 rounded-lg border border-slate-100 bg-[color:var(--color-neutral-white)]/60 p-4">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-5 w-20" />
-                <Skeleton className="h-3 w-32" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-80 w-full" />
-        </CardContent>
-      </Card>
-      <Card className="bg-[color:var(--color-neutral-white)]/70 border border-[color:var(--color-neutral-white)]/50 shadow">
-        <CardHeader>
-          <Skeleton className="h-5 w-44" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 interface StockDetailViewProps {
   symbol: string;
 }
@@ -314,12 +226,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const [holdingScope, setHoldingScope] = useState<'current' | 'all'>('all');
   const holdingCycles = useMemo(() => buildStockHoldingCycles(positions), [positions]);
   const currentCycleStart = holdingCycles.filter((cycle) => cycle.current).reduce<number | undefined>((start, cycle) => start === undefined ? cycle.start : Math.min(start, cycle.start), undefined);
-  const chartDate = (timestamp: number) => new Date(timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   const navigationPreview = useStockNavigationPreview(normalizedSymbol);
   useStockNavigationReady(!loading || Boolean(navigationPreview));
   const position = useMemo(() => combinePositions(positions), [positions]);
   const locationBreakdowns = useMemo(() => buildLocationBreakdowns(positions), [positions]);
-  const openLots = useMemo(() => (position?.lots ? computeOpenLots(position.lots) : []), [position?.lots]);
+  const openLots = useMemo(() => positions.flatMap((source) => computeOpenLots(source.lots ?? [])), [positions]);
   const transactions = useMemo(() => {
     if (!position?.lots) {
       return [];
@@ -551,13 +462,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   }, [historical, holdingScope, currentCycleStart, holdingCycles.length]);
 
   const entryTimestamp = useMemo(() => {
-    if (!metrics?.position.entryDate) {
-      return undefined;
-    }
-
-    const timestamp = new Date(metrics.position.entryDate).getTime();
+    const recorded = openLots.map(lot => new Date(lot.executedAt).getTime()).filter(Number.isFinite);
+    if (recorded.length) return Math.min(...recorded);
+    const timestamp = new Date(metrics?.position.entryDate ?? '').getTime();
     return Number.isFinite(timestamp) ? timestamp : undefined;
-  }, [metrics?.position.entryDate]);
+  }, [openLots, metrics?.position.entryDate]);
 
   const sparklineEvents = useMemo<SparklineEvent[]>(() => {
     if (!transactions.length || !chartData.length) {
@@ -601,452 +510,93 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     ], settings.annualGrowthRate)
     : undefined, [positions, chartData, sparklineEvents, settings.annualGrowthRate]);
 
-  const dailyChangeValue = quote?.d;
-  const dailyChangePercent = quote?.dp ?? metrics?.dailyChangePercent;
+  const assessment = useMemo(() => positions.some(source => source.lots?.length)
+    ? calculateSymbolExceptionAssessment(positions, quote?.c, settings.annualGrowthRate, lastUpdated ?? new Date())
+    : undefined, [positions, quote?.c, settings.annualGrowthRate, lastUpdated]);
+  const hasRecordedHistory = positions.some(source => source.lots?.length);
+  const legacyPositions = positions.filter(source => !source.lots?.length);
+  const quantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0) + legacyPositions.reduce((sum, source) => sum + Math.max(source.quantity, 0), 0);
+  const cost = openLots.reduce((sum, lot) => sum + lot.totalCost, 0) + legacyPositions.reduce((sum, source) => sum + Math.max(source.quantity, 0) * source.entryPrice, 0);
+  const averageCost = quantity > 0 ? cost / quantity : metrics?.position.entryPrice ?? 0;
+  const currentValue = quantity === 0 ? 0 : Number.isFinite(metrics?.currentPrice) ? quantity * metrics!.currentPrice : undefined;
+  const unrealized = currentValue === undefined ? undefined : currentValue - cost;
+  const cumulative = assessment?.status === 'closed' ? assessment.actualProfitUsd : assessment?.status === 'open' && assessment.currentPrice !== undefined
+    ? assessment.actualProfitUsd : !hasRecordedHistory ? unrealized : undefined;
+  const currentTarget = assessment?.status === 'open' ? assessment.projectedPrice : !hasRecordedHistory ? metrics?.projectedPrice : undefined;
+  const requiredExitPrice = metrics?.requiredExitPrice;
+  const visibleRequiredExitPrice = currentTarget !== undefined && hasMaterialExitPriceGap(currentTarget, requiredExitPrice) ? requiredExitPrice : undefined;
+  const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatUsdCurrency(value) : '—';
+  const tone = (value: number | undefined) => value === undefined || !Number.isFinite(value) || Math.abs(value) < .005 ? 'text-slate-800' : value > 0 ? 'text-emerald-600' : 'text-rose-600';
+  const shareCount = quantity.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 });
+  const identity = (position?.symbol.toUpperCase() === normalizedSymbol ? position : null) ?? navigationPreview ?? { symbol: normalizedSymbol, display: normalizedSymbol, imageUrl: '' };
 
-  const investedAmountUsd = metrics ? metrics.position.entryPrice * metrics.position.quantity : 0;
-  const investedAmountDisplay = metrics ? formatUsdCurrency(investedAmountUsd) : '--';
-  const currentValueDisplay = metrics ? formatUsdCurrency(metrics.currentValue) : '--';
-  const totalGainUsd = metrics ? metrics.currentValue - investedAmountUsd : 0;
-  const totalGainDisplay = metrics ? formatUsdCurrency(totalGainUsd) : '--';
-  const totalGainPercentLabel =
-    metrics?.roiPercent !== undefined ? formatPercent(metrics.roiPercent, locale) : '--';
-  const totalGainClass =
-    metrics && totalGainUsd !== 0
-      ? totalGainUsd > 0
-        ? 'text-emerald-600'
-        : 'text-rose-600'
-      : 'text-slate-600';
-  const holdingPeriodLabel = metrics ? buildHoldingPeriodLabel(metrics.yearsHeld, t, locale) : '--';
-  const dailyChangeDisplay =
-    dailyChangeValue !== undefined ? formatUsdCurrency(dailyChangeValue) : '--';
-  const dailyChangePercentLabel =
-    dailyChangePercent !== undefined ? formatPercent(dailyChangePercent, locale) : '--';
-  const dailyChangeClass =
-    dailyChangeValue === undefined
-      ? 'text-slate-500'
-      : dailyChangeValue >= 0
-        ? 'text-emerald-600'
-        : 'text-rose-600';
-  const avgCostVsNowPercent =
-    metrics && metrics.position.entryPrice > 0
-      ? ((metrics.currentPrice - metrics.position.entryPrice) / metrics.position.entryPrice) * 100
-      : undefined;
-  const avgCostVsNowLabel =
-    avgCostVsNowPercent !== undefined ? formatPercent(avgCostVsNowPercent, locale) : '--';
-  const avgCostVsNowClass =
-    avgCostVsNowPercent === undefined
-      ? 'text-slate-500'
-      : avgCostVsNowPercent >= 0
-        ? 'text-emerald-600'
-        : 'text-rose-600';
-  const profitPerShare = metrics ? metrics.currentPrice - metrics.position.entryPrice : 0;
-  const profitPerShareLabel = formatUsdCurrency(profitPerShare);
-  const profitPerShareClass =
-    profitPerShare === 0 ? 'text-slate-600' : profitPerShare > 0 ? 'text-emerald-600' : 'text-rose-600';
-  const transactionsCountLabel = formatNumber(transactions.length, locale);
-  const openLotsCountLabel = formatNumber(openLots.length, locale);
-  const visibleRequiredExitPrice = metrics && hasMaterialExitPriceGap(metrics.projectedPrice, metrics.requiredExitPrice)
-    ? metrics.requiredExitPrice
-    : undefined;
-  const requiredExitPriceLabel = visibleRequiredExitPrice !== undefined
-    ? formatUsdCurrency(visibleRequiredExitPrice)
-    : null;
-
-  const quickFacts = metrics
-    ? [
-        {
-          key: 'investedAmount', icon: DollarSign,
-          label: t.stock.detailView.quickFacts.investedAmount,
-          value: investedAmountDisplay,
-          helper: t.stock.detailView.quickFactsHelper.investedAmount,
-        },
-        {
-          key: 'entryPrice', icon: Target, label: t.dashboard.entryPrice,
-          value: formatUsdCurrency(metrics.position.entryPrice), helper: '',
-        },
-        {
-          key: 'quantity', icon: Wallet, label: t.dashboard.quantity,
-          value: formatNumber(metrics.position.quantity, locale), helper: '',
-        },
-        ...(requiredExitPriceLabel
-          ? [{
-              key: 'requiredExitPrice',
-              icon: Target,
-              label: t.dashboard.requiredExitPrice,
-              value: requiredExitPriceLabel,
-              helper: t.dashboard.requiredExitPriceHelper,
-            }]
-          : []),
-      ]
-    : [];
-
-  return (
-    <DashboardRouteShell activeKey={sourceRoute?.key ?? "portfolio"} locale={locale} portfolioFeedback={false}>
-      <DashboardContainer className="stock-detail-arrival">
-        <Link href={returnTo} scroll={false} className="mb-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-          <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+  return <DashboardRouteShell activeKey={sourceRoute?.key ?? 'portfolio'} locale={locale} portfolioFeedback={false}>
+    <DashboardContainer className={`stock-detail-arrival ${styles.page}`}>
+      <div className={styles.toolbar}>
+        <Link href={returnTo} scroll={false} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+          <ArrowLeft aria-hidden className="h-4 w-4 rtl:rotate-180" />
           {locale === 'he' ? `חזרה ל${sourceRoute?.label ?? t.portfolio.title}` : `Back to ${sourceRoute?.label ?? t.portfolio.title}`}
         </Link>
-        <PageHeader
-          title={position?.display ?? navigationPreview?.display ?? normalizedSymbol}
-          subtitle={loading ? t.stock.detailView.states.loading : position ? t.stock.overview : normalizedSymbol}
-          icon={TrendingUp}
-        />
-
-        <DashboardMain>
-          {loading ? (
-            <div className="space-y-5">
-              {navigationPreview ? <DashboardSurface className="stock-detail-destination min-h-[210px] border-slate-200 bg-white p-4 sm:p-5" aria-busy="true">
-                <div className="flex items-center gap-3"><StockLogo {...navigationPreview} /><div><p className="font-semibold text-slate-900" dir="ltr">{navigationPreview.symbol}</p><p className="mt-1 text-xs text-slate-500">{t.stock.detailView.states.loading}</p></div></div>
-                <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3"><Skeleton className="col-span-2 h-16 sm:col-span-1" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
-              </DashboardSurface> : null}
-              <StockDetailSkeleton hideIdentity={Boolean(navigationPreview)} />
+        <div className="flex items-center gap-3">
+          <span role="status" className="text-[11px] text-slate-400">{lastUpdated ? `${t.app.updated} ${lastUpdated.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+          <Button variant="ghost" size="icon" aria-label={t.watchlist.actions.refreshTicker} title={t.watchlist.actions.refreshTicker} disabled={loading || refreshing} onClick={() => setReloadKey(value => value + 1)} className="h-11 w-11 rounded-xl text-slate-500"><RefreshCcw aria-hidden className={cn('h-4 w-4', refreshing && 'animate-spin')} /></Button>
+        </div>
+      </div>
+      <DashboardMain className={styles.main}>
+        <section className={`stock-detail-destination ${styles.hero}`} aria-busy={loading || refreshing}>
+          <div className={styles.heroTop}>
+            <div className="flex min-w-0 items-center gap-3">
+              <StockLogo symbol={identity.symbol} display={identity.display} imageUrl={identity.imageUrl} className="h-12 w-12 rounded-2xl" />
+              <div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-2"><bdi className="text-xs font-semibold tracking-wide text-blue-600">{normalizedSymbol}</bdi>{badgeLocations.map(bank => <BankBadge key={bank} bank={bank} locale={locale} size="sm" />)}</div><h1 className="break-words text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{identity.display}</h1></div>
             </div>
-          ) : error && !metrics ? (
-            <DashboardSurface className="border-red-200 text-red-700">
-              <div className="flex flex-col items-center gap-4 py-10">
-                <div className="text-lg font-semibold">{t.stock.detailView.states.error}</div>
-                <div className="text-sm text-overlay-red-600">{error}</div>
-                <Button variant="outline" onClick={() => setReloadKey((value) => value + 1)}>
-                  {t.stock.detailView.states.retry}
-                </Button>
+            <div className={styles.quote}>
+              <p className="mb-1 text-[11px] text-slate-500">{locale === 'he' ? 'מחיר המניה · USD' : 'Share price · USD'}</p>
+              {loading ? <Skeleton className="h-10 w-32" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(metrics?.currentPrice)}</bdi></p>}
+              <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}>{loading ? t.stock.detailView.states.loading : <><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></>}</p>
+            </div>
+          </div>
+          <dl className={styles.metrics}>
+            {[
+              { label: locale === 'he' ? 'שווי ההחזקה' : 'Holding value', value: currentValue, helper: `${shareCount} ${locale === 'he' ? 'מניות פתוחות' : 'open shares'}`, color: 'text-slate-900' },
+              { label: locale === 'he' ? 'רווח / הפסד פתוח' : 'Unrealized P/L', value: unrealized, helper: locale === 'he' ? 'בהחזקה הנוכחית' : 'Current holding', color: tone(unrealized) },
+              { label: locale === 'he' ? 'רווח / הפסד מצטבר' : 'Cumulative P/L', value: cumulative, helper: hasRecordedHistory ? locale === 'he' ? 'כל הסבבים והמכירות הקודמות' : 'All cycles and previous sales' : locale === 'he' ? 'לפי נתוני ההחזקה הזמינים' : 'Available holding records', color: tone(cumulative) },
+            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="mt-2 h-6 w-20" /> : <bdi>{money(item.value)}</bdi>}</dd><p>{item.helper}</p></div>)}
+          </dl>
+        </section>
+
+        {error ? <div role="alert" className={styles.error}><span>{metrics ? locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.' : t.stock.detailView.states.error}</span><Button variant="ghost" size="sm" onClick={() => setReloadKey(value => value + 1)} disabled={refreshing}>{t.stock.detailView.states.retry}</Button></div> : null}
+        {loading ? <div className={styles.chartSkeleton}><Skeleton className="mb-4 h-8 w-40" /><Skeleton className="h-[280px] w-full" /></div> : position && metrics ? <>
+          <StockDetailChart chartData={chartData} historicalLoading={historicalLoading} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics.yearsHeld} baseline={averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
+
+          <section className={styles.records} aria-label={locale === 'he' ? 'החזקה ופעולות' : 'Holdings and activity'}>
+            <details className={styles.record}>
+              <summary><span className="flex items-center gap-2"><span className={styles.recordIcon}><Wallet aria-hidden className="h-4 w-4" /></span><span>{locale === 'he' ? 'פירוט ההחזקה' : 'Holding breakdown'}</span></span><span className="flex items-center gap-2 text-xs text-slate-500"><bdi>{shareCount}</bdi> {locale === 'he' ? 'מניות' : 'shares'}<ChevronDown aria-hidden className={styles.chevron} /></span></summary>
+              <div className={styles.recordBody}>
+                <dl className={styles.accounting}>
+                  {[
+                    [locale === 'he' ? 'עלות המניות שנותרו' : 'Remaining cost basis', money(cost)],
+                    [locale === 'he' ? 'עלות ממוצעת למניה' : 'Average cost per share', money(averageCost)],
+                    [locale === 'he' ? 'ממומש מכל המכירות הקודמות' : 'Previously realized P/L', money(assessment?.status === 'open' || assessment?.status === 'closed' ? assessment.realizedProfitUsd : !hasRecordedHistory ? 0 : undefined)],
+                    [locale === 'he' ? 'יעד רווח מכל הסבבים' : 'Profit target · all cycles', money(assessment?.status === 'open' || assessment?.status === 'closed' ? assessment.expectedProfitUsd : undefined)],
+                  ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd><bdi>{value}</bdi></dd></div>)}
+                </dl>
+                {locationBreakdowns.length > 1 ? <div className="mt-3 flex flex-wrap gap-2">{locationBreakdowns.map(account => <span key={account.location} className="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"><BankBadge bank={account.location} locale={locale} size="sm" /><bdi>{formatNumber(account.quantity, locale)}</bdi> {locale === 'he' ? 'מניות' : 'shares'}</span>)}</div> : null}
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-400">{locale === 'he' ? 'USD · כולל עמלות שנרשמו, לפני מס ועלויות מכירה עתידיות. היעד אישי ואינו תחזית.' : 'USD · recorded fees included, before tax and future exit costs. The personal target is not a forecast.'}</p>
               </div>
-            </DashboardSurface>
-          ) : !position || !metrics ? (
-            <DashboardSurface>
-              <div className="flex items-center justify-center py-20 text-sm text-gray-500">
-                {t.stock.detailView.states.empty}
+            </details>
+            <details className={styles.record}>
+              <summary><span className="flex items-center gap-2"><span className={styles.recordIcon}><ArrowLeftRight aria-hidden className="h-4 w-4" /></span><span>{locale === 'he' ? 'היסטוריית פעולות' : 'Transaction history'}</span></span><span className="flex items-center gap-2 text-xs text-slate-500">{transactions.length} {locale === 'he' ? 'פעולות' : 'trades'}<ChevronDown aria-hidden className={styles.chevron} /></span></summary>
+              <div className={styles.recordBody}>
+                {transactions.length ? <ol className={styles.trades}>{transactions.map((lot, index) => <li key={lot.id ?? `${lot.executedAt}-${index}`}>
+                  <span className={cn(styles.side, lot.type === 'BUY' ? styles.buy : styles.sell)}>{lot.type === 'BUY' ? t.positions.buy : t.positions.sell}</span>
+                  <span className="min-w-0"><span className="block text-xs font-medium text-slate-800"><bdi>{formatNumber(lot.quantity, locale)}</bdi> × <bdi>{money(lot.price)}</bdi></span><span className="mt-1 block text-[10px] text-slate-400">{lot.hasCommission && lot.commissionAmount > 0 ? `${locale === 'he' ? 'עמלה' : 'Fee'} ${money(lot.commissionAmount)}` : locale === 'he' ? 'ללא עמלה' : 'No fee'}</span></span>
+                  <time dateTime={lot.executedAt} className="text-end text-[11px] text-slate-500">{formatDate(lot.executedAt, locale)}</time>
+                </li>)}</ol> : <p className="py-2 text-xs text-slate-500">{t.positions.noTransactions}</p>}
               </div>
-            </DashboardSurface>
-          ) : (
-            <div className="space-y-5">
-              {error && (
-                <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  <span>{locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.'}</span>
-                  <Button variant="outline" size="sm" disabled={refreshing} onClick={() => setReloadKey((value) => value + 1)}>{t.stock.detailView.states.retry}</Button>
-                </div>
-              )}
-              <DashboardSurface className="stock-detail-destination border-slate-200 bg-white p-4 sm:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3" aria-busy={refreshing}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Avatar className="h-11 w-11 rounded-xl border border-slate-200 bg-slate-100">
-                      <StockAvatarImage symbol={position.symbol} display={position.display} imageUrl={position.imageUrl} />
-                      <AvatarFallback className="bg-blue-50 font-semibold text-blue-700">{position.symbol.slice(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-slate-900" dir="ltr">{position.symbol}</span>
-                      {badgeLocations.map((bank) => <BankBadge key={bank} bank={bank} locale={locale} size="sm" />)}
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2" disabled={refreshing} onClick={() => setReloadKey((value) => value + 1)}>
-                    <RefreshCcw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
-                    {refreshing ? t.common.loading : t.watchlist.actions.refreshTicker}
-                  </Button>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
-                  <div className="col-span-2 lg:col-span-1">
-                    <p className="text-xs text-slate-500">{t.stock.priceToday}</p>
-                    <p className="mt-1 text-3xl font-semibold tabular-nums text-slate-950" dir="ltr">{formatUsdCurrency(metrics.currentPrice)}</p>
-                    <p className={cn('mt-1 text-sm font-medium tabular-nums', dailyChangeClass)}>
-                      {dailyChangeDisplay} {dailyChangePercentLabel} <span className="text-xs text-slate-500">{t.stock.dailyChange}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">{t.stock.detailView.quickFacts.currentValue}</p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{currentValueDisplay}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">{t.stock.detailView.quickFacts.totalGain}</p>
-                    <p className={cn('mt-1 text-lg font-semibold tabular-nums', totalGainClass)}>{totalGainDisplay}</p>
-                    <p className={cn('text-xs tabular-nums', totalGainClass)}>{totalGainPercentLabel}</p>
-                  </div>
-                </div>
-                <p className="mt-3 text-xs text-slate-500" role="status">
-                  {lastUpdated ? `${t.app.updated} ${lastUpdated.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                </p>
-              </DashboardSurface>
-
-            <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              <Card className="min-w-0">
-                <CardHeader className="gap-2 p-4 sm:p-6">
-                  <div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {t.stock.detailView.chartTitle}
-                    </CardTitle>
-                    <p className="text-sm text-gray-500">{t.stock.detailView.chartSubtitle}</p>
-                  </div>
-                  {holdingCycles.length > 1 ? <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 sm:w-auto" role="group" aria-label={locale === 'he' ? 'תצוגת סבבי החזקה' : 'Holding cycle view'}>
-                      {(['current', 'all'] as const).map((scope) => <button key={scope} type="button" aria-pressed={holdingScope === scope} onClick={() => setHoldingScope(scope)} className={cn('min-h-11 flex-1 rounded-lg px-3 text-xs font-medium transition-colors sm:flex-none sm:px-4 sm:text-sm', holdingScope === scope ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900')}>
-                        {scope === 'current' ? locale === 'he' ? 'ההחזקה הנוכחית' : 'Current holding' : locale === 'he' ? 'כל הסבבים' : 'All cycles'}
-                      </button>)}
-                    </div>
-                    <span className="text-xs text-slate-500">{locale === 'he' ? 'כל קנייה מחדש פותחת סבב חדש' : 'Buying again starts a new cycle'}</span>
-                  </div> : null}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
-                      {STOCK_DETAIL_TIME_RANGES.map((option) => (
-                        <Button
-                          key={option}
-                          variant={range === option ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => patchParams({ range: option })}
-                          aria-pressed={range === option}
-                          disabled={historicalLoading && range === option}
-                        >
-                          {t.timeRange[option]}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="min-w-0 p-4 pt-0 sm:p-6 sm:pt-0" aria-busy={historicalLoading}>
-                  <div role="status" className="mb-2 min-h-5 text-xs text-slate-500">
-                    {(historicalLoading || historicalError) && chartData.length > 0 && displayedRange && (
-                      <span>{locale === 'he' ? `מוצגים נתוני ${t.timeRange[displayedRange]}. ` : `Showing ${t.timeRange[displayedRange]} data. `}</span>
-                    )}
-                    {historicalLoading ? t.common.loading : historicalError ? (
-                      <span className="text-amber-800">
-                        {locale === 'he' ? 'הגרף לא התעדכן.' : 'Chart could not be updated.'}{' '}
-                        <button className="min-h-[44px] underline underline-offset-2" onClick={() => setReloadKey((value) => value + 1)}>{t.stock.detailView.states.retry}</button>
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {[
-                      { label: locale === 'he' ? 'עלות ממוצעת · ההחזקה הנוכחית' : 'Average cost · current holding', value: formatUsdCurrency(metrics.position.entryPrice), tone: 'border-slate-200 bg-slate-50 text-slate-700' },
-                      { label: locale === 'he' ? 'יעד אישי · ההחזקה הנוכחית' : 'Personal target · current holding', value: formatUsdCurrency(metrics.projectedPrice), tone: 'border-blue-100 bg-blue-50/70 text-blue-700' },
-                      ...(visibleRequiredExitPrice === undefined ? [] : [{ label: locale === 'he' ? 'מחיר יציאה · כולל סבבים קודמים' : 'Exit price · including earlier cycles', value: formatUsdCurrency(visibleRequiredExitPrice), tone: 'border-violet-100 bg-violet-50/70 text-violet-700' }]),
-                    ].map((item) => <div key={item.label} className={cn('min-w-0 rounded-xl border px-3 py-3 last:col-span-2 sm:last:col-span-1', item.tone)}><p className="text-[11px] font-medium">{item.label}</p><p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl" dir="ltr">{item.value}</p></div>)}
-                  </div>
-                  {visibleRequiredExitPrice !== undefined ? <p className="mb-4 text-xs leading-relaxed text-slate-500">{locale === 'he' ? 'מחיר היציאה הכולל משקלל גם רווח או הפסד שמומשו ואת היעד שנצבר בסבבים קודמים. היעד הסגול בגרף מתייחס להיסטוריה המלאה; היעד הכחול להחזקה הנוכחית.' : 'The overall exit price includes realized gains or losses and targets accrued in earlier cycles. The purple chart target covers the full history; the blue target covers the current holding.'}</p> : null}
-                  {historicalLoading && chartData.length === 0 ? (
-                    <Skeleton className="h-80 w-full" />
-                  ) : chartData.length < 2 ? (
-                    <div className="flex h-80 items-center justify-center text-sm text-gray-500">
-                      {chartData.length === 1 ? locale === 'he' ? 'עדיין אין מספיק מחירי סגירה בטווח הזה. בחר טווח ארוך יותר.' : 'Not enough closing prices in this range yet. Choose a longer range.' : t.stock.historyUnavailable}
-                    </div>
-                  ) : (
-                    <div className="h-[268px] w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 p-3 [direction:ltr] sm:h-[360px] sm:p-4">
-                      <Sparkline
-                        points={chartData}
-                        height={320}
-                        color="var(--color-emerald-500)"
-                        baseline={metrics.position.entryPrice}
-                        baselineColor="rgba(var(--color-slate-400-rgb), 0.55)"
-                        projectedPrice={metrics.projectedPrice}
-                        requiredExitPrice={visibleRequiredExitPrice}
-                        projectedLineColor="rgba(var(--color-primary-500-rgb), 0.85)"
-                        requiredExitLabel={t.dashboard.requiredExitPrice}
-                        belowEntryColor="var(--color-rose-500)"
-                        betweenProjectedColor="var(--color-primary-500)"
-                        aboveProjectedColor="var(--color-emerald-500)"
-                        activeFromTimestamp={entryTimestamp}
-                        inactiveBeforeColor="var(--color-slate-400)"
-                        annualGrowthRate={settings.annualGrowthRate}
-                        yearsHeld={metrics.yearsHeld}
-                        events={sparklineEvents}
-                        includeEventsInDomain
-                        holdingPeriods={holdingCycles}
-                        holdingReferences={holdingReferences}
-                        className="h-full w-full"
-                        showYAxis
-                        yAxisWidth={76}
-                        priceFormatter={formatUsdCurrency}
-                        timeFormatter={(timestamp) =>
-                          new Date(timestamp).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })
-                        }
-                        interactive
-                      />
-                    </div>
-                  )}
-                  {chartData.length > 0 ? <div className="mt-2 flex justify-between text-[11px] text-slate-400" dir="ltr"><span>{chartDate(Math.min(chartData[0].timestamp, ...sparklineEvents.map((event) => event.timestamp)))}</span><span>{chartDate(Math.max(chartData[chartData.length - 1].timestamp, ...sparklineEvents.map((event) => event.timestamp)))}</span></div> : null}
-                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
-                    <span><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-emerald-500" />{locale === 'he' ? 'קנייה' : 'Buy'}</span>
-                    <span><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-rose-500" />{locale === 'he' ? 'מכירה' : 'Sell'}</span>
-                    <span><span className="me-1.5 inline-block h-1.5 w-4 rounded bg-blue-600" />{locale === 'he' ? 'סבב פעיל' : 'Active cycle'}</span>
-                    <span><span className="me-1.5 inline-block h-1.5 w-4 rounded bg-slate-400" />{locale === 'he' ? 'סבב שנסגר' : 'Closed cycle'}</span>
-                    <span>{locale === 'he' ? 'הקו: אדום מתחת לעלות · כחול מתחת ליעד · ירוק ביעד · אפור ללא החזקה' : 'Line: red below cost · blue below target · green at target · gray outside holdings'}</span>
-                  </div>
-                  {holdingCycles.length > 1 ? <ol className="mt-5 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label={locale === 'he' ? 'ציר סבבי ההחזקה' : 'Holding cycle timeline'}>
-                    {holdingCycles.map((cycle, index) => <li key={cycle.id} className={cn('min-w-0 rounded-xl border p-3', cycle.current ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-slate-50/60')}>
-                      <div className="flex items-center justify-between gap-3 text-xs font-semibold"><span>{locale === 'he' ? `סבב ${index + 1}` : `Cycle ${index + 1}`}</span><span className={cycle.current ? 'text-blue-600' : 'text-slate-500'}>{cycle.current ? locale === 'he' ? 'פעיל כעת' : 'Active now' : locale === 'he' ? 'נסגר' : 'Closed'}</span></div>
-                      <p className="mt-2 text-xs text-slate-600">{chartDate(cycle.start)}{cycle.end !== null ? ` — ${chartDate(cycle.end)}` : locale === 'he' ? ' — היום' : ' — today'}</p>
-                    </li>)}
-                  </ol> : null}
-                  <p className="mt-3 text-xs leading-relaxed text-gray-500">{locale === 'he' ? 'הרקע והפס התחתון מסמנים תקופות החזקה; הרווח ביניהן הוא זמן ללא החזקה באותו סבב. הנקודות הן עסקאות בפועל, והקו מציג מחירי סגירה בלבד. בקנייה חדשה מוצג גם מעט רקע מהימים שלפניה. היעד האישי אינו תחזית.' : 'Shading and the bottom rail mark holding periods; gaps show time outside those cycles. Dots are actual trades; the line uses closing prices only. A new purchase includes a little earlier price context. The personal target is not a forecast.'}</p>
-                  <p className="mt-2 text-xs text-gray-500">{t.stock.detailView.chartHelper}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    {locale === 'he' ? 'מצב פוזיציה' : 'Position health'}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500">
-                    {locale === 'he'
-                      ? 'סיכום מהיר של נתונים קריטיים בלבד'
-                      : 'A focused summary of the most useful metrics'}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{locale === 'he' ? 'רווח למניה' : 'Profit per share'}</span>
-                      <span className={cn('font-semibold', profitPerShareClass)}>{profitPerShareLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{locale === 'he' ? 'פער מול מחיר ממוצע' : 'Move vs avg. cost'}</span>
-                      <span className={cn('font-semibold', avgCostVsNowClass)}>{avgCostVsNowLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{locale === 'he' ? 'משך החזקה' : 'Holding period'}</span>
-                      <span className="font-semibold text-slate-900">{holdingPeriodLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{locale === 'he' ? 'מספר פעולות' : 'Transactions'}</span>
-                      <span className="font-semibold text-slate-900">{transactionsCountLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{locale === 'he' ? 'לוטים פתוחים' : 'Open lots'}</span>
-                      <span className="font-semibold text-slate-900">{openLotsCountLabel}</span>
-                    </div>
-                  </div>
-                  {locationBreakdowns.length > 1 && (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {locale === 'he' ? 'פיזור לפי חשבון' : 'By account'}
-                      </div>
-                      <div className="space-y-2">
-                        {locationBreakdowns.map((breakdown) => (
-                          <div key={`${breakdown.location}-breakdown`} className="flex items-center justify-between text-sm">
-                            <span className="inline-flex items-center gap-2 text-slate-700">
-                              <BankBadge bank={breakdown.location} locale={locale} size="sm" />
-                              {breakdown.location === 'bank_two' ? t.positions.bankTwo : t.positions.bankOne}
-                            </span>
-                            <span className="text-slate-600">
-                              {formatNumber(breakdown.quantity, locale)} · {formatUsdCurrency(breakdown.averageEntryPrice)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-              <Card className="border border-slate-200 bg-white shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    {t.stock.detailView.quickFactsTitle}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500">{t.stock.detailView.quickFactsSubtitle}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                    {quickFacts.map((fact) => {
-                      const FactIcon = fact.icon;
-                      return (
-                        <div
-                          key={fact.key}
-                          className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
-                        >
-                          <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <span className="rounded-md bg-white p-1.5 text-slate-500 shadow-sm ring-1 ring-slate-200">
-                              <FactIcon className="h-3.5 w-3.5" />
-                            </span>
-                            <span>{fact.label}</span>
-                          </div>
-                          <div className={cn('mt-3 break-words text-lg font-semibold text-slate-900')}>
-                            {fact.value}
-                          </div>
-                          <p className="mt-2 text-xs leading-5 text-slate-500">{fact.helper}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-            <Card>
-              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    {t.positions.transactionsTitle}
-                  </CardTitle>
-                  <p className="text-sm text-gray-500">{t.stock.detailView.transactionsHelper}</p>
-                </div>
-                {openLots.length > 0 ? (
-                  <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-800">
-                    {locale === 'he'
-                      ? `לוטים פתוחים: ${openLotsCountLabel}`
-                      : `Open lots: ${openLotsCountLabel}`}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-gray-500">
-                    {t.positions.noTransactions}
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="text-sm text-gray-600">
-                {transactions.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t.positions.transactionType}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionQuantity}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionPrice}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionCommission}</TableHead>
-                          <TableHead className="text-right">{t.positions.transactionDate}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {transactions.map((lot) => {
-                          const badgeTone =
-                            lot.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-                          const label = lot.type === 'BUY' ? t.positions.buy : t.positions.sell;
-                          return (
-                            <TableRow key={`${lot.id}-${lot.executedAt}`}>
-                              <TableCell>
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
-                                  {label}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatNumber(lot.quantity, locale)}
-                              </TableCell>
-                              <TableCell className="text-right">{formatUsdCurrency(lot.price)}</TableCell>
-                              <TableCell className="text-right text-xs text-gray-500">
-                                {lot.hasCommission && lot.commissionAmount > 0
-                                  ? t.positions.transactionCommissionShort(
-                                      formatUsdCurrency(lot.commissionAmount),
-                                    )
-                                  : t.positions.transactionCommissionWaived}
-                              </TableCell>
-                              <TableCell className="text-right text-xs text-gray-500">
-                                {formatDate(lot.executedAt, locale)}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            </div>
-          )}
-        </DashboardMain>
-      </DashboardContainer>
-    </DashboardRouteShell>
-  );
+            </details>
+          </section>
+        </> : !loading && !error ? <DashboardSurface><p className="text-center text-sm text-slate-500">{t.stock.detailView.states.empty}</p></DashboardSurface> : null}
+      </DashboardMain>
+    </DashboardContainer>
+  </DashboardRouteShell>;
 }

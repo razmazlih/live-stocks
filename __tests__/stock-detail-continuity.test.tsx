@@ -11,10 +11,13 @@ vi.mock('@/components/charts/sparkline', () => ({ Sparkline: (props: ComponentPr
   latestChartProps = props;
   return <div data-testid="stock-chart">{props.points.map((point) => point.close).join(',')}</div>;
 } }));
-vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: [mockPositionRow], error: null }) }) }) }) }));
+vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: mockPositionRows ?? [mockPositionRow], error: null }) }) }) }) }));
 
 type MockLot = { id: string; side: 'BUY' | 'SELL'; quantity: number; price: number; executed_at: string; has_commission: boolean; commission_amount: number };
 let mockPositionRow: { id: string; symbol: string; display: string; location: string; quantity: number; entry_price: number; entry_date: string; position_lots: MockLot[] };
+let mockPositionRows: typeof mockPositionRow[] | undefined;
+let quotePrice: number;
+let missingQuote: boolean;
 let latestChartProps: ComponentProps<typeof Sparkline> | undefined;
 
 const candles = (price: number) => new Response(JSON.stringify({ s: 'ok', t: [1735689600, 1735776000], c: [price, price + 1], o: [price, price], h: [price, price + 1], l: [price, price], v: [1, 1] }), { status: 200 });
@@ -30,6 +33,9 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/stock/AAPL?returnTo=%2Fpositions%3Fq%3Dapple');
   nextCandleRequests = [];
   failQuotes = false;
+  missingQuote = false;
+  quotePrice = 120;
+  mockPositionRows = undefined;
   latestChartProps = undefined;
   mockPositionRow = { id: 'one', symbol: 'AAPL', display: 'Apple', location: 'bank_one', quantity: 2, entry_price: 100, entry_date: '2025-01-01', position_lots: [] };
   vi.stubGlobal('fetch', vi.fn(async (input: string) => {
@@ -37,7 +43,8 @@ beforeEach(() => {
     if (input.startsWith('/api/candles')) return nextCandleRequests.shift()?.promise ?? candles(110);
     if (input.startsWith('/api/quote')) {
       if (failQuotes) throw new Error('Offline');
-      return new Response(JSON.stringify({ c: 120, d: 2, dp: 1.7 }), { status: 200 });
+      if (missingQuote) return new Response(JSON.stringify({ error: 'Quote unavailable' }), { status: 200 });
+      return new Response(JSON.stringify({ c: quotePrice, d: 2, dp: 1.7 }), { status: 200 });
     }
     return new Response(JSON.stringify({ usdToIls: 3.7 }), { status: 200 });
   }));
@@ -70,6 +77,75 @@ describe('stock detail continuity', () => {
     expect(latestChartProps?.events?.map((event) => event.id)).toEqual(['rebuy']);
     expect(latestChartProps?.requiredExitPrice).toEqual(expect.any(Number));
     expect(screen.getByRole('button', { name: 'Current holding' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('distinguishes current unrealized profit from cumulative results after a full exit and rebuy', async () => {
+    mockPositionRow.position_lots = [
+      { id: 'old-buy', side: 'BUY', quantity: 2, price: 100, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 },
+      { id: 'old-sale', side: 'SELL', quantity: 2, price: 80, executed_at: '2025-01-03', has_commission: false, commission_amount: 0 },
+      { id: 'new-buy', side: 'BUY', quantity: 2, price: 110, executed_at: '2025-01-20', has_commission: false, commission_amount: 0 },
+    ];
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+
+    expect(screen.getByText('Holding value').closest('div')?.querySelector('dd')).toHaveTextContent('$240.00');
+    expect(screen.getByText('Unrealized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('$20.00');
+    expect(screen.getByText('Cumulative P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$20.00');
+    expect(screen.getByText('Previously realized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$40.00');
+    expect(screen.getByText('Remaining cost basis').closest('div')?.querySelector('dd')).toHaveTextContent('$220.00');
+  });
+
+  it('keeps account FIFO isolated when one account sells its own later purchase', async () => {
+    quotePrice = 250;
+    const rowOne = { ...mockPositionRow, quantity: 1, entry_price: 300, position_lots: [
+      { id: 'bank-one-buy', side: 'BUY' as const, quantity: 1, price: 300, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 },
+    ] };
+    const rowTwo = { ...mockPositionRow, id: 'two', location: 'bank_two', quantity: 0, entry_price: 100, entry_date: '2025-01-02', position_lots: [
+      { id: 'bank-two-buy', side: 'BUY' as const, quantity: 1, price: 100, executed_at: '2025-01-02', has_commission: false, commission_amount: 0 },
+      { id: 'bank-two-sale', side: 'SELL' as const, quantity: 1, price: 80, executed_at: '2025-01-03', has_commission: false, commission_amount: 0 },
+    ] };
+    mockPositionRows = [rowOne, rowTwo];
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+
+    expect(screen.getByText('Holding value').closest('div')?.querySelector('dd')).toHaveTextContent('$250.00');
+    expect(screen.getByText('Unrealized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$50.00');
+    expect(screen.getByText('Cumulative P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$70.00');
+    expect(screen.getByText('Remaining cost basis').closest('div')?.querySelector('dd')).toHaveTextContent('$300.00');
+    expect(screen.getByText('Previously realized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$20.00');
+  });
+
+  it('includes legacy shares alongside recorded lots without claiming complete historical profit', async () => {
+    quotePrice = 250;
+    mockPositionRows = [
+      { ...mockPositionRow, quantity: 1, entry_price: 300, position_lots: [] },
+      { ...mockPositionRow, id: 'two', location: 'bank_two', quantity: 1, entry_price: 100, position_lots: [
+        { id: 'recorded-buy', side: 'BUY', quantity: 1, price: 100, executed_at: '2025-01-02', has_commission: false, commission_amount: 0 },
+      ] },
+    ];
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+    expect(screen.getByText('Holding value').closest('div')?.querySelector('dd')).toHaveTextContent('$500.00');
+    expect(screen.getByText('Unrealized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('$100.00');
+    expect(screen.getByText('Remaining cost basis').closest('div')?.querySelector('dd')).toHaveTextContent('$400.00');
+    expect(screen.getByText('Cumulative P/L').closest('div')?.querySelector('dd')).toHaveTextContent('—');
+  });
+
+  it('does not present realized-only profit as a cumulative total when the current quote is unavailable', async () => {
+    missingQuote = true;
+    mockPositionRow.position_lots = [
+      { id: 'buy', side: 'BUY', quantity: 2, price: 100, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 },
+      { id: 'partial-sale', side: 'SELL', quantity: 1, price: 80, executed_at: '2025-01-03', has_commission: false, commission_amount: 0 },
+    ];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+
+    expect(screen.getByText('Holding value').closest('div')?.querySelector('dd')).toHaveTextContent('—');
+    expect(screen.getByText('Unrealized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('—');
+    expect(screen.getByText('Cumulative P/L').closest('div')?.querySelector('dd')).toHaveTextContent('—');
+    expect(screen.getByText('Previously realized P/L').closest('div')?.querySelector('dd')).toHaveTextContent('-$20.00');
+    warn.mockRestore();
   });
 
   it('retains the last chart during range changes and ignores a late older response', async () => {
