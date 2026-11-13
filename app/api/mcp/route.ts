@@ -38,7 +38,7 @@ async function withDeadline<T>(work: Promise<T>, milliseconds: number): Promise<
 async function callTool(name: string, args: unknown, request: Request) {
   if (name === 'get_research_brief') {
     empty.parse(args);
-    return { policy: INVESTMENT_POLICY, requiredInvestorInputs: ['available USD cash budget', 'investment horizon', 'risk tolerance'], researchAvailability: 'Use host web search or connected financial research tools. No news/fundamentals provider is bundled.' };
+    return { policy: INVESTMENT_POLICY, requiredInvestorInputs: ['available USD cash budget', 'investment horizon', 'risk tolerance'], researchAvailability: 'ChatGPT researches with host web search and opened, cited current sources. No additional research provider, API credential or server-side model is required or bundled. If search or source access is unavailable, disclose the gap and withhold unsupported final recommendations.' };
   }
   if (name === 'get_portfolio_snapshot') { empty.parse(args); return loadSnapshot(); }
   if (name === 'validate_action_plan') {

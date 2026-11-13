@@ -10,7 +10,7 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 - Plugin: [Open LiveStocks](https://chatgpt.com/plugins/plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b).
 - App ID: `asdk_app_6af6d6f889a88191ae50abfc0070421b`.
 - MCP endpoint: `https://razmaz-live-stocks.vercel.app/api/mcp`.
-- Skill release: `1.0.1`.
+- Skill release: `1.0.2`.
 - Icon: the existing `public/brand/apple-touch-icon.png`, uploaded during the custom MCP connection setup.
 
 ## Use
@@ -18,6 +18,18 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 In ChatGPT, use the same account, start a new Chat or Work conversation, and select **LiveStocks** with `@`. Ask it to read the portfolio or analyze investment opportunities. Personalized allocations require a confirmed free-cash budget, investment horizon and risk tolerance.
 
 Tools: `get_research_brief`, `get_portfolio_snapshot`, `get_market_quotes`, `validate_action_plan`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across all accounts, or no action. There is no order execution or portfolio write tool.
+
+## Web research workflow
+
+Release 1.0.2 makes ChatGPT's available web search and page-reading tools the research path. LiveStocks continues to supply portfolio data, existing Finnhub quote observations and action validation. No additional research provider, new API key, server-side model call or dependency was added.
+
+For research requests, the skill directs ChatGPT to search, open primary filings/IR pages, verify the latest reporting period and material developments, compare alternatives, resolve contradictions and cite direct sources beside claims. Public searches use company names/tickers, never private quantities, cash balances or account details. Research starts with screening and deepens for leading candidates to avoid repeated searches.
+
+The skill cannot enable search in a host that does not expose it. If search or essential sources are unavailable, it discloses the gap and withholds final recommendations that depend on missing evidence. Existing BUY-new-only, full-SELL, budget and no-execution rules remain in force.
+
+Publication on 2026-11-13: Plugin Creator saved release `pluginrel_6af6e1989d508191958ee3553b0d63fd` (1.0.2). Source read-back verified the new research workflow, unchanged App binding, presentation and four-tool connection. MCP tests (13), typecheck and lint passed; lint emitted the existing baseline-browser-mapping age notice. A fresh ChatGPT research conversation using the updated release has not been tested; publication does not prove the host will expose or invoke web search.
+
+Example: `נתח את התיק שלי בעזרת חיפוש ברשת. פתח דוחות ומקורות עדכניים, ציין תאריכים וקישורים והסבר מה תומך ומה סותר כל מסקנה.`
 
 ## Why this uses an App binding
 
