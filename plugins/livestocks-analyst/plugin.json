@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "livestocks-analyst",
+  "version": "0.1.0",
+  "description": "Read the LiveStocks portfolio, research new stock opportunities and validate new-stock BUY or full-position SELL recommendations without executing trades.",
+  "author": { "name": "LiveStocks" },
+  "keywords": ["investing", "portfolio", "stocks", "research", "hebrew"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "LiveStocks Analyst",
+        "shortDescription": "ניתוח תיק והזדמנויות בשוק",
+        "longDescription": "ניתוח תיק LiveStocks ומחקר מניות חדשות מכלל השוק, עם תרחישים, מקורות, סיכונים והקצאת תקציב. המלצות BUY למניות חדשות בלבד או SELL מלא בלבד, ואפשרות להמתין. ללא ביצוע עסקאות. מחקר חדשות ודוחות נעשה באמצעות כלי המחקר הזמינים בשיחה.",
+        "developerName": "LiveStocks",
+        "category": "Finance",
+        "capabilities": [],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "נתח את תיק LiveStocks שלי, בדוק כל החזקה והצג סיכונים והצדקה להמשך החזקה או למכירה מלאה. השתמש במקורות עדכניים והימנע מפעולות שאין להן הצדקה.",
+          "מצא מניות חדשות להשקעה מעבר להחזקות שלי, השווה חלופות ובנה הקצאה מנומקת. לפני הקצאה סופית ברר תקציב פנוי, אופק ורמת סיכון."
+        ]
+      }
+    }
+  }
+}
