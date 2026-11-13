@@ -29,6 +29,8 @@ The skill cannot enable search in a host that does not expose it. If search or e
 
 Publication on 2026-11-13: Plugin Creator saved release `pluginrel_6af6e1989d508191958ee3553b0d63fd` (1.0.2). Source read-back verified the new research workflow, unchanged App binding, presentation and four-tool connection. MCP tests (13), typecheck and lint passed; lint emitted the existing baseline-browser-mapping age notice. A fresh ChatGPT research conversation using the updated release has not been tested; publication does not prove the host will expose or invoke web search.
 
+Server policy deployment: production `live-stocks` reached **READY** at deployment `dpl_DNZo3eFepdAePrLRMhB2iicXbrqy`, built from commit `536f6b553e03a08c388bd8d126e3bdc545722dda`, and is aliased to `https://razmaz-live-stocks.vercel.app`. The production build passed. Read-only HTTP checks confirmed the updated MCP initialization policy, four read-only tools and research brief. The existing baseline-browser-mapping/Browserslist age notices remained non-blocking. No full ChatGPT host research session was run after this release.
+
 Example: `נתח את התיק שלי בעזרת חיפוש ברשת. פתח דוחות ומקורות עדכניים, ציין תאריכים וקישורים והסבר מה תומך ומה סותר כל מסקנה.`
 
 ## Why this uses an App binding
