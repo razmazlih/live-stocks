@@ -73,3 +73,15 @@ the failures above were observed from normal UI actions.
 
 Please investigate the stale independently-managed-content guard and complete
 the owner-authorized deletion of ONLY the retired target.
+
+Submission status - 2026-11-13
+The full report above was sent through the official OpenAI Help Center support
+chat at https://help.openai.com/en while signed in as the owner. A follow-up
+explicitly requested human escalation and repeated the retired-only deletion
+scope and the active App ID to preserve. The support chat confirmed:
+"Escalated to a support specialist; You can expect a response in the coming
+days. Replies will also be sent via email. You can add additional comments to
+this conversation if needed."
+No case number was displayed. This confirms submission and escalation, not
+completion of backend deletion. The owner-authorized support messages do not
+authorize deletion or modification of the active LiveStocks App/plugin.
