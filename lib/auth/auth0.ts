@@ -18,6 +18,7 @@ export function getAuth0(): Auth0Client | null {
       authorizationParameters: {
         audience: process.env.AUTH0_WEB_AUDIENCE,
         scope: 'openid profile email offline_access portfolio:read portfolio:write',
+        ui_locales: 'he',
       },
       enableAccessTokenEndpoint: false,
       onCallback: async (error, context) => {

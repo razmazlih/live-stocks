@@ -9,7 +9,7 @@ export function SignIn({ configured, error, verificationRequired, callbackFailed
   const [locale, setLocale] = useState<'he' | 'en'>('he');
   const he = locale === 'he';
   const safeReturnTo = safeSignInReturnTo(returnTo);
-  const loginUrl = `/auth/login?returnTo=${encodeURIComponent(safeReturnTo)}`;
+  const loginUrl = `/auth/login?returnTo=${encodeURIComponent(safeReturnTo)}&ui_locales=${locale}`;
   return (
     <main lang={locale} dir={he ? 'rtl' : 'ltr'} className="flex min-h-screen items-center justify-center bg-[var(--color-bg-primary)] p-5">
       <section className="w-full max-w-md space-y-7 rounded-3xl border border-white/30 bg-white/70 p-7 shadow-xl backdrop-blur-xl dark:bg-slate-900/80">

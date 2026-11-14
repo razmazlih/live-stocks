@@ -64,6 +64,6 @@ describe('personal account boundary', () => {
     act(() => { window.dispatchEvent(new StorageEvent('storage', { key: 'livestocks:account-change', newValue: 'logout:123' })); });
     await waitFor(() => expect(screen.queryByText('auth0|a')).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('link', { name: 'התחברות' })).toHaveAttribute('href', '/auth/login?returnTo=%2F');
+    expect(screen.getByRole('link', { name: 'התחברות' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=he');
   });
 });
