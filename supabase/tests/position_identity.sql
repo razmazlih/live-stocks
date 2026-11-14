@@ -1,6 +1,21 @@
 -- Run against a migrated, disposable database. All fixtures roll back.
 \set ON_ERROR_STOP on
 begin;
+-- The original identity regression now runs as a real website API role.
+-- These synthetic claims/config/profile disappear at rollback below.
+insert into private.auth_config(singleton,issuer,website_client_id,mcp_client_id,website_audience,mcp_audience)
+values(true,'https://identity-test.auth0.com/','identity-web','identity-mcp','https://identity.example/api/web','https://identity.example/api/mcp')
+on conflict(singleton) do update set issuer=excluded.issuer,website_client_id=excluded.website_client_id,
+  mcp_client_id=excluded.mcp_client_id,website_audience=excluded.website_audience,mcp_audience=excluded.mcp_audience;
+set local role authenticated;
+select set_config('request.jwt.claims',jsonb_build_object(
+  'iss','https://identity-test.auth0.com/','aud','https://identity.example/api/web',
+  'sub','auth0|position-identity-test','azp','identity-web','role','authenticated',
+  'scope','portfolio:read portfolio:write','iat',floor(extract(epoch from now()))::bigint,
+  'exp',floor(extract(epoch from now()))::bigint+3600,
+  'https://livestocks.app/read_only',false,'https://livestocks.app/email_verified',true
+)::text,true);
+insert into public.user_profiles(id) values('auth0|position-identity-test');
 do $$
 declare
   r record;
