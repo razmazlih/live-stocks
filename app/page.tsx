@@ -58,8 +58,8 @@ export default function HomePage() {
                 </div>
             </details>
           </section>
-          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
           <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
+          <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
         </>}
       </DashboardMain>
     </DashboardContainer>
