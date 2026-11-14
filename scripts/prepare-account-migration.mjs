@@ -5,10 +5,10 @@
  * Auth0/config/owner verification is mandatory before any database connection.
  * The encrypted archive is checked for readability, NOT restored/tested here.
  */
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, X509Certificate } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { chmod, lstat, mkdtemp, realpath, rename, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdtemp, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +48,25 @@ export async function safeBackupDirectory(value) {
   return directory;
 }
 
-export function databaseEnvironment(value) {
+export async function trustedDatabaseCertificate(value) {
+  if (typeof value !== 'string' || !isAbsolute(value)) fail('MIGRATION_SSL_ROOT_CERT must be an absolute trusted CA file path');
+  try {
+    const info = await lstat(value);
+    if (!info.isFile() || info.isSymbolicLink() || info.size === 0 || info.size > 1024 * 1024
+      || (info.mode & 0o022) !== 0 || ![0, process.getuid()].includes(info.uid)) throw new Error();
+    const path = await realpath(value);
+    const pem = await readFile(path, 'utf8');
+    const certificates = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g);
+    if (!certificates?.length || pem.replace(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g, '').trim()) throw new Error();
+    for (const entry of certificates) {
+      const certificate = new X509Certificate(entry);
+      if (!certificate.ca || Date.parse(certificate.validFrom) > Date.now() || Date.parse(certificate.validTo) <= Date.now()) throw new Error();
+    }
+    return path;
+  } catch { fail('Trusted database CA must be a current PEM CA file, owned by you or root, not a symlink or writable by others'); }
+}
+
+export async function databaseEnvironment(value, certificatePath) {
   let url;
   try { url = new URL(value); } catch { fail('Invalid MIGRATION_DATABASE_URL'); }
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.username || !url.pathname.slice(1) || url.hash) {
@@ -58,13 +76,14 @@ export function databaseEnvironment(value) {
   if ([...url.searchParams.keys()].some(key => !allowed.has(key)) || url.searchParams.getAll('sslmode').length > 1) {
     fail('Database URL contains unsupported connection overrides');
   }
-  const sslmode = url.searchParams.get('sslmode') ?? 'require';
-  if (!['require', 'verify-ca', 'verify-full'].includes(sslmode)) fail('Encrypted PostgreSQL transport is required');
+  const sslmode = url.searchParams.get('sslmode') ?? 'verify-full';
+  if (sslmode !== 'verify-full') fail('PostgreSQL TLS must use verify-full; weaker validation is prohibited');
+  const certificate = await trustedDatabaseCertificate(certificatePath);
   return {
-    PATH: process.env.PATH, LC_ALL: 'C', PGPASSFILE: '/dev/null', PGCONNECT_TIMEOUT: '10',
+    PATH: process.env.PATH, LC_ALL: 'C', PGPASSFILE: '/dev/null', PGSERVICEFILE: '/dev/null', PGCONNECT_TIMEOUT: '10',
     PGHOST: url.hostname, PGPORT: url.port || '5432', PGUSER: decodeURIComponent(url.username),
     PGPASSWORD: decodeURIComponent(url.password), PGDATABASE: decodeURIComponent(url.pathname.slice(1)),
-    PGSSLMODE: sslmode, PGAPPNAME: 'livestocks-read-only-migration-preparation',
+    PGSSLMODE: sslmode, PGSSLROOTCERT: certificate, PGTZ: 'UTC', PGAPPNAME: 'livestocks-read-only-migration-preparation',
     PGOPTIONS: '-c default_transaction_read_only=on -c statement_timeout=60000 -c lock_timeout=10000 -c idle_in_transaction_session_timeout=1800000',
   };
 }
@@ -188,7 +207,7 @@ export function parametersFile(values) {
 async function main() {
   if (process.argv.includes('--help')) {
     console.log('Read-only preparation: node scripts/prepare-account-migration.mjs --owner-sub EXACT_AUTH0_SUB\n'
-      + 'Required explicit env: MIGRATION_DATABASE_URL, MIGRATION_BACKUP_DIRECTORY, LEGACY_OWNER_ACCESS_TOKEN,\n'
+      + 'Required explicit env: MIGRATION_DATABASE_URL, MIGRATION_SSL_ROOT_CERT, MIGRATION_BACKUP_DIRECTORY, LEGACY_OWNER_ACCESS_TOKEN,\n'
       + 'CREDENTIAL_ENCRYPTION_KEY (64 hex), AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_MCP_CLIENT_ID,\n'
       + 'AUTH0_WEB_AUDIENCE, AUTH0_MCP_AUDIENCE, APP_BASE_URL. No .env loading.\n'
       + 'Choose a private, nonsynced existing backup directory outside Git and Desktop/Documents.\n'
@@ -204,10 +223,10 @@ async function main() {
   const owner = await verifyOwnerToken(required('LEGACY_OWNER_ACCESS_TOKEN'), process.argv[3], config,
     createRemoteJWKSet(new URL('.well-known/jwks.json', config.issuer), { timeoutDuration: 10_000 }));
   const backupRoot = await safeBackupDirectory(required('MIGRATION_BACKUP_DIRECTORY'));
-  const dbEnv = databaseEnvironment(required('MIGRATION_DATABASE_URL'));
+  const dbEnv = await databaseEnvironment(required('MIGRATION_DATABASE_URL'), required('MIGRATION_SSL_ROOT_CERT'));
   const [dumpVersion, restoreVersion] = await Promise.all([utilityVersion('pg_dump'), utilityVersion('pg_restore')]);
   let session; let outputDirectory;
-  const manifest = { status: 'INCOMPLETE', generatedAt: new Date().toISOString(), schemas: ['public','private','supabase_migrations'], restoreTested: false,
+  const manifest = { status: 'INCOMPLETE', generatedAt: new Date().toISOString(), schemas: ['public','private','supabase_migrations'], digestTimeZone: 'UTC', restoreTested: false,
     warning: 'Preparation is not approval to migrate. Restore-test the encrypted archive, freeze writes and recheck row hashes before cutover.' };
   try {
     session = new SnapshotSession(dbEnv);
