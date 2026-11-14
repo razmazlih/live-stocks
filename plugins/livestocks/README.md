@@ -10,7 +10,7 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 - Plugin: [Open LiveStocks](https://chatgpt.com/plugins/plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b).
 - App ID: `asdk_app_6af6d6f889a88191ae50abfc0070421b`.
 - MCP endpoint: `https://razmaz-live-stocks.vercel.app/api/mcp`.
-- Skill release: `1.0.2`.
+- Skill release: `1.1.0`.
 - Icon: the existing `public/brand/apple-touch-icon.png`, uploaded during the custom MCP connection setup.
 
 ## Use
@@ -19,7 +19,7 @@ In ChatGPT, use the same account, start a new Chat or Work conversation, and sel
 
 Tools in this source: `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across all accounts, or no action. There is no order execution or portfolio write tool.
 
-## Complete-close group review (source update, unpublished)
+## Complete-close group review (1.1.0)
 
 The snapshot now computes the same close-proposal engine used by the site, using original per-account records, all prior sales, available prices and the configured annual target. `get_close_pair_proposals` accepts `maxLosers: 1` (pairs only) or `3` (default, groups of up to three losers); each mode is computed by the shared engine with a distinct snapshot fingerprint. It returns a compact snapshot slice: one winner plus up to three losers, full quantities and account breakdowns, quote timestamps, open versus historical/cumulative profit, gross proceeds and surplus above the personal target. Coverage explicitly distinguishes complete, partial and unavailable data, including missing prices, invalid histories and bounded candidate search. An empty partial result cannot establish that no group exists.
 
@@ -27,7 +27,9 @@ Owner-confirmed screening defaults: at least $50 and 5% open loss, cost-weighted
 
 The dedicated review mode researches every company with opened current primary sources, then gives SELL ALL or DO NOT SELL per complete group, with a short reason, strongest caveat, confidence and dated links. It does not force unrelated market screening or BUY suggestions. `validate_close_proposal` requires the exact snapshot fingerprint and proposal ID and rechecks the selected complete group against the latest available cached snapshot, including full quantities. It needs no BUY budget. A changed snapshot requires rereading/review; a validation pass is not research approval, broker reconciliation or quote freshness. Snapshot reads retain the five-minute shared cache, which may serve older observations during revalidation/outages. Grouping is a recommendation boundary, not atomic execution.
 
-These source changes have not been deployed or published to the installed plugin. A fresh real ChatGPT group-review conversation remains required after publication.
+Published on 2026-11-14 as private USER release `pluginrel_6af842632d8c8191aa9425bf0485c771` (1.1.0). Source read-back confirmed both group tools in the skill, the unchanged App binding and identical presentation/manifest metadata except version. PR [#434](https://github.com/razmazlih/live-stocks/pull/434) merged as `220b7766784b9c60ac1d27daddf95149f70d4351`; production deployment `dpl_88nTJzfRQGy7bGdVue1qgDDEmMia` reached READY and was assigned to `https://razmaz-live-stocks.vercel.app`.
+
+Verification: all 361 tests, typecheck, lint and production build passed. Synthetic browser checks covered Hebrew RTL/English LTR, 320/390px and desktop, every group member and switching one-loser/group modes. Production HTTP checks confirmed six read-only tools, exact approved thresholds and account quantities, real qualifying groups in both modes, whole-group validation and rejection of unknown proposal IDs. One mode returned complete coverage; the other explicitly reported four missing quotes and partial coverage. Provider availability can differ between snapshots; do not describe partial coverage as complete. Multi-loser rendering and arithmetic were verified with synthetic groups; the current real-data checks selected two-stock groups. A fresh full research conversation inside ChatGPT using release 1.1.0 has not been tested. The skill requires source research but publication does not prove the host performs it.
 
 ## Web research workflow
 
@@ -57,7 +59,7 @@ On 2026-11-13, the final branded **LiveStocks** plugin read all seven recorded h
 
 The obsolete desktop plugin `Plugin_343a85d949448191914aa200da67b364` was uninstalled and deleted; a metadata lookup returned `NOT_FOUND`. The first unbranded cloud connection, `plugin_asdk_app_6af6d33c4e6881919e385643f9d350ad`, was renamed **LiveStocks Previous** and uninstalled. Its **Delete app** and **Delete plugin** operations returned ChatGPT errors, including after uninstall/reload. Its inactive account registration therefore remains; do not report it as deleted. Only the final branded plugin is installed. This is a platform cleanup limitation, not a portfolio-data or server deletion.
 
-Further diagnosis on the same date identified the exact backend error for both normal UI deletion paths: HTTP `409 Conflict`, `apps_sdk_error`, `App plugin contains independently managed content.` A guarded Plugin Creator cleanup removed the retired plugin's research skill and manifest reference (v1.0.2); read-back confirmed only `.app.json` and its compatibility manifest remain. Both deletion paths still return the same 409. The active plugin remains v1.0.1 with its research skill intact. At the owner's explicit request, the full [support diagnostic](../../docs/livestocks-plugin-delete-support.txt) was sent through the OpenAI Help Center on 2026-11-13, with instructions to delete only the retired registration and preserve the active plugin. The support chat confirmed escalation to a support specialist and said replies would also arrive by email in the coming days. No case number was displayed; deletion is still pending.
+Further diagnosis on the same date identified the exact backend error for both normal UI deletion paths: HTTP `409 Conflict`, `apps_sdk_error`, `App plugin contains independently managed content.` A guarded Plugin Creator cleanup removed the retired plugin's research skill and manifest reference (v1.0.2); read-back confirmed only `.app.json` and its compatibility manifest remain. Both deletion paths still return the same 409. At that cleanup stage the active plugin remained v1.0.1 with its research skill intact; its current release is listed above. At the owner's explicit request, the full [support diagnostic](../../docs/livestocks-plugin-delete-support.txt) was sent through the OpenAI Help Center on 2026-11-13, with instructions to delete only the retired registration and preserve the active plugin. The support chat confirmed escalation to a support specialist and said replies would also arrive by email in the coming days. No case number was displayed; deletion is still pending.
 
 The endpoint inherits the existing application's anonymous **shared portfolio** access model, not a separate per-user portfolio. A private plugin does not protect the public API. No provider credentials are packaged or returned. Do not share this as a multi-user portfolio service.
 
