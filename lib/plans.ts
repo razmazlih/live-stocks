@@ -1,6 +1,7 @@
 import { mapPositionPlanRow } from '@/lib/positions';
 import { fetchFinnhubQuote, FinnhubQuoteResult } from '@/lib/services/finnhub';
 import { getSupabaseClient } from '@/lib/supabase';
+import { getStockLogoUrl } from '@/lib/stock-logo-sources';
 import { PositionLocation, PositionPlan } from '@/types';
 
 export interface ProcessPlansOptions {
@@ -298,7 +299,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
           throw new Error(`Sell plan ${plan.id} is missing a linked position`);
         }
 
-        const fallbackImage = plan.imageUrl || `https://logo.clearbit.com/${plan.symbol.toLowerCase()}.com`;
+        const fallbackImage = getStockLogoUrl(plan.symbol, plan.imageUrl);
         const fallbackDisplay = plan.display ?? plan.symbol;
         const locationToUse = resolvedLocation ?? 'bank_one';
 

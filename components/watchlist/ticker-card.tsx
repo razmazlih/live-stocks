@@ -9,7 +9,8 @@ import { formatCurrency, formatDate, formatPercent } from '@/lib/calculations';
 import { getWatchlistDisplayData, watchlistTrendColor, watchlistTrendTone } from '@/lib/watchlist-display';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StockAvatarImage } from '@/components/ui/stock-avatar-image';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } from '@/types';
 
@@ -48,7 +49,7 @@ export interface TickerCardProps {
 export function TickerIdentity({ ticker, compact = false }: { ticker: WatchlistTicker; compact?: boolean }) {
   return <span className="flex min-w-0 items-center gap-2.5 text-start">
     <Avatar aria-hidden="true" className={cn('shrink-0 rounded-xl bg-slate-100', compact ? 'h-9 w-9' : 'h-11 w-11')}>
-      {ticker.imageUrl ? <AvatarImage src={ticker.imageUrl} alt="" className="object-contain p-1.5" /> : null}
+      {ticker.imageUrl ? <StockAvatarImage symbol={ticker.symbol} display={ticker.display || ticker.symbol} imageUrl={ticker.imageUrl} plain className="p-1.5" /> : null}
       <AvatarFallback className="rounded-xl bg-slate-100 text-xs font-semibold text-slate-600">{ticker.symbol.slice(0, 2).toUpperCase()}</AvatarFallback>
     </Avatar>
     <span className="min-w-0"><span className={cn('block truncate font-semibold tracking-tight text-slate-950', compact ? 'text-base' : 'text-xl sm:text-2xl')}><bdi>{ticker.symbol.toUpperCase()}</bdi></span>{ticker.display ? <span className="mt-0.5 block truncate text-xs font-normal text-slate-500 sm:text-sm">{ticker.display}</span> : null}</span>
