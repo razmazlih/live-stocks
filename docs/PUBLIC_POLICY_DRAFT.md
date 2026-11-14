@@ -9,7 +9,7 @@ Prepared 2026-11-14. These are factual service disclosures for review, not a cla
 - `/terms` explains service scope, data limitations, authorized use and support.
 - Hebrew is the default. Append `?lang=en` for English. The exact bilingual copy is in [`lib/public-information.ts`](../lib/public-information.ts); the shared page is [`components/public-information.tsx`](../components/public-information.tsx).
 
-All three routes return HTTP **503**, `Cache-Control: no-store` and `X-Robots-Tag: noindex` until both `PUBLISHER_NAME` and `PUBLIC_SUPPORT_EMAIL` contain explicitly approved public values. There is no fallback to a Google consent email, Auth0 account, Git identity or private setup file. Setting these values makes the pages publicly readable; it is a publication decision, not just a technical default. Portfolio pages and APIs retain their existing authorization.
+All three routes return HTTP **503**, `Cache-Control: no-store` and `X-Robots-Tag: noindex` until both `PUBLISHER_NAME` and `PUBLIC_SUPPORT_EMAIL` contain explicitly approved public values. There is no fallback to a Google consent email, authentication account, Git identity or private setup file. Setting these values makes the pages publicly readable; it is a publication decision, not just a technical default. Portfolio pages and APIs retain their existing authorization.
 
 For a local review, use an isolated local server with clearly synthetic values, for example `PUBLISHER_NAME="Example Operator" PUBLIC_SUPPORT_EMAIL="support@example.test"`. Do not copy these example values into production.
 
@@ -25,8 +25,8 @@ For a local review, use an isolated local server with clearly synthetic values, 
 
 | Disclosure | Owning implementation |
 | --- | --- |
-| Auth0 session, identity and verified email | `lib/auth/auth0.ts`, `lib/auth/server.ts`, `app/api/account/session/route.ts` |
-| Account-owned portfolio and connection state | Auth0 ownership migration, `lib/auth/server.ts`, account routes |
+| Better Auth sessions, password hashes, identity and verified email | `lib/auth/better-auth.ts`, `lib/auth/auth-email.ts`, private-session migration, `app/api/account/session/route.ts` |
+| Account-owned portfolio and connection state | Canonical-profile and ownership migrations, `lib/auth/server.ts`, account routes |
 | Encrypted Finnhub key / hashed widget keys | `lib/auth/credentials.ts`, widget and credential routes |
 | Read-only ChatGPT access and revocation | `app/api/mcp/route.ts`, `lib/auth/server.ts`, connection routes |
 | Finnhub, Yahoo and currency requests | `lib/services/finnhub.ts`, `yahoo-candles.ts`, `exchange-rate.ts` |
@@ -34,7 +34,7 @@ For a local review, use an isolated local server with clearly synthetic values, 
 | Scriptable Keychain and up-to-one-hour offline cache | `output/widget/Stocks Status.js` |
 | Selected research snapshot copying | `components/portfolio/research-export-dialog.tsx` |
 
-Provider-policy links reference the providers' own notices: [Auth0/Okta](https://www.okta.com/legal/privacy-policy/), [Supabase](https://supabase.com/privacy), [Vercel](https://vercel.com/legal/privacy-notice), [Google](https://policies.google.com/privacy) and [OpenAI](https://openai.com/policies/privacy-policy/). They do not replace the operator's own review. No claim is made about advertising practices, sale of data, data residency, legal bases or statutory response deadlines that was not established by this implementation review.
+Provider-policy links reference the providers' own notices: [Supabase](https://supabase.com/privacy), [Vercel](https://vercel.com/legal/privacy-notice), [Google](https://policies.google.com/privacy) and [OpenAI](https://openai.com/policies/privacy-policy/). They do not replace the operator's own review. No claim is made about advertising practices, sale of data, data residency, legal bases or statutory response deadlines that was not established by this implementation review.
 
 ## Local verification
 
@@ -49,3 +49,7 @@ These screenshots show a local draft with synthetic operator/contact configurati
 ## Operator review received
 
 On 2026-11-14 the user explicitly approved public publisher name **LiveStocks**, the selected support email, both language disclosures and the stated manual identity-verified request process, including the disclosed retention/backup limitations without invented deletion deadlines. Production values remain configuration rather than hardcoded personal details. Approval is not a claim of regulatory certification or Google verification. Deployment and public HTTPS read-back are separate steps.
+
+## Better Auth draft update
+
+The current bilingual source now describes onsite Better Auth forms, password hashes in the private authentication schema, HttpOnly session cookies and the configured email provider. The earlier operator/contact and manual-request approval remains recorded above; the revised provider disclosures require review before publication. The policy screenshots above predate this provider change and are historical layout examples. Actual SMTP delivery and the new Google flow are not claimed verified.

@@ -1,0 +1,150 @@
+{
+  "packageVersions": {
+    "better-auth": "1.7.23",
+    "@better-auth/oauth-provider": "1.7.23"
+  },
+  "status": "PASS_DUMMY_ONLY",
+  "guardEnabled": true,
+  "missingAuthorizeResourceRejected": false,
+  "cases": [
+    {
+      "name": "a_unverified_denied",
+      "status": "PASS"
+    },
+    {
+      "name": "a_verified_signin",
+      "status": "PASS"
+    },
+    {
+      "name": "b_unverified_denied",
+      "status": "PASS"
+    },
+    {
+      "name": "b_verified_signin",
+      "status": "PASS"
+    },
+    {
+      "name": "separate_accounts",
+      "status": "PASS"
+    },
+    {
+      "name": "canonical_code",
+      "status": "PASS",
+      "httpStatus": 200,
+      "hasIdToken": true,
+      "roleAuthenticated": true,
+      "sidPresent": true
+    },
+    {
+      "name": "wrong_authorize",
+      "status": "PASS",
+      "httpStatus": 302,
+      "oauthError": "invalid_target",
+      "jwtAccepted": false,
+      "tokenIssued": false
+    },
+    {
+      "name": "wrong_exchange",
+      "status": "PASS",
+      "httpStatus": 400,
+      "oauthError": "invalid_target",
+      "jwtAccepted": false,
+      "tokenIssued": false
+    },
+    {
+      "name": "omitted_exchange",
+      "status": "PASS",
+      "httpStatus": 200,
+      "jwtAccepted": true,
+      "tokenIssued": true
+    },
+    {
+      "name": "missing_authorize_yields_no_mcp_jwt",
+      "status": "PASS",
+      "httpStatus": 200,
+      "jwtAccepted": false,
+      "tokenIssued": true
+    },
+    {
+      "name": "oauth_account_binding",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong_pkce",
+      "status": "PASS",
+      "httpStatus": 400
+    },
+    {
+      "name": "code_single_use",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous_client_creation_denied",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown_resource_denied_for_second_user",
+      "status": "PASS"
+    },
+    {
+      "name": "refresh_1",
+      "status": "PASS",
+      "sameSubject": true,
+      "sameSid": true
+    },
+    {
+      "name": "refresh_2",
+      "status": "PASS",
+      "sameSubject": true,
+      "sameSid": true
+    },
+    {
+      "name": "wrong_refresh",
+      "status": "PASS",
+      "httpStatus": 400,
+      "oauthError": "invalid_target"
+    },
+    {
+      "name": "browser_jwt_endpoint_disabled",
+      "status": "PASS"
+    },
+    {
+      "name": "nonadmin_client_creation_denied",
+      "status": "PASS"
+    },
+    {
+      "name": "dcr_disabled",
+      "status": "PASS"
+    },
+    {
+      "name": "old_grant_cannot_inherit_new_generation",
+      "status": "PASS"
+    },
+    {
+      "name": "new_grant_keeps_same_user_with_new_reference",
+      "status": "PASS"
+    },
+    {
+      "name": "session_end_revokes_refresh",
+      "status": "PASS",
+      "httpStatus": 400,
+      "oauthError": "invalid_grant"
+    }
+  ],
+  "limits": [
+    "In-process Fetch handler with dummy memory adapter; no hosted calls, real Google, SMTP, PostgreSQL concurrency, hosted Supabase JWT trust, or ChatGPT host test."
+  ],
+  "observedAt": "2026-11-14T15:08:51.526Z",
+  "dependencyAudit": {
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "issues": []
+  },
+  "defaultSessionRevocationGate": "FAIL: without the application live-session extension, refresh after sign-out returned HTTP200 with a token."
+}
