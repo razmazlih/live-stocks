@@ -132,7 +132,9 @@ describe('Auth0 Post Login Action', () => {
     const event = { secrets: { AUTH0_WEBSITE_CLIENT_ID: websiteClientId, AUTH0_MCP_CLIENT_ID: mcpClientId,
       AUTH0_WEB_AUDIENCE: websiteAudience, AUTH0_MCP_AUDIENCE: mcpAudience },
     client: { client_id: kind === 'web' ? websiteClientId : mcpClientId },
-    resource_server: { identifier: kind === 'web' ? websiteAudience : mcpAudience }, user: { email_verified: true } };
+    resource_server: { identifier: kind === 'web' ? websiteAudience : mcpAudience }, user: { email_verified: true },
+    transaction: { protocol: 'oidc-basic-profile' },
+    request: { query: (kind === 'mcp' ? { resource: mcpAudience } : {}) as Record<string, unknown>, body: {} as Record<string, unknown> } };
     const api = { access: { deny: vi.fn() }, accessToken: { setCustomClaim: vi.fn(), removeScope: vi.fn() }, idToken: { setCustomClaim: vi.fn() } };
     return { event, api };
   }
@@ -144,6 +146,72 @@ describe('Auth0 Post Login Action', () => {
       expect(token.setCustomClaim.mock.calls).toEqual([['role', 'authenticated'], [readOnlyClaim, kind === 'mcp'], [verifiedClaim, true]]);
     }
     expect(api.accessToken.removeScope).toHaveBeenCalledTimes(kind === 'mcp' ? 1 : 0);
+  });
+  it.each(['other-api', 'no-api', 'incomplete-config', 'missing-config'])('leaves an unrelated tenant application untouched with %s', async scenario => {
+    const { event, api } = setup();
+    event.client.client_id = 'default-tenant-application';
+    event.resource_server.identifier = scenario === 'no-api' ? '' : 'https://unrelated.example/api';
+    event.user.email_verified = false; // This application's own policy still applies.
+    if (scenario === 'incomplete-config') event.secrets.AUTH0_WEB_AUDIENCE = '';
+    if (scenario === 'missing-config') {
+      for (const key of Object.keys(event.secrets) as Array<keyof typeof event.secrets>) event.secrets[key] = '';
+    }
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).not.toHaveBeenCalled();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.idToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.accessToken.removeScope).not.toHaveBeenCalled();
+  });
+  it('does not confuse absent client/audience and absent secrets with a LiveStocks request', async () => {
+    const { api } = setup();
+    await actionExports.onExecutePostLogin!({ user: { email_verified: false } }, api);
+    expect(api.access.deny).not.toHaveBeenCalled();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.idToken.setCustomClaim).not.toHaveBeenCalled();
+  });
+  it.each<Auth0TokenKind>(['web', 'mcp'])('denies an unknown client requesting the %s LiveStocks audience', async kind => {
+    const { event, api } = setup(kind);
+    event.client.client_id = 'other-tenant-app';
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).toHaveBeenCalledOnce();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.idToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.accessToken.removeScope).not.toHaveBeenCalled();
+  });
+  it.each(['missing-audience', 'unrelated-audience', 'missing-config', 'whitespace-config'])('denies a known LiveStocks client with %s', async scenario => {
+    const { event, api } = setup('web');
+    if (scenario === 'missing-audience') event.resource_server.identifier = '';
+    if (scenario === 'unrelated-audience') event.resource_server.identifier = 'https://other.example/api';
+    if (scenario === 'missing-config') event.secrets.AUTH0_MCP_CLIENT_ID = '';
+    if (scenario === 'whitespace-config') {
+      event.secrets.AUTH0_WEBSITE_CLIENT_ID = ` ${websiteClientId} `;
+      event.resource_server.identifier = '';
+    }
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).toHaveBeenCalledOnce();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.idToken.setCustomClaim).not.toHaveBeenCalled();
+    expect(api.accessToken.removeScope).not.toHaveBeenCalled();
+  });
+  it.each([undefined, null, '', 'https://evil.example/mcp', [mcpAudience]])('rejects initial MCP resource %j even if selected audience is canonical', async resource => {
+    const { event, api } = setup(); event.request.query.resource = resource;
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).toHaveBeenCalledOnce();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
+  });
+  it.each([undefined, mcpAudience])('allows refresh with omitted or canonical resource %j', async resource => {
+    const { event, api } = setup(); event.transaction.protocol = 'oauth2-refresh-token';
+    event.request.query = {}; event.request.body = resource === undefined ? {} : { resource };
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).not.toHaveBeenCalled();
+    expect(api.accessToken.setCustomClaim).toHaveBeenCalledWith(readOnlyClaim, true);
+  });
+  it.each(['query', 'body'] as const)('rejects a contradictory refresh resource in the %s', async parameterLocation => {
+    const { event, api } = setup(); event.transaction.protocol = 'oauth2-refresh-token';
+    event.request[parameterLocation].resource = 'https://evil.example/mcp';
+    await actionExports.onExecutePostLogin!(event, api);
+    expect(api.access.deny).toHaveBeenCalledOnce();
+    expect(api.accessToken.setCustomClaim).not.toHaveBeenCalled();
   });
   it('denies unverified identities, foreign clients, cross-client audiences and incomplete setup', async () => {
     for (const mutation of [

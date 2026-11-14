@@ -2,6 +2,8 @@
 
 The single active LiveStocks plugin uses a private cloud App connection to the existing application. No new website or local MCP process is needed.
 
+**Source candidate 1.2.0:** Auth0 account linking, account-bound snapshots, `get_profile`, and read-only authorization enforced in the API and database. This source has not replaced the published 1.1.0 connection. Production data and the active App binding remain unchanged until the live provider gate and owner migration pass. See [account setup and cutover](../../docs/ACCOUNTS.md) and [public-release preparation](PUBLIC_RELEASE.md).
+
 ![LiveStocks site icon](../../public/brand/apple-touch-icon.png)
 
 ![Installed LiveStocks cloud plugin with the site icon and research skill](assets/plugin-chatgpt.jpg)
@@ -10,14 +12,14 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 - Plugin: [Open LiveStocks](https://chatgpt.com/plugins/plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b).
 - App ID: `asdk_app_6af6d6f889a88191ae50abfc0070421b`.
 - MCP endpoint: `https://razmaz-live-stocks.vercel.app/api/mcp`.
-- Skill release: `1.1.0`.
+- Published skill release: `1.1.0`; local candidate: `1.2.0`.
 - Icon: the existing `public/brand/apple-touch-icon.png`, uploaded during the custom MCP connection setup.
 
 ## Use
 
 In ChatGPT, use the same account, start a new Chat or Work conversation, and select **LiveStocks** with `@`. Ask it to read the portfolio or analyze investment opportunities. Personalized allocations require a confirmed free-cash budget, investment horizon and risk tolerance.
 
-Tools in this source: `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across all accounts, or no action. There is no order execution or portfolio write tool.
+Tools in this source: `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across the connected user's accounts, or no action. There is no order execution or portfolio write tool. The candidate requires the same Auth0 account used on the website; do not enter credentials in chat.
 
 ## Complete-close group review (1.1.0)
 
@@ -25,7 +27,7 @@ The snapshot now computes the same close-proposal engine used by the site, using
 
 Owner-confirmed screening defaults: at least $50 and 5% open loss, cost-weighted remaining holding age of 30 days unless loss is at least 15%, up to three losers per winner, at most 24 candidate losers. These screening settings do not establish investor horizon or risk tolerance. Each loser must have both open and cumulative losses; historical FIFO remains isolated per account. Tax, future fees and slippage are excluded.
 
-The dedicated review mode researches every company with opened current primary sources, then gives SELL ALL or DO NOT SELL per complete group, with a short reason, strongest caveat, confidence and dated links. It does not force unrelated market screening or BUY suggestions. `validate_close_proposal` requires the exact snapshot fingerprint and proposal ID and rechecks the selected complete group against the latest available cached snapshot, including full quantities. It needs no BUY budget. A changed snapshot requires rereading/review; a validation pass is not research approval, broker reconciliation or quote freshness. Snapshot reads retain the five-minute shared cache, which may serve older observations during revalidation/outages. Grouping is a recommendation boundary, not atomic execution.
+The dedicated review mode researches every company with opened current primary sources, then gives SELL ALL or DO NOT SELL per complete group, with a short reason, strongest caveat, confidence and dated links. It does not force unrelated market screening or BUY suggestions. `validate_close_proposal` requires the exact snapshot fingerprint and proposal ID and rechecks the selected complete group against the newly calculated account-bound snapshot, including full quantities. It needs no BUY budget. A changed snapshot requires rereading/review; a validation pass is not research approval, broker reconciliation or quote freshness. The candidate recalculates private snapshots on each authorized read; market observations can still be stale. Grouping is a recommendation boundary, not atomic execution.
 
 Published on 2026-11-14 as private USER release `pluginrel_6af842632d8c8191aa9425bf0485c771` (1.1.0). Source read-back confirmed both group tools in the skill, the unchanged App binding and identical presentation/manifest metadata except version. PR [#434](https://github.com/razmazlih/live-stocks/pull/434) merged as `220b7766784b9c60ac1d27daddf95149f70d4351`; production deployment `dpl_88nTJzfRQGy7bGdVue1qgDDEmMia` reached READY and was assigned to `https://razmaz-live-stocks.vercel.app`.
 
@@ -61,9 +63,9 @@ The obsolete desktop plugin `Plugin_343a85d949448191914aa200da67b364` was uninst
 
 Further diagnosis on the same date identified the exact backend error for both normal UI deletion paths: HTTP `409 Conflict`, `apps_sdk_error`, `App plugin contains independently managed content.` A guarded Plugin Creator cleanup removed the retired plugin's research skill and manifest reference (v1.0.2); read-back confirmed only `.app.json` and its compatibility manifest remain. Both deletion paths still return the same 409. At that cleanup stage the active plugin remained v1.0.1 with its research skill intact; its current release is listed above. At the owner's explicit request, the full [support diagnostic](../../docs/livestocks-plugin-delete-support.txt) was sent through the OpenAI Help Center on 2026-11-13, with instructions to delete only the retired registration and preserve the active plugin. The support chat confirmed escalation to a support specialist and said replies would also arrive by email in the coming days. No case number was displayed; deletion is still pending.
 
-The endpoint inherits the existing application's anonymous **shared portfolio** access model, not a separate per-user portfolio. A private plugin does not protect the public API. No provider credentials are packaged or returned. Do not share this as a multi-user portfolio service.
+The 1.2.0 source requires Auth0 access tokens bound to the canonical MCP resource and approved client. Website sessions and widget credentials are not MCP credentials. Reads are scoped to the verified subject; RLS disallows MCP writes and checks the live connection cutoff. Provider credentials are not packaged or returned. The published legacy connection still uses its previous access model until a separately verified cutover; a private listing alone never protects an API.
 
-The snapshot's existing five-minute cache can serve older data during revalidation/outages. `generatedAt` is not quote time. Null prices/FX remain unavailable. Action validation blocks snapshots older than 15 minutes and checks recorded holdings and arithmetic only; ticker aliases, suitability and trade-price freshness require separate verification. Candidate quotes have a five-second per-symbol response deadline; existing shared provider work may finish later.
+Candidate snapshots have no shared personal-data cache. Fingerprints bind source data, policy, calculation day and owner; proposal eligibility is recomputed on validation. `generatedAt` is not quote time. Null prices/FX remain unavailable. Action validation blocks snapshots older than 15 minutes and checks recorded holdings and arithmetic only; ticker aliases, suitability and trade-price freshness require separate verification. Candidate quotes have a five-second per-symbol response deadline; provider work may finish later.
 
 Market news, historical prices and fundamentals come from the host's available research tools, not this server. Without sufficient current evidence, the skill withholds unsupported recommendations.
 
