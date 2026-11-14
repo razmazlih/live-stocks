@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { safeSignInReturnTo } from '@/lib/auth/return-to';
@@ -31,6 +32,11 @@ export function SignIn({ configured, error, verificationRequired, callbackFailed
           <p className="text-xs leading-5 text-slate-500">{he ? 'שכחת את הסיסמה? במסך ההתחברות ניתן לבחור באיפוס סיסמה.' : 'Forgot your password? Choose password reset on the sign-in screen.'}</p>
         </div> : <p role="status" className="rounded-xl bg-amber-500/10 p-4 text-sm leading-6">{he ? 'ההתחברות עדיין אינה מוגדרת בסביבה זו. יש להשלים את הגדרת Auth0 לפני שניתן לפתוח חשבון.' : 'Sign-in is not configured in this environment. Complete the Auth0 setup before creating an account.'}</p>}
         <p className="flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />{he ? 'ההתחברות ואיפוס הסיסמה מנוהלים באמצעות Auth0.' : 'Sign-in and password reset are managed by Auth0.'}</p>
+        <nav aria-label={he ? 'מידע על השירות' : 'Service information'} className="flex flex-wrap justify-center gap-5 text-xs text-slate-500">
+          <Link href={`/about?lang=${locale}`} className="underline underline-offset-4">{he ? 'אודות' : 'About'}</Link>
+          <Link href={`/privacy?lang=${locale}`} className="underline underline-offset-4">{he ? 'פרטיות' : 'Privacy'}</Link>
+          <Link href={`/terms?lang=${locale}`} className="underline underline-offset-4">{he ? 'תנאי שימוש' : 'Terms'}</Link>
+        </nav>
       </section>
     </main>
   );

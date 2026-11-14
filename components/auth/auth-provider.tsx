@@ -7,6 +7,7 @@ import { AppProvider } from '@/lib/context';
 import { configureSupabaseUser, resetSupabaseClient } from '@/lib/supabase';
 import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
 import { SignIn } from './sign-in';
+import { isPublicInformationPath } from '@/lib/public-routes';
 
 export type AccountUser = { id: string; email?: string; name?: string; emailVerified: boolean };
 type AccountSession = { user: AccountUser | null; configured: boolean };
@@ -14,6 +15,12 @@ const AuthContext = createContext<{ user: AccountUser; signOut: () => void } | n
 const ACCOUNT_EVENT = 'livestocks:account-change';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  if (isPublicInformationPath(pathname)) return <>{children}</>;
+  return <PrivateAuthProvider>{children}</PrivateAuthProvider>;
+}
+
+function PrivateAuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [session, setSession] = useState<AccountSession | null>(null);
   const [error, setError] = useState(false);
