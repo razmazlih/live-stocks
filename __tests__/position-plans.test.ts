@@ -201,7 +201,11 @@ describe('processPendingPlans', () => {
     expect(result.expired).toHaveLength(0);
   });
 
-  it('creates a new position when triggering an unattached plan', async () => {
+  it.each([
+    [null, 'https://financialmodelingprep.com/image-stock/NVDA.png'],
+    ['https://logo.clearbit.com/nvidia.com', 'https://financialmodelingprep.com/image-stock/NVDA.png'],
+    ['https://example.com/nvidia.png', 'https://example.com/nvidia.png'],
+  ])('creates a new position with a usable logo when triggering an unattached plan (%s)', async (imageUrl, expectedImageUrl) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-05-05T09:00:00Z'));
 
@@ -210,7 +214,7 @@ describe('processPendingPlans', () => {
       position_id: null,
       symbol: 'NVDA',
       display: 'NVIDIA',
-      image_url: null,
+      image_url: imageUrl,
       side: 'buy',
       target_price: '600',
       target_quantity: '2',
@@ -275,6 +279,7 @@ describe('processPendingPlans', () => {
     expect(positionInserts[0]).toMatchObject({
       symbol: 'NVDA',
       display: 'NVIDIA',
+      image_url: expectedImageUrl,
       entry_price: 590,
       quantity: 2,
       entry_date: '2024-05-05',

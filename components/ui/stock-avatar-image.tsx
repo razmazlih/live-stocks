@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { getStockLogoUrl, isRetiredStockLogoUrl } from '@/lib/stock-logo-sources';
 
 interface StockAvatarImageProps {
   symbol: string;
@@ -61,14 +62,11 @@ function writePreferredLogo(symbol: string, logoUrl: string): void {
 
 function buildLogoCandidates(symbol: string, imageUrl?: string | null, preferredLogoUrl?: string | null): string[] {
   const normalizedSymbol = normalizeSymbol(symbol);
-  const lowerSymbol = normalizedSymbol.toLowerCase();
 
   const candidates = [
     preferredLogoUrl?.trim() || '',
     imageUrl?.trim() || '',
-    `https://logo.clearbit.com/${lowerSymbol}.com`,
-    `https://logo.clearbit.com/${lowerSymbol}.io`,
-    `https://financialmodelingprep.com/image-stock/${normalizedSymbol}.png`,
+    getStockLogoUrl(normalizedSymbol),
     `https://assets.parqet.com/logos/symbol/${normalizedSymbol}`,
     `https://eodhd.com/img/logos/US/${normalizedSymbol}.png`,
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -84,8 +82,9 @@ export function StockAvatarImage({ symbol, display, imageUrl, className, plain =
   const [preferredLogoUrl, setPreferredLogoUrl] = useState<string | null>(null);
   const logoCandidates = useMemo(() => {
     const candidates = buildLogoCandidates(symbol, imageUrl, preferredLogoUrl).filter(candidate =>
-      !plain || candidate === imageUrl || (!candidate.startsWith('https://ui-avatars.com/') && !candidate.startsWith('https://logo.clearbit.com/')));
-    return [...new Set([sourceOverride?.trim(), ...candidates].filter((candidate): candidate is string => Boolean(candidate)))];
+      !plain || candidate === imageUrl?.trim() || !candidate.startsWith('https://ui-avatars.com/'));
+    return [...new Set([sourceOverride?.trim(), ...candidates].filter((candidate): candidate is string =>
+      typeof candidate === 'string' && candidate.length > 0 && !isRetiredStockLogoUrl(candidate)))];
   }, [imageUrl, preferredLogoUrl, symbol, plain, sourceOverride]);
   const [activeSrc, setActiveSrc] = useState<string | null>(null);
 
