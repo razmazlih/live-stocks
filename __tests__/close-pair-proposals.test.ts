@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildClosePairProposals } from '@/lib/close-pair-proposals';
+import { buildClosePairProposals as buildWithPolicy, getCloseProposalLegs } from '@/lib/close-pair-proposals';
 import { calculatePositionMetrics, calculateSymbolExceptionAssessment } from '@/lib/calculations';
 import type { Position, PositionLot } from '@/types';
+
+// Legacy accounting/ranking cases isolate those contracts from the new loss filters.
+const buildClosePairProposals: typeof buildWithPolicy = (metrics, limit, asOf, rate, originals, policy) =>
+  buildWithPolicy(metrics, limit, asOf, rate, originals,
+    { minHoldingDays: 0, minLossPercent: 0, minLossUsd: 0, maxLosers: 1, ...policy });
 
 const entryDate = '2026-01-01T00:00:00Z';
 const asOf = Date.parse('2026-11-10T00:00:00Z');
@@ -30,27 +35,18 @@ describe('non-overlapping full-close pairs', () => {
     expect(eligible.targetAsOf).toBe(yearEnd);
   });
 
-  it('can pair two actually profitable holdings when one is below the annual target', () => {
+  it('does not treat a profitable holding below target as an actual loser', () => {
     const yearEnd = Date.parse(entryDate) + 365.25 * 86_400_000;
-    const [pair] = buildClosePairProposals([metric('ABOVE', 115), metric('BELOW', 102)], 3, yearEnd, .05);
-    expect(pair.winner.position.symbol).toBe('ABOVE');
-    expect(pair.loser.position.symbol).toBe('BELOW');
-    expect(pair.loser.pnlUsd).toBe(20);
-    expect(pair.lossUsd).toBe(0);
-    expect(pair.netProfitUsd).toBe(170);
-    expect(pair.targetProfitUsd).toBeCloseTo(100);
-    expect(pair.surplusUsd).toBeCloseTo(70);
-    expect(pair.coveredShortfallUsd).toBeCloseTo(30);
-    expect(pair.excessProfitUsd).toBeCloseTo(100);
+    expect(buildClosePairProposals([metric('ABOVE', 115), metric('BELOW', 102)], 3, yearEnd, .05)).toEqual([]);
   });
 
-  it('prioritizes the larger target shortfall instead of larger actual loss', () => {
+  it('prioritizes the largest actual loss rather than target shortfall', () => {
     const yearEnd = Date.parse(entryDate) + 365.25 * 86_400_000;
     const [pair] = buildClosePairProposals([metric('ABOVE', 200),
       metric('ACTUALLOSS', 98, { entryDate: new Date(yearEnd - 86_400_000).toISOString() }),
       metric('TARGETSHORT', 102)], 1, yearEnd, .05);
-    expect(pair.loser.position.symbol).toBe('TARGETSHORT');
-    expect(pair.coveredShortfallUsd).toBeCloseTo(30);
+    expect(pair.loser.position.symbol).toBe('ACTUALLOSS');
+    expect(pair.lossUsd).toBe(20);
   });
 
   it('compounds open FIFO targets and freezes sold-share targets at each sale', () => {
@@ -289,5 +285,109 @@ describe('complete original history supplied by the portfolio', () => {
       [metrics[0].position, reopen('CAPR'), reopen('CAPR')]]) {
       expect(buildClosePairProposals(metrics, 3, asOf, 0, positions)).toEqual([]);
     }
+  });
+});
+
+describe('material loss groups with default protection policy', () => {
+  it('closes one winner with up to three losing stocks and sums every leg', () => {
+    const metrics = [metric('WIN', 200), metric('LARGE', 80), metric('MID', 85), metric('SMALL', 90), metric('FOURTH', 95)];
+    const proposals = buildWithPolicy(metrics, 3, asOf, 0);
+    expect(proposals).toHaveLength(1);
+    const [proposal] = proposals;
+    expect(getCloseProposalLegs(proposal).map(leg => leg.position.symbol)).toEqual(['WIN', 'LARGE', 'MID', 'SMALL']);
+    expect(proposal).toMatchObject({ lossUsd: 450, netProfitUsd: 550, proceedsUsd: 4550, searchTruncated: false });
+    expect(proposal.loser).toBe(proposal.losers![0]);
+  });
+
+  it('requires both minimum open dollar loss and minimum open loss percentage', () => {
+    const winner = metric('WIN', 200);
+    for (const loser of [metric('TINYUSD', 90, { quantity: 1 }), metric('TINYPCT', 99, { quantity: 100 })]) {
+      expect(buildWithPolicy([winner, loser], 3, asOf, 0)).toEqual([]);
+    }
+    const [boundary] = buildWithPolicy([winner, metric('BOUNDARY', 95)], 3, asOf, 0);
+    expect(boundary.loser.lossPercent).toBe(5);
+    expect(boundary.lossUsd).toBe(50);
+  });
+
+  it('protects recent purchases except for a severe actual loss', () => {
+    const recent = { entryDate: new Date(asOf - 10 * 86_400_000).toISOString() };
+    expect(buildWithPolicy([metric('WIN', 200), metric('RECENT', 90, recent)], 3, asOf, 0)).toEqual([]);
+    const [severe] = buildWithPolicy([metric('WIN', 200), metric('RECENT', 85, recent)], 3, asOf, 0);
+    expect(severe.loser.weightedHoldingDays).toBe(10);
+    expect(severe.loser.lossPercent).toBe(15);
+    const oldEnough = { entryDate: new Date(asOf - 30 * 86_400_000).toISOString() };
+    expect(buildWithPolicy([metric('WIN', 200), metric('AGED', 90, oldEnough)], 3, asOf, 0)).toHaveLength(1);
+  });
+
+  it('uses remaining cost-weighted age so a small recent addition does not reset a seasoned holding', () => {
+    const ageDate = (days: number) => new Date(asOf - days * 86_400_000).toISOString();
+    const loser = metric('MIXED', 90, { lots: [
+      lot({ quantity: 9, executedAt: ageDate(100), hasCommission: false }),
+      lot({ quantity: 1, executedAt: ageDate(1), hasCommission: false }),
+    ] });
+    const [proposal] = buildWithPolicy([metric('WIN', 200), loser], 3, asOf, 0);
+    expect(proposal.loser.weightedHoldingDays).toBeCloseTo(90.1);
+    const recentHeavy = metric('MIXED', 90, { lots: [
+      lot({ quantity: 1, executedAt: ageDate(100), hasCommission: false }),
+      lot({ quantity: 9, executedAt: ageDate(1), hasCommission: false }),
+    ] });
+    expect(buildWithPolicy([metric('WIN', 200), recentHeavy], 3, asOf, 0)).toEqual([]);
+  });
+
+  it('does not use an old closed cycle to age a newly reopened loss', () => {
+    const source = metric('REOPEN', 90, { lots: [
+      lot({ hasCommission: false }),
+      lot({ type: 'SELL', price: 90, hasCommission: false, executedAt: '2026-02-01T00:00:00Z' }),
+      lot({ hasCommission: false, executedAt: new Date(asOf - 86_400_000).toISOString() }),
+    ] });
+    expect(buildWithPolicy([metric('WIN', 200), source], 3, asOf, 0)).toEqual([]);
+  });
+
+  it('requires winner and losers to have matching cumulative and open profit signs', () => {
+    const history = (symbol: string, soldPrice: number, currentPrice: number) => metric(symbol, currentPrice, { lots: [
+      lot({ hasCommission: false }),
+      lot({ type: 'SELL', price: soldPrice, hasCommission: false, executedAt: '2026-02-01T00:00:00Z' }),
+      lot({ hasCommission: false, executedAt: '2026-03-01T00:00:00Z' }),
+    ] });
+    expect(buildWithPolicy([history('FALSEWIN', 200, 90), metric('LOSS', 90)], 3, asOf, 0)).toEqual([]);
+    expect(buildWithPolicy([metric('WIN', 200), history('FALSELOSS', 50, 110)], 3, asOf, 0)).toEqual([]);
+    expect(buildWithPolicy([metric('WIN', 200), history('OPENLOSS', 200, 90)], 3, asOf, 0)).toEqual([]);
+  });
+
+  it('requires the complete group to cover all historical targets and remain profitable', () => {
+    const [proposal] = buildWithPolicy([metric('WIN', 135), metric('LARGE', 80), metric('SMALL', 90)], 3, asOf, .05);
+    expect(proposal.losers).toHaveLength(1);
+    expect(proposal.loser.position.symbol).toBe('LARGE');
+    expect(proposal.surplusUsd).toBeGreaterThan(0);
+  });
+
+  it('prioritizes the largest individual cumulative loss ahead of more smaller losses', () => {
+    const metrics = [metric('WIN', 126), metric('LARGE', 75), metric('MID', 85), metric('SMALL', 90)];
+    const [proposal] = buildWithPolicy(metrics, 1, asOf, 0);
+    expect(proposal.losers!.map(leg => leg.position.symbol)).toEqual(['LARGE']);
+  });
+
+  it('honors configurable filters and group sizes, rejects unsafe or invalid policy bounds', () => {
+    const metrics = [metric('WIN', 200), metric('LARGE', 80), metric('SMALL', 90)];
+    expect(buildWithPolicy(metrics, 3, asOf, 0, undefined, { maxLosers: 1 })[0].losers).toHaveLength(1);
+    expect(buildWithPolicy([metric('WIN', 200), metric('TINY', 98)], 3, asOf, 0)).toEqual([]);
+    expect(buildWithPolicy([metric('WIN', 200), metric('TINY', 98)], 3, asOf, 0, undefined,
+      { minLossUsd: 10, minLossPercent: 1 })).toHaveLength(1);
+    for (const policy of [{ maxLosers: 4 }, { maxCandidateLosers: 51 }, { minHoldingDays: -1 },
+      { maxLosers: 1.5 }, { minLossUsd: NaN }, { severeLossPercent: 1 }]) {
+      expect(buildWithPolicy(metrics, 3, asOf, 0, undefined, policy)).toEqual([]);
+    }
+  });
+
+  it('caps candidate search deterministically and discloses truncation without reusing symbols', () => {
+    const metrics = [metric('WA', 200), metric('WB', 200), metric('L1', 80), metric('L2', 85), metric('L3', 90)];
+    const build = (items: typeof metrics) => buildWithPolicy(items, 3, asOf, 0, undefined, { maxCandidateLosers: 2, maxLosers: 1 });
+    const proposals = build(metrics);
+    expect(proposals).toHaveLength(2);
+    expect(proposals.every(proposal => proposal.searchTruncated)).toBe(true);
+    expect(proposals.map(proposal => getCloseProposalLegs(proposal).map(leg => leg.position.symbol)))
+      .toEqual(build([...metrics].reverse()).map(proposal => getCloseProposalLegs(proposal).map(leg => leg.position.symbol)));
+    const symbols = proposals.flatMap(getCloseProposalLegs).map(leg => leg.position.symbol);
+    expect(new Set(symbols).size).toBe(symbols.length);
   });
 });

@@ -28,7 +28,7 @@ describe('portfolio AI server cache', () => {
     vi.advanceTimersByTime(1);
     expect(await read()).not.toEqual(first);
     expect(load).toHaveBeenCalledTimes(2);
-    expect(mocks.cache).toHaveBeenCalledWith(expect.any(Function), ['portfolio-ai-snapshot-v1'], { revalidate: 300 });
+    expect(mocks.cache).toHaveBeenCalledWith(expect.any(Function), ['portfolio-ai-snapshot-v2'], { revalidate: 300 });
   });
 
   it('coalesces concurrent cold reads and concurrent background refreshes', async () => {

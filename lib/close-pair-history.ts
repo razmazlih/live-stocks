@@ -1,6 +1,6 @@
 import { buildHoldingPerformanceHistory } from '@/lib/holding-chart-history';
 import { computeOpenLots } from '@/lib/positions';
-import type { ClosePairLeg, ClosePairProposal } from '@/lib/close-pair-proposals';
+import { getCloseProposalLegs, type ClosePairLeg, type ClosePairProposal } from '@/lib/close-pair-proposals';
 import type { HistoricalPoint } from '@/types';
 
 const DAY_MS = 86_400_000;
@@ -29,9 +29,9 @@ function pricesByDay(history: HistoricalPoint[], startDay: number, asOf: number)
 }
 
 /**
- * With authoritative historicalPositions on both legs, actual cumulative
+ * With authoritative historicalPositions on every leg, actual cumulative
  * realized + unrealized USD P/L minus accrued target is rebuilt at every shared
- * available daily close. Dates are the union of both price histories: a missing
+ * available daily close. Dates are the union of all price histories: a missing
  * quote is allowed only for a symbol with no open exposure, while its realized
  * result and frozen target remain included. Each account retains its own FIFO matching. Targets on sold lots
  * stop at sale time; today's state is capped at asOf, including transactions.
@@ -44,8 +44,8 @@ function pricesByDay(history: HistoricalPoint[], startDay: number, asOf: number)
  * breaking even. The same 365.25-day compound model is used for current ideas.
  * This is not actual historical portfolio P/L: quantities/costs stay fixed and
  * realized sales, taxes and future exit fees are excluded. Begin on the UTC day
- * of the latest buy still represented in either remaining holding. Only days
- * observed in both input series are returned, at UTC midnight, using each day's
+ * of the latest buy still represented in any remaining holding. Only days
+ * observed in every input series are returned, at UTC midnight, using each day's
  * latest valid positive price no later than asOf. Never fill missing days or
  * append a synthetic current quote. Input arrays and proposals remain unchanged.
  */
@@ -54,8 +54,11 @@ export function buildClosePairHistory(
   winnerHistory: HistoricalPoint[],
   loserHistory: HistoricalPoint[],
   asOf = proposal.targetAsOf,
+  histories: Record<string, HistoricalPoint[]> = {},
 ): HistoricalPoint[] {
-  const legs = [proposal.winner, proposal.loser];
+  const legs = getCloseProposalLegs(proposal);
+  const historyFor = (leg: ClosePairLeg, index: number) => histories[leg.position.symbol.trim().toUpperCase()]
+    ?? (index === 0 ? winnerHistory : index === 1 ? loserHistory : []);
   if (!Number.isFinite(asOf) || !Number.isFinite(proposal.annualGrowthRate) ||
       proposal.annualGrowthRate <= -1 || legs.some(leg =>
     !Number.isFinite(leg.quantity) || leg.quantity <= 0 ||
@@ -64,9 +67,8 @@ export function buildClosePairHistory(
     // Full source records are authoritative: never fall back to an activation
     // with a missing prior loss when either leg has incomplete source history.
     if (legs.some((leg) => !leg.historicalPositions?.length)) return [];
-    const winnerPrices = pricesByDay(winnerHistory, Number.NEGATIVE_INFINITY, asOf);
-    const loserPrices = pricesByDay(loserHistory, Number.NEGATIVE_INFINITY, asOf);
-    const days = [...new Set([...winnerPrices.keys(), ...loserPrices.keys()])].sort((a, b) => a - b);
+    const priceMaps = legs.map((leg, index) => pricesByDay(historyFor(leg, index), Number.NEGATIVE_INFINITY, asOf));
+    const days = [...new Set(priceMaps.flatMap(prices => [...prices.keys()]))].sort((a, b) => a - b);
     const firstActivityFor = (leg: ClosePairLeg) => Math.min(...leg.historicalPositions!.flatMap((position) => position.lots?.length
       ? position.lots.map((lot) => Date.parse(lot.executedAt)) : [Date.parse(position.entryDate)]));
     const firstPairActivity = Math.min(...legs.map(firstActivityFor));
@@ -90,33 +92,30 @@ export function buildClosePairHistory(
         Math.min(point.timestamp + DAY_MS - 1, asOf) < firstActivity
           ? { ...point, actual: 0, target: 0 } : point]));
     };
-    const winnerPerformance = performanceFor(proposal.winner, winnerPrices);
-    const loserPerformance = performanceFor(proposal.loser, loserPrices);
+    const performances = legs.map((leg, index) => performanceFor(leg, priceMaps[index]));
     return days.flatMap((timestamp) => {
       if (Math.min(timestamp + DAY_MS - 1, asOf) < firstPairActivity) return [];
-      const winner = winnerPerformance.get(timestamp);
-      const loser = loserPerformance.get(timestamp);
-      if (!winner || !loser || winner.actual === null || winner.target === null || loser.actual === null || loser.target === null) return [];
-      const close = winner.actual + loser.actual - winner.target - loser.target;
+      const values = performances.map(performance => performance.get(timestamp));
+      if (values.some(value => !value || value.actual === null || value.target === null)) return [];
+      const close = values.reduce((sum, value) => sum + value!.actual! - value!.target!, 0);
       return Number.isFinite(close) ? [{ timestamp, close }] : [];
     });
   }
   const latestBuy = Math.max(...legs.map(latestRemainingBuy));
   if (!Number.isFinite(latestBuy) || latestBuy > asOf) return [];
   const startDay = utcDay(latestBuy);
-  const winnerPrices = pricesByDay(winnerHistory, startDay, asOf);
-  const loserPrices = pricesByDay(loserHistory, startDay, asOf);
-  const cost = proposal.winner.costBasisUsd + proposal.loser.costBasisUsd;
-  return [...winnerPrices.entries()].sort(([a], [b]) => a - b).flatMap(([timestamp, winner]) => {
-    const loser = loserPrices.get(timestamp);
-    if (!loser) return [];
+  const priceMaps = legs.map((leg, index) => pricesByDay(historyFor(leg, index), startDay, asOf));
+  const cost = legs.reduce((sum, leg) => sum + leg.costBasisUsd, 0);
+  return [...priceMaps[0].keys()].sort((a, b) => a - b).flatMap((timestamp) => {
+    const prices = priceMaps.map(prices => prices.get(timestamp));
+    if (prices.some(price => !price)) return [];
     const targetAsOf = Math.min(timestamp + DAY_MS - 1, asOf);
     const targetProfit = legs.reduce((sum, leg) => {
       const lots = leg.position.lots?.length ? computeOpenLots(leg.position.lots) : [{ totalCost: leg.costBasisUsd, executedAt: leg.position.entryDate }];
       return sum + lots.reduce((total, lot) => total + lot.totalCost * (Math.pow(1 + proposal.annualGrowthRate,
         Math.max(targetAsOf - Date.parse(lot.executedAt), 0) / (365.25 * DAY_MS)) - 1), 0);
     }, 0);
-    const close = proposal.winner.quantity * winner.close + proposal.loser.quantity * loser.close - cost - targetProfit;
+    const close = legs.reduce((sum, leg, index) => sum + leg.quantity * prices[index]!.close, 0) - cost - targetProfit;
     return Number.isFinite(close) ? [{ timestamp, close }] : [];
   });
 }

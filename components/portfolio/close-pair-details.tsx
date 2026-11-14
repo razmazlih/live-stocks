@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { buildStockHref } from '@/lib/navigation-context';
-import type { ClosePairProposal } from '@/lib/close-pair-proposals';
+import { getCloseProposalLegs, type ClosePairProposal } from '@/lib/close-pair-proposals';
 import { StockLogo } from '@/components/ui/stock-logo';
 import styles from './close-pair-details.module.css';
 
@@ -37,7 +37,7 @@ export function ClosePairDetails({ proposal, locale }: { proposal: ClosePairProp
     </div>
 
     <ul className={styles.contributions} aria-label={he ? 'התרומה של כל מניה' : 'Each stock’s contribution'}>
-      {[proposal.winner, proposal.loser].map(leg => {
+      {getCloseProposalLegs(proposal).map(leg => {
         const above = leg.surplusUsd >= 0;
         return <li key={leg.position.symbol} className={`${styles.stock} ${above ? styles.above : styles.below}`}>
           <div className="flex items-start justify-between gap-3">

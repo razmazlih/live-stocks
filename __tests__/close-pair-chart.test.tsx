@@ -11,10 +11,22 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
   id: symbol, activationId: `active-${symbol}`, symbol, display: symbol, imageUrl: '', entryPrice: 100,
   quantity: 2, entryDate: '2026-01-01', location: 'bank_one',
 } satisfies Position, price, 3.5);
-const [proposal] = buildClosePairProposals([metric('WIN', 130), metric('LOSS', 80)], 3, Date.now(), 0);
+const [proposal] = buildClosePairProposals([metric('WIN', 130), metric('LOSS', 80)], 3, Date.now(), 0, undefined, { minLossUsd: 0 });
 const history = (prices: number[]): HistoricalPoint[] => prices.map((close, index) => ({timestamp: Date.UTC(2026, 9, index + 1), close}));
 
 describe('combined pair chart', () => {
+  it('includes every losing holding in the chart and requires each exposed history', () => {
+    const [group] = buildClosePairProposals([metric('WIN', 160), metric('LOSS', 80), metric('MORE', 80)], 3, Date.now(), 0, undefined, { minLossUsd: 0 });
+    const sparklineData = {'active-WIN': history([140, 150]), 'active-LOSS': history([80, 90]), 'active-MORE': history([90, 80])};
+    const { rerender } = render(<ClosePairChart proposal={group} locale="en" sparklineData={sparklineData} />);
+    expect(screen.getByRole('img')).toHaveAccessibleName(/WIN and LOSS and MORE/);
+    expect(capture).toHaveBeenLastCalledWith(expect.objectContaining({points: [
+      {timestamp: Date.UTC(2026, 9, 1), close: 20}, {timestamp: Date.UTC(2026, 9, 2), close: 40},
+    ]}));
+    rerender(<ClosePairChart proposal={group} locale="en" sparklineData={{'active-WIN': sparklineData['active-WIN'], 'active-LOSS': sparklineData['active-LOSS']}} />);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('uses activation histories, shows the combined dollar result and a zero baseline', () => {
     render(<ClosePairChart proposal={proposal} locale="en" sparklineData={{'active-WIN': history([90, 120]), 'active-LOSS': history([95, 90])}} />);
     expect(screen.getByRole('img')).toHaveAccessibleName(/Combined target surplus for WIN and LOSS.*latest \$20.00/);

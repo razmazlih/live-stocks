@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildCloseProposalSnapshot } from '@/lib/close-proposal-snapshot';
+import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
 const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn() }));
@@ -60,12 +62,12 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
-  it('negotiates initialization, discovery and four exclusively read-only tools', async () => {
+  it('negotiates initialization, discovery and six exclusively read-only tools', async () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(4);
+    expect(listed.result.tools).toHaveLength(6);
     expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
     expect((await (await POST(request('server/discover'))).json()).result.supportedVersions).toContain('2026-07-28');
     expect((await GET()).status).toBe(405);
@@ -76,6 +78,31 @@ describe('read-only MCP transport and tools', () => {
     expect(data.holdings).toHaveLength(3);
     expect(data.plans).toEqual([{ symbol: 'NEW' }]);
     expect(result.isError).toBe(false);
+  });
+  it('returns explicit unavailable close proposals from an older cached schema and rejects invented groups without a budget', async () => {
+    const data = JSON.parse((await call('get_close_pair_proposals')).content[0].text);
+    expect(data.availability).toBe('unavailable');
+    const validation = JSON.parse((await call('validate_close_proposal', { snapshotId: '0'.repeat(64), proposalId: '1'.repeat(64) })).content[0].text);
+    expect(validation.valid).toBe(false);
+    expect((await call('validate_close_proposal', { snapshotId: '0'.repeat(64), proposalId: '1'.repeat(64), budgetUsd: 0 })).isError).toBe(true);
+  });
+  it('serves exact pair/group modes and validates only server-owned complete groups', async () => {
+    const asOf = Date.now();
+    const positions = [{ symbol: 'WIN', quantity: 10 }, { symbol: 'LOSS', quantity: 10 }].map(position => ({ ...position, entryPrice: 100, entryDate: new Date(asOf - 60 * 86400000).toISOString(), location: 'bank_one', display: position.symbol, imageUrl: '' })) as Position[];
+    const quotes = { WIN: { priceUsd: 150, marketTimestamp: new Date(asOf).toISOString(), source: 'test', status: 'last_available' }, LOSS: { priceUsd: 90, marketTimestamp: new Date(asOf).toISOString(), source: 'test', status: 'last_available' } };
+    const metrics = positions.map(position => ({ position, currentPrice: quotes[position.symbol as keyof typeof quotes].priceUsd })) as PositionMetrics[];
+    const input = { positions, metrics, quotes, annualGrowthRate: 0.05, asOf };
+    const grouped = buildCloseProposalSnapshot(input);
+    const paired = buildCloseProposalSnapshot({ ...input, maxLosers: 1 });
+    mocks.snapshot.mockImplementation(async () => Response.json({ schemaVersion: 1, generatedAt: new Date(asOf).toISOString(), holdings: positions.map(position => ({ position })), closePairProposals: grouped, closePairOnlyProposals: paired }));
+    const data = JSON.parse((await call('get_close_pair_proposals', { maxLosers: 1 })).content[0].text);
+    expect(data.snapshotId).toBe(paired.snapshotId);
+    expect(data.snapshotId).not.toBe(grouped.snapshotId);
+    expect(data.policy.maxLosers).toBe(1);
+    const args = { snapshotId: paired.snapshotId, proposalId: paired.proposals[0].proposalId };
+    expect(JSON.parse((await call('validate_close_proposal', args)).content[0].text).valid).toBe(true);
+    expect((await call('get_close_pair_proposals', { maxLosers: 2 })).isError).toBe(true);
+    expect(JSON.parse((await call('validate_close_proposal', { ...args, snapshotId: grouped.snapshotId })).content[0].text).valid).toBe(false);
   });
   it('validates against server-loaded holdings and not input from the caller', async () => {
     const result = await call('validate_action_plan', { budgetUsd: 100, actions: [action('ABC', 'SELL', 2)] });

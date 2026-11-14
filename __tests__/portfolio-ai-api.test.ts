@@ -32,6 +32,10 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.goals.symbolTargets[0].requiredExitPrice).toBeGreaterThan(100);
     expect(data.plans[0]).toMatchObject({ symbol: 'XYZ', targetQuantity: 3, status: 'pending' });
     expect(data.positions[0].lots).toHaveLength(1);
+    expect(data.closePairProposals.policy.maxLosers).toBe(3);
+    expect(data.closePairOnlyProposals.policy.maxLosers).toBe(1);
+    expect(data.closePairProposals.snapshotId).not.toBe(data.closePairOnlyProposals.snapshotId);
+    expect(data.closePairProposals.availability).toBe('complete');
     expect(data.quotes.ABC.marketTimestamp).toBeTruthy();
     expect(JSON.stringify(data)).not.toContain('secret-do-not-export');
   });
@@ -58,6 +62,8 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.currencies.usdToIls).toBeNull();
     expect(data.realized.totals.profitIls).toBeNull();
     expect(data.dataQuality.completeMarketValuation).toBe(false);
+    expect(data.closePairProposals.availability).toBe('partial');
+    expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'missing_or_invalid_quote' });
   });
   it('keeps USD valuation but omits historical ILS calculations when FX history is missing', async () => {
     const data = await (await GET()).json();
@@ -86,6 +92,7 @@ describe('GET portfolio AI snapshot', () => {
     rows.settings = [];
     const data = await (await GET()).json();
     expect(data.goals.annualGrowthRate).toBeNull();
+    expect(data.closePairProposals.availability).toBe('unavailable');
     expect(data.goals.symbolTargets).toBeNull();
     expect(data.summary.totalProjectedPnLUsd).toBeNull();
     expect(data.realized.totals.expectedProfitUsd).toBeNull();

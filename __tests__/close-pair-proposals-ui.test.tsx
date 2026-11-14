@@ -7,6 +7,12 @@ import { calculatePositionMetrics } from '@/lib/calculations';
 import type { Position } from '@/types';
 
 const context = vi.hoisted(() => ({ locale: 'en', settings: {annualGrowthRate: 0} }));
+const fixturePolicy = vi.hoisted(() => ({ minLossUsd: 0, maxLosers: 1 }));
+// Keep the small accounting fixtures; engine policy thresholds are tested separately.
+vi.mock('@/lib/close-pair-proposals', async importOriginal => {
+  const original = await importOriginal<typeof import('@/lib/close-pair-proposals')>();
+  return { ...original, buildClosePairProposals: (...args: Parameters<typeof original.buildClosePairProposals>) => original.buildClosePairProposals(args[0], args[1], args[2], args[3], args[4], { ...args[5], ...fixturePolicy }) };
+});
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/context', () => ({ useApp: () => context }));
 const metric = (symbol: string, price: number) => calculatePositionMetrics({
@@ -15,11 +21,30 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
 } satisfies Position, price, 3.5);
 
 describe('close pair disclosure', () => {
-  beforeEach(() => { context.settings.annualGrowthRate = 0; });
+  it('shows every ticker and every full quantity in a multi-loser group', async () => {
+    context.locale = 'en';
+    fixturePolicy.maxLosers = 3;
+    const user = userEvent.setup();
+    render(<ClosePairProposals metrics={[metric('WIN', 160), metric('LOSS', 80), metric('MORE', 80)]} />);
+    const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS \+ MORE details/ });
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    await user.click(toggle);
+    expect(screen.getAllByText('All 2 shares')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: /^MORE/ })).toBeVisible();
+    expect(screen.getByText('+$40.00')).toBeInTheDocument();
+    const selector = screen.getByRole('combobox', { name: 'Losing stocks per proposal' });
+    expect(selector).toHaveValue('3');
+    fixturePolicy.maxLosers = 1;
+    await user.selectOptions(selector, '1');
+    expect(screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Expand WIN \+ LOSS \+ MORE details/ })).not.toBeInTheDocument();
+  });
+
+  beforeEach(() => { context.settings.annualGrowthRate = 0; fixturePolicy.maxLosers = 1; });
   it('always shows the ideas and count without a collapsible section', () => {
     context.locale = 'en';
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    expect(screen.getByRole('heading', { name: 'Two-position exit ideas' }).closest('details')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Full-position exit ideas' }).closest('details')).toBeNull();
     expect(screen.getByLabelText('Idea count')).toHaveTextContent('1');
     expect(screen.getByRole('button', {name: 'Copy prompt for AI review'})).toBeVisible();
     expect(screen.getByTestId('close-pair-preview')).toBeVisible();
@@ -60,8 +85,9 @@ describe('close pair disclosure', () => {
     const cme: Position = { ...metric('CME', 316.9).position, quantity: 5, entryPrice: 261.07, entryDate: '2026-08-05' };
     const caprOpenSlice = { ...capr, lots: [{ ...capr.lots![0], quantity: 22 }] };
     const metrics = [calculatePositionMetrics(cme, 316.9, 3.5), calculatePositionMetrics(caprOpenSlice, 10, 3.5)];
-    const { container } = render(<ClosePairProposals metrics={metrics} positions={[cme, capr]} />);
-    expect(container).toBeEmptyDOMElement();
+    render(<ClosePairProposals metrics={metrics} positions={[cme, capr]} />);
+    expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
 
   it('explains and exports realized plus unrealized results without adding old proceeds to new cash', async () => {
@@ -90,9 +116,14 @@ describe('close pair disclosure', () => {
     expect(snapshot.pairs[0].legs[1]).toMatchObject({realizedProfitUsd: -30, unrealizedProfitUsd: -20, cumulativeProfitUsd: -50});
   });
 
-  it('leaves no extra surface when there is no profitable pair', () => {
-    const { container } = render(<ClosePairProposals metrics={[metric('WIN', 110), metric('LOSS', 80)]} />);
-    expect(container).toBeEmptyDOMElement();
+  it('explains the filters when there is no profitable group', () => {
+    context.locale = 'en';
+    render(<ClosePairProposals metrics={[metric('WIN', 110), metric('LOSS', 80)]} />);
+    expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
+    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('at least 5% and $50');
+    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('up to 24 eligible stocks');
+    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('does not guarantee the best combination');
+    expect(screen.queryByRole('button', { name: 'Copy prompt for AI review' })).not.toBeInTheDocument();
   });
 
   it('shows Hebrew full-close wording and an explicit dollar calculation', async () => {
@@ -171,7 +202,8 @@ describe('close pair disclosure', () => {
     expect(screen.getByText('Target to date')).toBeInTheDocument();
     context.settings.annualGrowthRate = 100;
     rerender(<ClosePairProposals metrics={positions} />);
-    expect(screen.queryByRole('region', { name: 'Two-position exit ideas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
   });
 
 });

@@ -8,6 +8,7 @@ import { fetchExchangeRateResponse, extractExchangeRate } from '@/lib/services/e
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
 import { buildUsdIlsRateResolver, normalizeToUtcDay } from '@/lib/services/historical-fx';
 import type { HistoricalPoint } from '@/types';
+import { buildCloseProposalSnapshot } from '@/lib/close-proposal-snapshot';
 
 export const revalidate = 0;
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -94,6 +95,10 @@ async function buildSnapshot() {
     if (!assessment) return null;
     return { ...assessment, positions: undefined };
   }).filter(t => t !== null);
+  const calculationAsOf = Date.now();
+  const quoteObservations = Object.fromEntries(quoteEntries.map(([symbol, quote]) => [symbol, { priceUsd: quote?.price ?? null, dailyChangePerShareUsd: quote?.dailyChange ?? null, marketTimestamp: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null, source: 'Finnhub', status: quote ? 'last_available' : 'unavailable' }]));
+  const closePairProposals = buildCloseProposalSnapshot({ positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
+  const closePairOnlyProposals = buildCloseProposalSnapshot({ positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
   // Never expose settings tokens. Convert non-finite/missing values to explicit nulls.
   const payload = {
     schemaVersion: 1, startedAt, generatedAt: new Date().toISOString(),
@@ -102,9 +107,9 @@ async function buildSnapshot() {
     dataQuality: { completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
     goals: { annualGrowthRate, annualGrowthRatePercent: annualGrowthRate === null ? null : annualGrowthRate * 100, meaning: 'User annual compound return target, evaluated as of today; not a price forecast or guaranteed return. currentGapUsd is positive for a shortfall and negative for a surplus.', symbolTargets: targets },
     summary: summary ? { ...summary, ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
-    holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
+    closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
     realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: tax.taxUsd, estimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
-    quotes: Object.fromEntries(quoteEntries.map(([symbol, quote]) => [symbol, { priceUsd: quote?.price ?? null, dailyChangePerShareUsd: quote?.dailyChange ?? null, marketTimestamp: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null, source: 'Finnhub', status: quote ? 'last_available' : 'unavailable' }])),
+    quotes: quoteObservations,
     limitations: [
       'Read-only snapshot; reading this API does not execute or update pending plans.',
       'Database tables are read separately, not as an atomic transaction.',
