@@ -1,0 +1,187 @@
+{
+  "projectRef": "qdcvlhghabchxstoedzq",
+  "completedAt": "2026-11-14T13:23:42.912376+00:00",
+  "status": "PASS_HOSTED_GATEWAY_AND_ISOLATED_FIXTURE_RLS",
+  "authorizationCases": 22,
+  "cleanupCases": 4,
+  "existingPortfolioTablesRead": false,
+  "existingPortfolioTablesModified": false,
+  "productionMigrated": false,
+  "cleanupVerification": {
+    "gateTableRemoved": true,
+    "gateSchemaRemoved": true,
+    "originalPublicTableNamesUnchanged": true
+  },
+  "scope": "Real Auth0 website A/B and MCP A JWTs through the hosted Supabase gateway into a uniquely named synthetic fixture table with owner and capability RLS.",
+  "limitations": [
+    "Does not prove the full hosted financial-schema migration or legacy-owner backfill.",
+    "Does not prove the website session/API flow, real ChatGPT host authorization, physical iPhone behavior, or production backup/restore.",
+    "The separate provider exchange_wrong_resource case remains FAIL; this gate does not override its narrow user acceptance."
+  ],
+  "phases": [
+    {
+      "projectRef": "qdcvlhghabchxstoedzq",
+      "generatedAt": "2026-11-14T13:21:00.123Z",
+      "phase": "run",
+      "status": "PASS",
+      "scope": "HOSTED_GATEWAY_AND_ISOLATED_FIXTURE_RLS",
+      "cases": [
+        {
+          "name": "website_a_insert",
+          "status": "PASS",
+          "httpStatus": 201
+        },
+        {
+          "name": "website_b_insert",
+          "status": "PASS",
+          "httpStatus": 201
+        },
+        {
+          "name": "website_a_reads_only_a",
+          "status": "PASS"
+        },
+        {
+          "name": "website_b_reads_only_b",
+          "status": "PASS"
+        },
+        {
+          "name": "mcp_reads_only_its_owner",
+          "status": "PASS"
+        },
+        {
+          "name": "website_cross_owner_insert_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "website_cross_owner_update_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "website_cross_owner_delete_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "website_owner_reassignment_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "mcp_insert_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "mcp_update_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "mcp_delete_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "anonymous_denied",
+          "status": "PASS",
+          "httpStatus": 401
+        },
+        {
+          "name": "tampered_jwt_denied",
+          "status": "PASS",
+          "httpStatus": 401
+        },
+        {
+          "name": "website_a_can_update_own_row",
+          "status": "PASS"
+        },
+        {
+          "name": "denied_writes_preserved_b",
+          "status": "PASS"
+        }
+      ],
+      "limitations": [
+        "No existing portfolio tables or production data are migrated or tested.",
+        "Does not prove ChatGPT host authorization, physical iPhone behavior, or production restore safety.",
+        "Does not change the recorded Auth0 exchange_wrong_resource provider failure or its narrowly scoped acceptance."
+      ]
+    },
+    {
+      "projectRef": "qdcvlhghabchxstoedzq",
+      "generatedAt": "2026-11-14T13:21:24.402Z",
+      "phase": "revoked",
+      "status": "PASS",
+      "scope": "HOSTED_GATEWAY_AND_ISOLATED_FIXTURE_RLS",
+      "cases": [
+        {
+          "name": "disabled_mcp_direct_rest_denied",
+          "status": "PASS"
+        },
+        {
+          "name": "website_a_unaffected",
+          "status": "PASS"
+        },
+        {
+          "name": "website_b_unaffected",
+          "status": "PASS"
+        }
+      ],
+      "limitations": [
+        "No existing portfolio tables or production data are migrated or tested.",
+        "Does not prove ChatGPT host authorization, physical iPhone behavior, or production restore safety.",
+        "Does not change the recorded Auth0 exchange_wrong_resource provider failure or its narrowly scoped acceptance."
+      ]
+    },
+    {
+      "projectRef": "qdcvlhghabchxstoedzq",
+      "generatedAt": "2026-11-14T13:21:41.818Z",
+      "phase": "cutoff",
+      "status": "PASS",
+      "scope": "HOSTED_GATEWAY_AND_ISOLATED_FIXTURE_RLS",
+      "cases": [
+        {
+          "name": "old_mcp_jwt_denied_after_reenable",
+          "status": "PASS"
+        },
+        {
+          "name": "website_a_unaffected",
+          "status": "PASS"
+        },
+        {
+          "name": "website_b_unaffected",
+          "status": "PASS"
+        }
+      ],
+      "limitations": [
+        "No existing portfolio tables or production data are migrated or tested.",
+        "Does not prove ChatGPT host authorization, physical iPhone behavior, or production restore safety.",
+        "Does not change the recorded Auth0 exchange_wrong_resource provider failure or its narrowly scoped acceptance."
+      ]
+    },
+    {
+      "projectRef": "qdcvlhghabchxstoedzq",
+      "generatedAt": "2026-11-14T13:21:53.927Z",
+      "phase": "cleanup",
+      "status": "PASS",
+      "scope": "HOSTED_GATEWAY_AND_ISOLATED_FIXTURE_RLS",
+      "cases": [
+        {
+          "name": "remove_only_a_fixture",
+          "status": "PASS"
+        },
+        {
+          "name": "remove_only_b_fixture",
+          "status": "PASS"
+        },
+        {
+          "name": "owner_a_empty",
+          "status": "PASS"
+        },
+        {
+          "name": "owner_b_empty",
+          "status": "PASS"
+        }
+      ],
+      "limitations": [
+        "No existing portfolio tables or production data are migrated or tested.",
+        "Does not prove ChatGPT host authorization, physical iPhone behavior, or production restore safety.",
+        "Does not change the recorded Auth0 exchange_wrong_resource provider failure or its narrowly scoped acceptance."
+      ]
+    }
+  ]
+}

@@ -10,6 +10,8 @@
 /.playwright-cli/
 /.playwright-mcp/
 /output/playwright/
+/output/oauth-gate/
+/output/auth0-rest/
 
 # next.js
 /.next/
