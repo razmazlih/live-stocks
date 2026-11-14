@@ -129,11 +129,11 @@ async function buildSnapshot(principal: Principal) {
 }
 
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   try {
     const principal = await requireApiPrincipal(request);
     const snapshot = await buildSnapshot(principal);
-    if (request && new URL(request.url).searchParams.get('format') === 'html') {
+    if (new URL(request.url).searchParams.get('format') === 'html') {
       const json = JSON.stringify(snapshot, null, 2)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portfolio snapshot for AI analysis</title></head><body><h1>Portfolio snapshot for AI analysis</h1><p>Read-only portfolio data. All amounts, timestamps, sources and limitations are included in the JSON below. This snapshot is generated for the authenticated account without a shared personal-data cache.</p><pre>${json}</pre></body></html>`, {

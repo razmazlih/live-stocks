@@ -11,6 +11,7 @@ vi.mock('@/lib/services/exchange-rate', () => ({ fetchExchangeRateResponse: mock
 vi.mock('@/lib/services/yahoo-candles', () => ({ fetchYahooCandlesData: vi.fn().mockResolvedValue({ c: [], t: [], s: 'ok' }) }));
 vi.mock('next/cache', () => ({ unstable_cache: (load: () => Promise<unknown>) => load }));
 let GET: typeof import('@/app/api/portfolio/ai/route').GET;
+const readSnapshot = () => GET(new Request('https://example.com/api/portfolio/ai'));
 
 const rows: Record<string, unknown[]> = {};
 beforeEach(async () => {
@@ -28,7 +29,7 @@ beforeEach(async () => {
 
 describe('GET portfolio AI snapshot', () => {
   it('exports holdings, goals, standalone plans, provenance and no token', async () => {
-    const response = await GET();
+    const response = await readSnapshot();
     const data = await response.json();
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
@@ -60,7 +61,7 @@ describe('GET portfolio AI snapshot', () => {
   it('does not fabricate prices, full valuations or FX', async () => {
     mocks.quote.mockResolvedValue(null);
     mocks.fx.mockRejectedValue(new Error('offline'));
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.summary).toBeNull();
     expect(data.holdings[0].currentPriceUsd).toBeNull();
     expect(data.holdings[0].allocationPercent).toBeNull();
@@ -71,7 +72,7 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'missing_or_invalid_quote' });
   });
   it('keeps USD valuation but omits historical ILS calculations when FX history is missing', async () => {
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.holdings[0].marketValueUsd).toBe(240);
     expect(data.holdings[0].unrealizedPnlUsd).toBe(40);
     expect(data.holdings[0].unrealizedPnlIls).toBeNull();
@@ -81,21 +82,21 @@ describe('GET portfolio AI snapshot', () => {
   });
   it('fails explicitly when a required table cannot be read', async () => {
     mocks.from.mockImplementation(() => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'denied' } }) }) }) }) }));
-    const response = await GET();
+    const response = await readSnapshot();
     expect(response.status).toBe(500);
     expect(response.headers.get('retry-after')).toBe('30');
-    await GET();
+    await readSnapshot();
     expect(mocks.from).toHaveBeenCalledTimes(8);
   });
   it('reads beyond the first page and deduplicates market requests', async () => {
     rows.positions = Array.from({ length: 501 }, (_, i) => ({ ...(rows.positions[0] as object), id: `p${i}` }));
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.positions).toHaveLength(501);
     expect(mocks.quote).toHaveBeenCalledTimes(2);
   });
   it('does not replace a missing user target with an invented goal', async () => {
     rows.settings = [];
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.goals.annualGrowthRate).toBeNull();
     expect(data.closePairProposals.availability).toBe('unavailable');
     expect(data.goals.symbolTargets).toBeNull();

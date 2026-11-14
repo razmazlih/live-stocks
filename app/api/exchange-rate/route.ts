@@ -5,7 +5,7 @@ import { extractExchangeRate, fetchExchangeRateResponse } from '@/lib/services/e
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   try {
     await requireApiPrincipal(request);
     const data = await fetchExchangeRateResponse({
