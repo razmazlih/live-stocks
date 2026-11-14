@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-11-14T13:50:09.547250+00:00",
+  "status": "PASS_CONNECTION_ONLY",
+  "evidence": {
+    "connectionConfigurationAndProfile": "Read-only Auth0 Management API",
+    "testerSuccess": "Parent observed Auth0 Try Connection successful transaction with Google identity",
+    "googleAudience": "Parent verified Google project Testing mode and one test account"
+  },
+  "emailPresent": true,
+  "emailVerified": true,
+  "googleIdentityPresent": true,
+  "usesOwnGoogleClient": true,
+  "exactApprovedClientIdVerified": true,
+  "scopeExactlyEmailProfile": true,
+  "emailScopeEnabled": true,
+  "profileScopeEnabled": true,
+  "scopes": [
+    "email",
+    "profile"
+  ],
+  "testingMode": true,
+  "testAccountCount": 1,
+  "testerSuccess": true,
+  "liveStocksSignedGoogleTokenGateVerified": false,
+  "ownerIdentityChanged": false,
+  "financeDataChanged": false,
+  "limitations": [
+    "Auth0 tester success and verified profile do not prove a signed Google-user token for the LiveStocks Web/MCP clients.",
+    "Google consent screen remains in Testing mode; general public Google signup is not verified."
+  ]
+}
