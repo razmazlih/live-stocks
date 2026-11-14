@@ -24,6 +24,8 @@
 | --- | --- |
 | ![מסך כניסה בעברית במחשב, ללא נתוני תיק](docs/screenshots/account-sign-in-desktop.png) | ![מסך כניסה בנייד, ללא נתוני תיק](docs/screenshots/account-sign-in-mobile.png) |
 
+מסך הכניסה משתמש בצבעי רקע וטקסט סמנטיים גם במצב כהה. נבדקו עברית ואנגלית במחשב ובנייד, ללא גלילה אופקית; [תצוגה כהה במחשב](docs/screenshots/account-sign-in-dark-desktop.png) ו־[תצוגה כהה באנגלית בנייד](docs/screenshots/account-sign-in-dark-english-mobile.png) מציגות סביבה מקומית ללא חשבון או נתוני תיק.
+
 דפי `/about`, `/privacy` ו־`/terms` הוכנו בעברית ובאנגלית, עם קישורים ממסך הכניסה. הם מחזירים 503 עד להגדרת שם מפעיל וכתובת תמיכה ציבורית שאושרו במפורש (`PUBLISHER_NAME`, `PUBLIC_SUPPORT_EMAIL`). הדפים אינם טוענים מידע מהתיק. [טיוטת הפרסום וההחלטות הנדרשות](docs/PUBLIC_POLICY_DRAFT.md) כוללת תצוגות מקומיות עם פרטי תמיכה סינתטיים בלבד.
 
 ## עיצוב Liquid Glass
