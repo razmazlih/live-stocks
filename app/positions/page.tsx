@@ -377,7 +377,7 @@ export default function PositionsPage() {
       key: "quantity",
       icon: CalendarClock,
       label: `${t.positions.overviewTotalQuantity}: ${!hasLoaded ? '—' : formatNumber(totalQuantity, locale)}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      className: "bg-white/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
   ];
@@ -526,7 +526,7 @@ export default function PositionsPage() {
         onClick: openTransactionChooser,
         variant: "default",
         className:
-          "bg-blue-600 text-white shadow-sm hover:bg-blue-700",
+          "bg-[var(--control-strong)] text-white shadow-sm hover:brightness-110",
       },
       ...baseActions,
     ];
@@ -840,14 +840,14 @@ export default function PositionsPage() {
         />
 
         <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
-          <DialogContent dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={restoreEntryFocus} className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-white p-0 shadow-2xl">
+          <DialogContent dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={restoreEntryFocus} className="flex max-h-[90dvh] w-full sm:max-w-xl flex-col gap-0 overflow-hidden rounded-t-3xl border-slate-200 bg-white p-0 shadow-2xl sm:rounded-3xl">
             <DialogHeader className="border-b border-slate-100 px-5 py-6 text-start sm:px-7 sm:text-start">
               <DialogTitle className="text-2xl font-bold text-slate-950">{locale === 'he' ? 'עסקה חדשה' : 'New transaction'}</DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-relaxed text-slate-500">{locale === 'he' ? 'מתחילים פוזיציה חדשה או מעדכנים אחת שכבר בתיק.' : 'Start a new position or update one already in your portfolio.'}</DialogDescription>
             </DialogHeader>
             <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-7">
               <button type="button" onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); setEntryFromChooser(true); openAddDialog(); }} className="group flex w-full items-center gap-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-start transition-colors hover:border-blue-400 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white"><Plus aria-hidden="true" className="h-5 w-5" /></span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--control-strong)] text-white"><Plus aria-hidden="true" className="h-5 w-5" /></span>
                 <span className="min-w-0 flex-1"><span className="block text-base font-semibold text-slate-950">{locale === 'he' ? 'פוזיציה חדשה' : 'New position'}</span><span className="mt-1 block text-sm text-slate-500">{locale === 'he' ? 'מניה חדשה בתיק, עם פרטי הקנייה הראשונה.' : 'Add a stock with the details of your first purchase.'}</span></span>
                 <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-600 ltr:rotate-180" />
               </button>
@@ -885,7 +885,7 @@ export default function PositionsPage() {
         </Dialog>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[color:var(--color-neutral-white)] p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-auto max-h-[90dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-3xl border bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-3xl sm:border">
             <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
               {!editingPosition && entryFromChooser ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'חזרה לבחירת עסקה' : 'Back to transaction options'}</Button> : null}
               <DialogTitle>
@@ -1130,7 +1130,7 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-2xl sm:border">
+          <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-auto max-h-[90dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-3xl border bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-3xl sm:border">
             <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
               {!isEditingTransaction ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'בחירת פוזיציה אחרת' : 'Change position'}</Button> : null}
               <DialogTitle>
@@ -1311,7 +1311,7 @@ export default function PositionsPage() {
             }
           }}
         >
-          <DialogContent aria-describedby={undefined} className="flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-2xl sm:border">
+          <DialogContent aria-describedby={undefined} className="flex h-auto max-h-[90dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-3xl border bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-3xl sm:border">
             <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
               <DialogTitle>{t.positions.manageHistory}</DialogTitle>
               {historyTarget && (
@@ -1430,7 +1430,7 @@ export default function PositionsPage() {
                   </CardContent>
                 </Card>
               ) : !hasLoaded && loadError ? null : positions.length === 0 ? (
-                <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/60 text-center shadow-none backdrop-blur">
+                <Card className="border border-dashed border-slate-300 bg-white/60 text-center shadow-none backdrop-blur">
                   <CardContent className="flex flex-col items-center gap-4 py-12">
                     <p className="text-base font-semibold text-slate-700">
                       {t.dashboard.noPositions}
@@ -1446,7 +1446,7 @@ export default function PositionsPage() {
                 </Card>
               ) : (
                 <div className="space-y-4">
-                  <Card className="border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/90 shadow-sm">
+                  <Card className="border border-slate-200/70 bg-white/90 shadow-sm">
                     <CardContent className="space-y-4 p-4 sm:p-5">
                       <div className="grid gap-3 lg:grid-cols-12">
                         <div className="relative lg:col-span-5">
@@ -1563,7 +1563,7 @@ export default function PositionsPage() {
                   </Card>
 
                   {filteredPositionItems.length === 0 ? (
-                    <Card className="border border-dashed border-slate-300 bg-[color:var(--color-neutral-white)]/70 shadow-none">
+                    <Card className="border border-dashed border-slate-300 bg-white/70 shadow-none">
                       <CardContent className="py-12 text-center">
                         <p className="text-sm font-medium text-slate-700">
                           {t.positions.noFilteredResults}
@@ -1741,7 +1741,7 @@ export default function PositionsPage() {
                           return (
                             <Card
                               key={position.id ?? `${position.symbol}-${position.entryDate}`}
-                              className="min-w-0 max-w-full overflow-hidden border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/95 shadow-sm"
+                              className="min-w-0 max-w-full overflow-hidden border border-slate-200/70 bg-white/95 shadow-sm"
                             >
                               <CardHeader className="min-w-0 space-y-3 pb-3">
                                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -1895,7 +1895,7 @@ export default function PositionsPage() {
                         })}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--color-slate-200)]/70 bg-[color:var(--color-neutral-white)]/80 px-3 py-2 text-xs text-slate-500">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs text-slate-500">
                         <span>
                           {t.positions.pageIndicator(currentPage, totalPages)}
                         </span>

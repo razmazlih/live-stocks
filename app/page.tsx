@@ -41,12 +41,12 @@ export default function HomePage() {
       <OverviewHeader locale={locale} lastUpdate={lastUpdate} loading={loading} refreshing={refreshing} onRefresh={reload} />
       <DashboardMain className="mt-5">
         {loading ? <div aria-busy="true" aria-label={he ? 'טוען את התיק' : 'Loading portfolio'} className="space-y-5"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-80 rounded-xl" /></div> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <>
-          <section aria-label={he ? 'תמונת מצב התיק' : 'Portfolio summary'} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section aria-label={he ? 'תמונת מצב התיק' : 'Portfolio summary'} className="portfolio-summary overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <h2 className="sr-only">{he ? 'התיק במספרים' : 'Your portfolio at a glance'}</h2>
-            <dl className="grid grid-cols-2 sm:grid-cols-4">
-              {stats.map((stat, index) => <div key={index} className={`overview-stat min-w-0 px-4 py-5 sm:px-5 ${stat.primary ? 'bg-blue-50/50' : ''}`}>
-                <dt className="flex items-start gap-2 text-xs font-medium leading-5 text-slate-600 sm:text-sm"><stat.icon aria-hidden className={`mt-0.5 hidden h-4 w-4 shrink-0 lg:block ${stat.primary ? 'text-blue-600' : 'text-slate-400'}`} />{stat.label}</dt>
-                <dd className={`mt-2 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-[23px] xl:text-[28px] ${stat.colored && stat.value !== undefined && stat.value !== 0 ? stat.value > 0 ? 'text-emerald-700' : 'text-rose-600' : index === 3 && hasGap ? gap < 0 ? 'text-rose-600' : 'text-emerald-700' : 'text-slate-950'}`}><bdi>{money(stat.value)}</bdi></dd>
+            <dl className="portfolio-summary-grid grid grid-cols-3">
+              {stats.map((stat, index) => <div key={index} className={`overview-stat min-w-0 px-3 py-5 sm:px-6 ${stat.primary ? 'overview-stat-primary col-span-3 px-5 py-7 sm:px-7 sm:py-8' : ''}`}>
+                <dt className="flex items-start gap-2 text-xs font-medium leading-5 text-slate-600 sm:text-sm"><stat.icon aria-hidden className={`mt-0.5 hidden h-4 w-4 shrink-0 sm:block ${stat.primary ? 'text-blue-600' : 'text-slate-400'}`} />{stat.label}</dt>
+                <dd className={`mt-2 break-words font-semibold tracking-tight tabular-nums ${stat.primary ? 'text-[clamp(2.25rem,6vw,3.75rem)] leading-tight' : 'text-base sm:text-2xl xl:text-[28px]'} ${stat.colored && stat.value !== undefined && stat.value !== 0 ? stat.value > 0 ? 'text-emerald-700' : 'text-rose-600' : index === 3 && hasGap ? gap < 0 ? 'text-rose-600' : 'text-emerald-700' : 'text-slate-950'}`}><bdi>{money(stat.value)}</bdi></dd>
               </div>)}
             </dl>
             <details className="group border-t border-slate-100 px-4 text-xs text-slate-500 sm:px-5">
@@ -58,8 +58,8 @@ export default function HomePage() {
                 </div>
             </details>
           </section>
-          <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
+          <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
         </>}
       </DashboardMain>
     </DashboardContainer>

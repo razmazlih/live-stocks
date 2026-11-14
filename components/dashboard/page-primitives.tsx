@@ -23,7 +23,7 @@ export function DashboardContainer({
   return (
     <div
       className={cn(
-        'mx-auto w-full min-w-0 px-4 py-7 sm:px-6 lg:px-8',
+        'mx-auto w-full min-w-0 px-4 py-6 sm:px-6 lg:px-7 lg:py-9',
         WIDTH_CLASS[width],
         className,
       )}
@@ -53,7 +53,7 @@ export function DashboardSurface({
   return (
     <section
       className={cn(
-        'page-shell-surface rounded-2xl border p-4 shadow-[0_6px_24px_-20px_rgba(15,23,42,0.28)] sm:p-6',
+        'glass-surface page-shell-surface rounded-3xl border p-4 sm:p-6',
         className,
       )}
     >

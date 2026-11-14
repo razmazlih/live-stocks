@@ -256,7 +256,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
   return (
     <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
       <Card className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-6">
-        <CardHeader className="relative z-10 space-y-2 border-b border-[color:var(--color-slate-200)]/80 bg-white/65 px-5 py-4">
+        <CardHeader className="relative z-10 space-y-2 border-b border-slate-200/80 bg-white/65 px-5 py-4">
           <CardTitle className="text-lg font-bold tracking-tight text-[var(--color-primary-900)]">
             {t.dashboard.topMoversTitle}
           </CardTitle>
@@ -451,7 +451,7 @@ export function PortfolioVisualizations({ metrics, summary }: PortfolioVisualiza
             <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
               <span className="h-2 w-2 rounded-full bg-[var(--color-primary-500)]" />
               {t.dashboard.current}
-              <span className="mx-1 h-3 w-px bg-[color:var(--color-slate-200)]" />
+              <span className="mx-1 h-3 w-px bg-slate-200" />
               <span className="h-2 w-2 rounded-full bg-[var(--color-green-500)]" />
               {t.dashboard.projected}
             </div>

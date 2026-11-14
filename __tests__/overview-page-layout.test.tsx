@@ -15,13 +15,14 @@ vi.mock('@/components/portfolio/research-export-button', () => ({ResearchExportB
 vi.mock('@/components/charts/performance-chart', () => ({PerformanceChart: () => <section aria-label="Performance chart">Performance chart</section>}));
 
 describe('overview layout', () => {
-  it('places exit ideas immediately after the summary and keeps the performance chart off the overview', () => {
+  it('places holdings immediately after the summary and keeps the performance chart off the overview', () => {
     render(<HomePage />);
     const summary = screen.getByRole('region', {name: 'Portfolio summary'});
     const ideas = screen.getByRole('region', {name: 'Test exit ideas'});
     const holdings = screen.getByRole('region', {name: 'Test holdings'});
-    expect(summary.nextElementSibling).toBe(ideas);
-    expect(ideas.nextElementSibling).toBe(holdings);
+    expect(summary.nextElementSibling).toBe(holdings);
+    expect(holdings.nextElementSibling).toBe(ideas);
+    expect(screen.getAllByText('Holdings value')[0].closest('.overview-stat')).toHaveClass('overview-stat-primary');
     expect(screen.queryByRole('region', {name: 'Performance chart'})).not.toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Portfolio overview', level: 1})).toBeInTheDocument();
   });
