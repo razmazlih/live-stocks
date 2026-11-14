@@ -9,19 +9,33 @@ class Node {
  addSpacer(){} layoutVertically(){} layoutHorizontally(){} centerAlignContent(){} topAlignContent(){} rightAlignText(){} setPadding(){}
  async presentSmall(){} async presentMedium(){} async presentLarge(){} async presentExtraLarge(){}
 }
-const fixture={usdToIlsRate:3.7,summary:{totalValue:1000,totalNetPnLUsd:100,totalNetPnLIls:321,totalProjectedPnLUsd:40,totalProjectedPnLIls:134,totalForecastGapUsd:60,totalForecastGapIls:187},stocks:[{symbol:'AAA',quantity:2,currentPrice:100,totalValueUsd:200,totalValueIls:740,dailyChange:2,currentPnLUsd:10,currentPnLIls:37}]};
+const TOKEN='lst_widget_'+ 'a'.repeat(43);
+const HOST='https://razmaz-live-stocks.vercel.app';
+const fixture={widgetTokenExpiresAt:new Date(Date.now()+86400000).toISOString(),usdToIlsRate:3.7,summary:{totalValue:1000,totalNetPnLUsd:100,totalNetPnLIls:321,totalProjectedPnLUsd:40,totalProjectedPnLIls:134,totalForecastGapUsd:60,totalForecastGapIls:187},stocks:[{symbol:'AAA',quantity:2,currentPrice:100,totalValueUsd:200,totalValueIls:740,dailyChange:2,currentPnLUsd:10,currentPnLIls:37}]};
 const texts=n=>[...(n.text!==undefined?[n.text]:[]),...n.children.flatMap(texts)];
-async function run(payload=fixture,{family='large',currency='ILS',mode='value',offline=false,cached=false}={}){
- const storage=new Map(); if(cached) storage.set('cache',JSON.stringify({origin:'https://razmaz-live-stocks.vercel.app',payload,savedAt:'2026-11-02T00:00:00Z'}));
+function fingerprint(value) {
+ let a=2166136261,b=3335557771;
+ for(const char of value){a=Math.imul(a^char.charCodeAt(0),16777619)>>>0;b=Math.imul(b^char.charCodeAt(0),2246822519)>>>0;}
+ return a.toString(16).padStart(8,'0')+b.toString(16).padStart(8,'0');
+}
+async function run(payload=fixture,{family='large',currency='ILS',mode='value',offline=false,cached=false,token=TOKEN,baseUrl=HOST,status=200,invalidJSON=false,runsInWidget=true,alerts=[],savedAt=new Date(Date.now()-60000).toISOString(),storage:newStorage,keys:newKeys,parameter=''}={}){
+ const storage=newStorage||new Map(), keys=newKeys||new Map(),requests=[],shownAlerts=[];
+ const key='livestocks.widget.v1:'+baseUrl;
+ if(token&&!newKeys)keys.set(key,token);
+ if(cached)storage.set(`stocks-glance-v4-${fingerprint(baseUrl)}-${fingerprint(token)}.json`,JSON.stringify({origin:baseUrl,identity:fingerprint(token),payload,expiresAt:payload.widgetTokenExpiresAt,savedAt}));
  const noop=class {constructor(...args){this.args=args;}};
  const draw=new Proxy(class {getImage(){return {}}},{construct(T,args){return new Proxy(new T(...args),{get(o,k){return k in o?o[k]:()=>{}}})}});
  class Color{constructor(hex,alpha){this.hex=hex;this.alpha=alpha;}static dynamic(a,b){return a;}}
- const context={config:{widgetFamily:family,runsInWidget:true},args:{widgetParameter:`currency=${currency};mode=${mode}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path:class {move(){}addLine(){}},DrawContext:draw,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,Request:class {async loadJSON(){if(offline)throw Error('offline');return payload}},FileManager:{local:()=>({documentsDirectory:()=>'',joinPath:()=> 'cache',fileExists:p=>storage.has(p),readString:p=>storage.get(p),writeString:(p,v)=>storage.set(p,v)})},Script:{setWidget(w){context.widget=w},complete(){}},console};
- const api=await vm.runInNewContext(`(async()=>{${source}\nreturn {normalize,cash,gapLabel,load};})()`,context);
+ const context={config:{widgetFamily:family,runsInWidget},args:{widgetParameter:`currency=${currency};mode=${mode};baseurl=${baseUrl};${parameter}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path:class {move(){}addLine(){}},DrawContext:draw,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,
+ Request:class {constructor(url){this.url=url;requests.push(this)}async loadJSON(){if(offline)throw Error('offline');this.response={statusCode:status};if(invalidJSON)throw Error('invalid JSON');return payload}},
+ Keychain:{contains:key=>keys.has(key),get:key=>{if(!keys.has(key))throw Error('Missing key');return keys.get(key)},set:(key,value)=>keys.set(key,value),remove:key=>keys.delete(key)},
+ Alert:class {constructor(){this.mock=alerts.shift()||{choice:-1};this.actions=[];shownAlerts.push(this)}addAction(text){this.actions.push(text)}addDestructiveAction(text){this.actions.push(text)}addCancelAction(){}addSecureTextField(){this.secure=true}textFieldValue(){return this.mock.token||''}async presentAlert(){return this.mock.choice}async presentSheet(){return this.mock.choice}},
+ FileManager:{local:()=>({documentsDirectory:()=>'',joinPath:(_,name)=>name,listContents:()=>Array.from(storage.keys()),remove:p=>storage.delete(p),fileExists:p=>storage.has(p),readString:p=>storage.get(p),writeString:(p,v)=>storage.set(p,v)})},Script:{setWidget(w){context.widget=w},name:()=> 'Stocks Status',complete(){}},console};
+ const api=await vm.runInNewContext(`(async()=>{${source}\nreturn {normalize,cash,gapLabel,load,options,httpsOrigin,fingerprint,credentialKey,cacheLocation,setupCredential,disconnect};})()`,context);
  assert(context.widget); const rendered=texts(context.widget);assert(!rendered.some(s=>/NaN|Infinity|undefined/.test(s)));
- return {api,model:api.normalize(payload),rendered};
+ return {api,model:api.normalize(payload),rendered,storage,keys,requests,shownAlerts,widget:context.widget};
 }
-(async()=>{
+async function regressionTests(){
  let assertions=0,renders=0;
  const check=(a,b)=>{assert.equal(a,b);assertions++};
  for(const currency of ['ILS','USD']){
@@ -51,4 +65,6 @@ async function run(payload=fixture,{family='large',currency='ILS',mode='value',o
  }
  for(const family of ['small','medium','large','extraLarge']){const out=await run(fixture,{family,offline:true});assert(out.rendered.includes('לא ניתן לטעון את התיק'));assertions++;renders++;}
  console.log(`PASS ${assertions} assertions, ${renders} family/currency/mode/cache renders plus targeted normalization scenarios.`);
-})().catch(e=>{console.error(e);process.exit(1)});
+}
+module.exports={run,fixture,TOKEN,HOST,fingerprint};
+if(require.main===module)regressionTests().catch(e=>{console.error(e);process.exit(1)});
