@@ -1,0 +1,19 @@
+{
+  "apps": "./.app.json",
+  "author": {
+    "name": "App developer"
+  },
+  "description": "ניתוח תיק השקעות ואיתור הזדמנויות בשוק, מחובר לנתוני LiveStocks. המלצות קנייה למניה חדשה או מכירה מלאה בלבד, ללא ביצוע עסקאות.",
+  "interface": {
+    "capabilities": [],
+    "category": "Other",
+    "defaultPrompt": null,
+    "developerName": "App developer",
+    "displayName": "LiveStocks",
+    "longDescription": "ניתוח תיק השקעות ואיתור הזדמנויות בשוק, מחובר לנתוני LiveStocks. המלצות קנייה למניה חדשה או מכירה מלאה בלבד, ללא ביצוע עסקאות.",
+    "shortDescription": "ניתוח תיק השקעות ואיתור הזדמנויות בשוק, מחובר לנתוני LiveStocks. המלצות קנייה למניה חדשה או מכירה מלאה בלבד, ללא ביצוע עסקאות."
+  },
+  "name": "dev-6af6d6f889a88191ae50abfc0070421b",
+  "version": "1.0.2",
+  "skills": "./skills"
+}

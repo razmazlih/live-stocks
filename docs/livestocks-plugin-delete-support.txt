@@ -1,0 +1,87 @@
+OpenAI support: retired custom MCP App/plugin cannot be deleted
+
+Date: 2026-11-13 (Asia/Jerusalem)
+
+Requested outcome
+Delete only the retired LiveStocks Previous custom MCP App and its associated
+plugin registration. The owner has explicitly authorized permanent deletion.
+Do not delete or alter the active branded LiveStocks plugin listed below.
+
+RETIRED TARGET TO DELETE
+Name: LiveStocks Previous
+Plugin ID: plugin_asdk_app_6af6d33c4e6881919e385643f9d350ad
+App ID: asdk_app_6af6d33c4e6881919e385643f9d350ad
+App version ID: asdk_app_v_6af6d33c4e788191bb0aec35d8883fac
+Scope: USER
+Visibility: PRIVATE
+Installation: uninstalled; settings offers Connect / listing offers Install
+Current package version: 1.0.2
+Current release: pluginrel_6af6db8d32d88191b6edb552f1adb6b3
+
+ACTIVE TARGET TO PRESERVE
+Name: LiveStocks
+Plugin ID: plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b
+App ID: asdk_app_6af6d6f889a88191ae50abfc0070421b
+Package version: 1.0.1
+Release: pluginrel_6af6d7684ccc8191aec3f4c3f1732ad4
+Its research skill, blue site icon, installed connection and working web/mobile
+portfolio access must remain intact.
+
+Reproduction and observed response
+1. Open the retired target's ChatGPT plugin settings.
+2. Manage app > Delete app > confirm permanent deletion.
+3. The UI reports: Couldn't update the app. Try again
+4. Chrome DevTools Network shows the normal UI request to:
+   https://chatgpt.com/backend-api/aip/connectors/asdk_app_6af6d33c4e6881919e385643f9d350ad
+   HTTP status: 409 Conflict
+5. The retired plugin listing's More actions > Delete plugin > confirm also
+   fails, reporting: Couldn't delete plugin. Try again
+6. Its normal UI request to:
+   https://chatgpt.com/backend-api/ps/plugins/plugin_asdk_app_6af6d33c4e6881919e385643f9d350ad
+   also returns HTTP 409 Conflict.
+
+Both responses contain the same JSON:
+{
+  "detail": {
+    "type": "apps_sdk_error",
+    "error_code": "conflict",
+    "message": "App plugin contains independently managed content."
+  }
+}
+
+Checks and bounded repair already attempted
+- Exact retired identity was checked through Plugin Creator metadata.
+- The retired plugin was successfully uninstalled before deletion attempts.
+- Account switcher currently exposes RABEN Business only; no Personal account
+  option is available to test another browser account context.
+- The custom MCP App originally had a generated v1.0.0 package. Its research
+  skill was added through Plugin Creator as v1.0.1.
+- Before cleanup, its three files were backed up locally.
+- A supported guarded Plugin Creator update removed the retired research skill
+  with delete_paths and removed its manifest declaration, producing v1.0.2.
+- Read-back inventory now contains exactly .app.json and
+  .codex-plugin/plugin.json, with no skill files.
+- App identity, binding, transport, visibility and presentation were preserved.
+- After reload, both Delete app and Delete plugin still return the same 409.
+- The active plugin was read back afterward: v1.0.1 and research skill intact.
+
+The exact guard implementation is unknown. Removing current skill content did
+not clear it; no supported exposed operation can reset App-generated release
+provenance or remove release history. No credentials, cookies or authorization
+headers were copied. No backend API requests were forged or manually replayed;
+the failures above were observed from normal UI actions.
+
+Please investigate the stale independently-managed-content guard and complete
+the owner-authorized deletion of ONLY the retired target.
+
+Submission status - 2026-11-13
+The full report above was sent through the official OpenAI Help Center support
+chat at https://help.openai.com/en while signed in as the owner. A follow-up
+explicitly requested human escalation and repeated the retired-only deletion
+scope and the active App ID to preserve. The support chat confirmed:
+"Escalated to a support specialist; You can expect a response in the coming
+days. Replies will also be sent via email. You can add additional comments to
+this conversation if needed."
+No case number was displayed. This confirms submission and escalation, not
+completion of backend deletion. The owner-authorized support messages do not
+authorize deletion or modification of the active LiveStocks App/plugin.
