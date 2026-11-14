@@ -16,24 +16,19 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
 
 describe('close pair disclosure', () => {
   beforeEach(() => { context.settings.annualGrowthRate = 0; });
-  it('keeps the entire ideas area collapsed with an accessible count until requested', async () => {
+  it('always shows the ideas and count without a collapsible section', () => {
     context.locale = 'en';
-    const user = userEvent.setup();
-    const { container } = render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    const disclosure = container.querySelector('details.glass-disclosure')!;
-    expect(disclosure).not.toHaveAttribute('open');
+    render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
+    expect(screen.getByRole('heading', { name: 'Two-position exit ideas' }).closest('details')).toBeNull();
     expect(screen.getByLabelText('Idea count')).toHaveTextContent('1');
-    expect(screen.getByRole('button', {name: 'Copy prompt for AI review'})).not.toBeVisible();
-    await user.click(screen.getByText('Two-position exit ideas'));
-    expect(disclosure).toHaveAttribute('open');
     expect(screen.getByRole('button', {name: 'Copy prompt for AI review'})).toBeVisible();
+    expect(screen.getByTestId('close-pair-preview')).toBeVisible();
   });
 
-  it('starts collapsed, opens with the keyboard and hides links when collapsed', async () => {
+  it('keeps individual pair details collapsed, opens with the keyboard and hides links when collapsed', async () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -80,7 +75,6 @@ describe('close pair disclosure', () => {
     ] };
     const win = metric('WIN', 140);
     render(<ClosePairProposals metrics={[win, calculatePositionMetrics({ ...loss, lots: loss.lots!.slice(-1) }, 90, 3.5)]} positions={[win.position, loss]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     await user.click(screen.getByRole('button', { name: 'Expand WIN + LOSS details' }));
     expect(screen.getAllByText(/Previously realized/)).toHaveLength(2);
     const lossCard = screen.getByRole('link', { name: /^LOSS/ }).closest('li')!;
@@ -105,7 +99,6 @@ describe('close pair disclosure', () => {
     context.locale = 'he';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     await user.click(screen.getByRole('button', { name: /פתיחת פרטי WIN \+ LOSS/ }));
     expect(screen.getByText(/הדמיה בדולרים/)).toBeInTheDocument();
     expect(screen.getAllByText(/כל 2 המניות/)).toHaveLength(2);
@@ -115,7 +108,6 @@ describe('close pair disclosure', () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80), metric('OTHER', 95)]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     expect(screen.getAllByRole('article')).toHaveLength(1);
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
@@ -137,7 +129,6 @@ describe('close pair disclosure', () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Blocked')).mockResolvedValue();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     const copy = screen.getByRole('button', { name: 'Copy prompt for AI review' });
     await user.click(copy);
     expect(toast.error).toHaveBeenCalledWith('Copy failed. Please try again.');
@@ -150,7 +141,6 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('W1', 140), metric('W2', 130), metric('L1', 80), metric('L2', 90)]} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     const first = screen.getByRole('button', { name: 'Expand W1 + L1 details' });
     const second = screen.getByRole('button', { name: 'Expand W2 + L2 details' });
     await user.click(first);
@@ -174,7 +164,6 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const positions = [metric('WIN', 130), metric('LOSS', 80)];
     const { rerender } = render(<ClosePairProposals metrics={positions} />);
-    await user.click(screen.getByText(context.locale === 'he' ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'));
     expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
     expect(screen.getByText('Cumulative profit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
     await user.click(screen.getByRole('button', {name: 'Expand WIN + LOSS details'}));

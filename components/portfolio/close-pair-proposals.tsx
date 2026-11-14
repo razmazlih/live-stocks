@@ -40,13 +40,11 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const anyExpanded = proposals.some(proposal => expandedPairs.has(pairKey(proposal)));
 
   return <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" aria-label={he ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'}>
-    <details className="glass-disclosure group/ideas">
-      <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-4 sm:px-5">
+    <div className="flex min-h-[64px] items-center gap-3 px-4 py-4 sm:px-5">
         <span aria-hidden className="holding-monogram flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50/60 text-blue-600"><ArrowLeftRight className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1"><h2 className="text-sm font-semibold tracking-tight text-slate-950 sm:text-base">{he ? 'הצעות לסגירת שתי פוזיציות' : 'Two-position exit ideas'}</h2><span className="mt-1 block text-xs leading-5 text-slate-500">{he ? 'כולל רווחים והפסדים מכל המכירות הקודמות' : 'Including gains and losses from all previous sales'}</span></span>
         <span className="shrink-0 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600" aria-label={he ? 'מספר הצעות' : 'Idea count'}>{proposals.length}</span>
-        <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 group-open/ideas:rotate-180 motion-reduce:transition-none" />
-      </summary>
+    </div>
       <div className="flex items-center justify-end border-t border-slate-100 px-4 py-2 sm:px-5">
       <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל זוג' : 'Copy a prompt for research and a verdict on each pair'} className="inline-flex min-h-[44px] items-center gap-2 shrink-0 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-blue-200 hover:bg-blue-100/70 hover:shadow-sm active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 motion-reduce:transform-none motion-reduce:transition-none"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>
       </div>
@@ -88,6 +86,5 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
 
     </div>
     <div className={anyExpanded ? 'holding-card-open' : ''}><div aria-hidden={!anyExpanded} ref={element => { if (anyExpanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal"><div className="min-h-0 overflow-hidden"><details className="px-4 pb-3 text-[11px] leading-relaxed text-slate-500 sm:px-5"><summary className="flex min-h-[44px] cursor-pointer items-center text-blue-700">{he ? 'מה כלול בחישוב?' : 'What’s included?'}</summary><p>{he ? 'הדמיה בדולרים לפי המחירים הזמינים ועלות FIFO, כולל עמלות קנייה ומכירה שהוזנו ותוצאות כל המכירות הקודמות של כל סימול בכל החשבונות. יעד התשואה השנתי האישי נצבר לכל מנת קנייה עד מכירתה או עד היום אם היא עדיין פתוחה, ואינו תחזית שוק. מוצגים רק זוגות שהרווח בסגירתם חיובי וגם מכסה את יעד הרווח של שתיהן. מס, עמלות מכירה ושינויי מחיר אינם כלולים ועשויים לשנות את התוצאה. מיון לפי החוסר המכוסה מול היעד ואז היתרה מעל היעד; כל מניה מופיעה בזוג אחד בלבד. הפרומפט כולל את כמויות וסכומי ההצעות המוצגות, להדבקה ידנית ב־AI. ההצעות אינן מבצעות מכירה.' : 'USD simulation using available prices and FIFO cost, including recorded buy and sell fees and every prior sale result for each symbol across accounts. The personal annual return target accrues for each purchase until it is sold, or until today while open; it is not a market forecast. Pairs must have positive exit profit and also cover both personal profit targets. Tax, exit fees and price changes are excluded and may change the result. Ranked by covered target shortfall, then surplus above target; each stock appears in one pair only. The prompt includes the displayed quantities and amounts for manually pasting into your AI. These ideas do not execute trades.'}</p></details></div></div></div>
-    </details>
   </section>;
 }
