@@ -62,9 +62,9 @@ export function TickerActions({ ticker, locale, loading, onEdit, onRefresh, onDe
   return <DropdownMenu dir={he ? 'rtl' : 'ltr'}>
     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 rounded-lg text-slate-500" aria-label={he ? `פעולות ${ticker.symbol}` : `${ticker.symbol} actions`}><MoreVertical aria-hidden="true" className="h-4 w-4" /></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44 rounded-xl border-slate-200 bg-white p-1 text-sm">
-      {onRefresh ? <DropdownMenuItem className="min-h-11" disabled={loading} onSelect={() => onRefresh(ticker)}><RefreshCw aria-hidden="true" />{refreshLabel ?? (he ? 'רענון מניה' : 'Refresh ticker')}</DropdownMenuItem> : null}
-      {onEdit ? <DropdownMenuItem className="min-h-11" onSelect={() => onEdit(ticker)}><Pencil aria-hidden="true" />{editLabel ?? (he ? 'עריכת מניה' : 'Edit ticker')}</DropdownMenuItem> : null}
-      {onDelete ? <DropdownMenuItem className="min-h-11 text-rose-600 focus:text-rose-700" onSelect={() => onDelete(ticker)}><Trash2 aria-hidden="true" />{deleteLabel ?? (he ? 'מחיקת מניה' : 'Delete ticker')}</DropdownMenuItem> : null}
+      {onRefresh ? <DropdownMenuItem className="min-h-[44px]" disabled={loading} onSelect={() => onRefresh(ticker)}><RefreshCw aria-hidden="true" />{refreshLabel ?? (he ? 'רענון מניה' : 'Refresh ticker')}</DropdownMenuItem> : null}
+      {onEdit ? <DropdownMenuItem className="min-h-[44px]" onSelect={() => onEdit(ticker)}><Pencil aria-hidden="true" />{editLabel ?? (he ? 'עריכת מניה' : 'Edit ticker')}</DropdownMenuItem> : null}
+      {onDelete ? <DropdownMenuItem className="min-h-[44px] text-rose-600 focus:text-rose-700" onSelect={() => onDelete(ticker)}><Trash2 aria-hidden="true" />{deleteLabel ?? (he ? 'מחיקת מניה' : 'Delete ticker')}</DropdownMenuItem> : null}
     </DropdownMenuContent>
   </DropdownMenu>;
 }
@@ -107,9 +107,9 @@ export function TickerCard(props: TickerCardProps) {
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <AreaChart data={data.history} margin={{ top: 14, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
             <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.18} /><stop offset="100%" stopColor={color} stopOpacity={0.02} /></linearGradient></defs>
-            <CartesianGrid vertical={false} stroke="#e2e8f0" />
-            <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} axisLine={false} tickLine={false} minTickGap={36} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={formatAxisDate} />
-            <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} width={62} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(value: number) => new Intl.NumberFormat(he ? 'he-IL' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)} />
+            <CartesianGrid vertical={false} stroke="var(--border-subtle)" />
+            <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} axisLine={false} tickLine={false} minTickGap={36} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickFormatter={formatAxisDate} />
+            <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} width={62} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickFormatter={(value: number) => new Intl.NumberFormat(he ? 'he-IL' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)} />
             <Tooltip content={({ active, payload, label }) => active && payload?.length ? <div dir={he ? 'rtl' : 'ltr'} className="rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-md"><p className="text-slate-500">{props.hoverLabel ?? (he ? 'מחיר בתאריך' : 'Price on')} {formatDate(new Date(Number(label)), locale)}</p><p className="mt-1 font-semibold text-slate-900"><bdi>{money(typeof payload[0].value === 'number' ? payload[0].value : null)}</bdi></p></div> : null} />
             <Area dataKey="close" type="linear" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} activeDot={{ r: 4 }} />
           </AreaChart>

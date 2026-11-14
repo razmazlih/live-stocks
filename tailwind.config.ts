@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
         extend: {
                 fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Arial', 'sans-serif'],
                 },
                 backgroundImage: {
                         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -22,6 +22,11 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+                white: 'rgb(var(--surface-rgb) / <alpha-value>)',
+                slate: Object.fromEntries([50,100,200,300,400,500,600,700,800,900,950].map(shade => [shade, `rgb(var(--slate-${shade}-rgb) / <alpha-value>)`])),
+                blue: Object.fromEntries([50,100,200,300,400,500,600,700].map(shade => [shade, `rgb(var(--blue-${shade}-rgb) / <alpha-value>)`])),
+                emerald: Object.fromEntries([50,100,200,400,500,600,700].map(shade => [shade, `rgb(var(--emerald-${shade}-rgb) / <alpha-value>)`])),
+                rose: Object.fromEntries([50,100,200,400,500,600,700].map(shade => [shade, `rgb(var(--rose-${shade}-rgb) / <alpha-value>)`])),
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

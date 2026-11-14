@@ -1087,7 +1087,7 @@ export function Sparkline({
           </svg>
 
           {hasExitTargetGap && requiredExitLabel && exitGapAmount !== null ? (
-            <div className="pointer-events-none absolute right-2 top-2 rounded-md border border-violet-200/80 bg-white/90 px-2 py-1 text-[10px] font-semibold text-violet-700 shadow-sm backdrop-blur-sm [direction:ltr] tabular-nums">
+            <div className="pointer-events-none absolute right-2 top-2 rounded-md border border-violet-200/80 bg-white/90 px-2 py-1 text-[10px] font-semibold text-[var(--violet-text)] shadow-sm backdrop-blur-sm [direction:ltr] tabular-nums">
               {requiredExitLabel} · Δ {exitGapAmount > 0 ? '+' : ''}{priceFormatter(exitGapAmount)}
             </div>
           ) : null}
@@ -1101,7 +1101,7 @@ export function Sparkline({
                 transform: 'translateX(-50%)',
               }}
             >
-              <div className="rounded-xl bg-[color:var(--color-neutral-white)]/95 p-2.5 text-xs text-slate-700 shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5">
+              <div className="rounded-xl bg-white/95 p-2.5 text-xs text-slate-700 shadow-lg ring-1 ring-[color:var(--color-neutral-black)]/5">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium text-slate-500">מחיר</span>
                   <span className="font-semibold text-slate-900 tabular-nums" dir="ltr">{hoveredPriceText}</span>
