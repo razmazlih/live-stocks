@@ -32,7 +32,7 @@ describe('personal account boundary', () => {
   it('shows ordinary sign-in without an error for an unauthenticated API response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Sign in required' }), { status: 401 })));
     render(<AuthProvider><PersonalContent /></AuthProvider>);
-    await screen.findByRole('link', { name: 'התחברות' });
+    await screen.findByRole('button', { name: 'התחברות' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('private note')).not.toBeInTheDocument();
   });
@@ -64,6 +64,7 @@ describe('personal account boundary', () => {
     act(() => { window.dispatchEvent(new StorageEvent('storage', { key: 'livestocks:account-change', newValue: 'logout:123' })); });
     await waitFor(() => expect(screen.queryByText('auth0|a')).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('link', { name: 'התחברות' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=he');
+    expect(screen.getByRole('button', { name: 'התחברות' })).toBeInTheDocument();
+    expect(screen.getByLabelText('כתובת דוא״ל')).toHaveAttribute('autocomplete', 'email');
   });
 });

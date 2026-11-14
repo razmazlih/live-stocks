@@ -51,6 +51,24 @@ describe('Auth0 access-token trust boundaries', () => {
   it('accepts the exact resource in a well-formed audience list', async () => {
     await expect(verify(await sign({ ...claims(), aud: [mcpAudience, `${issuer}userinfo`] }), 'mcp')).resolves.toMatchObject({ userId });
   });
+  it('returns signed session origin and namespaced verified email without trusting editable aliases', async () => {
+    const payload = claims();
+    const origin = Number(payload.iat) - 100;
+    await expect(verify(await sign({ ...payload,
+      'https://livestocks.app/auth_session_id': 'original-session',
+      'https://livestocks.app/auth_session_created_at': origin,
+      'https://livestocks.app/email': 'owner@example.invalid',
+      email: 'attacker@example.invalid', user_metadata: { auth_session_created_at: payload.iat },
+    }), 'mcp')).resolves.toMatchObject({ verifiedEmail: 'owner@example.invalid', authSessionId: 'original-session', authSessionCreatedAt: origin });
+  });
+  it.each([
+    { 'https://livestocks.app/auth_session_id': 'session-without-time' },
+    { 'https://livestocks.app/auth_session_created_at': 1 },
+    { 'https://livestocks.app/auth_session_id': 'session', 'https://livestocks.app/auth_session_created_at': 9_000_000_000 },
+    { 'https://livestocks.app/email': 'malformed email' },
+  ])('rejects malformed optional origin or verified-email evidence %j', async evidence => {
+    await expect(verify(await sign({ ...claims(), ...evidence }), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+  });
   it('never accepts a website token as an MCP token or an MCP token as a website token', async () => {
     await expect(verify(await sign(claims('web')), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
     await expect(verify(await sign(claims('mcp')), 'web')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
@@ -123,6 +141,22 @@ describe('Auth0 access-token trust boundaries', () => {
       expect(() => createAuth0TokenVerifier({ ...configuration, ...override, jwks })).toThrow('explicit, distinct');
     }
   });
+  it.each([
+    ['missing live session', { sid: undefined }],
+    ['conflicting session', { sid: 'different-session' }],
+    ['missing immutable grant', { 'https://livestocks.app/grant_id': undefined }],
+    ['unapproved extra audience', { aud: [mcpAudience, 'https://attacker.invalid/api'] }],
+    ['missing verified email value', { 'https://livestocks.app/email': undefined }],
+  ])('requires Better Auth live evidence: %s', async (_label, override) => {
+    const strict = createAuth0TokenVerifier({ ...configuration, requireLiveSessionEvidence: true,
+      companionAudience: `${issuer}oauth2/userinfo`, jwks: async header => header.alg === 'RS256' ? rsa.publicKey : ec.publicKey });
+    const payload = { ...claims(), sid: 'original-session', 'https://livestocks.app/auth_session_id': 'original-session',
+      'https://livestocks.app/auth_session_created_at': Math.floor(Date.now() / 1000) - 60,
+      'https://livestocks.app/email': 'verified@example.invalid',
+      'https://livestocks.app/grant_id': 'a0000000-0000-4000-8000-000000000001' };
+    await expect(strict(await sign(payload), 'mcp')).resolves.toMatchObject({ userId });
+    await expect(strict(await sign({ ...payload, ...override }), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+  });
 });
 
 describe('Auth0 Post Login Action', () => {
@@ -146,6 +180,36 @@ describe('Auth0 Post Login Action', () => {
       expect(token.setCustomClaim.mock.calls).toEqual([['role', 'authenticated'], [readOnlyClaim, kind === 'mcp'], [verifiedClaim, true]]);
     }
     expect(api.accessToken.removeScope).toHaveBeenCalledTimes(kind === 'mcp' ? 1 : 0);
+  });
+  it('carries initial session origin into this refresh grant without user-global metadata', async () => {
+    const { event, api } = setup('web');
+    const refreshToken = { setMetadata: vi.fn() };
+    await actionExports.onExecutePostLogin!({ ...event, session: { id: 'session-a', created_at: '2026-11-14T10:00:00.000Z' } }, { ...api, refreshToken });
+    expect(api.accessToken.setCustomClaim).toHaveBeenCalledWith('https://livestocks.app/auth_session_id', 'session-a');
+    expect(api.accessToken.setCustomClaim).toHaveBeenCalledWith('https://livestocks.app/auth_session_created_at', Date.parse('2026-11-14T10:00:00Z') / 1000);
+    expect(refreshToken.setMetadata.mock.calls).toEqual([['livestocks_session_id', 'session-a'], ['livestocks_session_created_at', '2026-11-14T10:00:00.000Z']]);
+  });
+  it('preserves the old grant origin on refresh even if another newer session exists', async () => {
+    const { event, api } = setup('web');
+    event.transaction.protocol = 'oauth2-refresh-token';
+    const refreshToken = { setMetadata: vi.fn() };
+    await actionExports.onExecutePostLogin!({ ...event,
+      session: { id: 'new-session', created_at: '2026-11-14T11:00:00Z' },
+      refresh_token: { created_at: '2026-11-14T11:00:00Z', metadata: { livestocks_session_id: 'old-session', livestocks_session_created_at: '2026-11-14T10:00:00Z' } },
+    }, { ...api, refreshToken });
+    expect(api.accessToken.setCustomClaim).toHaveBeenCalledWith('https://livestocks.app/auth_session_id', 'old-session');
+    expect(api.accessToken.setCustomClaim).toHaveBeenCalledWith('https://livestocks.app/auth_session_created_at', Date.parse('2026-11-14T10:00:00Z') / 1000);
+    expect(refreshToken.setMetadata).toHaveBeenCalledWith('livestocks_session_id', 'old-session');
+  });
+  it('leaves missing refresh-origin evidence absent instead of using a new session or rotation date', async () => {
+    const { event, api } = setup('web'); event.transaction.protocol = 'oauth2-refresh-token';
+    const refreshToken = { setMetadata: vi.fn() };
+    await actionExports.onExecutePostLogin!({ ...event,
+      session: { id: 'new-session', created_at: '2026-11-14T11:00:00Z' },
+      refresh_token: { session_id: 'unproven', created_at: '2026-11-14T11:00:00Z' },
+    }, { ...api, refreshToken });
+    expect(api.accessToken.setCustomClaim.mock.calls).toEqual([['role', 'authenticated'], [readOnlyClaim, false], [verifiedClaim, true]]);
+    expect(refreshToken.setMetadata).not.toHaveBeenCalled();
   });
   it.each(['other-api', 'no-api', 'incomplete-config', 'missing-config'])('leaves an unrelated tenant application untouched with %s', async scenario => {
     const { event, api } = setup();

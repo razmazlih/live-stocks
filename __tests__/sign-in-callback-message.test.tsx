@@ -5,14 +5,14 @@ import { SignIn } from '@/components/auth/sign-in';
 describe('friendly callback failures', () => {
   it('shows verification guidance in both languages and keeps the login destination safe', () => {
     render(<SignIn configured callbackFailed returnTo="/\\attacker.example" />);
-    expect(screen.getByRole('alert')).toHaveTextContent('יש לבדוק את הדוא״ל ולאמת את הכתובת');
-    expect(screen.getByRole('link', { name: 'התחברות' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=he');
-    expect(screen.getByRole('link', { name: 'יצירת חשבון' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=he&screen_hint=signup');
+    expect(screen.getByRole('alert')).toHaveTextContent('לבקש קישור אימות חדש');
+    expect(screen.getByRole('button', { name: 'התחברות' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'יצירת חשבון' })).toHaveAttribute('href', '/sign-up?lang=he&returnTo=%2F');
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('check your email and verify your address');
+    expect(screen.getByRole('alert')).toHaveTextContent('request a new verification link');
     expect(screen.getByRole('main')).toHaveAttribute('dir', 'ltr');
     expect(screen.getByRole('main')).toHaveAttribute('lang', 'en');
-    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=en');
-    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/auth/login?returnTo=%2F&ui_locales=en&screen_hint=signup');
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/sign-up?lang=en&returnTo=%2F');
   });
 });

@@ -90,6 +90,7 @@ export default function SettingsPage() {
       const { data, error } = await supabase
         .from("settings")
         .select("annual_growth_rate,currency,refresh_interval")
+        .eq("is_active", true)
         .maybeSingle();
 
       if (error) throw error;
@@ -123,6 +124,7 @@ export default function SettingsPage() {
       const { data: existing } = await supabase
         .from("settings")
         .select("id")
+        .eq("is_active", true)
         .maybeSingle();
 
       if (existing) {

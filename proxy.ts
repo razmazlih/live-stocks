@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth0 } from '@/lib/auth/auth0';
-import { isPublicInformationPath } from '@/lib/public-routes';
+import { getBetterAuthSession } from '@/lib/auth/better-auth';
+import { isPublicInformationPath, isPublicAuthPath } from '@/lib/public-routes';
 import { getPublicPublisher } from '@/lib/public-publisher';
 
 export async function proxy(request: NextRequest) {
@@ -16,21 +16,20 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  const auth0 = getAuth0();
-  if (!auth0) {
-    if (pathname === '/sign-in') return NextResponse.next();
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+  if (isPublicAuthPath(pathname)) {
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
   }
-
-  const response = await auth0.middleware(request);
-  if (pathname.startsWith('/auth/') || pathname === '/sign-in') return response;
-
-  const session = await auth0.getSession(request);
-  if (!session?.user?.sub) {
+  let session;
+  try { session = await getBetterAuthSession(new Headers(request.headers)); } catch { /* Fail closed. */ }
+  if (!session?.user?.id || !session.user.emailVerified) {
     const target = new URL('/sign-in', request.url);
     target.searchParams.set('returnTo', pathname + request.nextUrl.search);
     return NextResponse.redirect(target);
   }
+  const response = NextResponse.next();
   response.headers.set('Cache-Control', 'private, no-store');
   return response;
 }

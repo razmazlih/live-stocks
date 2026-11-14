@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         .from('settings')
         .select('*')
         .eq('user_id', principal.userId)
+        .eq('is_active', true)
         .limit(1)
         .maybeSingle(),
     ]);

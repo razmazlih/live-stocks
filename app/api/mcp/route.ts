@@ -1,4 +1,4 @@
-import { requireMcpPrincipal, authenticationResponse, AuthenticationError, auth0Configuration, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
+import { requireMcpPrincipal, authenticationResponse, AuthenticationError, authenticationConfiguration, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { GET as portfolioSnapshot } from '@/app/api/portfolio/ai/route';
@@ -93,7 +93,7 @@ function authFailure(failure: unknown): Response | null {
   const response = authenticationResponse(failure);
   if (response?.status === 401) {
     let mcpAudience: string;
-    try { ({ mcpAudience } = auth0Configuration()); }
+    try { ({ mcpAudience } = authenticationConfiguration()); }
     catch (configurationError) { return authenticationResponse(configurationError) ?? json({ error: 'Authentication is unavailable' }, 503); }
     const metadata = new URL('/.well-known/oauth-protected-resource', mcpAudience).href;
     response.headers.set('WWW-Authenticate', `Bearer resource_metadata="${metadata}", scope="portfolio:read"`);

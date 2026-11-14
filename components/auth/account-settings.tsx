@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { useAuth } from './auth-provider';
+import { AccountLinking } from './account-linking';
 
 type Widget = { id: string; name: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
 type Connections = { mcp: { enabled: boolean; connected: boolean; revokedAt: string | null }; widgets: Widget[] };
@@ -24,10 +25,6 @@ async function accountRequest<T>(path: string, options?: RequestInit): Promise<T
 export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' | 'en'; onCredentialChange: (configured: boolean) => void }) {
   const he = locale === 'he';
   const { user, signOut } = useAuth();
-  // Informational label only; authorization continues to use the verified exact subject.
-  const loginMethod = user.id.startsWith('google-oauth2|') ? 'Google'
-    : user.id.startsWith('auth0|') ? (he ? 'דוא״ל וסיסמה' : 'Email and password')
-      : (he ? 'ספק התחברות אחר' : 'Other sign-in provider');
   const [credentialConfigured, setCredentialConfigured] = useState<boolean | null>(null);
   const [newCredential, setNewCredential] = useState('');
   const [connections, setConnections] = useState<Connections | null>(null);
@@ -91,10 +88,9 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
         <Button type="button" variant="outline" onClick={signOut}>{he ? 'התנתקות' : 'Sign out'}</Button>
       </div>
       <dl className="mt-4 space-y-3 text-sm">
-        <div><dt className="text-xs text-slate-500">{he ? 'שיטת ההתחברות' : 'Sign-in method'}</dt><dd>{loginMethod}</dd></div>
         <div><dt className="text-xs text-slate-500">{he ? 'מזהה החשבון' : 'Account ID'}</dt><dd dir="ltr" className="break-all text-start font-mono text-xs">{user.id}</dd></div>
       </dl>
-      <p className="mt-4 text-xs leading-6 text-slate-500">{he ? 'כניסה עם Google וכניסה עם דוא״ל וסיסמה עשויות לפתוח חשבונות נפרדים, גם עם אותה כתובת דוא״ל. אין מיזוג אוטומטי לפי כתובת הדוא״ל. כדי להגיע לתיק הקיים, יש להשתמש בשיטת ההתחברות שבה נוצר.' : 'Google sign-in and email/password sign-in may open separate accounts, even with the same email address. Accounts are not merged automatically by email. Use the original sign-in method to access an existing portfolio.'}</p>
+      <AccountLinking locale={locale} />
     </DashboardSurface>
     {loadError && <p role="alert" className="text-sm text-rose-600">{he ? 'לא ניתן לטעון את פרטי החיבורים. יש לרענן כדי לנסות שוב.' : 'Unable to load connections. Refresh to try again.'}</p>}
     <DashboardSurface>

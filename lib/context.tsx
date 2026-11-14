@@ -52,6 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase
           .from('settings')
           .select('annual_growth_rate,currency,refresh_interval')
+          .eq('is_active', true)
           .maybeSingle();
 
         if (error) throw error;

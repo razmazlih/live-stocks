@@ -1,9 +1,12 @@
 import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createRemoteJWKSet } from 'jose';
-import { getAuth0 } from '@/lib/auth/auth0';
+import { headers } from 'next/headers';
+import { getBetterAuthSession, getWebsiteDatabaseToken } from '@/lib/auth/better-auth';
+import { betterAuthConfiguration } from '@/lib/auth/better-auth-config';
 import { createAuth0TokenVerifier } from '@/lib/auth/auth0-token';
 import { getAdminSupabase } from '@/lib/auth/admin';
+import { parseResolvedIdentity, verifiedEmailDigest } from '@/lib/auth/identity';
 
 export const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0', 'Vary': 'Cookie, Authorization' };
 export class AuthenticationError extends Error {
@@ -12,6 +15,9 @@ export class AuthenticationError extends Error {
 export type Principal = {
   userId: string; clientId: string; issuedAt: number; expiresAt: number;
   kind: 'web' | 'mcp'; accessToken: string; supabase: SupabaseClient;
+  /** Provider identity is used for session checks; userId is the canonical portfolio owner. */
+  rawSubject: string; issuer: string; identityVersion: number; authSessionCreatedAt?: number; authSessionId?: string;
+  accountEmail?: string; accountName?: string;
 };
 
 let verifierCache: { key: string; verify: ReturnType<typeof createAuth0TokenVerifier> } | undefined;
@@ -31,15 +37,39 @@ export function auth0Configuration() {
   return { issuer: issuer.href, websiteClientId, mcpClientId, websiteAudience, mcpAudience };
 }
 
+export function authenticationConfiguration() {
+  try {
+    const { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId } = betterAuthConfiguration();
+    return { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId };
+  } catch { throw new AuthenticationError(503, 'Authentication is not configured'); }
+}
+
 async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principal> {
-  const config = auth0Configuration();
+  const config = authenticationConfiguration();
   const key = JSON.stringify(config);
   if (!verifierCache || verifierCache.key !== key) {
-    verifierCache = { key, verify: createAuth0TokenVerifier({ ...config, jwks: createRemoteJWKSet(new URL('.well-known/jwks.json', config.issuer)) }) };
+    verifierCache = { key, verify: createAuth0TokenVerifier({ ...config, requireLiveSessionEvidence: true,
+      companionAudience: `${config.issuer}/oauth2/userinfo`, jwks: createRemoteJWKSet(new URL(`${config.issuer}/jwks`)) }) };
   }
   let identity;
   try { identity = await verifierCache.verify(token, kind); }
   catch { throw new AuthenticationError(); }
+  const rawSubject = identity.userId;
+  const live = await getAdminSupabase().rpc('server_better_auth_token_valid', {
+    p_subject: rawSubject, p_session_id: identity.authSessionId, p_client_id: identity.clientId,
+    p_grant_id: identity.grantId ?? null,
+  });
+  if (live.error) throw new AuthenticationError(503, 'Account storage is not ready');
+  if (live.data !== true) throw new AuthenticationError(401, 'Sign in again to access this account');
+  const resolved = await getAdminSupabase().rpc('server_identity_resolve', {
+    p_issuer: config.issuer, p_subject: rawSubject,
+    p_email_hash: verifiedEmailDigest(config.issuer, identity.verifiedEmail),
+    p_auth_session_created_at: identity.authSessionCreatedAt ?? null,
+  });
+  if (resolved.error) throw new AuthenticationError(503, 'Account storage is not ready');
+  const owner = parseResolvedIdentity(resolved.data, rawSubject);
+  if (!owner) throw new AuthenticationError(503, 'Account storage is not ready');
+  if (owner.state !== 'active') throw new AuthenticationError(401, 'Sign in again to access this account');
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !publishableKey) throw new AuthenticationError(503, 'Database is not configured');
@@ -47,20 +77,22 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
     accessToken: async () => token,
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  return { ...identity, accessToken: token, supabase };
+  return { ...identity, userId: owner.profile_id, rawSubject, issuer: config.issuer,
+    identityVersion: owner.identity_version, accessToken: token, supabase };
 }
 
 export async function requireWebPrincipal(): Promise<Principal> {
-  const auth0 = getAuth0();
-  if (!auth0) throw new AuthenticationError(503, 'Authentication is not configured');
   try {
-    const session = await auth0.getSession();
-    if (!session?.user?.sub) throw new AuthenticationError();
-    if (session.user.email_verified !== true) throw new AuthenticationError(403, 'Verify your email before continuing');
-    const { token } = await auth0.getAccessToken();
+    authenticationConfiguration();
+    const requestHeaders = new Headers(await headers());
+    const existing = await getBetterAuthSession(requestHeaders);
+    if (!existing?.user?.id) throw new AuthenticationError();
+    if (existing.user.emailVerified !== true) throw new AuthenticationError(403, 'Verify your email before continuing');
+    const { token, session } = await getWebsiteDatabaseToken(requestHeaders);
     const principal = await verifyToken(token, 'web');
-    if (principal.userId !== session.user.sub) throw new AuthenticationError();
-    return principal;
+    if (principal.rawSubject !== session.user.id || principal.authSessionId !== session.session.id
+      || principal.authSessionCreatedAt !== Math.floor(new Date(session.session.createdAt).getTime() / 1000)) throw new AuthenticationError();
+    return { ...principal, accountEmail: session.user.email, accountName: session.user.name };
   } catch (error) {
     if (error instanceof AuthenticationError) throw error;
     throw new AuthenticationError();
@@ -69,10 +101,15 @@ export async function requireWebPrincipal(): Promise<Principal> {
 
 export async function bootstrapWebAccount(principal: Principal): Promise<void> {
   if (principal.kind !== 'web') throw new AuthenticationError(403);
-  const profile = await principal.supabase.from('user_profiles').upsert({ id: principal.userId }, { onConflict: 'id', ignoreDuplicates: true });
-  if (profile.error) throw new AuthenticationError(503, 'Account storage is not ready');
-  const settings = await principal.supabase.from('settings').upsert({ user_id: principal.userId }, { onConflict: 'user_id', ignoreDuplicates: true });
-  if (settings.error) throw new AuthenticationError(503, 'Account storage is not ready');
+  const result = await getAdminSupabase().rpc('server_bootstrap_web_account', {
+    p_issuer: principal.issuer, p_subject: principal.rawSubject,
+    p_auth_session_created_at: principal.authSessionCreatedAt ?? null,
+  });
+  const identity = parseResolvedIdentity(result.data, principal.rawSubject);
+  if (result.error || !identity) throw new AuthenticationError(503, 'Account storage is not ready');
+  if (identity.state !== 'active' || identity.profile_id !== principal.userId || identity.identity_version !== principal.identityVersion) {
+    throw new AuthenticationError(401, 'Sign in again to access this account');
+  }
 }
 
 export async function requireMcpPrincipal(request: Request): Promise<Principal> {
@@ -80,8 +117,6 @@ export async function requireMcpPrincipal(request: Request): Promise<Principal> 
   if (!bearer) throw new AuthenticationError();
   const principal = await verifyToken(bearer[1], 'mcp');
   const admin = getAdminSupabase();
-  const profile = await admin.from('user_profiles').upsert({ id: principal.userId }, { onConflict: 'id', ignoreDuplicates: true });
-  if (profile.error) throw new AuthenticationError(503, 'Account storage is not ready');
   const { data, error } = await admin.rpc('server_mcp_connection', {
     p_user_id: principal.userId, p_action: 'bootstrap', p_valid_after: principal.issuedAt,
   });

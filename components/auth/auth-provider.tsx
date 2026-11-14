@@ -2,33 +2,41 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { AppProvider } from '@/lib/context';
 import { configureSupabaseUser, resetSupabaseClient } from '@/lib/supabase';
 import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
 import { SignIn } from './sign-in';
-import { isPublicInformationPath } from '@/lib/public-routes';
+import { isPublicAuthPath, isPublicInformationPath } from '@/lib/public-routes';
+import { authClient } from '@/lib/auth/better-auth-client';
+import { authNavigation, clearBrowserAccount } from '@/lib/auth/browser-session';
+import { Button } from '@/components/ui/button';
+import type { AuthPublicOptions } from '@/types/auth';
 
 export type AccountUser = { id: string; email?: string; name?: string; emailVerified: boolean };
-type AccountSession = { user: AccountUser | null; configured: boolean };
+type AccountSession = { user: AccountUser | null; configured: boolean; options?: AuthPublicOptions };
 const AuthContext = createContext<{ user: AccountUser; signOut: () => void } | null>(null);
 const ACCOUNT_EVENT = 'livestocks:account-change';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+const DEFAULT_OPTIONS: AuthPublicOptions = { configured: true, googleEnabled: false, emailDeliveryConfigured: false };
+
+export function AuthProvider({ children, options = DEFAULT_OPTIONS }: { children: ReactNode; options?: AuthPublicOptions }) {
   const pathname = usePathname();
   if (isPublicInformationPath(pathname)) return <>{children}</>;
-  return <PrivateAuthProvider>{children}</PrivateAuthProvider>;
+  return <PrivateAuthProvider options={options}>{children}</PrivateAuthProvider>;
 }
 
-function PrivateAuthProvider({ children }: { children: ReactNode }) {
+function PrivateAuthProvider({ children, options }: { children: ReactNode; options: AuthPublicOptions }) {
   const pathname = usePathname();
   const [session, setSession] = useState<AccountSession | null>(null);
   const [error, setError] = useState(false);
   const [verificationRequired, setVerificationRequired] = useState(false);
   const [generation, setGeneration] = useState(0);
   const pendingRequest = useRef<AbortController | null>(null);
+  const signingOut = useRef(false);
+  const [signOutState, setSignOutState] = useState<'idle' | 'pending' | 'failed'>('idle');
 
   const revalidate = useCallback(async () => {
+    if (signingOut.current) return;
     pendingRequest.current?.abort();
     const controller = new AbortController();
     pendingRequest.current = controller;
@@ -96,17 +104,24 @@ function PrivateAuthProvider({ children }: { children: ReactNode }) {
     };
   }, [revalidate]);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    signingOut.current = true;
+    setSignOutState('pending');
     pendingRequest.current?.abort();
-    resetSupabaseClient();
+    clearBrowserAccount('logout');
     setSession({ user: null, configured: true });
-    try { localStorage.setItem(ACCOUNT_EVENT, `logout:${Date.now()}`); } catch { /* Focus also revalidates the session. */ }
-    window.location.assign('/auth/logout');
+    try {
+      const result = await authClient.signOut();
+      if (result.error) throw new Error('Sign-out failed');
+      authNavigation.assign('/sign-in');
+    } catch { setSignOutState('failed'); }
   }, []);
 
+  if (signOutState !== 'idle') return <main className="flex min-h-screen items-center justify-center bg-[var(--color-page-bg)] p-5 text-foreground"><section className="max-w-md space-y-4 rounded-3xl border border-border bg-card p-7 text-card-foreground"><p role={signOutState === 'failed' ? 'alert' : 'status'}>{signOutState === 'failed' ? 'ההתנתקות לא הושלמה. יש לנסות שוב. / Sign-out did not complete. Please retry.' : 'מתנתק… / Signing out…'}</p>{signOutState === 'failed' && <Button onClick={() => { void signOut(); }}>ניסיון התנתקות נוסף / Retry sign-out</Button>}</section></main>;
+  // Public auth forms remain usable during session checks; private providers never mount here.
+  if (isPublicAuthPath(pathname)) return <>{children}</>;
   if (!session) return <main className="flex min-h-screen items-center justify-center"><p role="status">LiveStocks · טוען / Loading…</p></main>;
-  if (!session.user) return pathname === '/sign-in' && !error && !verificationRequired ? children : <SignIn configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname === '/sign-in' ? '/' : pathname} />;
-  if (pathname === '/sign-in') return <main className="flex min-h-screen items-center justify-center"><Link href="/" className="rounded-xl bg-blue-600 px-5 py-3 text-white">פתיחת התיק / Open portfolio</Link></main>;
+  if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>
     <AppProvider key={`${session.user.id}:${generation}`}>
       <StockNavigationProvider>{children}</StockNavigationProvider>

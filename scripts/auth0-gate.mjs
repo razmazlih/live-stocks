@@ -11,9 +11,10 @@ const directory = process.env.AUTH0_SETUP_DIR;
 if (!directory || !/^\/private\/tmp\/livestocks-auth0-setup(?:-[A-Za-z0-9]+)?$/.test(directory)) throw new Error('A dedicated private setup directory is required.');
 const env = JSON.parse(readFileSync(`${directory}/env.json`, 'utf8'));
 const setup = JSON.parse(readFileSync(`${directory}/state.json`, 'utf8'));
+const sessionOnly = process.argv.includes('--session-origin-only');
 const oidcOnly = process.argv.includes('--mcp-oidc-only');
-if (oidcOnly && process.argv.includes('--web-only')) throw new Error('Select only one gate mode.');
-const reportFile = oidcOnly ? 'mcp-oidc-gate-report.json' : 'gate-report.json';
+if ([sessionOnly, oidcOnly, process.argv.includes('--web-only')].filter(Boolean).length > 1) throw new Error('Select only one gate mode.');
+const reportFile = sessionOnly ? 'session-origin-gate-report.json' : oidcOnly ? 'mcp-oidc-gate-report.json' : 'gate-report.json';
 const playwrightPath = process.env.AUTH0_GATE_PLAYWRIGHT;
 if (!playwrightPath) throw new Error('Set AUTH0_GATE_PLAYWRIGHT to the installed Playwright module.');
 const { chromium } = await import(playwrightPath);
@@ -119,7 +120,60 @@ try {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); }); servers.push(server);
   }
   browser = await chromium.launch({ headless: true });
-  if (oidcOnly) {
+  if (sessionOnly) {
+    for (const kind of ['web', 'mcp']) {
+      const first = await positive(`${kind}_session_initial`, kind, 0);
+      if (!first?.refresh_token) continue;
+      const initialClaims = decodeJwt(first.access_token);
+      let previous = first;
+      const privateClaims = [initialClaims];
+      for (let iteration = 1; iteration <= 2; iteration++) {
+        const result = await exchange(kind, { grant_type: 'refresh_token', refresh_token: previous.refresh_token,
+          ...(kind === 'mcp' ? { resource: configuration.mcpAudience } : {}) });
+        const valid = await accepted(result, kind, setup.syntheticUsers[0].user_id);
+        const claims = valid ? decodeJwt(result.body.access_token) : {};
+        privateClaims.push(claims);
+        const id = 'https://livestocks.app/auth_session_id';
+        const created = 'https://livestocks.app/auth_session_created_at';
+        const initialIdPresent = typeof initialClaims[id] === 'string';
+        const refreshedIdPresent = typeof claims[id] === 'string';
+        const initialCreatedPresent = Number.isInteger(initialClaims[created]);
+        const refreshedCreatedPresent = Number.isInteger(claims[created]);
+        const idStable = initialIdPresent && refreshedIdPresent && initialClaims[id] === claims[id];
+        const createdStable = initialCreatedPresent && refreshedCreatedPresent && initialClaims[created] === claims[created];
+        record(`${kind}_session_refresh_${iteration}`, valid ? idStable && createdStable ? 'PASS' : 'FAIL' : 'INCOMPLETE', {
+          tokenAccepted: valid, initialIdPresent, refreshedIdPresent, initialCreatedPresent, refreshedCreatedPresent,
+          idStable, createdStable, refreshTokenRotated: typeof result.body.refresh_token === 'string' && result.body.refresh_token !== previous.refresh_token,
+        });
+        if (!valid || !result.body.refresh_token) break;
+        previous = result.body;
+      }
+      const newLogin = await positive(`${kind}_independent_new_login`, kind, 0);
+      if (newLogin && previous.refresh_token) {
+        const newerClaims = decodeJwt(newLogin.access_token);
+        const oldGrantRefresh = await exchange(kind, { grant_type: 'refresh_token', refresh_token: previous.refresh_token,
+          ...(kind === 'mcp' ? { resource: configuration.mcpAudience } : {}) });
+        const valid = await accepted(oldGrantRefresh, kind, setup.syntheticUsers[0].user_id);
+        const oldClaims = valid ? decodeJwt(oldGrantRefresh.body.access_token) : {};
+        const id = 'https://livestocks.app/auth_session_id';
+        const created = 'https://livestocks.app/auth_session_created_at';
+        const independentOrigins = typeof initialClaims[id] === 'string' && typeof newerClaims[id] === 'string'
+          && initialClaims[id] !== newerClaims[id] && Number.isInteger(initialClaims[created])
+          && Number.isInteger(newerClaims[created]) && newerClaims[created] > initialClaims[created];
+        const oldOriginPreserved = valid && oldClaims[id] === initialClaims[id] && oldClaims[created] === initialClaims[created];
+        const cutoffRejectsOldGrant = independentOrigins && oldOriginPreserved && oldClaims[created] < newerClaims[created];
+        record(`${kind}_old_refresh_after_new_login`, valid ? cutoffRejectsOldGrant ? 'PASS' : 'FAIL' : 'INCOMPLETE', {
+          tokenAccepted: valid, independentOrigins, oldOriginPreserved, cutoffRejectsOldGrant,
+          refreshedIatAtLeastNewOrigin: Number.isInteger(oldClaims.iat) && oldClaims.iat >= newerClaims[created],
+        });
+        privateClaims.push(newerClaims, oldClaims);
+        save(`private-session-origin-tokens-${kind}.json`, { initialAccessToken: first.access_token,
+          newerAccessToken: newLogin.access_token, oldGrantRefreshedAccessToken: oldGrantRefresh.body.access_token });
+      }
+      save(`private-session-origin-${kind}.json`, privateClaims);
+    }
+    report.status = report.cases.some(item => item.status === 'FAIL') ? 'FAIL' : report.cases.length === 10 && report.cases.every(item => item.status === 'PASS') ? 'PASS_SESSION_ORIGIN' : 'INCOMPLETE';
+  } else if (oidcOnly) {
     const result = await codeTokens('mcp', 0, { resource: configuration.mcpAudience }, 'mcp_oidc_scopes', { resource: configuration.mcpAudience });
     const valid = await accepted(result, 'mcp', setup.syntheticUsers[0].user_id);
     const claims = valid ? decodeJwt(result.body.access_token) : null;
@@ -204,12 +258,12 @@ try {
   }
   }
 } catch (error) {
-  save(oidcOnly ? 'mcp-oidc-private-error.json' : 'gate-private-error.json', { name: error?.name, message: error?.message });
+  save(sessionOnly ? 'session-origin-private-error.json' : oidcOnly ? 'mcp-oidc-private-error.json' : 'gate-private-error.json', { name: error?.name, message: error?.message });
   record('gate_execution', 'INCOMPLETE', { reason: 'See private diagnostic; no credential details emitted.' });
 } finally {
   await browser?.close();
   await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve))));
   report.completedAt = new Date().toISOString(); save(reportFile, report);
-  console.log(JSON.stringify({ status: report.status, reportPath: `${directory}/${reportFile}`, ...(!oidcOnly ? { tokenPath: `${directory}/tokens.json` } : {}) }));
-  process.exitCode = ['PASS_AUTH0_GATE', 'PASS_WEB_ONLY', 'PASS_MCP_OIDC'].includes(report.status) ? 0 : report.status === 'FAIL' ? 1 : 2;
+  console.log(JSON.stringify({ status: report.status, reportPath: `${directory}/${reportFile}`, ...(!oidcOnly && !sessionOnly ? { tokenPath: `${directory}/tokens.json` } : {}) }));
+  process.exitCode = ['PASS_AUTH0_GATE', 'PASS_WEB_ONLY', 'PASS_MCP_OIDC', 'PASS_SESSION_ORIGIN'].includes(report.status) ? 0 : report.status === 'FAIL' ? 1 : 2;
 }

@@ -47,12 +47,35 @@ exports.onExecutePostLogin = async (event, api) => {
     return;
   }
 
+  // Optional origin evidence. Store it on this grant, never on the user: a
+  // refresh must not acquire another session's newer authentication timestamp.
+  // Missing evidence remains absent; consumers requiring it must fail closed.
+  const refreshing = event.transaction?.protocol === 'oauth2-refresh-token';
+  const metadata = event.refresh_token?.metadata || {};
+  const sessionId = refreshing ? metadata.livestocks_session_id : event.session?.id;
+  const createdAt = refreshing ? metadata.livestocks_session_created_at : event.session?.created_at;
+  const createdSeconds = typeof createdAt === 'string' ? Date.parse(createdAt) / 1000 : NaN;
+  const validOrigin = typeof sessionId === 'string' && sessionId.length > 0 && sessionId.length <= 255
+    && Number.isFinite(createdSeconds) && createdSeconds > 0;
+  if (validOrigin) {
+    api.accessToken.setCustomClaim('https://livestocks.app/auth_session_id', sessionId);
+    api.accessToken.setCustomClaim('https://livestocks.app/auth_session_created_at', Math.floor(createdSeconds));
+    if (typeof api.refreshToken?.setMetadata === 'function') {
+      api.refreshToken.setMetadata('livestocks_session_id', sessionId);
+      api.refreshToken.setMetadata('livestocks_session_created_at', createdAt);
+    }
+  }
+
   // This literal role must appear on real custom-API access tokens before rollout.
   // If Auth0 strips it, the application verifier rejects the token; no anon fallback.
   for (const token of [api.accessToken, api.idToken]) {
     token.setCustomClaim('role', 'authenticated');
     token.setCustomClaim('https://livestocks.app/read_only', readOnly);
     token.setCustomClaim('https://livestocks.app/email_verified', true);
+    if (typeof event.user.email === 'string' && event.user.email.length <= 320
+      && /^[^\s@]+@[^\s@]+$/.test(event.user.email)) {
+      token.setCustomClaim('https://livestocks.app/email', event.user.email);
+    }
   }
   if (readOnly) api.accessToken.removeScope('portfolio:write');
 };

@@ -1,0 +1,212 @@
+import 'server-only';
+import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { jwt } from 'better-auth/plugins';
+import { oauthProvider } from '@better-auth/oauth-provider';
+import { Pool } from 'pg';
+import { randomUUID } from 'node:crypto';
+import { betterAuthConfiguration, getAuthPublicOptions, type BetterAuthConfiguration } from './better-auth-config';
+import { requireAuthEmailConfiguration, sendAuthEmail } from './auth-email';
+
+export { betterAuthConfiguration, getAuthPublicOptions };
+export const AUTH_SCHEMA = 'livestocks_auth';
+export const AUTH_BACKEND_ROLE = 'livestocks_auth_backend';
+export const AUTH_SCOPES = ['openid', 'email', 'profile', 'offline_access', 'portfolio:read'] as const;
+const NAMESPACE = 'https://livestocks.app/';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function storageError(): APIError {
+  return new APIError('SERVICE_UNAVAILABLE', { code: 'AUTH_STORAGE_UNAVAILABLE', message: 'Authentication storage is unavailable' });
+}
+function deniedGrant(): APIError {
+  return new APIError('BAD_REQUEST', { error: 'invalid_grant', error_description: 'An active verified LiveStocks session and approval are required' });
+}
+
+/** PostgreSQL credentials have rights only in the private authentication schema. */
+export function createAuthPool(config: BetterAuthConfiguration): Pool {
+  const url = new URL(config.databaseUrl);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.searchParams.has('options')) throw new Error('Invalid authentication database configuration');
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (decodeURIComponent(url.username) !== AUTH_BACKEND_ROLE && !decodeURIComponent(url.username).startsWith(`${AUTH_BACKEND_ROLE}.`)) {
+    throw new Error('Authentication requires its dedicated database role');
+  }
+  // pg connection-string SSL query options can replace explicit TLS options.
+  // Remove them and enforce certificate validation here instead.
+  for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key);
+  return new Pool({ connectionString: url.href, max: 5, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000,
+    options: `-c search_path=${AUTH_SCHEMA} -c statement_timeout=15000`,
+    ssl: local && process.env.NODE_ENV !== 'production' ? false
+      : { rejectUnauthorized: true, ...(process.env.BETTER_AUTH_DATABASE_CA ? { ca: process.env.BETTER_AUTH_DATABASE_CA.replace(/\\n/g, '\n') } : {}) },
+  });
+}
+
+async function ensureApproval(pool: Pool, userId: string, sessionId: string, clientId: string): Promise<string> {
+  try {
+    const { rows } = await pool.query<{ id: string }>('select private.ensure_oauth_approval($1,$2,$3)::text as id', [userId, sessionId, clientId]);
+    if (!rows[0]?.id || !UUID.test(rows[0].id)) throw deniedGrant();
+    return rows[0].id;
+  } catch (error) { if (error instanceof APIError) throw error; throw storageError(); }
+}
+
+export async function checkOAuthApproval(pool: Pool, id: string, userId: string, sessionId: string, clientId: string) {
+  if (!UUID.test(id)) throw deniedGrant();
+  let result;
+  try {
+    const { rows } = await pool.query<{ approval: { valid: boolean; auth_session_created_at: number; profile_id: string } }>(
+      'select private.check_oauth_approval($1::uuid,$2,$3,$4) as approval', [id, userId, sessionId, clientId]);
+    result = rows[0]?.approval;
+  } catch { throw storageError(); }
+  if (result?.valid !== true || !Number.isSafeInteger(Number(result.auth_session_created_at)) || Number(result.auth_session_created_at) <= 0) throw deniedGrant();
+  return { ...result, auth_session_created_at: Number(result.auth_session_created_at) };
+}
+
+function providerOptions(config: BetterAuthConfiguration, pool: Pool, bootstrapUserId?: string) {
+  return {
+    loginPage: '/sign-in', consentPage: '/oauth/consent',
+    scopes: [...AUTH_SCOPES], grantTypes: ['authorization_code', 'refresh_token'] as ('authorization_code' | 'refresh_token')[],
+    accessTokenExpiresIn: 300, refreshTokenExpiresIn: 7 * 24 * 60 * 60, codeExpiresIn: 120, refreshTokenReuseInterval: 0,
+    allowDynamicClientRegistration: false, allowUnauthenticatedClientRegistration: false,
+    allowInsecureRedirectUri: (url: URL) => process.env.NODE_ENV !== 'production'
+      && ['localhost', '127.0.0.1', '[::1]'].includes(new URL(config.origin).hostname)
+      && url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname),
+    enforcePerClientResources: true,
+    clientPrivileges: ({ user }: { user?: { id: string } }) => Boolean(bootstrapUserId && user?.id === bootstrapUserId),
+    resourcePrivileges: ({ user }: { user?: { id: string } }) => Boolean(bootstrapUserId && user?.id === bootstrapUserId),
+    generateClientId: () => config.mcpClientId,
+    ...(bootstrapUserId ? { generateClientSecret: () => {
+      const secret = process.env.BETTER_AUTH_MCP_CLIENT_SECRET;
+      if (!secret || secret.length < 32) throw new Error('MCP client secret is not configured');
+      return secret;
+    } } : {}),
+    resources: [{ identifier: config.mcpAudience, allowedScopes: [...AUTH_SCOPES], accessTokenTtl: 300, signingAlgorithm: 'ES256' as const }],
+    postLogin: {
+      page: '/oauth/consent', shouldRedirect: async () => false,
+      consentReferenceId: async ({ user, session }: { user: { id: string; emailVerified: boolean }; session: { id: string } }) => {
+        if (!user.emailVerified || !session.id) throw deniedGrant();
+        return ensureApproval(pool, user.id, session.id, config.mcpClientId);
+      },
+    },
+  };
+}
+
+/** A bootstrap instance is never exposed as an HTTP handler. */
+export function createBetterAuth(config: BetterAuthConfiguration, pool: Pool, bootstrapUserId?: string) {
+  return betterAuth({
+    baseURL: config.origin, basePath: '/api/auth', secret: config.secret, database: pool,
+    trustedOrigins: [config.origin], telemetry: { enabled: false }, logger: { disabled: true },
+    disabledPaths: ['/token', '/link-social', '/unlink-account', '/delete-user', '/set-password'],
+    emailAndPassword: { enabled: true, requireEmailVerification: true, autoSignIn: false, minPasswordLength: 8, maxPasswordLength: 128,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => sendAuthEmail(user.email, url, 'reset'),
+    },
+    emailVerification: { sendOnSignUp: true, sendOnSignIn: false, autoSignInAfterVerification: false, expiresIn: 3600,
+      sendVerificationEmail: async ({ user, url }) => sendAuthEmail(user.email, url, 'verify'),
+    },
+    account: { encryptOAuthTokens: true, accountLinking: { enabled: true, disableImplicitLinking: true, allowDifferentEmails: false } },
+    session: { expiresIn: 7 * 24 * 60 * 60, updateAge: 24 * 60 * 60, cookieCache: { enabled: false } },
+    rateLimit: { enabled: true, storage: 'database', window: 60, max: 100,
+      customRules: { '/sign-in/email': { window: 60, max: 8 }, '/sign-up/email': { window: 60, max: 5 },
+        '/request-password-reset': { window: 60, max: 3 }, '/send-verification-email': { window: 60, max: 3 } },
+    },
+    socialProviders: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
+      google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        scope: ['openid', 'email', 'profile'], prompt: 'select_account' },
+    } : {},
+    hooks: { before: createAuthMiddleware(async ctx => {
+      if (['/sign-up/email', '/send-verification-email', '/request-password-reset'].includes(ctx.path)) {
+        try { requireAuthEmailConfiguration(); }
+        catch { throw new APIError('SERVICE_UNAVAILABLE', { code: 'EMAIL_DELIVERY_UNAVAILABLE', message: 'Email delivery is unavailable' }); }
+      }
+    }) },
+    plugins: [
+      jwt({ disableSettingJwtHeader: true, jwks: { keyPairConfig: { alg: 'ES256' }, gracePeriod: 30 * 24 * 60 * 60 }, jwt: { issuer: config.issuer } }),
+      oauthProvider({ ...providerOptions(config, pool, bootstrapUserId),
+        extensions: [{ claims: { accessToken: async ({ client, user, sessionId, referenceId, resources, scopes }) => {
+          if (client.clientId !== config.mcpClientId || !user?.emailVerified || !sessionId || !referenceId
+            || !resources?.includes(config.mcpAudience) || resources.some(value => value !== config.mcpAudience)
+            || scopes.includes('portfolio:write') || !scopes.includes('portfolio:read')) throw deniedGrant();
+          const approval = await checkOAuthApproval(pool, referenceId, user.id, sessionId, client.clientId);
+          return { azp: client.clientId, role: 'authenticated', [`${NAMESPACE}read_only`]: true, [`${NAMESPACE}email_verified`]: true,
+            [`${NAMESPACE}auth_session_id`]: sessionId, [`${NAMESPACE}auth_session_created_at`]: approval.auth_session_created_at,
+            [`${NAMESPACE}grant_id`]: referenceId, [`${NAMESPACE}email`]: user.email };
+        } } }],
+      }),
+    ],
+  });
+}
+
+let singleton: { key: string; auth: ReturnType<typeof createBetterAuth>; pool: Pool } | undefined;
+export function getBetterAuth(): ReturnType<typeof createBetterAuth> | null {
+  let config: BetterAuthConfiguration;
+  try { config = betterAuthConfiguration(); } catch { return null; }
+  const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId]);
+  if (!singleton || singleton.key !== key) {
+    if (singleton) void singleton.pool.end();
+    const pool = createAuthPool(config);
+    singleton = { key, pool, auth: createBetterAuth(config, pool) };
+  }
+  return singleton.auth;
+}
+
+export async function getBetterAuthSession(headers: Headers) {
+  const auth = getBetterAuth();
+  if (!auth) return null;
+  return auth.api.getSession({ headers, query: { disableCookieCache: true } });
+}
+
+export async function getWebsiteDatabaseToken(headers: Headers) {
+  const auth = getBetterAuth();
+  if (!auth) throw storageError();
+  const session = await getBetterAuthSession(headers);
+  if (!session?.user.emailVerified || !session.session.id || new Date(session.session.expiresAt).getTime() <= Date.now()) throw deniedGrant();
+  const config = betterAuthConfiguration();
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const createdAt = Math.floor(new Date(session.session.createdAt).getTime() / 1000);
+  if (!Number.isSafeInteger(createdAt) || createdAt <= 0 || createdAt > issuedAt) throw deniedGrant();
+  const { token } = await auth.api.signJWT({ body: { payload: {
+    sub: session.user.id, sid: session.session.id, iss: config.issuer, aud: config.websiteAudience,
+    azp: config.websiteClientId, client_id: config.websiteClientId, role: 'authenticated',
+    scope: 'portfolio:read portfolio:write', iat: issuedAt, exp: Math.min(issuedAt + 300, Math.floor(new Date(session.session.expiresAt).getTime() / 1000)), jti: randomUUID(),
+    [`${NAMESPACE}read_only`]: false, [`${NAMESPACE}email_verified`]: true, [`${NAMESPACE}email`]: session.user.email,
+    [`${NAMESPACE}auth_session_id`]: session.session.id, [`${NAMESPACE}auth_session_created_at`]: createdAt,
+  } } });
+  return { token, session };
+}
+
+export async function signOutBetterAuth(headers: Headers): Promise<Response> {
+  const auth = getBetterAuth();
+  if (!auth) throw storageError();
+  return auth.api.signOut({ headers, asResponse: true });
+}
+
+/** Server/CLI setup only; no HTTP route exposes this function or its privileged instance. */
+export async function seedMcpClient(headers: Headers, redirectUris: string[]): Promise<{ clientId: string; created: boolean }> {
+  const config = betterAuthConfiguration();
+  const session = await getBetterAuthSession(headers);
+  if (!session?.user.emailVerified || !singleton || !process.env.BETTER_AUTH_MCP_CLIENT_SECRET
+    || process.env.BETTER_AUTH_MCP_CLIENT_SECRET.length < 32) throw deniedGrant();
+  if (!redirectUris.length || redirectUris.length > 3 || new Set(redirectUris).size !== redirectUris.length) throw new Error('Exact MCP callbacks are required');
+  for (const uri of redirectUris) {
+    const url = new URL(uri);
+    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && process.env.NODE_ENV !== 'production';
+    if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) || url.username || url.password || url.hash || uri.includes('*')) {
+      throw new Error('Invalid MCP callback');
+    }
+  }
+  const existing = await singleton.pool.query<{ redirectUris: string[]; requirePKCE: boolean; skipConsent: boolean; tokenEndpointAuthMethod: string }>(
+    'select "redirectUris", "requirePKCE", "skipConsent", "tokenEndpointAuthMethod" from livestocks_auth."oauthClient" where "clientId"=$1', [config.mcpClientId]);
+  if (existing.rows[0]) {
+    const row = existing.rows[0];
+    if (!row.requirePKCE || row.skipConsent || row.tokenEndpointAuthMethod !== 'client_secret_post'
+      || JSON.stringify([...row.redirectUris].sort()) !== JSON.stringify([...redirectUris].sort())) throw new Error('Existing MCP registration requires review');
+    return { clientId: config.mcpClientId, created: false };
+  }
+  const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);
+  const created = await bootstrap.api.adminCreateOAuthClient({ headers, body: {
+    client_name: 'LiveStocks ChatGPT', redirect_uris: redirectUris, application_type: 'web',
+    token_endpoint_auth_method: 'client_secret_post', grant_types: ['authorization_code', 'refresh_token'],
+    scope: AUTH_SCOPES.join(' '), resources: [config.mcpAudience], require_pkce: true, skip_consent: false,
+  } });
+  if (created.client_id !== config.mcpClientId) throw new Error('MCP client registration did not match configuration');
+  return { clientId: created.client_id, created: true };
+}

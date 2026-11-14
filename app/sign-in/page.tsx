@@ -1,7 +1,9 @@
-import { SignIn } from '@/components/auth/sign-in';
-import { isAuth0Configured } from '@/lib/auth/auth0';
+import { AuthPage, type AuthPageParams } from '@/components/auth/auth-page';
+import type { Metadata } from 'next';
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; error?: string }> }) {
-  const { returnTo, error } = await searchParams;
-  return <SignIn configured={isAuth0Configured()} returnTo={returnTo} callbackFailed={error === 'sign-in-failed'} />;
+export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'כניסה / Sign in · LiveStocks', robots: { index: false }, referrer: 'no-referrer' };
+
+export default function SignInPage({ searchParams }: { searchParams: AuthPageParams }) {
+  return <AuthPage mode="sign-in" searchParams={searchParams} />;
 }

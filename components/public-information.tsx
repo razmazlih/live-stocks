@@ -35,7 +35,6 @@ export async function PublicInformation({ kind, searchParams }: {
           <h2 className="text-lg font-semibold">{he ? 'מדיניות ספקים' : 'Provider policies'}</h2>
           <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">{he ? 'לפרטים על עיבוד המידע בשירותים הנפרדים:' : 'For information about processing by these separate services:'}</p>
           <ul className="flex flex-wrap gap-x-5 gap-y-3 text-sm underline underline-offset-4">
-            <li><a href="https://www.okta.com/legal/privacy-policy/">Auth0 / Okta</a></li>
             <li><a href="https://supabase.com/privacy">Supabase</a></li>
             <li><a href="https://vercel.com/legal/privacy-notice">Vercel</a></li>
             <li><a href="https://policies.google.com/privacy">Google</a></li>

@@ -4,6 +4,7 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { transparencyInitScript } from '@/lib/appearance-preferences';
+import { getAuthPublicOptions } from '@/lib/auth/better-auth-config';
 
 export const metadata: Metadata = {
   title: 'Stocks Status',
@@ -28,7 +29,7 @@ export default function RootLayout({
       <head><script dangerouslySetInnerHTML={{ __html: transparencyInitScript }} /></head>
       <body className="font-sans">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider options={getAuthPublicOptions()}>{children}</AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>

@@ -34,6 +34,12 @@ interface WeightedPortfolioPrices {
   projected: number;
 }
 
+export type PortfolioSourceSnapshot = {
+  positions: Record<string, unknown>[];
+  position_lots: Record<string, unknown>[];
+  settings: Record<string, unknown> | null;
+};
+
 function calculateWeightedPortfolioPrices(metrics: PositionMetrics[]): WeightedPortfolioPrices | null {
   const totals = metrics.reduce(
     (acc, metric) => {
@@ -68,7 +74,7 @@ function calculateWeightedPortfolioPrices(metrics: PositionMetrics[]): WeightedP
 }
 
 export async function buildPortfolioResponse(
-  context: { supabase: SupabaseClient; userId: string; finnhubToken: string | null },
+  context: { supabase: SupabaseClient; userId: string; finnhubToken: string | null; snapshot?: PortfolioSourceSnapshot },
   body: PortfolioRequestBody = {},
 ): Promise<Response> {
   try {
@@ -77,7 +83,12 @@ export async function buildPortfolioResponse(
     const includeWeightedPrice = Boolean(body.includeWeightedPrice);
     const targetCurrency = (body.targetCurrency ?? 'USD').toUpperCase();
 
-    const [{ data: positionsData, error: positionsError }, { data: settingsData, error: settingsError }] = await Promise.all([
+    const [{ data: positionsData, error: positionsError }, { data: settingsData, error: settingsError }] = context.snapshot ? [
+      { data: context.snapshot.positions.map(position => ({ ...position,
+        position_lots: context.snapshot!.position_lots.filter(lot => lot.position_id === position.id),
+      })), error: null },
+      { data: context.snapshot.settings, error: null },
+    ] : await Promise.all([
       supabase
         .from('positions')
         .select('*, position_lots(*)')
@@ -87,6 +98,7 @@ export async function buildPortfolioResponse(
         .from('settings')
         .select('*')
         .eq('user_id', userId)
+        .eq('is_active', true)
         .limit(1)
         .maybeSingle(),
     ]);
