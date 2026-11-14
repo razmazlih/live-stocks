@@ -16,11 +16,11 @@
 
 | בהיר — מחשב | כהה — מחשב |
 | --- | --- |
-| ![סקירת תיק בהירה עם נתוני הדגמה](docs/screenshots/liquid-glass-light-desktop.png) | ![סקירת תיק כהה עם נתוני הדגמה](docs/screenshots/liquid-glass-dark-desktop.png) |
+| ![סקירת תיק בהירה עם נתוני הדגמה](docs/screenshots/liquid-glass-light-desktop.jpg) | ![סקירת תיק כהה עם נתוני הדגמה](docs/screenshots/liquid-glass-dark-desktop.jpg) |
 
 <p align="center">
-  <img src="docs/screenshots/liquid-glass-light-mobile.png" alt="מובייל בהיר עם נתוני הדגמה" width="260" />
-  <img src="docs/screenshots/liquid-glass-dark-mobile.png" alt="מובייל כהה עם נתוני הדגמה" width="260" />
+  <img src="docs/screenshots/liquid-glass-light-mobile.jpg" alt="מובייל בהיר עם נתוני הדגמה" width="260" />
+  <img src="docs/screenshots/liquid-glass-dark-mobile.jpg" alt="מובייל כהה עם נתוני הדגמה" width="260" />
 </p>
 
 אימות העיצוב כולל עברית RTL ואנגלית LTR, מסכי מחשב ומובייל ברוחב 320/390/430 פיקסלים, הרחבת החזקות, מעבר למניה וחזרה, סינון, לשוניות ביצועים, שמירת ערכה והפחתת שקיפות. גיליון העסקה נבדק גם ב־320×520 כדי לדמות שטח פנוי מצומצם בזמן הקלדה. אלה בדיקות בדפדפן; לא בוצעה בדיקה על iPhone פיזי.
