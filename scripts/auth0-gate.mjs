@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
-import { createRemoteJWKSet } from 'jose';
+import { createRemoteJWKSet, decodeJwt } from 'jose';
 import ts from 'typescript';
 
 process.umask(0o077);
@@ -11,6 +11,9 @@ const directory = process.env.AUTH0_SETUP_DIR;
 if (!directory || !/^\/private\/tmp\/livestocks-auth0-setup(?:-[A-Za-z0-9]+)?$/.test(directory)) throw new Error('A dedicated private setup directory is required.');
 const env = JSON.parse(readFileSync(`${directory}/env.json`, 'utf8'));
 const setup = JSON.parse(readFileSync(`${directory}/state.json`, 'utf8'));
+const oidcOnly = process.argv.includes('--mcp-oidc-only');
+if (oidcOnly && process.argv.includes('--web-only')) throw new Error('Select only one gate mode.');
+const reportFile = oidcOnly ? 'mcp-oidc-gate-report.json' : 'gate-report.json';
 const playwrightPath = process.env.AUTH0_GATE_PLAYWRIGHT;
 if (!playwrightPath) throw new Error('Set AUTH0_GATE_PLAYWRIGHT to the installed Playwright module.');
 const { chromium } = await import(playwrightPath);
@@ -27,8 +30,9 @@ const pending = new Map();
 let browser;
 const servers = [];
 const scopes = { web: 'openid profile email offline_access portfolio:read portfolio:write', mcp: 'offline_access portfolio:read' };
+if (oidcOnly) scopes.mcp = 'openid email profile offline_access portfolio:read';
 function client(kind) { return kind === 'web' ? { id: env.AUTH0_CLIENT_ID, secret: env.AUTH0_CLIENT_SECRET, callback: 'http://localhost:3109/auth/callback' } : { id: env.AUTH0_MCP_CLIENT_ID, secret: env.AUTH0_MCP_CLIENT_SECRET, callback: 'http://localhost:3110/callback' }; }
-function record(name, status, details = {}) { const entry = { name, status, ...details }; report.cases.push(entry); save('gate-report.json', report); console.log(JSON.stringify(entry)); }
+function record(name, status, details = {}) { const entry = { name, status, ...details }; report.cases.push(entry); save(reportFile, report); console.log(JSON.stringify(entry)); }
 async function exchange(kind, fields) {
   const app = client(kind);
   const response = await fetch(new URL('oauth/token', issuer), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: app.id, client_secret: app.secret, ...fields }), signal: AbortSignal.timeout(15000) });
@@ -106,7 +110,7 @@ async function negative(name, authorizeParameters, tokenParameters = {}) {
   record(name, valid ? 'FAIL' : explicit || rejectedToken ? 'PASS' : 'INCOMPLETE', { httpStatus: result.status, tokenAccepted: valid, tokenIssued: Boolean(result.body.access_token), oauthError: safeError(result.body.error) });
 }
 try {
-  for (const port of [3109, 3110]) {
+  for (const port of oidcOnly ? [3110] : [3109, 3110]) {
     const server = createServer((request, response) => {
       const url = new URL(request.url, `http://localhost:${port}`);
       pending.get(url.searchParams.get('state'))?.(url.searchParams);
@@ -115,6 +119,25 @@ try {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); }); servers.push(server);
   }
   browser = await chromium.launch({ headless: true });
+  if (oidcOnly) {
+    const result = await codeTokens('mcp', 0, { resource: configuration.mcpAudience }, 'mcp_oidc_scopes', { resource: configuration.mcpAudience });
+    const valid = await accepted(result, 'mcp', setup.syntheticUsers[0].user_id);
+    const claims = valid ? decodeJwt(result.body.access_token) : null;
+    const grantedScopes = new Set(typeof claims?.scope === 'string' ? claims.scope.split(/\s+/) : []);
+    const oidcScopesGranted = ['openid', 'email', 'profile'].every(scope => grantedScopes.has(scope));
+    const passed = valid && oidcScopesGranted && typeof result.body.id_token === 'string';
+    const explicitlyRejected = result.authorization?.recognized || (result.status >= 400 && result.status < 500);
+    record('mcp_advertised_oidc_scopes', passed ? 'PASS' : valid || explicitlyRejected ? 'FAIL' : 'INCOMPLETE', {
+      requestedScopes: scopes.mcp.split(' '), httpStatus: result.status, tokenAccepted: valid,
+      idTokenPresent: typeof result.body.id_token === 'string', refreshTokenPresent: typeof result.body.refresh_token === 'string', oidcScopesGranted,
+      grantedRequestedScopes: scopes.mcp.split(' ').filter(scope => grantedScopes.has(scope)),
+      authorizationResult: passed ? 'ACCESS_AND_OIDC_GRANTED' : valid ? 'ACCESS_GRANTED_OIDC_NOT_GRANTED' : 'ACCESS_NOT_VERIFIED',
+      roleAuthenticated: claims?.role === 'authenticated', readOnly: claims?.['https://livestocks.app/read_only'] === true,
+      emailVerified: claims?.['https://livestocks.app/email_verified'] === true, oauthError: safeError(result.body.error),
+    });
+    report.status = passed ? 'PASS_MCP_OIDC' : valid || explicitlyRejected ? 'FAIL' : 'INCOMPLETE';
+    report.limits.push('This case requires the requested OIDC scopes and an ID token to pass. ACCESS_GRANTED_OIDC_NOT_GRANTED fails that stricter OIDC-issuance expectation without implying that OAuth access was rejected or that OpenAI linking fails. OpenAI-host compatibility is untested. ID-token presence alone does not validate the ID token.');
+  } else {
   const webA = await positive('web_account_a', 'web', 0);
   const webB = await positive('web_account_b', 'web', 1);
   if (webA) tokens.webAToken = webA.access_token;
@@ -179,13 +202,14 @@ try {
     }
     report.status = report.cases.some(item => item.status === 'FAIL') ? 'FAIL' : report.cases.some(item => item.status === 'INCOMPLETE') ? 'INCOMPLETE' : 'PASS_AUTH0_GATE';
   }
+  }
 } catch (error) {
-  save('gate-private-error.json', { name: error?.name, message: error?.message });
+  save(oidcOnly ? 'mcp-oidc-private-error.json' : 'gate-private-error.json', { name: error?.name, message: error?.message });
   record('gate_execution', 'INCOMPLETE', { reason: 'See private diagnostic; no credential details emitted.' });
 } finally {
   await browser?.close();
   await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve))));
-  report.completedAt = new Date().toISOString(); save('gate-report.json', report);
-  console.log(JSON.stringify({ status: report.status, reportPath: `${directory}/gate-report.json`, tokenPath: `${directory}/tokens.json` }));
-  process.exitCode = ['PASS_AUTH0_GATE', 'PASS_WEB_ONLY'].includes(report.status) ? 0 : report.status === 'FAIL' ? 1 : 2;
+  report.completedAt = new Date().toISOString(); save(reportFile, report);
+  console.log(JSON.stringify({ status: report.status, reportPath: `${directory}/${reportFile}`, ...(!oidcOnly ? { tokenPath: `${directory}/tokens.json` } : {}) }));
+  process.exitCode = ['PASS_AUTH0_GATE', 'PASS_WEB_ONLY', 'PASS_MCP_OIDC'].includes(report.status) ? 0 : report.status === 'FAIL' ? 1 : 2;
 }
