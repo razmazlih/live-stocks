@@ -400,8 +400,8 @@ export function PositionsOverview({
                     key={key}
                     onSelect={() => setActiveFilter(key)}
                     className={cn(
-                      'group flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition focus:bg-[color:var(--color-blue-50)]/70 focus:text-blue-700',
-                      isActive ? 'bg-[color:var(--color-blue-50)]/60 text-blue-700' : 'text-slate-600'
+                      'group flex items-start gap-3 rounded-xl px-3 py-2 text-sm transition focus:bg-blue-50/70 focus:text-blue-700',
+                      isActive ? 'bg-blue-50/60 text-blue-700' : 'text-slate-600'
                     )}
                   >
                     <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">

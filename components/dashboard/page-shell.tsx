@@ -41,7 +41,7 @@ export const DashboardPageShell = React.forwardRef<
         ref={ref}
         dir={direction}
         className={cn(
-          "relative min-h-[100dvh] overflow-x-clip bg-[var(--color-page-bg)] text-slate-900",
+          "app-canvas relative min-h-[100dvh] overflow-x-clip text-[var(--text-primary)]",
           className,
         )}
         {...props}
@@ -56,12 +56,12 @@ export const DashboardPageShell = React.forwardRef<
           ) : null}
 
           <div className={cn("dashboard-content-enter flex min-w-0 flex-1 flex-col", contentClassName)}>
-            {hasNavigation ? <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 lg:hidden">
-              <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-950">
+            {hasNavigation ? <div className="flex items-center justify-between px-4 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))] lg:hidden">
+              <Link href="/" className="flex items-center gap-2 min-h-[44px] text-base font-bold tracking-tight text-[var(--text-primary)]">
                 <Image src="/brand/livestocks.svg" alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
                 LiveStocks
               </Link>
-              <Link href="/settings" aria-label={locale === 'he' ? 'הגדרות' : 'Settings'} aria-current={activeKey === 'settings' ? 'page' : undefined} className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-700"><Settings aria-hidden="true" className="h-5 w-5" /></Link>
+              <Link href="/settings" aria-label={locale === 'he' ? 'הגדרות' : 'Settings'} aria-current={activeKey === 'settings' ? 'page' : undefined} className="flex h-11 w-11 items-center justify-center glass-control rounded-full text-[var(--text-secondary)] hover:text-[var(--accent-color)]"><Settings aria-hidden="true" className="h-5 w-5" /></Link>
             </div> : null}
             {children}
           </div>

@@ -16,7 +16,16 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
 
 describe('close pair disclosure', () => {
   beforeEach(() => { context.settings.annualGrowthRate = 0; });
-  it('starts collapsed, opens with the keyboard and hides links when collapsed', async () => {
+  it('always shows the ideas and count without a collapsible section', () => {
+    context.locale = 'en';
+    render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
+    expect(screen.getByRole('heading', { name: 'Two-position exit ideas' }).closest('details')).toBeNull();
+    expect(screen.getByLabelText('Idea count')).toHaveTextContent('1');
+    expect(screen.getByRole('button', {name: 'Copy prompt for AI review'})).toBeVisible();
+    expect(screen.getByTestId('close-pair-preview')).toBeVisible();
+  });
+
+  it('keeps individual pair details collapsed, opens with the keyboard and hides links when collapsed', async () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);

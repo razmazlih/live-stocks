@@ -24,17 +24,17 @@ interface DashboardQuickActionsProps {
 }
 
 const ACTION_ICON_TONE_BY_KEY: Record<string, string> = {
-  reload: 'bg-[color:var(--color-blue-50)] text-[var(--color-blue-700)]',
-  settings: 'bg-[color:var(--color-slate-100)] text-[var(--color-slate-700)]',
+  reload: 'bg-blue-50 text-[var(--color-blue-700)]',
+  settings: 'bg-slate-100 text-[var(--color-slate-700)]',
   dashboard: 'bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)]',
-  insights: 'bg-[color:var(--color-blue-50)] text-[var(--color-indigo-700)]',
+  insights: 'bg-blue-50 text-[var(--color-indigo-700)]',
   portfolio: 'bg-[color:var(--color-primary-010)] text-[var(--color-indigo-700)]',
-  realized: 'bg-[color:var(--color-emerald-50)] text-[var(--color-emerald-700)]',
-  watchlist: 'bg-[color:var(--color-blue-50)] text-[var(--color-sky-700)]',
-  positions: 'bg-[color:var(--color-blue-50)] text-[var(--color-blue-700)]',
+  realized: 'bg-emerald-50 text-[var(--color-emerald-700)]',
+  watchlist: 'bg-blue-50 text-[var(--color-sky-700)]',
+  positions: 'bg-blue-50 text-[var(--color-blue-700)]',
   aiPrompts: 'bg-[color:var(--color-amber-200)]/30 text-[var(--color-amber-600)]',
   newGroup: 'bg-[color:var(--color-primary-050)] text-[var(--color-primary-700)]',
-  newTicker: 'bg-[color:var(--color-blue-50)] text-[var(--color-sky-700)]',
+  newTicker: 'bg-blue-50 text-[var(--color-sky-700)]',
 };
 
 export function DashboardQuickActions({ actions }: DashboardQuickActionsProps) {

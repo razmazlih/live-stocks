@@ -975,13 +975,13 @@ export default function WatchlistPage() {
         </main>
       </DashboardContainer>
       <Dialog open={!isWide && previewOpen && Boolean(focusedTicker)} onOpenChange={setPreviewOpen}>
-        <DialogContent ref={previewContentRef} onOpenAutoFocus={(event) => { event.preventDefault(); const close = previewContentRef.current?.querySelector<HTMLButtonElement>(':scope > button:last-child'); close?.setAttribute('aria-label', isRtl ? 'סגירה' : 'Close'); close?.focus(); }} dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={(event) => { event.preventDefault(); if (!previewTransitionRef.current && focusedTicker) document.getElementById(`watchlist-select-${getTickerKey(focusedTicker)}`)?.focus(); previewTransitionRef.current = false; }} className="left-0 top-auto bottom-0 max-h-[92dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-2xl border-slate-200 bg-white p-0 pt-4 [&>button:last-child]:left-4 [&>button:last-child]:right-auto [&>button:last-child]:top-1 [&>button:last-child]:rounded-full [&>button:last-child]:focus:ring-blue-500 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:max-w-[620px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
+        <DialogContent ref={previewContentRef} onOpenAutoFocus={(event) => { event.preventDefault(); const close = previewContentRef.current?.querySelector<HTMLButtonElement>(':scope > button:last-child'); close?.setAttribute('aria-label', isRtl ? 'סגירה' : 'Close'); close?.focus(); }} dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={(event) => { event.preventDefault(); if (!previewTransitionRef.current && focusedTicker) document.getElementById(`watchlist-select-${getTickerKey(focusedTicker)}`)?.focus(); previewTransitionRef.current = false; }} className="left-0 top-auto bottom-0 max-h-[92dvh] w-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-3xl border-slate-200 bg-white p-0 pt-4 [&>button:last-child]:left-4 [&>button:last-child]:right-auto [&>button:last-child]:top-1 [&>button:last-child]:rounded-full [&>button:last-child]:focus:ring-blue-500 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:max-w-[620px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
           <DialogHeader className="sr-only"><DialogTitle>{focusedTicker ? `${isRtl ? 'גרף' : 'Chart'} ${focusedTicker.symbol}` : isRtl ? 'גרף מניה' : 'Stock chart'}</DialogTitle><DialogDescription>{isRtl ? 'מחיר המניה, השינוי והגרף בטווח שנבחר.' : 'Stock price, performance and chart for the selected period.'}</DialogDescription></DialogHeader>
           {!isWide && previewOpen && focusedTicker ? <TickerCard key={focusedKey} {...presentationProps(focusedTicker)} /> : null}
         </DialogContent>
       </Dialog>
       <Dialog open={groupDialogOpen} onOpenChange={handleGroupDialogChange}>
-        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-2xl border-slate-200 bg-white p-5 sm:p-7">
+        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl sm:w-[calc(100%_-_2rem)] sm:rounded-3xl border-slate-200 bg-white p-5 sm:p-7">
           <DialogHeader className="text-start sm:text-start">
             <DialogTitle>
               {groupForm.id ? t.watchlist.groups.editTitle : t.watchlist.groups.createTitle}
@@ -1027,7 +1027,7 @@ export default function WatchlistPage() {
       </Dialog>
 
       <Dialog open={tickerDialogOpen} onOpenChange={handleTickerDialogChange}>
-        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-2xl border-slate-200 bg-white p-5 sm:p-7">
+        <DialogContent onCloseAutoFocus={restoreFormFocus} dir={isRtl ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl sm:w-[calc(100%_-_2rem)] sm:rounded-3xl border-slate-200 bg-white p-5 sm:p-7">
           <DialogHeader className="text-start sm:text-start">
             <DialogTitle>
               {tickerForm.id ? t.watchlist.tickers.editTitle : t.watchlist.tickers.createTitle}

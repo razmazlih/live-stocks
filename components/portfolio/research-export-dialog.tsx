@@ -55,7 +55,7 @@ export function ResearchExportDialog({ open, onOpenChange, onCloseAutoFocus }: R
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus} dir={locale === 'he' ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-[calc(100%_-_1.5rem)] max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 sm:p-6">
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus} dir={locale === 'he' ? 'rtl' : 'ltr'} className="max-h-[90dvh] w-full sm:w-[calc(100%_-_1.5rem)] sm:max-w-3xl overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-4 sm:p-6">
         <DialogHeader className="pr-7 text-start sm:text-start">
           <DialogTitle>{locale === 'he' ? 'ייצוא לניתוח' : 'Export for research'}</DialogTitle>
           <DialogDescription>{t.aiPrompts.subtitle}</DialogDescription>

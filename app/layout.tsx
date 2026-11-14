@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { AppProvider } from '@/lib/context';
 import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from '@/components/theme-provider';
+import { transparencyInitScript } from '@/lib/appearance-preferences';
 
 export const metadata: Metadata = {
   title: 'Stocks Status',
@@ -23,12 +25,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: transparencyInitScript }} /></head>
       <body className="font-sans">
-        <AppProvider>
-          <StockNavigationProvider>{children}</StockNavigationProvider>
-          <Toaster />
-        </AppProvider>
+        <ThemeProvider>
+          <AppProvider>
+            <StockNavigationProvider>{children}</StockNavigationProvider>
+            <Toaster />
+          </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

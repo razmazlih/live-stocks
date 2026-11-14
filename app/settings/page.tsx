@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardContainer, DashboardMain, DashboardSurface } from "@/components/dashboard/page-primitives";
+import { AppearanceSettings } from "@/components/settings/appearance-settings";
 
 export default function SettingsPage() {
   const { locale, setLocale, settings, setSettings } = useApp();
@@ -47,7 +48,7 @@ export default function SettingsPage() {
       key: "refresh",
       icon: RefreshCw,
       label: `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
-      className: "bg-[color:var(--color-neutral-white)]/70 text-slate-600",
+      className: "bg-white/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
     {
@@ -175,6 +176,7 @@ export default function SettingsPage() {
         />
 
         <DashboardMain>
+          <AppearanceSettings locale={locale} />
           <DashboardSurface>
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid gap-6 md:grid-cols-2">
