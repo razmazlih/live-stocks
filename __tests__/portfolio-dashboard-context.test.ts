@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({ from: vi.fn(), candles: vi.fn() }));
-vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: mocks.from }) }));
+vi.mock('@/lib/auth/server', () => ({
+  requireApiPrincipal: async () => ({ userId: 'auth0|test-user', supabase: { from: mocks.from } }),
+  authenticationResponse: () => null,
+  PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
+}));
+vi.mock('@/lib/auth/credentials', () => ({ readFinnhubCredential: async () => 'secret-do-not-export' }));
 vi.mock('@/lib/services/exchange-rate', () => ({ getUsdToIlsRate: async () => 3.7 }));
 vi.mock('@/lib/services/finnhub-cache', () => ({ resolveFinnhubToken: async () => 'token', fetchFinnhubQuoteCached: async () => ({ c: 120, d: 2 }), FinnhubConfigError: class extends Error {} }));
 vi.mock('@/lib/services/yahoo-candles', () => ({ fetchYahooCandlesData: mocks.candles }));
@@ -14,9 +19,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-11-12T20:00:00Z'));
   lots = [{ id: 'buy', side: 'BUY', quantity: 2, price: 100, executed_at: '2026-11-12T12:00:00Z', has_commission: false, commission_amount: 0 }];
-  mocks.from.mockImplementation((table: string) => table === 'positions'
-    ? { select: () => ({ order: async () => ({ data: [{ id: 'one', symbol: 'TEST', display: 'Test', location: 'bank_one', quantity: 2, entry_price: 100, entry_date: '2026-11-12', position_lots: lots }], error: null }) }) }
-    : { select: () => ({ limit: () => ({ maybeSingle: async () => ({ data: { finnhub_token: 'token' }, error: null }) }) }) });
+  mocks.from.mockImplementation(() => ({
+    select: () => ({ eq: () => ({ order: async () => ({
+      data: [{ id: 'one', symbol: 'TEST', display: 'Test', location: 'bank_one', quantity: 2, entry_price: 100, entry_date: '2026-11-12', position_lots: lots }], error: null,
+    }) }) }),
+  }));
   mocks.candles.mockImplementation(async (symbol: string) => ({ s: 'ok', t: [4, 5, 11, 12, 13].map(date => (day(date) + 14 * 3600000) / 1000), c: symbol === 'TEST' ? [80, 90, 105, 110, 999] : [3.7, 3.7, 3.7, 3.7, 3.7] }));
 });
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });

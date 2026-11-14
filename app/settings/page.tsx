@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardContainer, DashboardMain, DashboardSurface } from "@/components/dashboard/page-primitives";
+import { AccountSettings } from "@/components/auth/account-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 
 export default function SettingsPage() {
@@ -35,7 +36,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const marketOpen = isNasdaqTradingHours();
   const minutesLabel = locale === "he" ? "דקות" : "minutes";
-  const tokenConfigured = Boolean(formData.finnhubToken?.trim());
+  const [tokenConfigured, setTokenConfigured] = useState(false);
   const headerMetaBadges = [
     {
       key: "currency",
@@ -88,7 +89,7 @@ export default function SettingsPage() {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from("settings")
-        .select("*")
+        .select("annual_growth_rate,currency,refresh_interval")
         .maybeSingle();
 
       if (error) throw error;
@@ -98,7 +99,6 @@ export default function SettingsPage() {
           annualGrowthRate: parseFloat(data.annual_growth_rate.toString()),
           currency: data.currency as "USD" | "ILS",
           refreshInterval: data.refresh_interval,
-          finnhubToken: data.finnhub_token || "",
         };
         setFormData(loadedSettings);
       }
@@ -132,7 +132,6 @@ export default function SettingsPage() {
             annual_growth_rate: formData.annualGrowthRate,
             currency: formData.currency,
             refresh_interval: formData.refreshInterval,
-            finnhub_token: formData.finnhubToken,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
@@ -143,7 +142,6 @@ export default function SettingsPage() {
           annual_growth_rate: formData.annualGrowthRate,
           currency: formData.currency,
           refresh_interval: formData.refreshInterval,
-          finnhub_token: formData.finnhubToken,
         });
 
         if (error) throw error;
@@ -176,6 +174,7 @@ export default function SettingsPage() {
         />
 
         <DashboardMain>
+          <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />
           <AppearanceSettings locale={locale} />
           <DashboardSurface>
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -244,34 +243,6 @@ export default function SettingsPage() {
                     {marketOpen
                       ? t.settings.refreshIntervalActive
                       : t.settings.refreshIntervalInactive}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="finnhubToken">
-                    {t.settings.finnhubToken}
-                  </Label>
-                  <Input
-                    id="finnhubToken"
-                    type="password"
-                    value={formData.finnhubToken}
-                    onChange={(e) =>
-                      setFormData({ ...formData, finnhubToken: e.target.value })
-                    }
-                    placeholder="Enter your Finnhub API token"
-                  />
-                  <p className="text-xs text-slate-500">
-                    {locale === "he"
-                      ? "ניתן להשיג מפתח בחינם מ-"
-                      : "Get a free token from "}
-                    <a
-                      href="https://finnhub.io"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[var(--color-primary-400)] hover:underline"
-                    >
-                      finnhub.io
-                    </a>
                   </p>
                 </div>
 

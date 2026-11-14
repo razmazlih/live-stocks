@@ -308,13 +308,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
-        const trimmedToken = settings.finnhubToken?.trim();
-        const quoteParams = trimmedToken
-          ? new URLSearchParams({
-              symbol: normalizedSymbol,
-              token: trimmedToken,
-            })
-          : null;
+        const quoteParams = new URLSearchParams({ symbol: normalizedSymbol });
         if (quoteParams && reloadKey > 0) {
           quoteParams.set('forceRefresh', '1');
         }
@@ -401,21 +395,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
+  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate]);
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate: string | undefined, signal: AbortSignal) => {
       const now = Math.floor(Date.now() / 1000);
       const { from, resolution } = getRangeParams(selectedRange, entryDate);
       const params = new URLSearchParams({ symbol: normalizedSymbol, resolution, from: String(from), to: String(now) });
-      if (settings.finnhubToken) params.set('token', settings.finnhubToken);
       const response = await fetch(`/api/candles?${params}`, { signal });
       if (!response.ok) throw new Error(`Candles request failed: ${response.status}`);
       const data = await response.json() as CandleResponse;
       if (data.error) throw new Error(data.error);
       return mapCandleDataToPoints(data);
     },
-    [normalizedSymbol, settings.finnhubToken]
+    [normalizedSymbol]
   );
 
   const historicalEntryDate = holdingCycles.length > 0 ? new Date(holdingCycles[0].start).toISOString() : position?.entryDate;

@@ -214,7 +214,6 @@ export interface Settings {
   annualGrowthRate: number;
   currency: 'USD' | 'ILS';
   refreshInterval: number;
-  finnhubToken: string;
 }
 
 export interface CandleData {

@@ -2,7 +2,8 @@ import 'server-only';
 
 import { fetchWithRetry } from '@/lib/http';
 import { FINNHUB_BASE_URL } from '@/lib/services/finnhub';
-import { getSupabaseClient } from '@/lib/supabase';
+import { createHash } from 'node:crypto';
+import { readFinnhubCredential } from '@/lib/auth/credentials';
 import { isFiniteNumber } from '@/lib/utils/numbers';
 import { StockQuote } from '@/types';
 
@@ -26,44 +27,11 @@ export class FinnhubConfigError extends Error {
   }
 }
 
-function normalizeToken(token?: string | null): string | null {
-  const trimmed = token?.trim();
-  return trimmed ? trimmed : null;
-}
-
-export async function resolveFinnhubToken(explicitToken?: string | null): Promise<string> {
-  const directToken = normalizeToken(explicitToken);
-  if (directToken) {
-    return directToken;
-  }
-
-  let supabase;
-  try {
-    supabase = getSupabaseClient();
-  } catch (error) {
-    console.error('Supabase client initialization failed:', error);
-    throw new FinnhubConfigError('Supabase client is not configured.');
-  }
-
-  const { data: settingsData, error: settingsError } = await supabase
-    .from('settings')
-    .select('finnhub_token')
-    .limit(1)
-    .maybeSingle();
-
-  if (settingsError && settingsError.code !== 'PGRST116') {
-    console.error('Failed to load settings for Finnhub token:', settingsError);
-    throw new FinnhubConfigError('Failed to load Finnhub token configuration');
-  }
-
-  const resolvedToken = normalizeToken(settingsData?.finnhub_token)
-    ?? normalizeToken(process.env.FINNHUB_TOKEN);
-
-  if (!resolvedToken) {
-    throw new FinnhubConfigError('Finnhub token is not configured');
-  }
-
-  return resolvedToken;
+export async function resolveFinnhubToken(userId: string): Promise<string> {
+  if (!userId) throw new FinnhubConfigError('Account is required', 401);
+  const token = (await readFinnhubCredential(userId))?.trim();
+  if (!token) throw new FinnhubConfigError('Add your Finnhub key in account settings', 409);
+  return token;
 }
 
 interface FetchQuoteOptions {
@@ -81,7 +49,7 @@ export async function fetchFinnhubQuoteCached(
   }
 
   const { forceRefresh = false } = options;
-  const cacheKey = `${normalizedSymbol}:${token}`;
+  const cacheKey = `${normalizedSymbol}:${createHash('sha256').update(token).digest('hex')}`;
   const now = Date.now();
 
   if (forceRefresh) {
@@ -97,8 +65,8 @@ export async function fetchFinnhubQuoteCached(
   let inFlight = inFlightQuotes.get(cacheKey);
   if (!inFlight) {
     inFlight = (async () => {
-      const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(normalizedSymbol)}&token=${token}`;
-      const response = await fetchWithRetry(url, { cache: 'no-store' });
+      const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(normalizedSymbol)}`;
+      const response = await fetchWithRetry(url, { cache: 'no-store', headers: { 'X-Finnhub-Token': token } });
       return (await response.json()) as StockQuote;
     })();
     inFlightQuotes.set(cacheKey, inFlight);

@@ -42,7 +42,7 @@ function closeFixture() {
   ].map(value => ({ ...value, display: value.symbol, imageUrl: '', location: 'bank_one', entryDate: new Date(asOf - 60 * 86400000).toISOString() })) as Position[];
   const quotes = { WIN: { priceUsd: 150, marketTimestamp: new Date(asOf).toISOString(), source: 'test', status: 'last_available' }, LOSS: { priceUsd: 90, marketTimestamp: new Date(asOf).toISOString(), source: 'test', status: 'last_available' } };
   const metrics = positions.map(position => calculatePositionMetrics(position, quotes[position.symbol as keyof typeof quotes].priceUsd, 1));
-  const input = { positions, metrics, annualGrowthRate: 0.05, asOf, quotes };
+  const input = { ownerId: 'auth0|owner-one', positions, metrics, annualGrowthRate: 0.05, asOf, quotes };
   const groups = buildCloseProposalSnapshot(input);
   return { input, groups, snapshot: { schemaVersion: 1 as const, generatedAt: new Date(asOf).toISOString(), holdings: positions.map(position => ({ position: { ...position } })), closePairProposals: groups } };
 }
@@ -72,12 +72,59 @@ describe('server close-proposal snapshots', () => {
     const { groups, snapshot, input } = closeFixture();
     const args = { snapshotId: groups.snapshotId, proposalId: groups.proposals[0].proposalId };
     expect(validateCloseProposal(snapshot, args).valid).toBe(true);
-    expect(validateCloseProposal({ ...snapshot, closePairProposals: buildCloseProposalSnapshot({ ...input, asOf: input.asOf + 1 }) }, args).valid).toBe(false);
+    expect(validateCloseProposal({ ...snapshot, closePairProposals: buildCloseProposalSnapshot({ ...input, asOf: input.asOf + 86400000 }) }, args).valid).toBe(false);
     expect(validateCloseProposal({ ...snapshot, holdings: snapshot.holdings.slice(0, 1) }, args).valid).toBe(false);
     expect(validateCloseProposal({ ...snapshot, generatedAt: '2020-01-01T00:00:00.000Z' }, args).valid).toBe(false);
     expect(validateCloseProposal(snapshot, { ...args, proposalId: '0'.repeat(64) }).valid).toBe(false);
-    expect(validateCloseProposal(snapshot, args).limitations.join(' ')).toContain('cache');
+    expect(validateCloseProposal(snapshot, args).limitations.join(' ')).toContain('recalculates');
     const noTimestamp = buildCloseProposalSnapshot({ ...input, quotes: { ...input.quotes, LOSS: { ...input.quotes.LOSS, marketTimestamp: null } } });
     expect(validateCloseProposal({ ...snapshot, closePairProposals: noTimestamp }, { snapshotId: noTimestamp.snapshotId, proposalId: noTimestamp.proposals[0].proposalId }).errors.join(' ')).toContain('timestamps');
+  });
+});
+
+
+describe('uncached account-bound close proposal validation', () => {
+  it('accepts a later fresh read with unchanged sources, while recalculating precise target amounts', () => {
+    const { input, groups, snapshot } = closeFixture();
+    const later = Math.min(input.asOf + 1000, (Math.floor(input.asOf / 86400000) + 1) * 86400000 - 1);
+    const refreshed = buildCloseProposalSnapshot({ ...input, asOf: later });
+    expect(refreshed.snapshotId).toBe(groups.snapshotId);
+    expect(refreshed.proposals[0].proposalId).toBe(groups.proposals[0].proposalId);
+    expect(refreshed.calculatedAt).not.toBe(groups.calculatedAt);
+    expect(refreshed.proposals[0].personalTargetProfitUsd).toBeGreaterThan(groups.proposals[0].personalTargetProfitUsd);
+    expect(validateCloseProposal({ ...snapshot, generatedAt: new Date(later).toISOString(), closePairProposals: refreshed }, {
+      snapshotId: groups.snapshotId, proposalId: groups.proposals[0].proposalId,
+    }, later).valid).toBe(true);
+  });
+
+  it.each(['price', 'lot', 'policy', 'day', 'owner', 'quantity'] as const)('rejects a changed %s despite an otherwise valid same-account proposal', (change) => {
+    const { input, groups, snapshot } = closeFixture();
+    const next = { ...input };
+    if (change === 'price') next.quotes = { ...input.quotes, WIN: { ...input.quotes.WIN, priceUsd: 151 } };
+    if (change === 'lot') next.positions = input.positions.map((position, index) => index ? position : {
+      ...position, lots: [{ id: 'changed-source-lot', type: 'BUY', quantity: position.quantity, price: position.entryPrice, executedAt: position.entryDate, hasCommission: false, commissionAmount: 0 }],
+    });
+    if (change === 'owner') next.ownerId = 'auth0|another-owner';
+    if (change === 'day') next.asOf += 86400000;
+    if (change === 'quantity') next.positions = input.positions.map((position, index) => index ? position : { ...position, quantity: 11 });
+    const refreshed = buildCloseProposalSnapshot({ ...next, ...(change === 'policy' ? { maxLosers: 1 as const } : {}) });
+    expect(refreshed.snapshotId).not.toBe(groups.snapshotId);
+    const validation = validateCloseProposal({ ...snapshot, generatedAt: new Date(next.asOf).toISOString(), closePairProposals: refreshed }, {
+      snapshotId: groups.snapshotId, proposalId: groups.proposals[0].proposalId,
+    }, next.asOf);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.join(' ')).toContain('Snapshot changed');
+  });
+
+  it('rejects a previously selected group that no longer qualifies on the fresh computation', () => {
+    const { input, groups, snapshot } = closeFixture();
+    const refreshed = buildCloseProposalSnapshot({ ...input, metrics: [] });
+    expect(refreshed.snapshotId).toBe(groups.snapshotId);
+    expect(refreshed.proposals).toEqual([]);
+    const validation = validateCloseProposal({ ...snapshot, closePairProposals: refreshed }, {
+      snapshotId: groups.snapshotId, proposalId: groups.proposals[0].proposalId,
+    }, input.asOf);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.join(' ')).toContain('absent');
   });
 });

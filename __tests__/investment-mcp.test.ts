@@ -4,6 +4,13 @@ import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
 const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn() }));
+vi.mock('@/lib/auth/server', () => ({
+  requireMcpPrincipal: async () => ({ userId: 'auth0|test-user', kind: 'mcp' }),
+  authenticationResponse: () => null,
+  AuthenticationError: class extends Error {},
+  auth0Configuration: () => ({ issuer: 'https://tenant.auth0.com/', mcpAudience: 'https://example.com/api/mcp' }),
+  PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
+}));
 vi.mock('@/app/api/portfolio/ai/route', () => ({ GET: mocks.snapshot }));
 vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
@@ -18,7 +25,7 @@ const snapshot = () => ({
   plans: [{ symbol: 'NEW' }],
 });
 const action = (symbol = 'NEW', side: 'BUY' | 'SELL' = 'BUY', quantity = 2, priceUsd = 10) => ({ symbol, action: side, quantity, priceUsd });
-const request = (method: string, params?: object, extraHeaders?: Record<string, string>) => new Request('https://example.com/api/mcp', { method: 'POST', headers: { 'content-type': 'application/json', ...extraHeaders }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
+const request = (method: string, params?: object, extraHeaders?: Record<string, string>) => new Request('https://example.com/api/mcp', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer signed-test-token', ...extraHeaders }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
 async function call(name: string, args: object = {}) {
   const response = await POST(request('tools/call', { name, arguments: args }));
   return (await response.json()).result;
@@ -62,15 +69,23 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
-  it('negotiates initialization, discovery and six exclusively read-only tools', async () => {
+  it('negotiates initialization, discovery and seven exclusively read-only tools', async () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(6);
+    expect(listed.result.tools).toHaveLength(7);
     expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
     expect((await (await POST(request('server/discover'))).json()).result.supportedVersions).toContain('2026-07-28');
-    expect((await GET()).status).toBe(405);
+    expect((await GET(new Request('https://example.com/api/mcp'))).status).toBe(405);
+  });
+  it('exposes the bound account identity as structured profile content', async () => {
+    const result = await call('get_profile');
+    expect(result.structuredContent).toEqual({ id: 'auth0|test-user' });
+    const listed = await (await POST(request('tools/list'))).json();
+    const profile = listed.result.tools.find((tool: { name: string }) => tool.name === 'get_profile');
+    expect(profile._meta['openai/profile']).toBe(true);
+    expect(profile.securitySchemes).toEqual([{ type: 'oauth2', scopes: ['portfolio:read'] }]);
   });
   it('returns the entire snapshot and retains timestamps/unknown fields without inventing data', async () => {
     const result = await call('get_portfolio_snapshot');
@@ -116,6 +131,7 @@ describe('read-only MCP transport and tools', () => {
     expect(mocks.quote).toHaveBeenCalledTimes(2);
     const quoteRequest = mocks.quote.mock.calls[0][0] as Request;
     expect(quoteRequest.url).toBe('https://example.com/api/quote?symbol=NEW');
+    expect(quoteRequest.headers.get('authorization')).toBe('Bearer signed-test-token');
     expect((await call('get_market_quotes', { symbols: ['NEW'], token: 'fake' })).isError).toBe(true);
     expect((await call('get_market_quotes', { symbols: ['https://evil.test'] })).isError).toBe(true);
   });

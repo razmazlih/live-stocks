@@ -341,7 +341,6 @@ export default function WatchlistPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const finnhubToken = settings.finnhubToken?.trim();
 
   useEffect(() => {
     if (selectedGroup?.tickers) {
@@ -499,9 +498,6 @@ export default function WatchlistPage() {
         const nowSeconds = Math.floor(Date.now() / 1000);
 
         const quoteParams = new URLSearchParams({ symbol });
-        if (finnhubToken) {
-          quoteParams.set('token', finnhubToken);
-        }
         if (options?.force) {
           quoteParams.set('forceRefresh', '1');
         }
@@ -599,7 +595,7 @@ export default function WatchlistPage() {
         if (requests.current.get(key) === request) requests.current.delete(key);
       }
     },
-    [chartErrorMessage, effectiveStartDate, finnhubToken, range]
+    [chartErrorMessage, effectiveStartDate, range]
   );
 
   useEffect(() => {

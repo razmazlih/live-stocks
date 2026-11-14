@@ -1,12 +1,14 @@
+import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS } from '@/lib/auth/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYahooCandlesData, YahooCandlesError } from '@/lib/services/yahoo-candles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
+const NO_STORE_HEADERS = PRIVATE_HEADERS;
 
 export async function GET(request: NextRequest) {
   try {
+    await requireApiPrincipal(request);
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const from = searchParams.get('from');
@@ -38,6 +40,8 @@ export async function GET(request: NextRequest) {
     );
     return NextResponse.json(candleData, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    const authResponse = authenticationResponse(error);
+    if (authResponse) return authResponse;
     if (error instanceof YahooCandlesError) {
       return NextResponse.json(
         { error: error.message },
