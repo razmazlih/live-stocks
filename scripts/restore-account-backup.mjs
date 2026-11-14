@@ -14,6 +14,7 @@ import { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { safeBackupDirectory } from './prepare-account-migration.mjs';
+import { freezeSql, migrationSql, frozenAssertions } from './cutover-personal-accounts.mjs';
 
 const tables = ['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers'];
 const cleanEnv = { PATH: process.env.PATH, LC_ALL: 'C', PGPASSFILE: '/dev/null', PGSERVICEFILE: '/dev/null' };
@@ -67,7 +68,8 @@ function decrypt(archive, key) {
 }
 
 async function main() {
-  const rehearse = process.argv.length === 5 && process.argv[4] === '--rehearse-migration';
+  const cutover = process.argv.length === 5 && process.argv[4] === '--rehearse-cutover';
+  const rehearse = cutover || (process.argv.length === 5 && process.argv[4] === '--rehearse-migration');
   if ((!rehearse && process.argv.length !== 4) || process.argv[2] !== '--backup-directory') fail('Usage: RESTORE_POSTGRES_BIN=/absolute/postgresql17/bin CREDENTIAL_ENCRYPTION_KEY=protected-env node scripts/restore-account-backup.mjs --backup-directory /absolute/private/backup [--rehearse-migration]');
   const directory = await safeBackupDirectory(process.argv[3]);
   const dirInfo = await lstat(directory);
@@ -146,10 +148,43 @@ async function main() {
       await query("create schema auth; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth,public to anon,authenticated,service_role;");
       report.migration = { file: name, sha256: createHash('sha256').update(migration).digest('hex'), rollbackVerified: false,
         financialDataPreserved: false, ownerVerified: false, encryptedCredentialVerified: false };
+      let reviewedSql = migration;
+      if (cutover) {
+        report.phase = 'cutover_freeze_rehearsal';
+        await query(`create role authenticator login password '${password}';grant all privileges on table ${tables.map(table => `public.${table}`).join(',')} to anon,authenticated,service_role;grant execute on all functions in schema public to anon,authenticated,service_role;`);
+        const drainProbe = start('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'], { ...env, PGUSER: 'authenticator', PGAPPNAME: 'livestocks-cutover-drain-probe' });
+        drainProbe.stdout.resume(); drainProbe.stdin.end('select pg_sleep(60);');
+        let probeReady = false;
+        for (let attempt = 0; attempt < 30; attempt++) {
+          if (await query("select count(*)=1 from pg_stat_activity where application_name='livestocks-cutover-drain-probe' and usename='authenticator';") === 't') { probeReady = true; break; }
+          await new Promise(done => setTimeout(done, 100));
+        }
+        if (!probeReady) fail('Local drain probe did not become ready');
+        env.PGOPTIONS = '-c default_transaction_read_only=on';
+        await query(freezeSql(manifest));
+        let drained = false; try { await drainProbe.done; } catch { drained = true; }
+        if (!drained) fail('Freeze did not terminate the prior API backend');
+        await query(frozenAssertions());
+        const finalBaseline = { ...manifest, generatedAt: new Date().toISOString() };
+        report.cutover = { freezeCommitted: true, priorApiBackendDrained: true, staleBaselineDenied: false, snapshotDriftDenied: false,
+          rollbackKeptFreeze: false, historyRecordedAtomically: false, serviceFinancialAccessReadOnly: false };
+        for (const [candidate, marker, key] of [
+          [manifest, 'Require committed freeze, completed drain and a subsequent final backup', 'staleBaselineDenied'],
+          [{ ...finalBaseline, tables: { ...manifest.tables, positions: { ...manifest.tables.positions, rowCount: manifest.tables.positions.rowCount + 1 } } }, 'Final snapshot mismatch: positions', 'snapshotDriftDenied'],
+        ]) {
+          let rejected = false;
+          try { await query(migrationSql(candidate, parameters, migration), marker); } catch (error) { if (error.rollbackProbe !== true) throw error; rejected = true; }
+          if (!rejected || await query("select to_regclass('public.user_profiles') is null;") !== 't') fail('Cutover guard did not reject without migration');
+          await query(frozenAssertions()); report.cutover[key] = true;
+        }
+        reviewedSql = migrationSql(finalBaseline, parameters, migration);
+      }
       const marker = `livestocks_rollback_probe_${randomBytes(16).toString('hex')}`;
-      const injected = migration.replace(/\bcommit;\s*$/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;`);
+      const injected = cutover
+        ? reviewedSql.replace(/\bcommit;\nnotify pgrst/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;\nnotify pgrst`)
+        : migration.replace(/\bcommit;\s*$/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;`);
       let failed = false;
-      try { await query(`${parameters}\n${injected}`, marker); } catch (error) {
+      try { await query(`${cutover ? '' : parameters}\n${injected}`, marker); } catch (error) {
         if (error.rollbackProbe !== true) throw error;
         failed = true;
       }
@@ -159,8 +194,9 @@ async function main() {
         if (digest !== manifest.tables[table].originalDigest) fail('Injected migration failure changed restored data');
       }
       report.migration.rollbackVerified = true;
+      if (cutover) { await query(frozenAssertions()); report.cutover.rollbackKeptFreeze = true; }
       report.phase = 'migration_apply_rehearsal';
-      await query(`${parameters}\n${migration}`);
+      await query(`${cutover ? '' : parameters}\n${reviewedSql}`);
       const owner = manifest.ownerSubject;
       if (typeof owner !== 'string' || !owner || owner.length > 255) fail('Invalid verified owner in protected manifest');
       const ownerLiteral = `'${owner.replaceAll("'", "''")}'`;
@@ -183,6 +219,14 @@ async function main() {
         if (createHash('sha256').update(value).digest('hex') !== manifest.legacyCredential.plaintextSha256) fail('Migrated credential did not preserve the original value');
       } else if (envelope) fail('Unexpected migrated credential');
       report.migration.encryptedCredentialVerified = true;
+      if (cutover) {
+        if (await query("select count(*)=1 from supabase_migrations.schema_migrations where version='20261114114916';") !== 't') fail('Cutover migration history was not recorded');
+        report.cutover.historyRecordedAtomically = true;
+        for (const table of tables) {
+          if (await query(`select has_table_privilege('service_role','public.${table}','SELECT') and not has_table_privilege('service_role','public.${table}','INSERT,UPDATE,DELETE,TRUNCATE') and not has_table_privilege('anon','public.${table}','SELECT,INSERT,UPDATE,DELETE');`) !== 't') fail('Post-cutover financial privileges incorrect');
+        }
+        report.cutover.serviceFinancialAccessReadOnly = true;
+      }
     }
     report.status = 'PASS';
     report.phase = 'verified';

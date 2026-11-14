@@ -2,7 +2,7 @@
 
 Prepared for `live-stocks` (`prj_rq3UoLiTcbg3yl28LGDsxNiVbvgb`) in team `team_Vwue1DdSHaQvCACjh6T8CWVq`.
 
-A read-only preflight on 2026-11-14 found none of these 13 keys in the production environment. Create them only when absent; never upsert or replace an existing value as part of this change. Target production only. Do not copy production secrets into preview environments.
+A read-only preflight on 2026-11-14 found none of these 13 keys in the production environment. Create them only when absent; never upsert or replace an existing value as part of this change. The initial approved change targeted production. The user subsequently explicitly requested the same 13 settings in Preview; separate create-only Preview entries were created and verified as well. Never overwrite an existing environment entry.
 
 | Key | Storage | Purpose |
 | --- | --- | --- |
@@ -27,3 +27,7 @@ Creating these settings does not replace an existing deployment, apply a databas
 ## Applied configuration checkpoint
 
 On 2026-11-14 the user explicitly approved this exact create-only set. All 13 variables were created with no upsert or overwrite, then verified through a metadata-only read-back: exact production-only targets, four sensitive secrets and nine config values. Preview secrets were not added. The active deployment and database were unchanged by this configuration step.
+
+## Preview requested by the user
+
+The user explicitly expanded this configuration to Preview on 2026-11-14. All 13 separate Preview entries were created and their target/type metadata verified, including four sensitive secrets. The three required Supabase settings were already present in Preview and were not changed. The canonical Auth0 resources and `APP_BASE_URL` remain the production origin; exact callbacks were not widened. Creating Preview environment variables does not prove an isolated Preview login flow or migrate its database.
