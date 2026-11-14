@@ -1,0 +1,202 @@
+{
+  "after": {
+    "positions": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "symbol": "SAME",
+        "display": "A",
+        "user_id": "auth0|merge-a",
+        "location": "bank_one",
+        "quantity": 10.0,
+        "image_url": "",
+        "created_at": "2020-01-01T02:00:00+02:00",
+        "entry_date": "2020-01-01",
+        "updated_at": "2020-02-01T02:00:00+02:00",
+        "entry_price": 10.0,
+        "consolidated_into_position_id": null
+      },
+      {
+        "id": "b0000000-0000-4000-8000-000000000001",
+        "symbol": " same ",
+        "display": "B",
+        "user_id": "auth0|merge-a",
+        "location": "bank_one",
+        "quantity": 20.0,
+        "image_url": "",
+        "created_at": "2020-01-02T02:00:00+02:00",
+        "entry_date": "2020-01-02",
+        "updated_at": "2020-02-02T02:00:00+02:00",
+        "entry_price": 20.0,
+        "consolidated_into_position_id": "a0000000-0000-4000-8000-000000000001"
+      },
+      {
+        "id": "b0000000-0000-4000-8000-000000000002",
+        "symbol": "SAME",
+        "display": "B bank two",
+        "user_id": "auth0|merge-a",
+        "location": "bank_two",
+        "quantity": 30.0,
+        "image_url": "",
+        "created_at": "2020-01-03T02:00:00+02:00",
+        "entry_date": "2020-01-03",
+        "updated_at": "2020-02-03T02:00:00+02:00",
+        "entry_price": 30.0,
+        "consolidated_into_position_id": null
+      }
+    ],
+    "position_lots": [
+      {
+        "id": "a1000000-0000-4000-8000-000000000001",
+        "side": "BUY",
+        "price": 10.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 10.0,
+        "created_at": "2020-01-01T02:00:00+02:00",
+        "updated_at": "2020-02-01T02:00:00+02:00",
+        "executed_at": "2020-01-01",
+        "position_id": "a0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "a1000000-0000-4000-8000-000000000002",
+        "side": "SELL",
+        "price": 30.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 3.0,
+        "created_at": "2020-01-03T02:00:00+02:00",
+        "updated_at": "2020-02-03T02:00:00+02:00",
+        "executed_at": "2020-01-03",
+        "position_id": "a0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "b1000000-0000-4000-8000-000000000001",
+        "side": "BUY",
+        "price": 20.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 20.0,
+        "created_at": "2020-01-02T02:00:00+02:00",
+        "updated_at": "2020-02-02T02:00:00+02:00",
+        "executed_at": "2020-01-02",
+        "position_id": "b0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "b1000000-0000-4000-8000-000000000002",
+        "side": "SELL",
+        "price": 40.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 5.0,
+        "created_at": "2020-01-04T02:00:00+02:00",
+        "updated_at": "2020-02-04T02:00:00+02:00",
+        "executed_at": "2020-01-04",
+        "position_id": "b0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      }
+    ]
+  },
+  "before": {
+    "positions": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "symbol": "SAME",
+        "display": "A",
+        "user_id": "auth0|merge-a",
+        "location": "bank_one",
+        "quantity": 10.0,
+        "image_url": "",
+        "created_at": "2020-01-01T02:00:00+02:00",
+        "entry_date": "2020-01-01",
+        "updated_at": "2020-02-01T02:00:00+02:00",
+        "entry_price": 10.0,
+        "consolidated_into_position_id": null
+      },
+      {
+        "id": "b0000000-0000-4000-8000-000000000001",
+        "symbol": " same ",
+        "display": "B",
+        "user_id": "google|merge-b",
+        "location": "bank_one",
+        "quantity": 20.0,
+        "image_url": "",
+        "created_at": "2020-01-02T02:00:00+02:00",
+        "entry_date": "2020-01-02",
+        "updated_at": "2020-02-02T02:00:00+02:00",
+        "entry_price": 20.0,
+        "consolidated_into_position_id": null
+      },
+      {
+        "id": "b0000000-0000-4000-8000-000000000002",
+        "symbol": "SAME",
+        "display": "B bank two",
+        "user_id": "google|merge-b",
+        "location": "bank_two",
+        "quantity": 30.0,
+        "image_url": "",
+        "created_at": "2020-01-03T02:00:00+02:00",
+        "entry_date": "2020-01-03",
+        "updated_at": "2020-02-03T02:00:00+02:00",
+        "entry_price": 30.0,
+        "consolidated_into_position_id": null
+      }
+    ],
+    "position_lots": [
+      {
+        "id": "a1000000-0000-4000-8000-000000000001",
+        "side": "BUY",
+        "price": 10.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 10.0,
+        "created_at": "2020-01-01T02:00:00+02:00",
+        "updated_at": "2020-02-01T02:00:00+02:00",
+        "executed_at": "2020-01-01",
+        "position_id": "a0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "a1000000-0000-4000-8000-000000000002",
+        "side": "SELL",
+        "price": 30.0,
+        "user_id": "auth0|merge-a",
+        "quantity": 3.0,
+        "created_at": "2020-01-03T02:00:00+02:00",
+        "updated_at": "2020-02-03T02:00:00+02:00",
+        "executed_at": "2020-01-03",
+        "position_id": "a0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "b1000000-0000-4000-8000-000000000001",
+        "side": "BUY",
+        "price": 20.0,
+        "user_id": "google|merge-b",
+        "quantity": 20.0,
+        "created_at": "2020-01-02T02:00:00+02:00",
+        "updated_at": "2020-02-02T02:00:00+02:00",
+        "executed_at": "2020-01-02",
+        "position_id": "b0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      },
+      {
+        "id": "b1000000-0000-4000-8000-000000000002",
+        "side": "SELL",
+        "price": 40.0,
+        "user_id": "google|merge-b",
+        "quantity": 5.0,
+        "created_at": "2020-01-04T02:00:00+02:00",
+        "updated_at": "2020-02-04T02:00:00+02:00",
+        "executed_at": "2020-01-04",
+        "position_id": "b0000000-0000-4000-8000-000000000001",
+        "has_commission": true,
+        "commission_amount": 8.0
+      }
+    ]
+  }
+}

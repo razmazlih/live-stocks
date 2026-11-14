@@ -5,7 +5,7 @@ Run: python3 scripts/test-tenancy.py
 Requires native initdb, pg_ctl and psql on PATH. Does not read .env files,
 accept a database URL, reuse an existing database, or contact production.
 """
-import os, pathlib, tempfile, subprocess, socket, shutil, signal, sys
+import os, pathlib, tempfile, subprocess, socket, shutil, signal, sys, json, time
 root=pathlib.Path(__file__).resolve().parent.parent
 run=pathlib.Path(tempfile.mkdtemp(prefix='livestocks-rls-test-')); pg=run/'data'
 env={'PATH':os.environ['PATH'],'LC_ALL':'C','PGPASSFILE':'/dev/null','PGCONNECT_TIMEOUT':'5'}
@@ -25,6 +25,7 @@ def sql(text=None,path=None,db='postgres',expect=0,settings=None):
  args+=['-c',text] if text is not None else ['-f',str(path)]
  return call(args,expect)
 base="create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth,public to anon,authenticated,service_role;"
+worker=None
 migrations=sorted((root/'supabase/migrations').glob('*.sql')); new=root/'supabase/migrations/20261114114916_auth0_user_isolation.sql'
 try:
  if len(sys.argv)!=1: raise ValueError('This local-only runner accepts no arguments or database URL')
@@ -40,10 +41,48 @@ try:
  print('PASS real-role multi-user SQL suite on empty migrated database')
  sql(path=root/'supabase/tests/position_identity.sql')
  print('PASS position identity/account/retry regression under authenticated Auth0 claims')
+ merge=sql(path=root/'supabase/tests/account_merge.sql')
+ fixture=next(line.strip()[len('MERGE_FIXTURE:'):] for line in merge.stdout.splitlines() if line.strip().startswith('MERGE_FIXTURE:'))
+ fixture_path=pathlib.Path('/private/tmp/livestocks-account-merge-fixture.json')
+ fixture_path.write_text(json.dumps(json.loads(fixture),indent=2)+'\n');fixture_path.chmod(0o600)
+ print('PASS lossless canonical merge, origin guard, rollback, retries and ledger preservation')
+ print('Synthetic FIFO fixture:',fixture_path)
+ sql(path=root/'supabase/tests/better_auth_sessions.sql')
+ print('PASS Better Auth private-role isolation, first login, live session and durable approval revocation')
+ # Genuine separate sessions prove that freeze waits for existing writes, then
+ # refuses a stale preview instead of silently incorporating unreviewed rows.
+ sql(text="""insert into private.auth_config values(true,'https://concurrent.test/','web','mcp','https://concurrent.test/web','https://concurrent.test/mcp');
+ select public.server_identity_resolve('https://concurrent.test/','writer-a',repeat('c',64));
+ select public.server_identity_resolve('https://concurrent.test/','writer-b',repeat('c',64));
+ select public.server_bootstrap_web_account('https://concurrent.test/','writer-a');
+ select public.server_bootstrap_web_account('https://concurrent.test/','writer-b');
+ select public.server_merge_create('https://concurrent.test/','writer-a','writer-b','eeeeeeee-0000-4000-8000-000000000001');
+ select public.server_merge_proof((select id from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001'),'writer-a',repeat('c',64),floor(extract(epoch from now()))::bigint,repeat('c',64));
+ select public.server_merge_proof((select id from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001'),'writer-b',repeat('c',64),floor(extract(epoch from now()))::bigint,repeat('d',64));
+ select public.server_merge_preview((select id from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001'));""")
+ claims=json.dumps({'iss':'https://concurrent.test/','sub':'writer-a','azp':'web','aud':'https://concurrent.test/web','role':'authenticated','scope':'portfolio:read portfolio:write','https://livestocks.app/read_only':False,'https://livestocks.app/email_verified':True})
+ write_sql="begin; set local role authenticated;select set_config('request.jwt.claims','"+claims+"',true);insert into public.watchlist_groups(name) values('Concurrent synthetic write');select pg_sleep(2);commit;"
+ worker=subprocess.Popen(['psql',url+'&application_name=merge-concurrent-writer','-X','-q','-v','ON_ERROR_STOP=1','-c',write_sql],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+ deadline=time.monotonic()+5
+ while True:
+  state=sql(text="select count(*) from pg_stat_activity where application_name='merge-concurrent-writer' and wait_event='PgSleep';")
+  if '\n     1\n' in state.stdout: break
+  if time.monotonic()>deadline: raise RuntimeError('Writer never reached its shared-lock hold point')
+  time.sleep(.05)
+ freeze="select public.server_merge_freeze(id,version,preview_hash,'writer-a') from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001';"
+ started=time.monotonic();blocked=sql(text=freeze,expect=1)
+ if 'Portfolio changed after merge preview' not in blocked.stderr or time.monotonic()-started<1: raise RuntimeError('Freeze did not drain concurrent write and reject changed review')
+ stdout,stderr=worker.communicate(timeout=5)
+ if worker.returncode: raise RuntimeError('Synthetic concurrent writer failed')
+ sql(text="select public.server_merge_preview(id) from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001';"+freeze)
+ frozen=sql(text=write_sql,expect=1)
+ if 'Authorized website write required' not in frozen.stderr: raise RuntimeError('Post-freeze writer did not fail closed')
+ print('PASS concurrent writer drains before freeze, stale review rejected, subsequent writes blocked')
+
  sql(text='create database legacy')
  sql(text=base.replace('create role anon; create role authenticated; create role service_role bypassrls; ',''),db='legacy')
  for migration in migrations:
-  if migration!=new: sql(path=migration,db='legacy')
+  if migration<new: sql(path=migration,db='legacy')
  seed="""insert into public.positions(id,symbol,display,image_url,entry_price,quantity,entry_date,created_at,updated_at) values('11111111-1111-4111-8111-111111111111','OLD','Legacy','',12.34,5,'2020-01-01','2020-01-01Z','2020-02-01Z');
  insert into public.position_lots(position_id,side,price,quantity,executed_at,commission_amount,created_at,updated_at) values('11111111-1111-4111-8111-111111111111','BUY',12.34,5,'2020-01-01',3.21,'2020-01-01Z','2020-02-01Z');
  insert into public.position_plans(symbol,target_price,target_quantity,target_date,created_at,updated_at) values('FUTURE',99,2,'2027-01-01','2020-01-01Z','2020-02-01Z');
@@ -65,11 +104,17 @@ try:
  if (select encrypted_value from private.user_credentials where user_id='auth0|legacy-owner')<>'encrypted-synthetic-token' then raise exception 'credential lost'; end if;
  end$$;""",db='legacy')
  print('PASS all six legacy tables preserve timestamps/values and encrypted credential transfer')
+ for migration in migrations:
+  if migration>new: sql(path=migration,db='legacy',settings=owner)
  sql(path=root/'supabase/tests/multi_user_isolation.sql',db='legacy')
  print('PASS real-role multi-user SQL suite on populated migrated database')
  sql(path=root/'supabase/tests/position_identity.sql',db='legacy')
  print('PASS position identity regression with pre-existing migrated portfolio')
 finally:
+ if worker is not None and worker.poll() is None:
+  worker.terminate()
+  try: worker.communicate(timeout=5)
+  except subprocess.TimeoutExpired: worker.kill();worker.communicate()
  # Signals during shutdown must not interrupt cleanup halfway through.
  signal.signal(signal.SIGTERM,signal.SIG_IGN)
  signal.signal(signal.SIGINT,signal.SIG_IGN)
