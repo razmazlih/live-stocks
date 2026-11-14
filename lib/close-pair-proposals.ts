@@ -15,11 +15,31 @@ export interface ClosePairLeg {
   pnlUsd: number;
   targetProfitUsd: number;
   surplusUsd: number;
+  weightedHoldingDays?: number;
+  lossPercent?: number;
 }
+
+export interface ClosePairPolicy {
+  minHoldingDays: number;
+  minLossPercent: number;
+  minLossUsd: number;
+  severeLossPercent: number;
+  maxLosers: number;
+  maxCandidateLosers: number;
+}
+
+export const DEFAULT_CLOSE_PAIR_POLICY: Readonly<ClosePairPolicy> = Object.freeze({
+  minHoldingDays: 30, minLossPercent: 5, minLossUsd: 50,
+  severeLossPercent: 15, maxLosers: 3, maxCandidateLosers: 24,
+});
 
 export interface ClosePairProposal {
   winner: ClosePairLeg;
   loser: ClosePairLeg;
+  /** All loss-making holdings; loser remains the first for legacy consumers. */
+  losers?: ClosePairLeg[];
+  policy?: ClosePairPolicy;
+  searchTruncated?: boolean;
   profitUsd: number;
   lossUsd: number;
   netProfitUsd: number;
@@ -30,6 +50,17 @@ export interface ClosePairProposal {
   targetAsOf: number;
   coveredShortfallUsd: number;
   excessProfitUsd: number;
+}
+
+export function getCloseProposalLegs(proposal: ClosePairProposal): ClosePairLeg[] {
+  return [proposal.winner, ...(proposal.losers ?? [proposal.loser])];
+}
+
+export function isEligibleCloseProposalLoser(leg: ClosePairLeg, policy: ClosePairPolicy): boolean {
+  return leg.pnlUsd < 0 && (leg.unrealizedPnlUsd ?? 0) < 0 && leg.surplusUsd < 0 &&
+    -(leg.unrealizedPnlUsd ?? 0) + 1e-9 >= policy.minLossUsd &&
+    (leg.lossPercent ?? 0) + 1e-9 >= policy.minLossPercent &&
+    ((leg.weightedHoldingDays ?? 0) + 1e-9 >= policy.minHoldingDays || (leg.lossPercent ?? 0) + 1e-9 >= policy.severeLossPercent);
 }
 
 const YEAR_MS = 365.25 * 86_400_000;
@@ -98,6 +129,9 @@ function fullCloseLeg(sources: Position[], currentPrice: number, asOf: number, a
   const proceedsUsd = quantity * currentPrice;
   const realizedPnlUsd = historicalPositions.flatMap(computeRealizedSales).reduce((sum, sale) => sum + sale.profitUsd, 0);
   const unrealizedPnlUsd = proceedsUsd - costBasisUsd;
+  const weightedHoldingDays = costBasisUsd > 0 ? open.reduce((sum, lot) =>
+    sum + lot.totalCost * Math.max(0, asOf - Date.parse(lot.executedAt)) / 86_400_000, 0) / costBasisUsd : 0;
+  const lossPercent = Math.max(0, -unrealizedPnlUsd / costBasisUsd * 100);
   const pnlUsd = realizedPnlUsd + unrealizedPnlUsd;
   const representative = holdings.find((holding) => holding.lots.length)?.position ?? historicalPositions[0];
   const position = historicalPositions.length === 1 ? representative : {
@@ -111,10 +145,10 @@ function fullCloseLeg(sources: Position[], currentPrice: number, asOf: number, a
       !Number.isFinite(proceedsUsd) || !Number.isFinite(pnlUsd) || !Number.isFinite(targetProfitUsd) || !Number.isFinite(surplusUsd)) return;
   const locations = [...new Set(holdings.filter((holding) => holding.lots.length).map((holding) => holding.position.location))].sort();
   return { position, historicalPositions, locations, quantity, currentPrice, costBasisUsd, proceedsUsd,
-    realizedPnlUsd, unrealizedPnlUsd, pnlUsd, targetProfitUsd, surplusUsd };
+    realizedPnlUsd, unrealizedPnlUsd, pnlUsd, targetProfitUsd, surplusUsd, weightedHoldingDays, lossPercent };
 }
 
-function legsFromSources(metrics: PositionMetrics[], positions: Position[], asOf: number, annualGrowthRate: number) {
+export function buildCloseProposalLegs(metrics: PositionMetrics[], positions: Position[], asOf: number, annualGrowthRate: number) {
   const groups = new Map<string, Position[]>();
   for (const position of positions) {
     const symbol = position.symbol.trim().toUpperCase();
@@ -134,13 +168,13 @@ function legsFromSources(metrics: PositionMetrics[], positions: Position[], asOf
 }
 
 /**
- * Non-overlapping full-close pairs, before tax and unknown future sale fees.
- * Actual P/L and targets include all recorded sold shares and every closed cycle.
- * Current proceeds include only shares being sold now, never historical proceeds.
- * Pair one holding above its personal annual target with one below target.
- * Require positive actual profit and positive combined target surplus.
- * Greedily prefer target shortfall covered, then combined target surplus.
- * Each normalized ticker appears at most once, including across accounts.
+ * One genuinely profitable holding closes with one to three genuinely losing
+ * holdings. All cumulative history and per-account FIFO remain authoritative.
+ * The policy filters losses using OPEN loss percent/USD and remaining cost-
+ * weighted holding age; a severe loss can bypass age, never loss materiality.
+ * Rank largest single cumulative loss, total cumulative losses, then surplus.
+ * Search is exact within the disclosed, deterministically capped loser pool;
+ * selection between groups is greedy and never reuses a ticker.
  */
 export function buildClosePairProposals(
   metrics: PositionMetrics[],
@@ -148,52 +182,68 @@ export function buildClosePairProposals(
   asOf = Date.now(),
   annualGrowthRate = 0.05,
   originalPositions?: Position[],
+  policyOverrides?: Partial<ClosePairPolicy>,
 ): ClosePairProposal[] {
+  const policy = { ...DEFAULT_CLOSE_PAIR_POLICY, ...policyOverrides };
   if (!Number.isFinite(limit) || limit < 1 || !Number.isFinite(asOf) ||
-      !Number.isFinite(annualGrowthRate) || annualGrowthRate <= -1) return [];
+      !Number.isFinite(annualGrowthRate) || annualGrowthRate <= -1 ||
+      Object.values(policy).some(value => !Number.isFinite(value) || value < 0) ||
+      !Number.isInteger(policy.maxLosers) || policy.maxLosers < 1 || policy.maxLosers > 3 ||
+      !Number.isInteger(policy.maxCandidateLosers) || policy.maxCandidateLosers < 1 || policy.maxCandidateLosers > 50 ||
+      policy.severeLossPercent < policy.minLossPercent) return [];
   const legs = originalPositions !== undefined
-    ? legsFromSources(metrics, originalPositions, asOf, annualGrowthRate)
+    ? buildCloseProposalLegs(metrics, originalPositions, asOf, annualGrowthRate)
     : metrics.flatMap((metric) => {
       if (metric.position.isHistoricalActivation) return [];
       const leg = fullCloseLeg([metric.position], metric.currentPrice, asOf, annualGrowthRate);
       return leg ? [leg] : [];
     });
-  const winners = legs.filter((leg) => leg.surplusUsd > 0);
-  const losers = legs.filter((leg) => leg.surplusUsd < 0);
+  const symbolKey = (leg: ClosePairLeg) => leg.position.symbol.trim().toUpperCase();
+  const stableKey = (leg: ClosePairLeg) => JSON.stringify([symbolKey(leg), leg.position.location, leg.position.id ?? '']);
+  const winners = legs.filter(leg => leg.pnlUsd > 0 && (leg.unrealizedPnlUsd ?? 0) > 0 && leg.surplusUsd > 0);
+  const eligibleLosers = legs.filter(leg => isEligibleCloseProposalLoser(leg, policy))
+    .sort((a, b) => a.pnlUsd - b.pnlUsd || stableKey(a).localeCompare(stableKey(b)));
+  const searchTruncated = eligibleLosers.length > policy.maxCandidateLosers;
+  const losers = eligibleLosers.slice(0, policy.maxCandidateLosers);
   const proposals: ClosePairProposal[] = [];
   for (const winner of winners) {
-    for (const loser of losers) {
-      if ((originalPositions === undefined && winner.position.location !== loser.position.location) ||
-          winner.position.symbol.trim().toUpperCase() === loser.position.symbol.trim().toUpperCase()) continue;
-      const netProfitUsd = winner.pnlUsd + loser.pnlUsd;
-      const targetProfitUsd = winner.targetProfitUsd + loser.targetProfitUsd;
-      const surplusUsd = netProfitUsd - targetProfitUsd;
-      if (!Number.isFinite(targetProfitUsd) || !Number.isFinite(surplusUsd) ||
-          netProfitUsd < 0.01 - 1e-9 || surplusUsd < 0.01 - 1e-9) continue;
-      proposals.push({
-        winner, loser, profitUsd: winner.pnlUsd, lossUsd: Math.max(0, -loser.pnlUsd),
-        netProfitUsd, proceedsUsd: winner.proceedsUsd + loser.proceedsUsd,
-        targetProfitUsd, surplusUsd, annualGrowthRate, targetAsOf: asOf,
-        coveredShortfallUsd: -loser.surplusUsd, excessProfitUsd: winner.surplusUsd,
-      });
-    }
+    const candidates = losers.filter(loser => symbolKey(winner) !== symbolKey(loser) &&
+      (originalPositions !== undefined || winner.position.location === loser.position.location));
+    const enumerate = (selected: ClosePairLeg[], next: number) => {
+      if (selected.length) {
+        const group = [winner, ...selected];
+        const netProfitUsd = group.reduce((sum, leg) => sum + leg.pnlUsd, 0);
+        const targetProfitUsd = group.reduce((sum, leg) => sum + leg.targetProfitUsd, 0);
+        const surplusUsd = netProfitUsd - targetProfitUsd;
+        if (Number.isFinite(targetProfitUsd) && Number.isFinite(surplusUsd) &&
+            netProfitUsd >= 0.01 - 1e-9 && surplusUsd >= 0.01 - 1e-9) {
+          proposals.push({ winner, loser: selected[0], losers: [...selected], policy: { ...policy }, searchTruncated,
+            profitUsd: winner.pnlUsd, lossUsd: -selected.reduce((sum, leg) => sum + leg.pnlUsd, 0),
+            netProfitUsd, proceedsUsd: group.reduce((sum, leg) => sum + leg.proceedsUsd, 0),
+            targetProfitUsd, surplusUsd, annualGrowthRate, targetAsOf: asOf,
+            coveredShortfallUsd: -selected.reduce((sum, leg) => sum + leg.surplusUsd, 0),
+            excessProfitUsd: winner.surplusUsd });
+        }
+      }
+      if (selected.length >= policy.maxLosers) return;
+      for (let index = next; index < candidates.length; index++) {
+        if (selected.some(leg => symbolKey(leg) === symbolKey(candidates[index]))) continue;
+        enumerate([...selected, candidates[index]], index + 1);
+      }
+    };
+    enumerate([], 0);
   }
-  const symbolKey = (leg: ClosePairLeg) => leg.position.symbol.trim().toUpperCase();
-  const ranked = proposals.sort((a, b) => b.coveredShortfallUsd - a.coveredShortfallUsd || b.surplusUsd - a.surplusUsd ||
-    symbolKey(a.winner).localeCompare(symbolKey(b.winner)) ||
-    symbolKey(a.loser).localeCompare(symbolKey(b.loser)) ||
-    a.winner.position.location.localeCompare(b.winner.position.location) ||
-    (a.winner.position.id ?? '').localeCompare(b.winner.position.id ?? '') ||
-    (a.loser.position.id ?? '').localeCompare(b.loser.position.id ?? ''));
+  const largestLoss = (proposal: ClosePairProposal) => Math.max(...(proposal.losers ?? [proposal.loser]).map(leg => -leg.pnlUsd));
+  const proposalKey = (proposal: ClosePairProposal) => JSON.stringify(getCloseProposalLegs(proposal).map(stableKey));
+  proposals.sort((a, b) => largestLoss(b) - largestLoss(a) || b.lossUsd - a.lossUsd ||
+    b.surplusUsd - a.surplusUsd || proposalKey(a).localeCompare(proposalKey(b)));
   const usedSymbols = new Set<string>();
   const selected: ClosePairProposal[] = [];
-  for (const proposal of ranked) {
-    const winnerSymbol = symbolKey(proposal.winner);
-    const loserSymbol = symbolKey(proposal.loser);
-    if (usedSymbols.has(winnerSymbol) || usedSymbols.has(loserSymbol)) continue;
+  for (const proposal of proposals) {
+    const symbols = getCloseProposalLegs(proposal).map(symbolKey);
+    if (symbols.some(symbol => usedSymbols.has(symbol))) continue;
     selected.push(proposal);
-    usedSymbols.add(winnerSymbol);
-    usedSymbols.add(loserSymbol);
+    symbols.forEach(symbol => usedSymbols.add(symbol));
     if (selected.length >= Math.floor(limit)) break;
   }
   return selected;

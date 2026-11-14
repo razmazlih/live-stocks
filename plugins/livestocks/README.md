@@ -17,7 +17,17 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 
 In ChatGPT, use the same account, start a new Chat or Work conversation, and select **LiveStocks** with `@`. Ask it to read the portfolio or analyze investment opportunities. Personalized allocations require a confirmed free-cash budget, investment horizon and risk tolerance.
 
-Tools: `get_research_brief`, `get_portfolio_snapshot`, `get_market_quotes`, `validate_action_plan`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across all accounts, or no action. There is no order execution or portfolio write tool.
+Tools in this source: `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across all accounts, or no action. There is no order execution or portfolio write tool.
+
+## Complete-close group review (source update, unpublished)
+
+The snapshot now computes the same close-proposal engine used by the site, using original per-account records, all prior sales, available prices and the configured annual target. `get_close_pair_proposals` accepts `maxLosers: 1` (pairs only) or `3` (default, groups of up to three losers); each mode is computed by the shared engine with a distinct snapshot fingerprint. It returns a compact snapshot slice: one winner plus up to three losers, full quantities and account breakdowns, quote timestamps, open versus historical/cumulative profit, gross proceeds and surplus above the personal target. Coverage explicitly distinguishes complete, partial and unavailable data, including missing prices, invalid histories and bounded candidate search. An empty partial result cannot establish that no group exists.
+
+Owner-confirmed screening defaults: at least $50 and 5% open loss, cost-weighted remaining holding age of 30 days unless loss is at least 15%, up to three losers per winner, at most 24 candidate losers. These screening settings do not establish investor horizon or risk tolerance. Each loser must have both open and cumulative losses; historical FIFO remains isolated per account. Tax, future fees and slippage are excluded.
+
+The dedicated review mode researches every company with opened current primary sources, then gives SELL ALL or DO NOT SELL per complete group, with a short reason, strongest caveat, confidence and dated links. It does not force unrelated market screening or BUY suggestions. `validate_close_proposal` requires the exact snapshot fingerprint and proposal ID and rechecks the selected complete group against the latest available cached snapshot, including full quantities. It needs no BUY budget. A changed snapshot requires rereading/review; a validation pass is not research approval, broker reconciliation or quote freshness. Snapshot reads retain the five-minute shared cache, which may serve older observations during revalidation/outages. Grouping is a recommendation boundary, not atomic execution.
+
+These source changes have not been deployed or published to the installed plugin. A fresh real ChatGPT group-review conversation remains required after publication.
 
 ## Web research workflow
 

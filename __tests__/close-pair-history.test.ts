@@ -23,6 +23,14 @@ const buy = (offset: number, quantity: number, price = 100): PositionLot => ({
 });
 
 describe('combined close-pair history', () => {
+  it('sums all losing legs and refuses a partial group history', () => {
+    const group = proposal();
+    group.losers = [group.loser, leg('OTHER', 1, 100)];
+    const histories = { WIN: [point(0, 140), point(1, 150)], LOSS: [point(0, 90), point(1, 80)], OTHER: [point(0, 70), point(1, 60)] };
+    expect(buildClosePairHistory(group, [], [], asOf, histories)).toEqual([point(0, 20), point(1, 0)]);
+    expect(buildClosePairHistory(group, histories.WIN, histories.LOSS, asOf)).toEqual([]);
+  });
+
   it('subtracts the compounded target at UTC day end and caps today at asOf', () => {
     const pair = proposal();
     pair.annualGrowthRate = .1;
@@ -141,6 +149,21 @@ describe('full-history close-pair performance', () => {
     ] }];
     return pair;
   }
+
+
+  it('preserves prior cycles of an additional losing symbol and waits for its open quote', () => {
+    const group = historicalPair();
+    const other = leg('OTHER', 1, 100);
+    other.historicalPositions = [{ ...other.position, lots: [buy(0, 1), { ...buy(1, 1, 60), type: 'SELL' }, buy(3, 1)] }];
+    group.losers = [group.loser, other];
+    const histories = {
+      WIN: [point(0, 140), point(1, 140), point(2, 140), point(3, 140)],
+      LOSS: [point(0, 100), point(2, 100), point(3, 100)],
+      OTHER: [point(0, 90)],
+    };
+    // Additional symbol contributes -10 while open, -40 after sale; day3 missing rebuy quote is excluded.
+    expect(buildClosePairHistory(group, [], [], asOf, histories)).toEqual([point(0, 70), point(1, -50), point(2, -50)]);
+  });
 
   it('retains losses from the old closed cycle when the same symbol is bought again', () => {
     const pair = historicalPair();

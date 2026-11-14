@@ -4,6 +4,7 @@ import { GET as portfolioSnapshot } from '@/app/api/portfolio/ai/route';
 import { GET as marketQuote } from '@/app/api/quote/route';
 import { actionPlanSchema, snapshotSchema, validateActionPlan } from '@/lib/investment-actions';
 import { INVESTMENT_POLICY } from '@/lib/investment-policy';
+import { closeProposalValidationSchema, validateCloseProposal } from '@/lib/close-proposal-snapshot';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,11 +14,14 @@ const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint
 const tools = [
   { name: 'get_research_brief', description: 'Read the binding investment research rules before analyzing LiveStocks: BUY new stocks only, SELL full holdings only, broad-market primary-source research and no execution.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations },
   { name: 'get_portfolio_snapshot', description: 'Read the full configured shared LiveStocks portfolio, active holdings across accounts, lots, plans, P/L, goals, quote timestamps and quality limitations. No per-user account selection. Cached observations may be stale; generatedAt is not market price time.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations },
+  { name: 'get_close_pair_proposals', description: 'Read compact server-calculated complete-close groups: one winning stock plus one to three losing stocks, full quantities across accounts, cumulative versus open profit, personal target surplus, quote timestamps and coverage exclusions. These are screening proposals, not sell recommendations. Use for focused group review.', inputSchema: { type: 'object', properties: { maxLosers: { type: 'integer', enum: [1, 3], default: 3 } }, additionalProperties: false }, annotations },
+  { name: 'validate_close_proposal', description: 'Recheck a whole selected sell-only group against the latest available cached portfolio snapshot and its fingerprint. No cash budget required. Rejects changed snapshots, absent groups, incomplete quantities or stale snapshot; does not approve research or execute trades, bypass the cache or establish quote freshness.', inputSchema: { type: 'object', properties: { snapshotId: { type: 'string', pattern: '^[a-f0-9]{64}$' }, proposalId: { type: 'string', pattern: '^[a-f0-9]{64}$' } }, required: ['snapshotId', 'proposalId'], additionalProperties: false }, annotations },
   { name: 'get_market_quotes', description: 'Get last available Finnhub quote observations for up to 8 stock tickers, including stocks outside the portfolio. This is not a whole-market screener, financial statements, history or news. Check timestamps; unavailable tickers remain unavailable.', inputSchema: { type: 'object', properties: { symbols: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'string', minLength: 1, maxLength: 32 } } }, required: ['symbols'], additionalProperties: false }, annotations },
   { name: 'validate_action_plan', description: 'Check proposed recommendations against current recorded holdings and available cash: BUY only unowned symbols, SELL 100% across all accounts, no duplicate symbols or overspending. Does not research, approve or execute trades. Budget excludes unexecuted sale proceeds; costs are extra.', inputSchema: { type: 'object', properties: { budgetUsd: { type: 'number', minimum: 0 }, actions: { type: 'array', maxItems: 50, items: { type: 'object', properties: { symbol: { type: 'string', minLength: 1, maxLength: 32 }, action: { type: 'string', enum: ['BUY', 'SELL'] }, quantity: { type: 'number', exclusiveMinimum: 0 }, priceUsd: { type: 'number', exclusiveMinimum: 0 } }, required: ['symbol', 'action', 'quantity', 'priceUsd'], additionalProperties: false } } }, required: ['budgetUsd', 'actions'], additionalProperties: false }, annotations },
 ];
 const rpcSchema = z.object({ jsonrpc: z.literal('2.0'), id: z.union([z.string(), z.number().finite()]).optional(), method: z.string(), params: z.record(z.unknown()).optional() });
 const empty = z.object({}).strict();
+const closeProposalArgs = z.object({ maxLosers: z.union([z.literal(1), z.literal(3)]).default(3) }).strict();
 const quoteArgs = z.object({ symbols: z.array(z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9.^=:-]+$/)).min(1).max(8) }).strict();
 
 function json(data: unknown, status = 200) { return Response.json(data, { status, headers }); }
@@ -41,6 +45,16 @@ async function callTool(name: string, args: unknown, request: Request) {
     return { policy: INVESTMENT_POLICY, requiredInvestorInputs: ['available USD cash budget', 'investment horizon', 'risk tolerance'], researchAvailability: 'ChatGPT researches with host web search and opened, cited current sources. No additional research provider, API credential or server-side model is required or bundled. If search or source access is unavailable, disclose the gap and withhold unsupported final recommendations.' };
   }
   if (name === 'get_portfolio_snapshot') { empty.parse(args); return loadSnapshot(); }
+  if (name === 'get_close_pair_proposals') {
+    const { maxLosers } = closeProposalArgs.parse(args);
+    const snapshot = await loadSnapshot();
+    const proposals = maxLosers === 1 ? snapshot.closePairOnlyProposals : snapshot.closePairProposals;
+    return { snapshotGeneratedAt: snapshot.generatedAt, ...(proposals as object ?? { availability: 'unavailable', proposals: [], unavailableReason: 'Snapshot does not yet contain computed close groups; retry after deployment/cache refresh.' }) };
+  }
+  if (name === 'validate_close_proposal') {
+    const input = closeProposalValidationSchema.parse(args);
+    return validateCloseProposal(await loadSnapshot(), input);
+  }
   if (name === 'validate_action_plan') {
     const plan = actionPlanSchema.parse(args);
     return validateActionPlan(await loadSnapshot(), plan);

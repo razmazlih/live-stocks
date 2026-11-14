@@ -24,7 +24,7 @@ export function cachePortfolioAiSnapshot<T>(load: () => Promise<T>) {
 
   // Fixed, versioned key: query strings and request headers cannot bypass this cache.
   // Scope is the application's existing shared portfolio, never an individual user.
-  const read = unstable_cache(loadOnce, ['portfolio-ai-snapshot-v1'], {
+  const read = unstable_cache(loadOnce, ['portfolio-ai-snapshot-v2'], {
     revalidate: SNAPSHOT_TTL_SECONDS,
   });
 
