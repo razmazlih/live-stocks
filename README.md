@@ -235,7 +235,8 @@ npm test
 ## דגשים לפיתוח שוטף
 - הפרויקט תלוי בהגדרת Supabase env vars; בלעדיהם ייזרק error בעלייה.
 - ללא `FINNHUB_TOKEN` המערכת תעבוד חלקית (פחות נתונים חיים).
-- קבצי `tmp/` ו-`output/` הם ארטיפקטים מקומיים ולא חלק מה-runtime הקריטי.
+- `output/widget/` מכילה את קוד הווידג׳ט להפצה, הבדיקות, מחולל התצוגה והתמונה המוצגת ב־README; קבצים אלה נשמרים ב־Git. את `preview.html` המקומי אפשר לייצר מחדש באמצעות `node output/widget/widget-v7-preview.cjs`.
+- תוצרי צילום ובנייה מקומיים (`output/playwright/`, `output/pdf/`, `tmp/`, `build.log`) וסביבת העיצוב `.venv-design/` אינם נשמרים ב־Git. תמונות התיעוד הפעילות נמצאות ב־`docs/screenshots/`.
 - `seed.sql` קיים אך מינימלי, מומלץ להרחיב אותו ל-onboarding מהיר.
 
 ## Troubleshooting מהיר
