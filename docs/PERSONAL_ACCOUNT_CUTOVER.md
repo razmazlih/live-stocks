@@ -1,10 +1,13 @@
 # Personal-account production cutover
 
-**Production financial migration remains blocked.** All four migrations, strict adoption of a pre-created authentication store, and rollback now pass a disposable local rehearsal against the actual encrypted backup. `CUTOVER_READY` defaults to `false`; without explicit operator bundle approval, `--prepare` refuses production migration SQL generation, and there is no `--apply` mode. Older migration packages must never be applied.
+**Production financial migration completed on 2026-11-15. Do not rerun these packages.** The final post-freeze encrypted archive was restored successfully, all four migrations committed atomically, and a separate production read-only comparison verified the six financial tables, all 13 original authentication tables, explicit owner alias and encrypted credential. See [production evidence](verification/production-personal-account-cutover-2026-11-15.json). The owner then confirmed Google login and the portfolio on the canonical site. Google public audience is now In production. ChatGPT activation and physical iPhone proof remain separate.
+
+The sequence below records the reviewed cutover procedure and its safety constraints. `CUTOVER_READY` still defaults to `false`; exact bundle approval never bypasses receipt, backup, adoption or data-comparison checks. There is no `--apply` mode. Old prepared packages and expired confirmations must never be reused.
 
 Target project: `osvwctooasdxsztatirz`. The previously confirmed Auth0 subject remains the canonical portfolio ID. A separately proved Google login in the final Better Auth store gets an explicit alias to that profile. Email matching and signup order never assign legacy data.
 
-Auth-store-only preparation was executed on 2026-11-15: the reviewed 13-table schema, restricted backend role and private provenance marker now exist in the final project. All six financial table row digests stayed identical; financial schemas, policies and ownership were not changed. A protected, unpromoted maintenance deployment passed fixed canonical discovery, public asymmetric JWKS and a 503 portfolio blockade. The live alias is unchanged. See [sanitized execution evidence](verification/production-auth-store-only-2026-11-15.json). This is not a completed owner confirmation, hosted isolation gate, financial migration or live release.
+Auth-store-only preparation was executed before the financial cutover, preserving all six original financial digests. The production freeze and backend drain were later committed once; the final encrypted backup included all four schemas. The first final restore exposed a text-ID locale ordering mismatch in only the rate-limit table, with all rows intact. Explicit bytewise auth digest ordering was tested, a new backup was taken, and its complete restore passed before the production transaction. The previous archive was retained unchanged. No public permissions were restored.
+
 
 ## Reviewed source bundle
 
@@ -96,7 +99,7 @@ This mode verifies the exact final store and owner rows read-only, and includes 
 
 ## Staged deployment activation
 
-The protected maintenance candidate is `dpl_5KyKu1U18ECq71aANTNwW7rsXCbi`. A second protected, unpromoted launch candidate, `dpl_9ymFL2iKgkE3UTL73PxjHzqD57bp`, uses the same verified app source with `LIVESTOCKS_MAINTENANCE=false`; its on-site Google page returned 200 and unauthenticated portfolio/MCP requests returned private, uncached 401 responses. Neither candidate has replaced the live alias. This is not proof of Google login, personal data reads or ChatGPT authorization.
+The pool-fixed maintenance deployment was `dpl_AGkseRyb88rXSS3RD3FQWDy1wDoB`. After migration verification, launch deployment `dpl_HuUwKLX6Mdjr4Haf3DUF6AwL7dhZ` was promoted and the owner confirmed canonical Google login and the existing portfolio. A subsequent tested focus-revalidation fix, `dpl_HafBisvHThqtWsQXVg5ZTyKoZrjA`, is the latest canonical deployment at this record. Production maintenance configuration is false; Preview was left unchanged. Verify actual aliases before any later operational action.
 
 Deployment environment values are immutable snapshots. Changing the project's maintenance setting does **not** update the already-built maintenance deployment. Use the separately staged launch candidate after migration, and leave the maintenance candidate available for traffic rollback. The temporary localhost capture server must be stopped without signing out after exporting the owner receipt; sign-out deletes the live session required by the final SQL checks. Seed the static MCP client only using the tested operator-session flow, then refresh the existing App and verify actual host login, refresh, disconnect and account switching before declaring the plugin complete.
 
