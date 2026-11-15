@@ -41,91 +41,115 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   const [error, setError] = useState(false);
   const [verificationRequired, setVerificationRequired] = useState(false);
   const [generation, setGeneration] = useState(0);
+  const currentSession = useRef<AccountSession | null>(null);
   const pendingRequest = useRef<AbortController | null>(null);
   const signingOut = useRef(false);
   const [signOutState, setSignOutState] = useState<'idle' | 'pending' | 'failed'>('idle');
 
-  const revalidate = useCallback(async () => {
+  const acceptSession = useCallback((value: AccountSession) => {
+    if (currentSession.current?.user?.id !== value.user?.id) {
+      // Only an actual account boundary may discard private state and requests.
+      if (!value.user) resetSupabaseClient();
+      setGeneration((current) => current + 1);
+    }
+    configureSupabaseUser(value.user?.id ?? null);
+    currentSession.current = value;
+    setSession(value);
+  }, []);
+
+  const revalidate = useCallback(async (replacePending = false) => {
     if (signingOut.current) return;
+    // A tab becoming visible commonly emits focus too. Share the in-flight check.
+    if (pendingRequest.current && !replacePending) return;
     pendingRequest.current?.abort();
     const controller = new AbortController();
     pendingRequest.current = controller;
-    resetSupabaseClient();
-    setSession(null);
-    setError(false);
-    setVerificationRequired(false);
+    const isCurrent = () => !controller.signal.aborted && pendingRequest.current === controller;
     try {
       const response = await fetch('/api/account/session', { cache: 'no-store', credentials: 'same-origin', signal: controller.signal });
       if (response.status === 401) {
-        if (!controller.signal.aborted) setSession({ user: null, configured: true });
+        if (isCurrent()) {
+          setError(false);
+          setVerificationRequired(false);
+          acceptSession({ user: null, configured: true });
+        }
         return;
       }
       if (response.status === 403) {
         const failure = await response.json();
         if (failure.error === 'Verify your email before continuing') {
-          if (!controller.signal.aborted) {
+          if (isCurrent()) {
+            setError(false);
             setVerificationRequired(true);
-            setSession({ user: null, configured: true });
+            acceptSession({ user: null, configured: true });
           }
           return;
         }
       }
       if (!response.ok) throw new Error('Session verification failed');
       const value = await response.json() as AccountSession;
-      if (controller.signal.aborted) return;
+      if (!isCurrent()) return;
       if (typeof value.configured !== 'boolean' || (value.user && !value.user.id)) throw new Error('Invalid session response');
-      configureSupabaseUser(value.user?.id ?? null);
-      setGeneration((current) => current + 1);
-      setSession(value);
+      setError(false);
+      setVerificationRequired(false);
+      acceptSession(value);
     } catch {
-      if (!controller.signal.aborted) {
+      // An outage is not proof of logout. Existing server-side authorization still applies.
+      if (isCurrent() && !currentSession.current?.user) {
         setError(true);
-        setSession({ user: null, configured: true });
+        acceptSession({ user: null, configured: true });
       }
+    } finally {
+      if (pendingRequest.current === controller) pendingRequest.current = null;
     }
-  }, []);
+  }, [acceptSession]);
 
   useEffect(() => {
+    resetSupabaseClient();
     void revalidate().then(() => {
       // Notify other tabs once on mount (including a completed login redirect).
       try { localStorage.setItem(ACCOUNT_EVENT, `session:${Date.now()}`); } catch { /* Storage may be disabled. */ }
     });
     const refresh = () => { void revalidate(); };
+    const refreshInvalidSession = () => { void revalidate(true); };
     const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     const onStorage = (event: StorageEvent) => {
       if (event.key !== ACCOUNT_EVENT) return;
       if (event.newValue?.startsWith('logout:')) {
         pendingRequest.current?.abort();
+        pendingRequest.current = null;
         resetSupabaseClient();
-        setSession({ user: null, configured: true });
-      } else refresh();
+        acceptSession({ user: null, configured: true });
+      } else refreshInvalidSession();
     };
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', onStorage);
-    window.addEventListener('livestocks:session-invalid', refresh);
+    window.addEventListener('livestocks:session-invalid', refreshInvalidSession);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       pendingRequest.current?.abort();
+      pendingRequest.current = null;
       resetSupabaseClient();
       window.removeEventListener('focus', refresh);
       window.removeEventListener('storage', onStorage);
-      window.removeEventListener('livestocks:session-invalid', refresh);
+      window.removeEventListener('livestocks:session-invalid', refreshInvalidSession);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [revalidate]);
+  }, [revalidate, acceptSession]);
 
   const signOut = useCallback(async () => {
     signingOut.current = true;
     setSignOutState('pending');
     pendingRequest.current?.abort();
+    pendingRequest.current = null;
     clearBrowserAccount('logout');
-    setSession({ user: null, configured: true });
+    acceptSession({ user: null, configured: true });
     try {
       const result = await authClient.signOut();
       if (result.error) throw new Error('Sign-out failed');
       authNavigation.assign('/sign-in');
     } catch { setSignOutState('failed'); }
-  }, []);
+  }, [acceptSession]);
 
   if (signOutState !== 'idle') return <main className="flex min-h-screen items-center justify-center bg-[var(--color-page-bg)] p-5 text-foreground"><section className="max-w-md space-y-4 rounded-3xl border border-border bg-card p-7 text-card-foreground"><p role={signOutState === 'failed' ? 'alert' : 'status'}>{signOutState === 'failed' ? 'ההתנתקות לא הושלמה. יש לנסות שוב. / Sign-out did not complete. Please retry.' : 'מתנתק… / Signing out…'}</p>{signOutState === 'failed' && <Button onClick={() => { void signOut(); }}>ניסיון התנתקות נוסף / Retry sign-out</Button>}</section></main>;
   // Public auth forms remain usable during session checks; private providers never mount here.
