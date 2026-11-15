@@ -7,3 +7,7 @@ The published App-backed package version is `1.1.0`. `.app.json` binds the new A
 Use Plugin Creator's expected-release update workflow to change skill files. Preserve the existing App binding, metadata and PRIVATE visibility. OAuth client credentials belong in the host's owning connection settings, never in this package. Read the [activation evidence and checklist](../../docs/CHATGPT_ACTIVATION.md) before changing the connection.
 
 The README is repository documentation; the published archive contains the two manifests, `.app.json` and the skill file only.
+
+## Public-release preparation
+
+The [separate public candidate](../livestocks/PUBLIC_RELEASE.md) now targets this active OAuth source while retaining the approved LiveStocks brand. The public manifest/portable MCP draft lives at the historical preparation path, without private App bindings. Live connectivity passed, but publisher/country decisions, secure Google reviewer fixtures, a real accessible demo and the saved-submission case suite remain incomplete. No public ZIP, upload or submission has been produced. Physical installation of the latest Scriptable widget source is also unverified.

@@ -1,6 +1,8 @@
-# LiveStocks
+# LiveStocks — historical private source
 
-The single active LiveStocks plugin uses a private cloud App connection to the existing application. No new website or local MCP process is needed.
+**Historical source notice (2026-11-15):** this directory retains the old App binding and release history. That plugin was uninstalled with user approval after the new private OAuth connection passed its real host lifecycle tests. The sole installed connection and current skill source are [LiveStocks (OAuth)](../livestocks-oauth/README.md). Do not update or reinstall the old binding as the active connection. Its owned cloud artifact was not permanently deleted.
+
+The public preparation files remain here for continuity but now target the new OAuth source; see [PUBLIC_RELEASE.md](PUBLIC_RELEASE.md). Statements below describing the old launch or candidate are historical and are superseded by the current activation evidence.
 
 **Source candidate 1.2.0:** Google-only Better Auth accounts (password/email flows disabled by default; no SMTP needed), account-bound snapshots, stable canonical `get_profile`, and read-only authorization enforced in the API and database. This source has not replaced the published 1.1.0 connection. Production data and the active App binding remain unchanged until the live provider gate and owner migration pass. See [Better Auth setup](../../docs/BETTER_AUTH_SETUP.md), [hosted integration gate](../../docs/HOSTED_AUTH_GATE.md), [account setup and cutover](../../docs/ACCOUNTS.md) and [public-release preparation](PUBLIC_RELEASE.md).
 

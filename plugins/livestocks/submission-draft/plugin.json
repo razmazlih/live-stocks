@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "dev-6af6d6f889a88191ae50abfc0070421b",
+  "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
   "version": "1.2.0",
   "description": "Read-only research for your recorded LiveStocks portfolio.",
   "extensions": {
@@ -16,7 +16,11 @@
           "With my confirmed cash budget, compare new-stock purchase candidates."
         ],
         "composerIcon": "assets/composer-icon.png",
-        "logo": "assets/listing-logo.png"
+        "logo": "assets/listing-logo.png",
+        "websiteURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
+        "supportURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
+        "privacyPolicyURL": "https://razmaz-live-stocks.vercel.app/privacy?lang=en",
+        "termsOfServiceURL": "https://razmaz-live-stocks.vercel.app/terms?lang=en"
       },
       "review": {
         "prompts": [
@@ -74,7 +78,7 @@
         }
       },
       "publication": {
-        "release_notes": "Candidate 1.2.0 adds Google-only Better Auth account authorization, account-bound profile and portfolio reads, and read-only OAuth consent. The existing private App identity is preserved. This draft has not been uploaded, submitted for review, or published."
+        "release_notes": "Public candidate 1.2.0 derives from the active private LiveStocks (OAuth) package 1.1.0. It offers Google-only Better Auth account authorization, seven read-only MCP tools, canonical profile and portfolio reads, full analyst research guidance, and explicit OAuth consent. Real host reads, refresh, revocation and reconnection passed. Public review cases, reviewer access and a recorded demonstration remain pending. This draft has not been uploaded, submitted for review or published."
       }
     }
   }

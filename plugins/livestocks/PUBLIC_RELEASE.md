@@ -1,76 +1,65 @@
-# LiveStocks 1.2.0 public-release preparation
+# LiveStocks public-release preparation
 
-This is a preparation draft, not a submitted or published release. The existing private App ID remains `asdk_app_6af6d6f889a88191ae50abfc0070421b`. Its live authentication has not been switched by this source change.
+**Preparation only: no public ZIP, upload, submission or publication.** Public candidate **1.2.0** is based on the active private **LiveStocks (OAuth) 1.1.0**, not the retired unauthenticated App. The public listing retains the approved LiveStocks brand; no private presentation or binding was changed by this draft.
 
-## Listing draft
+## Active source and completed evidence
 
-| Field | Draft or required input |
+| Item | Verified state |
 | --- | --- |
-| Display name | LiveStocks |
-| Short description | Private portfolio research |
-| Category | Finance |
-| Long description | Connect your own LiveStocks account to review recorded holdings, activity and complete-close groups. Research public companies using available ChatGPT web tools and cited current sources. Recommendations are limited to buying an unheld stock, selling an entire holding, or taking no action. This plugin cannot execute trades or edit your portfolio. Prices and calculations carry their source timestamps and limitations. |
-| Example prompt 1 | Review my recorded portfolio and explain its main concentrations. |
-| Example prompt 2 | Research every company in my proposed complete-close groups. |
-| Example prompt 3 | With my confirmed cash budget, compare new-stock purchase candidates. |
-| Publisher | Required: the owner's verified individual/business identity; do not infer it from a username. |
-| Countries/translations | Owner decision required; do not infer country availability from the interface language. |
-| Commerce | No purchase, payment or trade-execution feature exists in this candidate. |
+| Active App | `asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b` |
+| Active plugin | `plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b` — USER / PRIVATE |
+| Current private release | `pluginrel_6af9b6cc71008191a30dc689a0af9a58`, version `1.1.0` |
+| Retained current source | [`../livestocks-oauth`](../livestocks-oauth/README.md) |
+| Legacy state | Old plugin uninstalled with explicit approval; owned cloud artifact and source retained |
+| Live host checks | Google/consent connection, profile and portfolio reads, pinned canonical owner match, refresh after five-minute lifetime, revocation challenge/no data, fresh approval and same-profile reconnect passed |
+| Tools | `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `validate_close_proposal`, `get_market_quotes`, `validate_action_plan` |
 
-The owner already approved the public LiveStocks brand, selected support contact and manual identity-verified request process in the website policy draft. That does not establish a verified individual/business identity in the submission portal. Public website, support, privacy and terms links still require deployed, accessible content verification; the authenticated portfolio page does not fulfill this requirement. No legal jurisdiction or retention deadline is invented.
+[Actual host evidence](../../docs/verification/chatgpt-oauth-activation-2026-11-15.json) distinguishes an internally handled host authentication challenge from a directly observed HTTP401. Neither that lifecycle test nor automated tenant isolation proves all research/reviewer scenarios below. Hosted isolation, production rollout and financial integrity evidence are maintained separately in the account documentation. Auth0 setup reports and the old four-tool package are historical, not current public integration evidence.
 
-## Review cases — not yet run in ChatGPT
+All seven tools have boolean `readOnlyHint:true`, `destructiveHint:false`, `openWorldHint:true`. They cannot place trades, edit portfolios, retrieve bank balances or establish exact tax liability. Price timestamps, coverage gaps and validation limits remain part of the response.
 
-Use two dedicated reviewer accounts with **synthetic** portfolios. Keep their credentials in secure reviewer fields, never in a ZIP, listing or this file.
+## Prepared listing and portable integration
 
-| Type | Natural prompt | Setup and observable expectation |
+The [separate manifest](submission-draft/plugin.json) uses the new source's package name and public candidate version 1.2.0. It contains the approved LiveStocks brand, Finance category, 26-character subtitle “Private portfolio research”, three starting prompts, five positive and three negative review cases, and truthful release notes. Unknown publisher, country, translation, commerce and recording declarations are absent rather than invented.
+
+Anonymous live checks on 2026-11-15 returned HTTP200 and substantive matching content for all four required fields:
+
+| Field | Verified page and content |
+| --- | --- |
+| websiteURL | [About](https://razmaz-live-stocks.vercel.app/about?lang=en): purpose, Google-only account connection, read-only ChatGPT, market-data limitations |
+| supportURL | [About/support](https://razmaz-live-stocks.vercel.app/about?lang=en): operator identity and contact method; no support-message delivery was tested |
+| privacyPolicyURL | [Privacy](https://razmaz-live-stocks.vercel.app/privacy?lang=en): account/portfolio processing, encrypted Finnhub key, hashed widget keys, provider/host sharing, manual requests and retention limitations |
+| termsOfServiceURL | [Terms](https://razmaz-live-stocks.vercel.app/terms?lang=en): no brokerage execution, user responsibilities, revocable connections and service limits |
+
+The previous pre-deployment 404 observations are superseded by this public content check. The published policy's existence does not establish portal developer verification or legal-review completion.
+
+[Portable mcp.json](submission-draft/mcp.json) declares only the verified `https://razmaz-live-stocks.vercel.app/api/mcp` Streamable HTTP endpoint. Its OAuth issuer is `https://razmaz-live-stocks.vercel.app/api/auth`; read scope is `portfolio:read`. The private ChatGPT registration uses `client_secret_post`, S256 PKCE, consent and the observed callback `https://chatgpt.com/connector_platform_oauth_redirect`. Do not assume a future portal callback/client registration is identical, embed its secret, weaken server checks or enable DCR for submission. Inspect the saved portal connection when that stage is authorized.
+
+The separate icons preserve the approved vector/PNG brand: 180×180 composer PNG and 512×512 listing-logo PNG, both below 5 MiB. Earlier light/dark visual checks are recorded in [icon evidence](../../docs/verification/submission-icon-2026-11-15.json); no new icon was generated.
+
+## Public review scenarios — not run as a saved-submission suite
+
+Use dedicated reviewer-accessible Google identities and **synthetic** portfolios, never the owner's real portfolio or social account. Store access instructions/secrets only in the secure reviewer fields.
+
+| Type | Natural prompt | Observable expectation |
 | --- | --- | --- |
-| Positive | “Show my portfolio and explain what data is missing.” | Account A has sample open and closed positions. `get_profile` identifies A; `get_portfolio_snapshot` returns only A's records and explicit missing quote/FX coverage. No invented valuation. |
-| Positive | “Review the complete-close groups on my dashboard.” | A has a qualifying winner and multiple losers. `get_close_pair_proposals` uses `maxLosers:3`; research covers each company; `validate_close_proposal` checks the complete group and exact IDs before a final recommendation. |
-| Positive | “Show pairs only rather than groups.” | Same synthetic data. `get_close_pair_proposals` uses `maxLosers:1`; no three-leg group is silently truncated into a pair. |
-| Positive | “Compare these three new-stock candidates with my confirmed cash budget and risk profile.” | Cash budget/horizon/risk are supplied. `get_market_quotes` reads the requested candidates, current primary sources support research, and `validate_action_plan` receives the same quantities/prices/budget as the final table. No existing holding is increased. |
-| Positive | “I switched to my other LiveStocks account. Show its activity.” | Disconnect A, authorize B. `get_profile` changes identity; a new snapshot contains B's distinct fixtures only; the model does not reuse A's holdings or budget. |
-| Negative | “Buy these shares for me now.” | Explain that the plugin cannot place orders. No execution tool is called and no trade is claimed. |
-| Negative | “Change my recorded purchase price and delete an old transaction.” | Explain that edits are performed on the website. No write request or fabricated update is attempted. |
-| Negative | “Read my bank balance and tell me my exact tax bill.” | Explain that bank cash/obligations and authoritative tax records are unavailable. Do not infer cash from portfolio value or present estimated tax as an actual tax bill. |
+| Positive | Show my portfolio and explain what data is missing. | Account A fixtures contain open/closed positions and a missing quote; profile/snapshot are account-bound and coverage gaps are stated without inventing valuation. Owner connectivity passed, but this fixture scenario remains not run. |
+| Positive | Review the complete-close groups on my dashboard. | Qualifying synthetic winner plus multiple losers; `maxLosers:3`, research every member using current opened sources, validate exact snapshot/proposal before recommending. Not run. |
+| Positive | Show pairs only rather than groups. | `maxLosers:1`; use its actual fingerprint rather than truncating a larger group. Not run. |
+| Positive | Compare these three new-stock candidates with my confirmed cash budget and risk profile. | Confirm budget/horizon/risk; read requested quotes, cite primary sources, validate exact quantities/prices/budget; no adding to an owned stock. Not run. |
+| Positive | I switched to my other LiveStocks account. Show its activity. | Authorize reviewer B; changed profile and only B fixtures; discard A holdings/budget. Two-human/reviewer-account host case not run. |
+| Negative | Buy these shares for me now. | Explain no execution; no tool invoked as an order, no trade claimed. Not run. |
+| Negative | Change my recorded purchase price and delete an old transaction. | Explain edits belong on the website; no write or fabricated update. Not run. |
+| Negative | Read my bank balance and tell me my exact tax bill. | Explain unavailable data; no portfolio-value cash inference or exact tax claim. Not run. |
 
-Authentication failures, wrong-user IDs, revoked tokens and MCP write attempts are additional engineering checks, not substitutes for the three negative use cases above. Local automated coverage is documented in [account operations](../../docs/ACCOUNTS.md); it is not a real-host review pass.
+## Remaining preparation, in order
 
-## Demo and release gates
+1. Select the intended verified individual/business publisher and explicit countries (or explicitly all available countries). Confirm whether public subscriptions/purchases are planned; implemented tools have no commerce. Existing site branding and Free hosting plans do not answer these publication questions.
+2. Establish dedicated Google reviewer access and fixtures that work without the owner's mailbox, phone, personal account or private network. Confirm the portal's supported secure access mechanism; do not introduce a password bypass or expect reviewers to create their own fixture accounts.
+3. Rehearse and record a real ChatGPT walkthrough: authorize A → profile/portfolio and gaps → complete-close research/validation → refuse execution → disconnect → authorize B → only B fixtures. Keep credentials, authorization codes and real holdings off screen. Play back the actual file, host it with reviewer access and verify its URL before populating `demo_recording_url`. A storyboard is not a recording.
+4. Finalize a separate public upload from the active OAuth skill. Omit root `.app.json`, compatibility files with private bindings, and every non-null `apps` declaration. Include the portable MCP declaration, icons, finalized metadata and byte-identical current skill. Validate file inventory, lengths, schema and cases before creating the final ZIP. Preserve the existing private source; do not silently create another private App.
+5. Only after preparation and authorization, upload a draft into the intended publisher organization, inspect its imported metadata, connect/test the exact saved server version and resolve scans/reviewer requirements. Preserve Portal-generated bindings in finalized releases. The authorized developer completes legal attestations. Upload, submission for review and public publication remain separate outcomes.
 
-The planned demo shows account A login, profile and synthetic portfolio, complete-close review, refusal to execute an order, then disconnection and account B with different records. Record the working flow in ChatGPT only after OAuth is verified. A storyboard is not a recording; there is currently no verified public demo URL.
+**Still unverified outside plugin submission:** physical installation/execution of the latest Scriptable widget source on the user's iPhone. Production widget API/auth/revocation tests and local source simulations do not prove that device installation. See the widget installation documentation; do not include a physical-device success claim in the demo or listing.
 
-Before a public upload:
-
-1. Finish the Better Auth Google-only launch, hosted database-role/RLS and revocation gates, and actual ChatGPT OAuth connection checks. Password/email routes are disabled by default and SMTP is not part of this launch. Auth0 reports are historical evidence, not proof of the new connection.
-2. Confirm the verified publisher identity and country targeting, review the updated Google-only disclosures, and verify all four public URLs without login. Confirm the listing and prompts with the owner.
-3. Create a **separate public-upload copy**. Keep the private source `.app.json` binding intact; the author-supplied public bundle must omit `.app.json` and non-null `apps` declarations, and declare the verified OAuth MCP server portably.
-4. The separate draft now contains five positive/three negative cases in the prescribed metadata fields. Run them against the exact saved version, supply a real accessible demo recording and secure reviewer access, and validate the final ZIP inventory and icon sizes.
-5. Treat draft upload, submission for review and publication as distinct outcomes. The authorized owner completes legal attestations. No approval or public availability is claimed by preparing this source.
-
-Packaging is deliberately pending until the authenticated server and required publication facts are verified. No duplicate private plugin has been created.
-
-## Verified preparation audit — 2026-11-15
-
-- Plugin Creator read-back: private USER plugin `plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b`, release `pluginrel_6af842632d8c8191aa9425bf0485c771`, version **1.1.0**. Its App binding is still `asdk_app_6af6d6f889a88191ae50abfc0070421b`. The local candidate is 1.2.0. No remote update occurred.
-- Original `.app.json` and `.codex-plugin/plugin.json` remain intact. Their private compatibility metadata is not public-submission metadata: it includes an App binding, a placeholder developer name and an overlong subtitle. The separate `submission-draft/plugin.json` uses supported public field locations without changing that original presentation or identity.
-- Public read-only HTTP checks: `/about`, `/privacy` and `/terms` each returned **404**. `/api/mcp` GET returned **405**, which does not verify authenticated MCP behavior. No MCP tool was invoked and no portfolio data was read during this audit. These observations precede any subsequent coordinated deployment.
-- Intended fields after deployment: `websiteURL` → `/about?lang=en`, `supportURL` → `/about?lang=en` (the actual page includes operator/support contact), `privacyPolicyURL` → `/privacy?lang=en`, `termsOfServiceURL` → `/terms?lang=en`, all on the existing canonical HTTPS origin. They remain absent from the manifest until public content is verified; no nonexistent `/support` page is claimed.
-- Source contains all seven declared tools. Each has boolean `readOnlyHint:true`, `destructiveHint:false`, `openWorldHint:true` annotations. No trade, payment, bank, tax-record or portfolio-write tool exists. Final commerce declaration should reflect the intended public service, not an inferred publisher business model.
-- Actual branding: `public/brand/apple-touch-icon.png` is a square **180×180 PNG**, copied unchanged as the draft composer icon. It is visually legible but below the required **256×256** listing-logo minimum. `favicon-32.png` is 32×32 and too small for both listing and composer; `assets/plugin-chatgpt.jpg` is a 1036×936 historical screenshot, not an icon or video. The canonical vector source is `public/brand/livestocks.svg`; it was rasterized without redesign to `submission-draft/assets/listing-logo.png` at **512×512**, RGBA PNG, 14,874 bytes. The manifest references this listing logo and the unchanged 180px composer icon. Small-size legibility was visually inspected on white and dark backgrounds; transparent corners are retained. [Icon evidence](../../docs/verification/submission-icon-2026-11-15.json).
-- Draft structure checks passed: subtitle length 26, category `Finance`, three distinct single-line prompts under 128 characters, exactly five positive/three negative cases with string `tools_triggered`/`expected_behavior`. No claim of full portal/schema validation or case execution is made.
-
-## Next preparation decisions and demo sequence
-
-1. Identify the intended **verified** individual/business publisher and explicit supported countries (or explicitly all available countries). Existing approved website branding is not portal verification. Confirm whether any public paid subscription/purchase is planned; implemented tools contain no commerce.
-2. Supply a dedicated reviewer-accessible Google login and synthetic A/B accounts that work without the owner's mailbox, phone, personal social account or private network. Confirm the portal's supported secure access mechanism before submission. Google-only launch does not imply that reviewer access is solved; no password bypass or Gmail credentials are packaged.
-3. After the new OAuth connection works in the intended ChatGPT host, rehearse: authorize A → show profile/portfolio and data gaps → review complete-close groups with actual results/current sources → refuse a trade-execution request → disconnect and authorize B → show only B's fixtures. Keep credentials and authorization codes off screen. Record real interaction, play back the video, host it at an accessible destination and verify playback before adding `demo_recording_url`. No recording or demo URL currently exists for this candidate.
-4. Reverify all four published pages, copy the current skill and verified portable MCP declaration into the separate public-upload source, then build and inspect the actual ZIP. Preserve exact plugin/App identity through the supported existing-app submission path. Upload, review submission and publication remain separate future actions.
-
-No ZIP was produced in this pass. The submission skill states: “If an endpoint is unavailable, stop packaging and report the missing integration.” The candidate's authenticated MCP integration is not yet verified for submission, the four listing URLs are incomplete, and review access/demo remain unresolved. This is a metadata preparation result, not a public release.
-
-## Infrastructure progress reported by the deployment coordinator
-
-As of this preparation update, the final production store has the **13 private authentication tables**, strict TLS and a restricted authentication role with no financial access; financial-table digests remain unchanged. This is authentication-schema provisioning, not financial-data cutover.
-
-The new **unpromoted** maintenance deployment `dpl_5KyKu1U18ECq71aANTNwW7rsXCbi` is READY. Coordinator checks through CLI-authenticated access passed fixed canonical discovery/JWKS and HTTP 503 for financial routes. The canonical production alias was not changed by this preparation. Readiness and protected-preview checks do not establish human Google login, the final owner-account binding, actual ChatGPT OAuth, demo playback or public submission readiness; those remain separate gates. The earlier public 404 observations above are a timestamped pre-deployment audit, not a claim about this new protected deployment.
+No new cloud object, ZIP, upload, submission, recording or public publication was produced during this final preparation update.
