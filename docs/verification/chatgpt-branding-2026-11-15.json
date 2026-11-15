@@ -55,5 +55,40 @@
     "https://github.com/openai/mcp-extensions/blob/main/docs/spec.md",
     "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/basic/index.mdx",
     "https://developers.openai.com/plugins/deploy/connect-chatgpt"
-  ]
+  ],
+  "directPresentationUpdate": {
+    "attempts": 1,
+    "explicitUserIconChangeAuthorization": true,
+    "expectedReleaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "candidateVersion": "1.1.1",
+    "candidateArchiveSha256": "14aace6694272579bb774aae1a8fb6b05cb35d331e137f471604394ceacfaad3",
+    "changes": [
+      "existing approved 180px composer PNG",
+      "existing approved 512px listing PNG",
+      "icon references and patch version only"
+    ],
+    "httpStatus": 400,
+    "errorCode": "INVALID_ARGUMENT",
+    "retryable": false,
+    "message": "App-backed plugin updates may change skills and their metadata, but must preserve the app's configuration, bindings, and presentation. Update the app to change those.",
+    "accepted": false,
+    "readbackReleaseUnchanged": true,
+    "readbackVersion": "1.1.0",
+    "newAssetsPresent": false,
+    "newIconReferencesPresent": false
+  },
+  "workspacePublicationInspection": {
+    "requestedWorkspace": "RABEN",
+    "performedMutations": false,
+    "repeatedPublish": false,
+    "legacyAppsPage": "List loading spinner; no publication result or error",
+    "supportedAdminConsoleWorkspaceCatalog": "No plugins found",
+    "appReviewStatusAfterReload": "DEVELOPMENT",
+    "pluginScope": "USER",
+    "pluginVisibility": "PRIVATE",
+    "publicationConfirmed": false,
+    "workspaceOutOfCreditsBannerObserved": true,
+    "creditsAsCauseEstablished": false,
+    "billingChanged": false
+  }
 }
