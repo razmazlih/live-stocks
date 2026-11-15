@@ -1,6 +1,6 @@
 # Canonical accounts and lossless merge foundation
 
-Status: implemented and tested locally; **production is not migrated**. The merge proof/callback API and resumable worker are not yet connected to the user interface. Matching verified emails suggests a possible connection; it never grants access or transfers ownership.
+Status: the production ownership/provider cutover completed on 2026-11-15. The general two-profile proof/callback API and resumable worker are now implemented and tested locally, but **general merging remains disabled and undeployed**. See [the guarded merge service](ACCOUNT_LINKING.md) for its release gates. Matching verified emails suggests a possible connection; it never grants access or transfers ownership.
 
 The database migrations are separate from the unchanged original isolation migration:
 
@@ -28,6 +28,8 @@ These public functions are executable only by `service_role`; the browser must n
 | `server_identity_resolve` | `p_issuer text, p_subject text, p_email_hash text = null, p_auth_session_created_at bigint = null` | `{profile_id, raw_subject, state, min_auth_session_created_at, identity_version}`; state is `active`, `blocked`, or `reauthentication_required`; numeric version starts at 1 and cutoff at 0. |
 | `server_bootstrap_web_account` | issuer, subject, optional origin with the same parameter names | Resolves identity and creates exactly one active default settings row under the profile fence. |
 | `server_merge_candidates` | `p_issuer, p_subject` | Matching registered email-HMAC candidates; backend only, not an authorization decision. |
+| `server_merge_create_guarded` | issuer, actor/other subject, request UUID, immutable `p_expires_at` | New application entry: same-request advisory lock, existing-job recovery before expiry rejection; delayed expired creation is rejected. |
+| `server_merge_lookup_guarded` | same five arguments | `{job,expired}` under the same request lock and DB clock, bound to the exact pair; permits safe abandonment of an expired absent intent. |
 | `server_merge_create` | `p_issuer, p_actor_subject, p_other_subject, p_request_id uuid` | Durable job; retries of the same request/pair return the existing job. |
 | `server_merge_read` | `p_job_id uuid` | Job metadata and revocation outbox; excludes secret material and financial manifest. |
 | `server_merge_proof` | `p_job_id, p_subject, p_email_hash, p_auth_time bigint, p_nonce_hash` | Records a server-verified fresh proof for one exact participant and identity version. |
@@ -41,7 +43,7 @@ These public functions are executable only by `service_role`; the browser must n
 
 Job states: `proofs_pending → review_ready → frozen → revocation_pending → completed`, with `prepared` reserved and `reconcile_required` / `cancelled` for recovery. Participants cannot join another active job. Freeze, preparation and completion should be separate committed transactions. Never unfreeze on an ambiguous worker failure. Reconciliation must inspect the same durable job rather than creating a competing transfer.
 
-Still required: proof nonce/session binding and fresh dual-login callbacks, candidate privacy controls, preview/choice confirmation API, durable worker scheduling/retries, authorized recovery/status endpoints, and full user-facing end-to-end merge tests. The current interface must keep execution disabled until these exist.
+The local server now implements nonce/session-bound dual proofs, opaque discovery, preview/choice confirmation, durable stage retries, and authorized recovery/status endpoints. Actual two-identity Google browser verification and worker scheduling remain release gates; the feature stays disabled. [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) documents the exact boundary and local commands.
 
 ## Better Auth live token boundary
 
@@ -73,7 +75,7 @@ Without them it leaves the existing Auth0 configuration unchanged for regression
 
 An optional `app.better_auth_legacy_owner_subject` binds that **explicitly verified new auth subject** to the already pinned `app.legacy_owner_subject` profile. Both values must come from the reviewed owner handoff; never infer them from email or signup order. Omitting the binding does not give the first registrant legacy data.
 
-Before hosted cutover, verify managed PostgreSQL permissions for creating the two narrow roles and transferring function ownership; the native superuser fixture cannot prove those hosted permissions. Provision the backend password and approved application clients through protected administration, verify real signing/JWKS and Supabase REST compatibility, and rehearse **all current migrations** against a newly restored encrypted backup. The earlier restoration evidence covers the prior isolation cutover and is not proof of this expanded provider/merge cutover. Old cutover packages must not be executed unchanged.
+Before hosted cutover, verify managed PostgreSQL permissions for creating the two narrow roles and transferring function ownership; the native superuser fixture cannot prove those hosted permissions. Provision the backend password and approved application clients through protected administration, verify real signing/JWKS and Supabase REST compatibility, and rehearse **all current migrations** against a newly restored encrypted backup. The final four-migration restoration/adoption proof and completed production cutover are recorded in the cutover runbook. Old cutover packages must never be reused for a later schema change.
 
 ## Reproducible local evidence
 
@@ -81,4 +83,4 @@ Run `python3 scripts/test-tenancy.py`. It starts only a fresh loopback PostgreSQ
 
 The suite writes only a synthetic SQL-produced before/after fixture to `/private/tmp/livestocks-account-merge-fixture.json` for the separate fixed-price/FIFO integration checks. Those calculation checks passed too. Run `python3 scripts/test-better-auth-postgres.py` for the separate actual-provider gate. It provisions a fresh local cluster, executes `__tests__/better-auth-postgres.test.ts` using only the narrow authentication backend role, disables `.env` loading, mocks email delivery, and removes its runtime afterward. This passed: two verified synthetic users, real web/MCP signatures and JWKS, initial/refresh approval-origin continuity, wrong-resource and PKCE rejection, and signout invalidating refresh/web sessions. Both the original temporary provider runtime and the reproducible runner's runtime were stopped and removed.
 
-These are in-process real-handler/local-PostgreSQL checks. Hosted Supabase gateway acceptance, real email delivery, Google production login, full browser-to-financial-REST behavior under the new provider, and production migration remain separate work; do not label these local checks as a completed production cutover.
+These checks are local and synthetic. The separate hosted provider gate, production cutover and owner Google login subsequently passed on 2026-11-15; they do not prove the new general merge browser flow. Google-only production does not require email delivery. General merge enablement remains a separate, uncompleted release gate.

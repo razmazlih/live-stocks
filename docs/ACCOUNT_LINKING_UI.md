@@ -1,10 +1,10 @@
 # Account merging interface contract
 
-The account-settings card is implemented in Hebrew and English, but **account merging is not enabled**. The current status API returns `{ "available": false }`. This UI work does not implement identity proof, account discovery, authorization, database merging or provider changes. It must not be described as a completed account-unification feature.
+The account-settings card is implemented in Hebrew and English, but **account merging is not enabled**. The status API still returns `{ "available": false }` unless its explicit server feature flag is enabled. A new server proof/review/recovery implementation is locally tested; see [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md). Real two-identity browser proof and operational release gates remain incomplete.
 
 The provider-independent DTO is [`types/account-linking.ts`](../types/account-linking.ts). [`AccountLinking`](../components/auth/account-linking.tsx) is mounted in My account. [`account-linking-client.ts`](../lib/account-linking-client.ts) validates API responses, rejects API redirects and accepts navigation only to the current origin. The existing session DTO is unchanged. Linked sign-in methods come from the server's status response, never from a canonical account-ID prefix.
 
-## Routes to implement on the server
+## Implemented server route contract (gated)
 
 | Request | Contract |
 | --- | --- |
@@ -17,7 +17,7 @@ The provider-independent DTO is [`types/account-linking.ts`](../types/account-li
 
 Every mutation requires server-side session authorization, same-origin/CSRF validation and binding to the exact operation. Browser-supplied candidate IDs, target IDs, counts and choices are never authority. Candidate responses must contain only opaque handles; no email, subject, portfolio counts or financial records before both identity proofs.
 
-Proof routes remain undecided while the on-site authentication implementation is being selected. The component contains no provider authorization URL, SDK proof flow or external login link. It checks the immediate returned URL; the server must also keep the complete navigation chain on the approved site. No tokens or credentials may appear in navigation URLs.
+The server now binds a single-use challenge, signs out the old SDK session, and returns a local `/sign-in` URL whose return path is the operation callback. That callback checks the exact new live session and subject. The component contains no provider authorization URL or bearer token. Google authentication continues through the existing approved provider flow; operation capability secrets never appear in URLs.
 
 ## Review, recovery and completion
 
