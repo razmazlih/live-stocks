@@ -1,0 +1,67 @@
+{
+  "observedDate": "2026-11-15",
+  "status": "PARTIAL_RETIRED_LABELS_AND_SKILLS_COMPLETE",
+  "legacy": [
+    {
+      "pluginId": "plugin_asdk_app_6af6d33c4e6881919e385643f9d350ad",
+      "displayName": "לא פעיל — 1",
+      "description": "רשומה ישנה שאינה בשימוש. אין להתקין או לחבר.",
+      "scope": "USER",
+      "discoverability": "PRIVATE",
+      "version": "1.0.2",
+      "releaseId": "pluginrel_6af6db8d32d88191b6edb552f1adb6b3",
+      "skillFiles": 0,
+      "appBindingStillPresent": true,
+      "fullyEmpty": false,
+      "customInactiveIconApplied": false,
+      "installed": false,
+      "cloudArtifactDeleted": false
+    },
+    {
+      "pluginId": "plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b",
+      "displayName": "לא פעיל — 2",
+      "description": "רשומה ישנה שאינה בשימוש. אין להתקין או לחבר.",
+      "scope": "USER",
+      "discoverability": "PRIVATE",
+      "version": "1.1.1",
+      "releaseId": "pluginrel_6af9d04312bc8191b4feaa8495d03d78",
+      "skillFiles": 0,
+      "appBindingStillPresent": true,
+      "fullyEmpty": false,
+      "customInactiveIconApplied": false,
+      "installed": false,
+      "cloudArtifactDeleted": false
+    }
+  ],
+  "activePlugin": {
+    "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "displayName": "LiveStocks",
+    "version": "1.1.1",
+    "releaseId": "pluginrel_6af9cef9c9d4819186ac76a2a7a20eb4",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "analystSkillCount": 1,
+    "websiteIconReferencePreserved": true,
+    "unchanged": true
+  },
+  "limitations": [
+    "Private App-backed settings exposed name and description edits but no icon editor.",
+    "Private legacy Admin Console actions exposed Download/Delete, not Upload new version.",
+    "App bindings and stale tool declarations remain; the entries are not fully empty.",
+    "No publication, audience change, replacement plugin, artifact deletion or forbidden binding-removal attempt was performed."
+  ],
+  "verification": {
+    "bothNamesAndDescriptionsReadBack": true,
+    "bothSkillInventoriesEmpty": true,
+    "owningUiRenameVerified": true,
+    "activeReleaseUnchanged": true,
+    "financialDataChanged": false
+  },
+  "skillRemoval": {
+    "targetPluginId": "plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b",
+    "deletedPath": "skills/livestocks-investment-analyst/SKILL.md",
+    "guardedUpdateAccepted": true,
+    "formerReleaseId": "pluginrel_6af842632d8c8191aa9425bf0485c771",
+    "newReleaseId": "pluginrel_6af9d04312bc8191b4feaa8495d03d78"
+  }
+}
