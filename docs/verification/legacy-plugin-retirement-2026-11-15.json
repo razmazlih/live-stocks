@@ -14,11 +14,11 @@
       "appBindingStillPresent": true,
       "fullyEmpty": false,
       "customInactiveIconApplied": false,
-      "installed": true,
+      "installed": false,
       "cloudArtifactDeleted": false,
       "shortDescriptionCharacters": 21,
       "connectedAccount": false,
-      "installedStateNote": "Latest owning UI showed Uninstall and Connect; earlier uninstalled observation is superseded."
+      "installedStateNote": "After the UI inspection, root ran supported plugin_management uninstall_app for this exact legacy ID and received status uninstalled."
     },
     {
       "pluginId": "plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b",
@@ -32,11 +32,11 @@
       "appBindingStillPresent": true,
       "fullyEmpty": false,
       "customInactiveIconApplied": false,
-      "installed": true,
+      "installed": false,
       "cloudArtifactDeleted": false,
       "shortDescriptionCharacters": 21,
       "connectedAccount": false,
-      "installedStateNote": "Latest owning UI showed Uninstall and Connect; earlier uninstalled observation is superseded."
+      "installedStateNote": "After the UI inspection, root ran supported plugin_management uninstall_app for this exact legacy ID and received status uninstalled."
     }
   ],
   "activePlugin": {
@@ -102,5 +102,13 @@
     "fullBackendDeleteSchemaAvailable": false,
     "note": "These checks do not claim validation against an unpublished deletion schema."
   },
-  "nextSupportedOption": "Report the exact legacy App/plugin IDs and reproduced generic deletion errors to OpenAI support for owning-record repair/deletion; no support message has been sent."
+  "nextSupportedOption": "Report the exact legacy App/plugin IDs and reproduced generic deletion errors to OpenAI support for owning-record repair/deletion; no support message has been sent.",
+  "finalUninstall": {
+    "method": "plugin_management uninstall_app",
+    "bothExactLegacyIdsReturnedStatus": "uninstalled",
+    "performedBy": "root agent",
+    "afterDeletionAttempts": true,
+    "activePluginTargeted": false,
+    "cloudArtifactsDeleted": false
+  }
 }
