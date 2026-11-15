@@ -42,7 +42,7 @@ node scripts/restore-account-backup.mjs \
   --rehearse-cutover
 ```
 
-`CREDENTIAL_ENCRYPTION_KEY` is required. An archive containing the final auth store also requires its `BETTER_AUTH_SECRET` to verify the receipt. Set `RESTORE_FINAL_STORE_PROBE=1` on the original pre-auth archive to repeat the additional encrypted final-store roundtrip with a synthetic owner. No `.env` is loaded. `--rehearse-migration` runs the same guarded proof. Neither mode accepts a hosted database URL; synthetic binding and local ACL reconstruction have independent SQL loopback guards.
+`CREDENTIAL_ENCRYPTION_KEY` is required. An archive containing the final auth store also requires its `BETTER_AUTH_SECRET` to verify the receipt. Set `RESTORE_FINAL_STORE_PROBE=1` on the original pre-auth archive to repeat the additional encrypted final-store roundtrip with a synthetic owner. Add `RESTORE_MANAGED_ROLE_PROBE=1` to model the observed managed PostgreSQL admin edge: `livestocks_auth_backend` granted to `postgres` with admin option. The latest local proof includes that shape. Restoration reconstructs only this exact marker-recorded edge (or none), checks the original catalog fingerprint and safe role attributes, and rejects reversed, malformed, duplicate or other memberships. It never grants another role to the backend. No `.env` is loaded. `--rehearse-migration` runs the same guarded proof. Neither mode accepts a hosted database URL; synthetic binding and local ACL reconstruction have independent SQL loopback guards.
 
 ## Preprovision the final login store
 

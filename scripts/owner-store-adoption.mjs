@@ -115,9 +115,14 @@ do $$begin if inet_server_addr() is null or inet_server_addr() not in('127.0.0.1
 revoke all on schema livestocks_auth from public,anon,authenticated,service_role,livestocks_auth_backend;
 grant usage on schema livestocks_auth,private to livestocks_auth_backend;
 ${AUTH_TABLES.map(name=>`revoke all on livestocks_auth."${name}" from public,anon,authenticated,service_role,livestocks_auth_backend;grant select,insert,update,delete on livestocks_auth."${name}" to livestocks_auth_backend;`).join('\n')}
-do $members$ declare m jsonb;begin
- for m in select jsonb_array_elements(catalog_snapshot->'memberships') from private.owner_store_provision where singleton loop
-  if m->>0<>'livestocks_auth_backend' or m->>1<>'postgres' or m->2<>'true'::jsonb then raise exception 'Unreviewed role membership in restored marker';end if;
+do $members$ declare marker private.owner_store_provision%rowtype;m jsonb;begin
+ select * into strict marker from private.owner_store_provision where singleton for update;
+ if marker.project_ref<>${quoted(PROJECT)} or marker.source_migration_sha256<>${quoted(AUTH_SOURCE_SHA256)} or marker.prefix_sha256<>${quoted(sha256(authPrefix(source)))} or marker.adopted_at is not null
+ or encode(sha256(convert_to(marker.catalog_snapshot::text,'UTF8')),'hex') is distinct from marker.catalog_fingerprint then raise exception 'Unreviewed restored provenance marker';end if;
+ if marker.catalog_snapshot->'role' is distinct from '{"login":true,"inherit":false,"super":false,"bypassRls":false,"createDb":false,"createRole":false,"replication":false,"connectionLimit":-1,"validUntil":null,"config":null}'::jsonb then raise exception 'Unreviewed restored backend role attributes';end if;
+ if jsonb_typeof(marker.catalog_snapshot->'memberships') is distinct from 'array' or jsonb_array_length(marker.catalog_snapshot->'memberships')>1 then raise exception 'Unreviewed role membership in restored marker';end if;
+ for m in select jsonb_array_elements(marker.catalog_snapshot->'memberships') loop
+  if m is distinct from '["livestocks_auth_backend","postgres",true]'::jsonb then raise exception 'Unreviewed role membership in restored marker';end if;
   grant livestocks_auth_backend to postgres with admin option;
  end loop;
 end;$members$;

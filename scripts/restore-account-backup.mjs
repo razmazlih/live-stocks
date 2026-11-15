@@ -5,7 +5,7 @@
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
-import { AUTH_TABLES, restoredAuthAclSql, preprovisionAuthSql, adoptionGuardSql, confirmationRowsSql, verifyOwnerConfirmation, CONFIRMATION_ISSUER, CONFIRMATION_AUDIENCE } from './owner-store-adoption.mjs';
+import { AUTH_TABLES, authCatalogSql, restoredAuthAclSql, preprovisionAuthSql, adoptionGuardSql, confirmationRowsSql, verifyOwnerConfirmation, CONFIRMATION_ISSUER, CONFIRMATION_AUDIENCE } from './owner-store-adoption.mjs';
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -173,6 +173,13 @@ async function main() {
         sessionId=proof.sessionId;sessionCreated=proof.sessionCreatedAt;runId=proof.runId;
       }else{
         await query(preprovisionAuthSql(bundle[2].source,{backendPassword:randomBytes(32).toString('hex')}));
+        if(process.env.RESTORE_MANAGED_ROLE_PROBE==='1'){
+          // Synthetic local provenance only: model the admin edge automatically
+          // created by managed PostgreSQL's non-superuser CREATEROLE operator.
+          await query(`begin;do $$begin if inet_server_addr() is distinct from '127.0.0.1'::inet then raise exception 'Managed role fixture is local only';end if;end$$;
+            grant livestocks_auth_backend to postgres with admin option;
+            update private.owner_store_provision set catalog_snapshot=c.snapshot,catalog_fingerprint=encode(sha256(convert_to(c.snapshot::text,'UTF8')),'hex') from (${authCatalogSql()}) c(snapshot) where singleton;commit;`);
+        }
         sessionId=`synthetic-session-${randomBytes(16).toString('hex')}`;runId=randomUUID();
         const now=Math.floor(Date.now()/1000),confirmedAt=new Date().toISOString(),email='restore-proof@example.invalid',confirmationSecret=randomBytes(48).toString('hex');
         sessionCreated=now-10;syntheticConfirmationSecret=confirmationSecret;
@@ -191,6 +198,22 @@ async function main() {
       const authData=async()=>Object.fromEntries(await Promise.all(AUTH_TABLES.map(async table=>[table,await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from livestocks_auth."${table}" r;`)])));
       const authBefore=await authData();
       report.ownerStore={preprovisioned:true,restoredExistingStore:sourceHasAuth,legacyAclReconstructedLocally:true,financialDataUntouched:true,exactAdoptionVerified:false,receiptSignatureVerified:true,realGoogleOwnerProved:false,structureDriftDenied:false,aclDriftDenied:false,markerDriftDenied:false,receiptDriftDenied:false,deletedSessionDenied:false,authRowsPreserved:false,rollbackKeptPreprovisionedStore:false};
+      const expectedMemberships=JSON.parse(await query("select catalog_snapshot->'memberships' from private.owner_store_provision where singleton;"));
+      report.ownerStore.managedPostgresAdminMembership=JSON.stringify(expectedMemberships)===JSON.stringify([['livestocks_auth_backend','postgres',true]]);
+      for(const memberships of [[['postgres','livestocks_auth_backend',true]],[['livestocks_auth_backend','anon',true]],[['livestocks_auth_backend','postgres',false]],[['livestocks_auth_backend','postgres']], [['livestocks_auth_backend','postgres',true],['livestocks_auth_backend','postgres',true]]]){
+        const changed=`jsonb_set(catalog_snapshot,'{memberships}',${quoted(JSON.stringify(memberships))}::jsonb)`;
+        const invalidSql=restoredAuthAclSql(bundle[2].source).replace("set local search_path='';",`set local search_path='';update private.owner_store_provision set catalog_snapshot=${changed},catalog_fingerprint=encode(sha256(convert_to((${changed})::text,'UTF8')),'hex') where singleton;`);
+        let rejected=false;try{await query(invalidSql,'Unreviewed role membership in restored marker');}catch(error){if(!error.rollbackProbe)throw error;rejected=true;}
+        if(!rejected)fail('Unsafe restored role membership accepted');
+      }
+      report.ownerStore.unsafeMembershipsDenied=true;
+      for(const rolePatch of [{createRole:true},{inherit:true},{config:['role=postgres']},{connectionLimit:1},{validUntil:'2099-01-01'}]){
+        const changed=`jsonb_set(catalog_snapshot,'{role}',(catalog_snapshot->'role')||${quoted(JSON.stringify(rolePatch))}::jsonb)`;
+        const invalidSql=restoredAuthAclSql(bundle[2].source).replace("set local search_path='';",`set local search_path='';update private.owner_store_provision set catalog_snapshot=${changed},catalog_fingerprint=encode(sha256(convert_to((${changed})::text,'UTF8')),'hex') where singleton;`);
+        let rejected=false;try{await query(invalidSql,'Unreviewed restored backend role attributes');}catch(error){if(!error.rollbackProbe)throw error;rejected=true;}
+        if(!rejected)fail('Unsafe restored role attributes accepted');
+      }
+      report.ownerStore.unsafeRoleAttributesDenied=true;
       if(!sourceHasAuth&&process.env.RESTORE_FINAL_STORE_PROBE==='1'){
         // Exercise the future final-store archive format using this already
         // private local clone. The nested archive and both clusters are removed.
@@ -208,6 +231,8 @@ async function main() {
         const nestedReport=JSON.parse(await readFile(join(nested,'restore-report.json'),'utf8'));
         if(nestedReport.status!=='PASS'||nestedReport.cleanup!=='COMPLETE'||!nestedReport.ownerStore?.restoredExistingStore||!nestedReport.ownerStore?.authRowsPreserved)fail('Final-store archive round trip failed');
         report.ownerStore.finalStoreEncryptedArchiveRestoreVerified=true;
+        if(report.ownerStore.managedPostgresAdminMembership&&!nestedReport.ownerStore.managedPostgresAdminMembership)fail('Managed PostgreSQL admin membership was not reconstructed');
+        report.ownerStore.managedMembershipArchiveRoundtripVerified=report.ownerStore.managedPostgresAdminMembership&&nestedReport.ownerStore.managedPostgresAdminMembership;
       }
 
       for(const table of tables)if(await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from public.${table} r;`)!==manifest.tables[table].originalDigest)fail('Auth-only provisioning changed financial data');

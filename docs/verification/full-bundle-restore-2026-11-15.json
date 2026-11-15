@@ -1,7 +1,7 @@
 {
   "scope": "ACTUAL_ENCRYPTED_BACKUP_DISPOSABLE_LOCAL_FULL_BUNDLE_REHEARSAL",
   "status": "PASS",
-  "completedAt": "2026-11-15T10:41:01.846Z",
+  "completedAt": "2026-11-15T11:01:17.010Z",
   "sourceServerVersion": 170006,
   "localPostgres": "postgres (PostgreSQL) 17.12 (Homebrew)",
   "archiveAuthenticated": true,
@@ -46,8 +46,8 @@
   },
   "tooling": {
     "cutoverGeneratorSha256": "93b72f9e5fb4ca1cf940b38918b6fd8f03df64b281fb82390edd20168eb44654",
-    "ownerStoreToolSha256": "2aa2bbb14fab09e160c0f7b1d5d09ec5c19e9bea741027dcfc7f6201e178cea1",
-    "restoreToolSha256": "053f0c4e4156c821a6247627b8264f35044144687e8e23696d0c550141027f76"
+    "ownerStoreToolSha256": "042690dc756b35cc930ff70ce90ecb91ee2da9b20d590d6100cb23c2658819b4",
+    "restoreToolSha256": "1c548b155e1bc4092d1810bf84848053b39280e815bd8e8a2385f5baecdba2a9"
   },
   "cutover": {
     "freezeCommitted": true,
@@ -74,7 +74,11 @@
     "deletedSessionDenied": true,
     "authRowsPreserved": true,
     "rollbackKeptPreprovisionedStore": true,
-    "finalStoreEncryptedArchiveRestoreVerified": true
+    "managedPostgresAdminMembership": true,
+    "unsafeMembershipsDenied": true,
+    "unsafeRoleAttributesDenied": true,
+    "finalStoreEncryptedArchiveRestoreVerified": true,
+    "managedMembershipArchiveRoundtripVerified": true
   },
   "legacyCredentialVerified": true,
   "cleanup": "COMPLETE",
