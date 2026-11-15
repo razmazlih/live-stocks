@@ -90,5 +90,35 @@
     "workspaceOutOfCreditsBannerObserved": true,
     "creditsAsCauseEstablished": false,
     "billingChanged": false
+  },
+  "workspacePublicationRetry": {
+    "actionTimeUserApprovalReceived": true,
+    "publishClicks": 1,
+    "beforeClick": {
+      "dialog": "Publish LiveStocks to RABEN",
+      "bothRiskSectionsReviewed": true,
+      "bothConfirmationCheckboxesChecked": true,
+      "publishEnabled": true,
+      "spinnerVisible": false
+    },
+    "afterClick": {
+      "spinnerVisible": true,
+      "publishDisabled": true,
+      "cancelDisabled": true,
+      "successMessageObserved": false,
+      "errorMessageObserved": false,
+      "finalObservedState": "Pending dialog unchanged during bounded observation"
+    },
+    "pluginMetadataReadback": {
+      "version": "1.1.0",
+      "releaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+      "scope": "USER",
+      "discoverability": "PRIVATE"
+    },
+    "pluginVisibilityDoesNotProveOwningAppPublicationStatus": true,
+    "publicationConfirmed": false,
+    "billingChanged": false,
+    "duplicateClickPerformed": false,
+    "dialogLeftOpen": true
   }
 }
