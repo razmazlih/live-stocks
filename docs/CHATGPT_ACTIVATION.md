@@ -20,6 +20,14 @@ The current cloud package contains `.app.json`, `.codex-plugin/plugin.json`, and
 
 Existing connection: [LiveStocks](https://chatgpt.com/plugins/plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b).
 
+## Observed activation blocker (2026-11-15)
+
+After the website launch, the authorized refresh of this existing App returned **“Couldn't update the app. Try again”**. Its settings continued to show authorization supported/used `None`, with the same App and version IDs. The personal settings page exposed no OAuth editor or callback. The exact existing-plugin workspace administration page also exposed no authentication editor. The official publisher portal's current Personal Organization / Default project showed empty submission onboarding, rather than this App.
+
+These observations establish a limitation of the inspected controls, not proof that every supported migration path is unavailable. No new App was created, no package was published, no callback was guessed, and server authentication remains enforced. The existing connection is not yet usable with the new personal-account authentication. Resolve an ID-preserving host configuration path, or obtain an explicit decision about a replacement connection, before seeding a host client. See the [sanitized host inspection record](verification/chatgpt-existing-app-refresh-2026-11-15.json).
+
+Google's separately approved audience publication was completed and read back as **In production / External**. This makes the Google configuration public but does not itself prove a new non-test user's login or ChatGPT OAuth connectivity; see the [Google publication record](verification/google-public-sign-in-2026-11-15.json).
+
 ## Activation sequence
 
 1. Wait for the rollout owner to confirm production migration, owner binding, financial integrity verification and permission to release maintenance. Do not refresh host metadata against the temporary maintenance response.

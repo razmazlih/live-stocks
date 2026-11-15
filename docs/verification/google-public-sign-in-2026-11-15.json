@@ -1,0 +1,21 @@
+{
+  "status": "PASS_GOOGLE_AUDIENCE_IN_PRODUCTION",
+  "observedDate": "2026-11-15",
+  "method": "Safari Google Auth Platform UI",
+  "projectId": "livestocks-auth",
+  "actionTimeUserApprovalRelayed": true,
+  "confirmationText": "Your app will be available to any user with a Google Account.",
+  "confirmClicked": true,
+  "readback": {
+    "publishingStatus": "In production",
+    "userType": "External",
+    "backToTestingControlVisible": true
+  },
+  "extraTermsOrAttestationsPresented": false,
+  "credentialsOrScopesChangedByThisAction": false,
+  "verificationLimits": {
+    "newNonTestGoogleAccountSignInTested": false,
+    "googleBrandVerificationClaimed": false,
+    "chatGptOAuthConnectionTested": false
+  }
+}
