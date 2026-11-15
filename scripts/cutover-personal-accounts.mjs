@@ -8,7 +8,7 @@ import { lstat, readFile, realpath, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { databaseEnvironment, safeBackupDirectory } from './prepare-account-migration.mjs';
-import { adoptionGuardSql, removeVerifiedAuthPrefix, verifyOwnerConfirmation, confirmationRowsSql, recordAdoptionSql } from './owner-store-adoption.mjs';
+import { adoptionGuardSql, authMembershipOptionsSql, removeVerifiedAuthPrefix, verifyOwnerConfirmation, confirmationRowsSql, recordAdoptionSql } from './owner-store-adoption.mjs';
 
 export const TARGET_PROJECT = 'osvwctooasdxsztatirz';
 export const MIGRATION_NAME = '20261114114916_auth0_user_isolation.sql';
@@ -216,7 +216,11 @@ ${comparisonSql(manifest)}
 ${adoptionGuardSql(authSource)}
 ${confirmationRowsSql(binding.ownerConfirmation)}
 ${transactionParameters(values)}
+-- A non-superuser creator needs SET capability for the new merge executor's ownership transfer.
+-- Existing auth-role membership is not changed by this transaction-local setting.
+set local createrole_self_grant='set';
 ${bodies}
+${authMembershipOptionsSql()}
 ${binding.kind==='VERIFIED_OWNER'?`do $$begin if not exists(select 1 from livestocks_auth."user" where id=${literal(binding.subject)} and "emailVerified") then raise exception 'Proved owner must be provisioned in the final auth store before activation';end if;end$$;`:''}
 ${comparisonSql(manifest,true)}
 do $identity_assert$ begin

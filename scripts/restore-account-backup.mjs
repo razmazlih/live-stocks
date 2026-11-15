@@ -5,7 +5,7 @@
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
-import { AUTH_TABLES, authCatalogSql, restoredAuthAclSql, preprovisionAuthSql, adoptionGuardSql, confirmationRowsSql, verifyOwnerConfirmation, CONFIRMATION_ISSUER, CONFIRMATION_AUDIENCE } from './owner-store-adoption.mjs';
+import { AUTH_TABLES, authCatalogSql, authMembershipOptionsSql, restoredAuthAclSql, preprovisionAuthSql, adoptionGuardSql, confirmationRowsSql, verifyOwnerConfirmation, CONFIRMATION_ISSUER, CONFIRMATION_AUDIENCE } from './owner-store-adoption.mjs';
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -119,12 +119,15 @@ async function main() {
       ownerStoreToolSha256:createHash('sha256').update(await readFile(new URL('./owner-store-adoption.mjs',import.meta.url))).digest('hex'),
       restoreToolSha256:createHash('sha256').update(await readFile(new URL('./restore-account-backup.mjs',import.meta.url))).digest('hex')},
     restoredTables: {}, digestTimeZone: 'UTC', restoreTested: false, cleanup: 'PENDING', phase: 'initialize' };
+  const adminEnv={...env,PGUSER:'restore_cluster_admin'};
+  const adminQuery=(sql,expectedErrorMarker)=>run('psql',['-X','-q','-t','-A','-v','ON_ERROR_STOP=1'],adminEnv,sql,expectedErrorMarker);
   const query = (sql, expectedErrorMarker) => run('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'], env, sql, expectedErrorMarker);
   try {
     await writeFile(passwordFile, password, { mode: 0o600, flag: 'wx' });
-    await run(join(binaries, 'initdb'), ['-D', data, '-U', 'postgres', '--auth-local=trust', '--auth-host=scram-sha-256', `--pwfile=${passwordFile}`, '--no-locale', '-E', 'UTF8']);
+    await run(join(binaries, 'initdb'), ['-D', data, '-U', 'restore_cluster_admin', '--auth-local=trust', '--auth-host=scram-sha-256', `--pwfile=${passwordFile}`, '--no-locale', '-E', 'UTF8']);
     await run(join(binaries, 'pg_ctl'), ['-D', data, '-l', join(runtime, 'postgres.log'), '-o', `-h 127.0.0.1 -p ${port} -c unix_socket_directories='' -c log_statement=none`, '-w', 'start']);
     started = true;
+    await adminQuery(`create role postgres login superuser createdb createrole password '${password}';alter database postgres owner to postgres;alter schema public owner to postgres;`);
     const actualData = await query('show data_directory;');
     if (resolve(actualData) !== resolve(data)) fail('Local database identity mismatch');
     await query('create role anon; create role authenticated; create role service_role;');
@@ -147,6 +150,13 @@ async function main() {
     report.legacyCredentialVerified = true;
     report.restoreTested = true;
     if (rehearse) {
+      // Restoring as the temporary superuser preserves original object ownership.
+      // Every freeze/migration/proof query below runs as the real non-superuser
+      // postgres actor; the separate cluster admin is only used for local setup.
+      await adminQuery('grant anon,authenticated,service_role to postgres with set true, inherit false;grant pg_signal_backend to postgres;alter role postgres nosuperuser createrole;');
+      const operator=JSON.parse(await query("select jsonb_build_object('role',current_user,'super',rolsuper,'createRole',rolcreaterole,'selfGrant',current_setting('createrole_self_grant')) from pg_roles where rolname=current_user;"));
+      if(operator.role!=='postgres'||operator.super||!operator.createRole||operator.selfGrant!=='')fail('Migration rehearsal actor is not the reviewed non-superuser');
+      report.migrationOperator=operator;
       report.phase = 'migration_rollback_rehearsal';
       const bundle = await readMigrationBundle();
       const binding = { adoptAuthStore:true,kind:'LOCAL_REHEARSAL', legacyOwnerSubject:manifest.ownerSubject, subject:`synthetic-owner-${randomBytes(16).toString('hex')}`,
@@ -159,7 +169,7 @@ async function main() {
       const owner=manifest.ownerSubject,ownerLiteral=quoted(owner);
       let sessionId,sessionCreated,runId,syntheticConfirmationSecret;
       if(sourceHasAuth){
-        await query(restoredAuthAclSql(bundle[2].source));
+        await adminQuery(restoredAuthAclSql(bundle[2].source));
         for(const table of AUTH_TABLES){
           const stats=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r;`));
           if(stats.rowCount!==manifest.authStoreTables?.[table]?.rowCount||stats.originalDigest!==manifest.authStoreTables?.[table]?.originalDigest)fail('Restored final auth store differs from its encrypted backup baseline');
@@ -176,8 +186,8 @@ async function main() {
         if(process.env.RESTORE_MANAGED_ROLE_PROBE==='1'){
           // Synthetic local provenance only: model the admin edge automatically
           // created by managed PostgreSQL's non-superuser CREATEROLE operator.
-          await query(`begin;do $$begin if inet_server_addr() is distinct from '127.0.0.1'::inet then raise exception 'Managed role fixture is local only';end if;end$$;
-            grant livestocks_auth_backend to postgres with admin option;
+          await adminQuery(`begin;do $$begin if inet_server_addr() is distinct from '127.0.0.1'::inet then raise exception 'Managed role fixture is local only';end if;end$$;
+            grant livestocks_auth_backend to postgres with admin true, set false, inherit false;
             update private.owner_store_provision set catalog_snapshot=c.snapshot,catalog_fingerprint=encode(sha256(convert_to(c.snapshot::text,'UTF8')),'hex') from (${authCatalogSql()}) c(snapshot) where singleton;commit;`);
         }
         sessionId=`synthetic-session-${randomBytes(16).toString('hex')}`;runId=randomUUID();
@@ -187,7 +197,7 @@ async function main() {
           .setProtectedHeader({alg:'HS256'}).setSubject(binding.subject).setIssuer(CONFIRMATION_ISSUER).setAudience(CONFIRMATION_AUDIENCE).setJti(runId).setIssuedAt(now).setExpirationTime(now+900).sign(new TextEncoder().encode(confirmationSecret));
         const artifact={proofType:'better_auth_final_store_confirmation',userId:binding.subject,email,emailVerified:true,confirmedAt,authSessionId:sessionId,authSessionCreatedAt:sessionCreated,confirmationRunId:runId,confirmationReceipt:receipt,confirmationIssuer:CONFIRMATION_ISSUER,legacyOwnerSubject:owner,finalAuthStoreProject:'osvwctooasdxsztatirz'};
         binding.ownerConfirmation=await verifyOwnerConfirmation(artifact,{userId:owner,email,emailVerified:true},confirmationSecret);
-        await query(`begin read write;set local role livestocks_auth_backend;
+        await query(`begin read write;
           insert into livestocks_auth."user"(id,name,email,"emailVerified") values(${quoted(binding.subject)},'Local restore proof',${quoted(email)},true);
           insert into livestocks_auth.session(id,token,"userId","createdAt","updatedAt","expiresAt") values(${quoted(sessionId)},${quoted(randomBytes(32).toString('hex'))},${quoted(binding.subject)},to_timestamp(${sessionCreated}),now(),now()+interval '1 hour');
           insert into livestocks_auth.account(id,"accountId","providerId","userId","accessToken","updatedAt") values('synthetic-google-account','synthetic-google-id','google',${quoted(binding.subject)},'encrypted-synthetic-oauth-token',now());
@@ -214,6 +224,11 @@ async function main() {
         if(!rejected)fail('Unsafe restored role attributes accepted');
       }
       report.ownerStore.unsafeRoleAttributesDenied=true;
+      for(const options of ['set true, inherit false','set false, inherit true']){
+        let rejected=false;try{await adminQuery(`begin;grant livestocks_auth_backend to postgres with admin true, ${options};${authMembershipOptionsSql()}commit;`,'Unsafe auth backend membership options');}catch(error){if(!error.rollbackProbe)throw error;rejected=true;}
+        if(!rejected)fail('Unsafe membership SET/INHERIT options accepted');
+      }
+      await query(authMembershipOptionsSql());report.ownerStore.exactMembershipOptionsVerified=true;report.ownerStore.unsafeMembershipOptionsDenied=true;
       if(!sourceHasAuth&&process.env.RESTORE_FINAL_STORE_PROBE==='1'){
         // Exercise the future final-store archive format using this already
         // private local clone. The nested archive and both clusters are removed.
@@ -289,6 +304,10 @@ async function main() {
         }
         reviewedSql = migrationSql(finalBaseline, parameters, bundle, binding);
       }
+      const withoutCreatorSet=reviewedSql.replace("set local createrole_self_grant='set';",'-- Negative proof: default empty creator setting.');
+      let ownerTransferDenied=false;try{await query(withoutCreatorSet,'must be able to SET ROLE');}catch(error){if(!error.rollbackProbe)throw error;ownerTransferDenied=true;}
+      if(!ownerTransferDenied||await query("select to_regclass('public.user_profiles') is null and not exists(select 1 from pg_roles where rolname='livestocks_merge_executor');")!=='t')fail('Non-superuser ownership negative proof did not roll back');
+      report.migration.nonSuperuserOwnershipFailureVerified=true;
       const marker = `livestocks_rollback_probe_${randomBytes(16).toString('hex')}`;
       const injected = reviewedSql.replace(/\bcommit;\nnotify pgrst/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;\nnotify pgrst`);
       let failed = false;
@@ -309,6 +328,8 @@ async function main() {
       if (cutover) { await query(frozenAssertions()); report.cutover.rollbackKeptFreeze = true; }
       report.phase = 'migration_apply_rehearsal';
       await query(reviewedSql);
+      if(await query("select pg_get_userbyid(proowner)='livestocks_merge_executor' and pg_has_role(current_user,'livestocks_merge_executor','SET') and current_setting('createrole_self_grant')='' from pg_proc where oid='public.server_merge_prepare(uuid,text,text)'::regprocedure;")!=='t')fail('Non-superuser owner transfer or local setting reset failed');
+      await query(authMembershipOptionsSql());report.migration.nonSuperuserOwnershipTransferVerified=true;report.migration.creatorSettingResetVerified=true;
       if (typeof owner !== 'string' || !owner || owner.length > 255) fail('Invalid verified owner in protected manifest');
       for (const table of tables) {
         const stats = JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'digest',md5(coalesce(string_agg(md5((to_jsonb(r)-array['user_id','consolidated_into_position_id','is_active'])::text),'' order by id),'')),'incorrectOwner',count(*) filter(where user_id<>${ownerLiteral})) from public.${table} r;`));

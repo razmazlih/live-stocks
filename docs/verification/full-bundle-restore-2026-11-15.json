@@ -1,7 +1,7 @@
 {
   "scope": "ACTUAL_ENCRYPTED_BACKUP_DISPOSABLE_LOCAL_FULL_BUNDLE_REHEARSAL",
   "status": "PASS",
-  "completedAt": "2026-11-15T11:01:17.010Z",
+  "completedAt": "2026-11-15T11:21:42.559Z",
   "sourceServerVersion": 170006,
   "localPostgres": "postgres (PostgreSQL) 17.12 (Homebrew)",
   "archiveAuthenticated": true,
@@ -42,12 +42,15 @@
     "financialDataPreserved": true,
     "ownerVerified": true,
     "encryptedCredentialVerified": true,
-    "historyRollbackVerified": true
+    "nonSuperuserOwnershipFailureVerified": true,
+    "historyRollbackVerified": true,
+    "nonSuperuserOwnershipTransferVerified": true,
+    "creatorSettingResetVerified": true
   },
   "tooling": {
-    "cutoverGeneratorSha256": "93b72f9e5fb4ca1cf940b38918b6fd8f03df64b281fb82390edd20168eb44654",
-    "ownerStoreToolSha256": "042690dc756b35cc930ff70ce90ecb91ee2da9b20d590d6100cb23c2658819b4",
-    "restoreToolSha256": "1c548b155e1bc4092d1810bf84848053b39280e815bd8e8a2385f5baecdba2a9"
+    "cutoverGeneratorSha256": "b979ee03a3313bebd50e9162c8b29d5311945e039853d2af875b313b9dcd7ca3",
+    "ownerStoreToolSha256": "3ce548f1a1b73b065891e1c1036e1eafbe9e1f79909023ec4e1ddc13c98ea4b5",
+    "restoreToolSha256": "cf4bfd109e7712e0efb2e153dacb8af10c9f529de79c6271aa2a8a81cfad61dd"
   },
   "cutover": {
     "freezeCommitted": true,
@@ -77,6 +80,8 @@
     "managedPostgresAdminMembership": true,
     "unsafeMembershipsDenied": true,
     "unsafeRoleAttributesDenied": true,
+    "exactMembershipOptionsVerified": true,
+    "unsafeMembershipOptionsDenied": true,
     "finalStoreEncryptedArchiveRestoreVerified": true,
     "managedMembershipArchiveRoundtripVerified": true
   },
@@ -89,5 +94,11 @@
     "Reviewed final-store preprovision and real Google owner confirmation",
     "Old deployment and shared-cache closure",
     "Fresh post-freeze four-schema encrypted backup and matching complete restore rehearsal"
-  ]
+  ],
+  "migrationOperator": {
+    "role": "postgres",
+    "super": false,
+    "selfGrant": "",
+    "createRole": true
+  }
 }

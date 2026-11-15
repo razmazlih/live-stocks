@@ -43,6 +43,9 @@ describe('complete guarded account cutover bundle',()=>{
   expect(sql).toContain('Require committed freeze, completed drain and a subsequent final backup');
   expect(sql).toContain('Explicit owner alias was not preserved');
   expect(sql).toContain('Provider configuration mismatch');
+  expect(sql).toContain("set local createrole_self_grant='set';");
+  expect(sql.indexOf("set local createrole_self_grant='set';")).toBeLessThan(sql.indexOf('create role livestocks_merge_executor'));
+  expect(sql).toContain('Unsafe auth backend membership options');
   for(const migration of MIGRATIONS)expect(sql).toContain(`Reviewed source: ${migration.name}`);
   expect(sql.match(/insert into supabase_migrations.schema_migrations/g)).toHaveLength(4);
   expect(sql).toContain("'app.better_auth_legacy_owner_subject','synthetic-new-owner',true");

@@ -37,7 +37,16 @@ export function authCatalogSql(){return `select jsonb_build_object(
  'role',(select jsonb_build_object('login',rolcanlogin,'inherit',rolinherit,'super',rolsuper,'bypassRls',rolbypassrls,'createDb',rolcreatedb,'createRole',rolcreaterole,'replication',rolreplication,'connectionLimit',rolconnlimit,'validUntil',rolvaliduntil,'config',rolconfig) from pg_roles where rolname='livestocks_auth_backend'),
  'memberships',(select coalesce(jsonb_agg(jsonb_build_array(pg_get_userbyid(m.roleid),pg_get_userbyid(m.member),m.admin_option) order by m.roleid,m.member),'[]'::jsonb) from pg_auth_members m where m.roleid=(select oid from pg_roles where rolname='livestocks_auth_backend') or m.member=(select oid from pg_roles where rolname='livestocks_auth_backend'))
 )`;}
-export function authRoleBoundarySql(){return `do $auth_boundary$ declare t text;begin
+// The deployed provenance marker predates membership option fields. Keep its
+// catalog format stable and enforce the observed safe options independently.
+export function authMembershipOptionsSql(){return `do $membership_options$ begin
+ if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles member_role on member_role.oid=m.member
+ where (r.rolname='livestocks_auth_backend' or member_role.rolname='livestocks_auth_backend')
+ and not(r.rolname='livestocks_auth_backend' and member_role.rolname='postgres' and m.admin_option and not m.set_option and not m.inherit_option))
+ then raise exception 'Unsafe auth backend membership options';end if;
+end;$membership_options$;`;}
+export function authRoleBoundarySql(){return `${authMembershipOptionsSql()}
+do $auth_boundary$ declare t text;begin
  if not exists(select 1 from pg_roles where rolname='livestocks_auth_backend' and rolcanlogin and not rolsuper and not rolinherit and not rolbypassrls and not rolcreatedb and not rolcreaterole and not rolreplication)
  or exists(select 1 from pg_auth_members where member=(select oid from pg_roles where rolname='livestocks_auth_backend')) then raise exception 'Auth backend role is not isolated';end if;
  foreach t in array array[${finances.map(quoted).join(',')}] loop
@@ -123,7 +132,7 @@ do $members$ declare marker private.owner_store_provision%rowtype;m jsonb;begin
  if jsonb_typeof(marker.catalog_snapshot->'memberships') is distinct from 'array' or jsonb_array_length(marker.catalog_snapshot->'memberships')>1 then raise exception 'Unreviewed role membership in restored marker';end if;
  for m in select jsonb_array_elements(marker.catalog_snapshot->'memberships') loop
   if m is distinct from '["livestocks_auth_backend","postgres",true]'::jsonb then raise exception 'Unreviewed role membership in restored marker';end if;
-  grant livestocks_auth_backend to postgres with admin option;
+  grant livestocks_auth_backend to postgres with admin true, set false, inherit false;
  end loop;
 end;$members$;
 ${adoptionGuardSql(source)}
