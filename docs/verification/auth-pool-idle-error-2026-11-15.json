@@ -1,0 +1,18 @@
+{
+  "status": "PASS_NATIVE_IDLE_AND_ACTIVE_CONNECTION_FAULTS",
+  "completedAt": "2026-11-15T12:13:59.050058+00:00",
+  "coreSha256": "4bcb8e555b2f754d0cd36ffb4ccf1a4c6264688bd5d5568b7351fb55493fe880",
+  "idle57P01Handled": true,
+  "failedIdleClientEvicted": true,
+  "nextQueryReconnects": true,
+  "activeQuery57P01Rejected": true,
+  "laterQueryReconnects": true,
+  "uncaughtExceptions": 0,
+  "consoleMessages": 0,
+  "stderrEmpty": true,
+  "credentialsLogged": false,
+  "sentinelUnchanged": true,
+  "localRuntimeCleaned": true,
+  "hostedAccess": false,
+  "productionWrites": false
+}
