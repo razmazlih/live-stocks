@@ -1,5 +1,5 @@
 {
-  "status": "PASS_PRIVATE_OAUTH_CONNECTION_AND_AUTHENTICATED_READS",
+  "status": "PASS_PRIVATE_OAUTH_HOST_LIFECYCLE",
   "observedDate": "2026-11-15",
   "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
   "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
@@ -33,9 +33,36 @@
     "getPortfolioSnapshotSuccess": true,
     "readsAfterInitialFiveMinuteLifetimeWithoutReconsent": true,
     "privateProfileMatch": true,
-    "refreshRotation": "PENDING_INDEPENDENT_EVIDENCE",
-    "disconnect": "PENDING",
-    "reconnect": "PENDING"
+    "refreshRotation": {
+      "status": "PASS",
+      "initialRefreshCreatedAt": "2026-11-15T13:40:37Z",
+      "latestObservedRotationAt": "2026-11-15T13:53:59Z",
+      "evidence": "Read-only production refresh-family metadata plus successful connected tools after five-minute access lifetime, without reconsent",
+      "rawTokenValuesRecorded": false
+    },
+    "disconnect": {
+      "status": "PASS_NO_PROFILE_RETURNED_REAUTH_REQUIRED",
+      "websiteDisconnectAt": "2026-11-15T13:56:48.380Z",
+      "websiteStatus": 200,
+      "connectedToolIsError": true,
+      "connectedToolReturnedProfile": false,
+      "hostResult": "Authentication requested and accepted; retry required",
+      "limit": "Host handled the authentication challenge; raw HTTP401 or rejected old JWT was not exposed to the agent."
+    },
+    "reconnect": {
+      "status": "PASS_SAME_CANONICAL_PROFILE",
+      "websitePrepareAt": "2026-11-15T14:04:03Z",
+      "websiteStatus": 200,
+      "connectedToolIsError": false,
+      "sameCanonicalProfile": true,
+      "newApprovalMetadata": {
+        "status": "PASS",
+        "createdAt": "2026-11-15T14:06:41.411104Z",
+        "createdAfterReconnectPreparation": true,
+        "initialApprovalRevoked": true,
+        "evidence": "Read-only production approval metadata; website reconnect preparation creates no approval"
+      }
+    }
   },
   "publicEvidenceContainsOwnerIdentityOrPortfolioValues": false,
   "publicEvidenceContainsCredentials": false
