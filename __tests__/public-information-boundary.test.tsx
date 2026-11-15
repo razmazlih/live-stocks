@@ -33,7 +33,14 @@ describe('anonymous public information rendering', () => {
     render(<AuthProvider><h1>Private nested content</h1></AuthProvider>);
     await screen.findByText(/ההתחברות עדיין אינה מוגדרת/);
     expect(screen.queryByText('Private nested content')).not.toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledOnce();
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
+      '/api/account/session',
+      '/api/account/link/recovery-status',
+    ]);
+    // The signed-out recovery hint must not bootstrap private financial data.
+    expect(fetch).toHaveBeenCalledWith('/api/account/link/recovery-status', expect.objectContaining({
+      cache: 'no-store', credentials: 'same-origin', redirect: 'error',
+    }));
   });
 
   it.each(['about', 'privacy', 'terms'] as InformationKind[])('renders %s with approved identity and both locale directions', async (kind) => {

@@ -1,0 +1,16 @@
+{
+  "status": "PASS_PRODUCTION_PERMISSION_HARDENING",
+  "verifiedAt": "2026-11-15T14:08:10Z",
+  "migrationVersion": "20261115140458",
+  "migrationSha256": "d396fdc8338c3fb24cbde69d7c657863dc4798d0a2b8161be441327021c767dd",
+  "managedRoleSetOnlyNativeProof": "PASS",
+  "publicMergePrepareServerOnly": true,
+  "anonymousAuthenticatedAndAuthBackendAllPublicDefinerGrants": [],
+  "securityAdvisorWarningsAfter": 0,
+  "privateDenyByDefaultRlsInformationalFindings": 7,
+  "existingMergeJobsAtDiscovery": 0,
+  "financialDmlPerformed": false,
+  "pinnedMigrationBytesChanged": false,
+  "guardedCreationMigrationVersion": "20261115140805",
+  "guardedCreationServiceOnly": true
+}
