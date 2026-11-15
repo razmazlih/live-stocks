@@ -1,5 +1,7 @@
 'use client';
 
+import { AccountMergeRecoveryNotice } from './account-merge-recovery-notice';
+
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
@@ -136,6 +138,7 @@ export function AuthScreen({ configured, passwordEnabled = false, googleEnabled 
     <section className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-card p-6 text-card-foreground shadow-xl sm:p-7">
       <div className="flex items-center justify-between"><span className="text-xl font-bold tracking-tight">LiveStocks</span><Button variant="ghost" size="sm" disabled={busy} onClick={() => setLocale(he ? 'en' : 'he')}>{he ? 'English' : 'עברית'}</Button></div>
       <div className="space-y-3"><div className="inline-flex rounded-2xl bg-[var(--accent-soft)] p-3 text-[var(--accent-text)]"><LockKeyhole aria-hidden="true" /></div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-sm leading-6 text-muted-foreground">{description}</p></div>
+      {mode === 'sign-in' && <AccountMergeRecoveryNotice locale={locale} />}
       {(error || callbackFailed) && <p role="alert" className="text-sm leading-6 text-[var(--color-red-600)]">{!passwordEnabled ? (he ? 'לא הצלחנו להשלים את ההתחברות עם Google. אפשר לנסות שוב.' : 'We could not complete Google sign-in. Please try again.') : he ? 'לא הצלחנו להשלים את ההתחברות. אפשר לנסות שוב או לבקש קישור אימות חדש. אם כבר יש לך חשבון, יש להיכנס בשיטה שבה השתמשת בעבר ולהוסיף שיטת כניסה נוספת בהגדרות.' : 'We could not complete sign-in. Try again or request a new verification link. If you already have an account, sign in with your previous method and add another sign-in method in settings.'}</p>}
       {passwordEnabled && verificationRequired && <p role="alert" className="rounded-xl bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-text)]">{he ? 'לפני פתיחת התיק יש לאמת את כתובת הדוא״ל דרך ההודעה שנשלחה אליך.' : 'Verify your email using the message sent to you before opening your portfolio.'}</p>}
       {passwordEnabled && verificationReturned && !success && <p role="status" className="text-sm leading-6 text-muted-foreground">{he ? 'לאחר אימות כתובת הדוא״ל אפשר להתחבר לחשבון.' : 'Once your email is verified, you can sign in to your account.'}</p>}

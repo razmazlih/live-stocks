@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const { resetClient } = vi.hoisted(() => ({ resetClient: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ resetSupabaseClient: resetClient }));
 import { AccountLinking } from '@/components/auth/account-linking';
+import { AuthScreen } from '@/components/auth/auth-screen';
 import { accountLinkNavigation } from '@/lib/account-linking-client';
 import { linkProof, linkReady, linkReview, linkStatus } from './fixtures/account-linking';
 
@@ -59,6 +60,8 @@ describe('account merging interface', () => {
     vi.stubGlobal('fetch', fetcher);
     render(<AccountLinking locale="en" />);
     const confirm = await screen.findByRole('button', { name: 'Confirm account merge' });
+    expect(screen.getByRole('link', { name: 'Open merge recovery' })).toHaveAttribute('href', '/api/account/link/recovery');
+    expect(fetcher).toHaveBeenCalledOnce();
     expect(confirm).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox'));
     expect(confirm).toBeDisabled();
@@ -72,6 +75,25 @@ describe('account merging interface', () => {
       reviewVersion: 3, reviewHash: 'synthetic-review-hash', accountIds: ['account-a', 'account-b'], canonicalAccountId: 'account-a',
       settingsAccountId: 'account-a', credentialAccountId: 'account-b', confirmed: true,
     });
+  });
+
+  it('keeps recovery reachable before freeze and after a lost confirmation response removes the private screen', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(linkReady()))
+      .mockRejectedValueOnce(new TypeError('Confirmation response lost after server freeze'))
+      .mockResolvedValueOnce(Response.json({ available: true, recovery: true }));
+    vi.stubGlobal('fetch', fetcher);
+    const view = render(<AccountLinking locale="en" />);
+    await screen.findByRole('button', { name: 'Confirm account merge' });
+    expect(screen.getByRole('link', { name: 'Open merge recovery' })).toBeVisible();
+    reviewChoices();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm account merge' }));
+    await screen.findByRole('alert');
+    // The auth boundary can now unmount settings after the freeze revoked its session.
+    view.unmount();
+    render(<AuthScreen configured googleEnabled initialLocale="en" />);
+    expect(await screen.findByRole('link', { name: 'Recover a saved account merge' })).toHaveAttribute('href', '/api/account/link/recovery');
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/confirm'))).toHaveLength(1);
+    expect(fetcher.mock.calls[2][0]).toBe('/api/account/link/recovery-status');
   });
 
   it('drops a stale review and requires every choice and approval again', async () => {

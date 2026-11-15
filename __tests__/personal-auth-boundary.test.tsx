@@ -171,7 +171,8 @@ describe('personal account boundary', () => {
     await screen.findByText('auth0|a');
     act(() => { window.dispatchEvent(new StorageEvent('storage', { key: 'livestocks:account-change', newValue: 'logout:123' })); });
     await waitFor(() => expect(screen.queryByText('auth0|a')).not.toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/account/session')).toHaveLength(1);
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/account/link/recovery-status');
     expect(screen.getByRole('button', { name: 'התחברות' })).toBeInTheDocument();
     expect(screen.getByLabelText('כתובת דוא״ל')).toHaveAttribute('autocomplete', 'email');
   });

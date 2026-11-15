@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AccountLinkRequestError, navigateAccountLink, requestAccountLinkReauthentication, requestAccountLinkStatus } from '@/lib/account-linking-client';
 import type { AccountLinkConfirmation, AccountLinkOperation, AccountLinkReview, AccountLinkStatus, LinkedSignInMethod } from '@/types/account-linking';
+import { ACCOUNT_MERGE_RECOVERY_PATH } from './account-merge-recovery-notice';
 
 function methodName(method: LinkedSignInMethod, he: boolean) {
   return method === 'google' ? 'Google' : method === 'password' ? (he ? 'דוא״ל וסיסמה' : 'Email and password') : (he ? 'שיטת כניסה נוספת' : 'Another sign-in method');
@@ -136,6 +137,7 @@ export function AccountLinking({ locale }: { locale: 'he' | 'en' }) {
         }); }}>{he ? (operation.nextStep === 'current' ? 'אימות החשבון הנוכחי' : 'אימות החשבון הנוסף') : (operation.nextStep === 'current' ? 'Verify current account' : 'Verify other account')}</Button>
       </>}
       {review && <div className="space-y-5">
+        <p className="text-sm leading-6 text-muted-foreground">{he ? 'האישור ינתק את שני החשבונות. אם התהליך נעצר, קישור ההתאוששות זמין גם ממסך הכניסה באותו דפדפן.' : 'Confirming signs both accounts out. If the operation is interrupted, recovery is also available from sign-in in this browser.'} <a href={ACCOUNT_MERGE_RECOVERY_PATH} className="underline underline-offset-4">{he ? 'פתיחת התאוששות האיחוד' : 'Open merge recovery'}</a></p>
         <p className="text-sm leading-6">{he ? 'שני החשבונות אומתו. יש לסקור את הרישומים ולבחור הגדרות פעילות לפני האישור. הרכישות והיסטוריית המכירות של שני החשבונות נשמרות.' : 'Both accounts are verified. Review the records and choose active settings before confirming. Purchases and sale history from both accounts are preserved.'}</p>
         <div className="grid gap-3 sm:grid-cols-2">{review.accounts.map((account, index) => <div key={account.id} className="min-w-0 space-y-2 rounded-xl border border-slate-200 p-3 text-sm">
           <h4 className="font-medium">{he ? `חשבון ${index + 1}` : `Account ${index + 1}`} · {methodName(account.method, he)}</h4>
@@ -149,6 +151,7 @@ export function AccountLinking({ locale }: { locale: 'he' | 'en' }) {
         <Button type="button" disabled={actionBlocked || !activeChoices.confirmed || (review.settings.conflict && !activeChoices.settings) || (review.credential.conflict && !activeChoices.credential)} onClick={() => confirmReview(review)}>{he ? 'אישור איחוד החשבונות' : 'Confirm account merge'}</Button>
       </div>}
       {operation && 'resumable' in operation && <div className="space-y-3">
+        <a href={ACCOUNT_MERGE_RECOVERY_PATH} className="text-sm underline underline-offset-4">{he ? 'המשך גם ללא התחברות' : 'Continue recovery while signed out'}</a>
         <p role="status" className="text-sm leading-6">{progressLabel(operation.phase, he)}</p>
         {operation.resumable && <Button type="button" variant="outline" disabled={actionBlocked} onClick={() => { void mutate(`${encodeURIComponent(operation.id)}/resume`); }}>{he ? 'המשך התהליך השמור' : 'Resume saved operation'}</Button>}
       </div>}
