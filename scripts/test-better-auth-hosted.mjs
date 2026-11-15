@@ -104,6 +104,17 @@ async function main(){
   for(const [key,value] of Object.entries(config))await cloud.addEnvironment(key,value);
   phase='pause_cleaner';report.pauseRequestedAt=new Date().toISOString();await save();cleanerTouched=true;await management(CLEANER,'/pause','POST',{});await waitStatus(CLEANER,'INACTIVE');await record('cleaner_paused');
   phase='restore_test';testTouched=true;await management(TEST,'/restore','POST',{});await waitStatus(TEST,'ACTIVE_HEALTHY');await record('test_restored');
+  phase='test_database_readiness';
+  let stableSamples=0,postmasterStart=null;const stableUntil=Math.min(activeDeadline,Date.now()+4*60000);
+  while(Date.now()<stableUntil&&stableSamples<3&&!cancelled){
+   try{
+    const current=(await sql('select pg_postmaster_start_time()::text as started_at,extract(epoch from clock_timestamp()-pg_postmaster_start_time())::integer as uptime_seconds'))[0];
+    if(current.uptime_seconds>=60&&current.started_at===postmasterStart)stableSamples++;else stableSamples=current.uptime_seconds>=60?1:0;
+    postmasterStart=current.started_at;report.databaseReadiness={stableSamples,uptimeSeconds:current.uptime_seconds};await save();
+   }catch{stableSamples=0;postmasterStart=null;}
+   if(stableSamples<3)await delay(5000);
+  }
+  assert(stableSamples===3,'TEST database did not reach stable post-restore readiness');await record('test_database_stable_after_restore',{stableSamples});
   phase='schema_preflight';
   const rows=await sql("select tablename from pg_tables where schemaname='public' order by tablename");
   report.originalPublicTables=rows.map(row=>row.tablename);report.preflightCounts={};
@@ -165,7 +176,7 @@ async function main(){
   const token=body=>request('/oauth2/token',{client_id:config.BETTER_AUTH_MCP_CLIENT_ID,client_secret:config.BETTER_AUTH_MCP_CLIENT_SECRET,...body},'',true);
   async function exchange(resource=ORIGIN+'/api/mcp'){const c=await authorize();assert(c.code,'Authorization code unavailable');return token({grant_type:'authorization_code',code:c.code,code_verifier:c.verifier,redirect_uri:'https://client.example.invalid/callback',resource});}
   assert((await authorize(null)).status===400&&(await authorize('https://evil.invalid')).status===400,'Authorize resource guard failed');
-  assert(!(await exchange('https://evil.invalid')).data.access_token,'Wrong exchange resource accepted');
+  const wrongExchange=await exchange('https://evil.invalid');assert(wrongExchange.response.status===400&&wrongExchange.data.error==='invalid_target'&&!wrongExchange.data.access_token,'Wrong exchange resource did not return invalid_target');
   let mcp=await exchange();let identity=await verify(mcp.data.access_token,'mcp');assert(identity.userId===a.id,'MCP subject mismatch');
   await sql('insert into private.mcp_connections(user_id) values($1)',[a.id]);await record('real_hosted_pkce_consent_mcp_jwt_and_resource_denials');
   phase='hosted_gateway_propagation';let accepted=false;
@@ -198,14 +209,14 @@ async function main(){
   }
   const pieces=a.webToken.split('.');pieces[2]=(pieces[2][0]==='A'?'B':'A')+pieces[2].slice(1);assert((await rest(FIXTURE_TABLE,pieces.join('.'))).status===401,'Tampered signature accepted');await record('tampered_signature_denied');
   const refreshed=await token({grant_type:'refresh_token',refresh_token:mcp.data.refresh_token,resource:ORIGIN+'/api/mcp'});const refreshedIdentity=await verify(refreshed.data.access_token,'mcp');assert(refreshedIdentity.grantId===identity.grantId&&refreshedIdentity.authSessionId===identity.authSessionId&&refreshedIdentity.authSessionCreatedAt===identity.authSessionCreatedAt,'Refresh changed original evidence');
-  assert(!(await token({grant_type:'refresh_token',refresh_token:refreshed.data.refresh_token,resource:'https://evil.invalid'})).data.access_token,'Wrong refresh resource accepted');await record('refresh_preserves_immutable_evidence');
-  await sql('select private.revoke_oauth_approvals($1,$2,null)',[a.id,config.BETTER_AUTH_MCP_CLIENT_ID]);for(const table of TABLES)empty(await rest(table,refreshed.data.access_token));assert(!(await token({grant_type:'refresh_token',refresh_token:refreshed.data.refresh_token,resource:ORIGIN+'/api/mcp'})).data.access_token,'Revoked refresh survived');await record('revoked_approval_denies_existing_jwt_and_refresh');
+  const wrongRefresh=await token({grant_type:'refresh_token',refresh_token:refreshed.data.refresh_token,resource:'https://evil.invalid'});assert(wrongRefresh.response.status===400&&wrongRefresh.data.error==='invalid_target'&&!wrongRefresh.data.access_token,'Wrong refresh resource did not return invalid_target');await record('refresh_preserves_immutable_evidence');
+  await sql('select private.revoke_oauth_approvals($1,$2,null)',[a.id,config.BETTER_AUTH_MCP_CLIENT_ID]);for(const table of TABLES)empty(await rest(table,refreshed.data.access_token));const revokedRefresh=await token({grant_type:'refresh_token',refresh_token:refreshed.data.refresh_token,resource:ORIGIN+'/api/mcp'});assert(revokedRefresh.response.status===400&&revokedRefresh.data.error==='invalid_grant'&&!revokedRefresh.data.access_token,'Revoked refresh did not return invalid_grant');await record('revoked_approval_denies_existing_jwt_and_refresh');
   await request('/sign-out',{},a.cookie);for(const table of TABLES)empty(await rest(table,a.webToken));await record('signout_denies_existing_website_jwt_direct_rest');
   await sql('update private.hosted_gate_profiles set min_auth_session_created_at=greatest(1,floor(extract(epoch from clock_timestamp()))::bigint) where id=$1',[b.id]);
   empty(await rest(FIXTURE_TABLE,b.webToken));
   const newerIssued=(await auth.getWebsiteDatabaseToken(new Headers({cookie:b.cookie}))).token;
   empty(await rest(FIXTURE_TABLE,newerIssued));await record('original_session_cutoff_denies_old_and_newly_issued_web_jwt');
-  for(const name of ['user','session','account','jwks','oauthRefreshToken']){const r=await rest(name,b.webToken);assert(!r.ok,'Private auth table exposed');}await record('private_auth_tables_not_exposed');
+  const privateSchema=await fetch('https://'+TEST+'.supabase.co/rest/v1/user?limit=1',{headers:{apikey:apiKey,Authorization:'Bearer '+newerIssued,'Accept-Profile':'livestocks_auth'},redirect:'error',signal:AbortSignal.timeout(budget(20000))});const privateSchemaError=await privateSchema.json();assert(privateSchema.status===406&&privateSchemaError.code==='PGRST106','Private auth schema was not explicitly rejected');await record('private_auth_schema_not_exposed');
   report.status='PASS_HOSTED_PROVIDER_AND_ISOLATED_FIXTURE_RLS';
  }catch(error){
   report.status='INCOMPLETE';report.failedPhase=phase;report.reason=error.message;console.log(JSON.stringify({status:'INCOMPLETE',phase,reason:error.message}));
