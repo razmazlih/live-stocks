@@ -1,6 +1,18 @@
-# Activate the existing LiveStocks connection
+# LiveStocks ChatGPT OAuth activation
 
-This is an activation checklist, not evidence of a completed ChatGPT connection. The hosted provider and isolated Supabase fixture gate passed; the production issuer trust is configured. Neither result proves that the existing ChatGPT App can complete its OAuth flow. Production portfolio migration and maintenance release are controlled separately.
+The user-approved replacement **LiveStocks (OAuth)** is now connected privately. Real connected-tool calls to `get_profile` and `get_portfolio_snapshot` succeeded on 2026-11-15 after human consent. The old LiveStocks App remains installed and unchanged. The earlier inspection records below describe the original object and the decision that required a new OAuth-capable object; they are historical, not the current activation status.
+
+## Current OAuth connection
+
+[Open LiveStocks (OAuth)](https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b).
+
+- App: `asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`; plugin: `plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`.
+- Visibility: USER / PRIVATE. Static client `livestocks-mcp-chatgpt`, `client_secret_post`, exact observed callback `https://chatgpt.com/connector_platform_oauth_redirect`.
+- Human consent completed; settings read back OAuth supported and used. All seven current server tools are exposed by the new connected namespace.
+- Package `1.1.0`, release `pluginrel_6af9b6cc71008191a30dc689a0af9a58`, contains the complete OAuth-first analyst skill. Source and App binding were read back and compared byte-for-byte after the update. See [the retained package source](../plugins/livestocks-oauth/README.md).
+- Real `get_profile` and `get_portfolio_snapshot` calls succeeded without reconsent after the initial five-minute access lifetime. This establishes live authenticated reads; independent rotation evidence, disconnect and reconnect are tracked separately in the [activation record](verification/chatgpt-oauth-activation-2026-11-15.json).
+
+No raw owner identity, portfolio values, cookie or token is retained in the public evidence. The new object was created only after explicit user approval to retain the old one and create a private OAuth replacement.
 
 ## Preserve the existing object
 
@@ -30,7 +42,7 @@ A separate, **unsubmitted** new-connection form successfully discovered the prod
 
 Google's separately approved audience publication was completed and read back as **In production / External**. This makes the Google configuration public but does not itself prove a new non-test user's login or ChatGPT OAuth connectivity; see the [Google publication record](verification/google-public-sign-in-2026-11-15.json).
 
-## Activation sequence
+## Repeatable activation and acceptance sequence
 
 1. Wait for the rollout owner to confirm production migration, owner binding, financial integrity verification and permission to release maintenance. Do not refresh host metadata against the temporary maintenance response.
 2. Check the anonymous production contract: MCP rejects unauthenticated requests with `401` and the protected-resource `WWW-Authenticate` challenge; discovery and public JWKS return `200`; financial endpoints reveal no anonymous portfolio. The exact resource is `https://razmaz-live-stocks.vercel.app/api/mcp`, issuer is `https://razmaz-live-stocks.vercel.app/api/auth`, and resource metadata is `https://razmaz-live-stocks.vercel.app/.well-known/oauth-protected-resource`.

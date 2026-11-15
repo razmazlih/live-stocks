@@ -1,0 +1,42 @@
+{
+  "status": "PASS_PRIVATE_OAUTH_CONNECTION_AND_AUTHENTICATED_READS",
+  "observedDate": "2026-11-15",
+  "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "appVersionId": "asdk_app_v_6af9b5f79ff0819181b5178cd77e7c2c",
+  "visibility": "USER_PRIVATE",
+  "oldPluginRetained": true,
+  "creationExplicitlyApproved": true,
+  "humanConsentObserved": true,
+  "clientId": "livestocks-mcp-chatgpt",
+  "tokenEndpointAuthMethod": "client_secret_post",
+  "callbackUrl": "https://chatgpt.com/connector_platform_oauth_redirect",
+  "issuer": "https://razmaz-live-stocks.vercel.app/api/auth",
+  "resource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+  "scopes": [
+    "openid",
+    "email",
+    "profile",
+    "offline_access",
+    "portfolio:read"
+  ],
+  "package": {
+    "version": "1.1.0",
+    "releaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "appBindingPreserved": true,
+    "sourceReadbackMatch": true,
+    "analystSkillSha256": "62ca2dc0943d8debda91fa810daa965b8304f0a579b4ec59d33801808cf011fd"
+  },
+  "hostChecks": {
+    "sevenToolsAvailable": true,
+    "getProfileSuccess": true,
+    "getPortfolioSnapshotSuccess": true,
+    "readsAfterInitialFiveMinuteLifetimeWithoutReconsent": true,
+    "privateProfileMatch": true,
+    "refreshRotation": "PENDING_INDEPENDENT_EVIDENCE",
+    "disconnect": "PENDING",
+    "reconnect": "PENDING"
+  },
+  "publicEvidenceContainsOwnerIdentityOrPortfolioValues": false,
+  "publicEvidenceContainsCredentials": false
+}
