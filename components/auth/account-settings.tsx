@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { useAuth } from './auth-provider';
 import { AccountLinking } from './account-linking';
+import { SignInMethods } from './sign-in-methods';
 
 type Widget = { id: string; name: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
 type Connections = { mcp: { enabled: boolean; connected: boolean; revokedAt: string | null }; widgets: Widget[] };
@@ -91,6 +92,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
         <div><dt className="text-xs text-slate-500">{he ? 'מזהה החשבון' : 'Account ID'}</dt><dd dir="ltr" className="break-all text-start font-mono text-xs">{user.id}</dd></div>
       </dl>
       <AccountLinking locale={locale} />
+      <SignInMethods locale={locale} />
     </DashboardSurface>
     {loadError && <p role="alert" className="text-sm text-rose-600">{he ? 'לא ניתן לטעון את פרטי החיבורים. יש לרענן כדי לנסות שוב.' : 'Unable to load connections. Refresh to try again.'}</p>}
     <DashboardSurface>

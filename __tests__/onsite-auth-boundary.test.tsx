@@ -20,6 +20,32 @@ describe('on-site public auth and sign-out boundary', () => {
   beforeEach(() => { state.pathname = '/'; state.signOut.mockReset(); state.reset.mockReset(); state.configure.mockReset(); state.privateMount.mockReset(); });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
 
+  it('isolates owner confirmation from financial session bootstrap and private providers', async () => {
+    state.pathname = '/account/owner-confirmation';
+    vi.stubGlobal('fetch', vi.fn());
+    render(<AuthProvider><h1>Review Google owner</h1></AuthProvider>);
+    expect(screen.getByRole('heading', { name: 'Review Google owner' })).toBeVisible();
+    await waitFor(() => expect(state.reset).toHaveBeenCalled());
+    act(() => { window.dispatchEvent(new Event('focus')); });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(state.privateMount).not.toHaveBeenCalled();
+    expect(state.configure).not.toHaveBeenCalled();
+  });
+
+  it('unmounts and aborts a previous private session request before owner review', async () => {
+    const fetcher = vi.fn().mockImplementation(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetcher);
+    const view = render(<AuthProvider><h1>Review Google owner</h1></AuthProvider>);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    const signal = fetcher.mock.calls[0][1].signal as AbortSignal;
+    state.pathname = '/account/owner-confirmation';
+    view.rerender(<AuthProvider><h1>Review Google owner</h1></AuthProvider>);
+    expect(signal.aborted).toBe(true);
+    act(() => { window.dispatchEvent(new Event('focus')); });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(state.privateMount).not.toHaveBeenCalled();
+  });
+
   it.each(['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/verify-email'])('renders %s while revalidating without mounting private providers', async (pathname) => {
     state.pathname = pathname;
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => undefined)));

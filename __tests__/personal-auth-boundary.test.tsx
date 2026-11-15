@@ -22,7 +22,7 @@ describe('personal account boundary', () => {
 
   it('does not mount private content when no session exists', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ configured: false, user: null }))));
-    render(<AuthProvider><PersonalContent /></AuthProvider>);
+    render(<AuthProvider options={{ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false }}><PersonalContent /></AuthProvider>);
     expect(screen.queryByLabelText('private note')).not.toBeInTheDocument();
     await screen.findByText(/ההתחברות עדיין אינה מוגדרת/);
     expect(screen.queryByLabelText('private note')).not.toBeInTheDocument();
@@ -31,7 +31,7 @@ describe('personal account boundary', () => {
 
   it('shows ordinary sign-in without an error for an unauthenticated API response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Sign in required' }), { status: 401 })));
-    render(<AuthProvider><PersonalContent /></AuthProvider>);
+    render(<AuthProvider options={{ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false }}><PersonalContent /></AuthProvider>);
     await screen.findByRole('button', { name: 'התחברות' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('private note')).not.toBeInTheDocument();
@@ -39,14 +39,14 @@ describe('personal account boundary', () => {
 
   it('requires verified email before mounting private content', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Verify your email before continuing' }), { status: 403 })));
-    render(<AuthProvider><PersonalContent /></AuthProvider>);
+    render(<AuthProvider options={{ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false }}><PersonalContent /></AuthProvider>);
     expect(await screen.findByRole('alert')).toHaveTextContent('יש לאמת את כתובת הדוא״ל');
     expect(screen.queryByLabelText('private note')).not.toBeInTheDocument();
   });
 
   it('resets all mounted private state when focus detects a different account', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(userSession('auth0|a')).mockResolvedValueOnce(userSession('auth0|b')));
-    render(<AuthProvider><PersonalContent /></AuthProvider>);
+    render(<AuthProvider options={{ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false }}><PersonalContent /></AuthProvider>);
     await screen.findByText('auth0|a');
     fireEvent.change(screen.getByLabelText('private note'), { target: { value: 'A private draft' } });
     act(() => { window.dispatchEvent(new Event('focus')); });
@@ -59,7 +59,7 @@ describe('personal account boundary', () => {
   it('immediately clears private content after another tab signs out', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(userSession('auth0|a'));
     vi.stubGlobal('fetch', fetchMock);
-    render(<AuthProvider><PersonalContent /></AuthProvider>);
+    render(<AuthProvider options={{ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false }}><PersonalContent /></AuthProvider>);
     await screen.findByText('auth0|a');
     act(() => { window.dispatchEvent(new StorageEvent('storage', { key: 'livestocks:account-change', newValue: 'logout:123' })); });
     await waitFor(() => expect(screen.queryByText('auth0|a')).not.toBeInTheDocument());

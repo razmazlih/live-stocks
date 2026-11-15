@@ -1,8 +1,10 @@
 # Better Auth local foundation
 
+During canonical issuer setup, set `LIVESTOCKS_MAINTENANCE=true` on the deployment. The proxy permits only GET/HEAD discovery, asymmetric JWKS, public information and static assets; data APIs, login, registration and OAuth token endpoints return an uncached 503. This allows Supabase to discover the final issuer before financial migration. It does not freeze direct database access or drain older deployments: the separate cutover procedure must still close those paths and take the final encrypted backup. Remove the deployment gate only after migration, owner mapping and isolated authorization checks pass. Preview settings keep the fixed canonical issuer; a preview hostname does not become an additional Google callback or issuer.
+
 For this release, `npm run build` explicitly uses the supported Webpack builder. A clean current-source build passed; the earlier Turbopack invocation stalled locally without a compiler diagnostic. This is a reproducibility choice for the verified release, not a claim about Turbopack generally.
 
-The website now uses its own email/password forms with Better Auth 1.7.23 and the OAuth provider 1.7.23. PostgreSQL authentication tables live in `livestocks_auth`; the application must connect as `livestocks_auth_backend`. This is a local implementation milestone, not a production migration or a verified ChatGPT connection.
+The launch uses Google-only sign-in with Better Auth 1.7.23 and OAuth provider 1.7.23. `PASSWORD_AUTH_ENABLED` defaults to false; email/password forms, recovery, verification and adding sign-in methods require explicit `true`. SMTP is not required for Google-only mode. Existing accounts and financial data are retained. PostgreSQL authentication tables live in `livestocks_auth`; the application must connect as `livestocks_auth_backend`. This is a local implementation milestone, not a production migration or a verified ChatGPT connection.
 
 ## Configuration
 

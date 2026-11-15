@@ -28,7 +28,7 @@ try:
  output=run/'state.json';output.write_text(json.dumps(state));output.chmod(0o600)
  config=run/'vitest.config.mjs'
  config.write_text('export default '+json.dumps({'root':str(root),'envDir':False,'resolve':{'alias':{'@':str(root)}},'esbuild':{'jsx':'automatic'},'test':{'environment':'node','setupFiles':[str(root/'vitest.setup.ts')],'globals':True}}))
- test=subprocess.Popen(['node',str(root/'node_modules/vitest/vitest.mjs'),'run','__tests__/better-auth-postgres.test.ts','--config',str(config)],cwd=root,env=env|{'BETTER_AUTH_LOCAL_TEST_STATE':str(output)},text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ test=subprocess.Popen(['node',str(root/'node_modules/vitest/vitest.mjs'),'run','__tests__/better-auth-postgres.test.ts','__tests__/sign-in-methods-postgres.test.ts','--config',str(config)],cwd=root,env=env|{'BETTER_AUTH_LOCAL_TEST_STATE':str(output)},text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
  try: test_stdout,test_stderr=test.communicate(timeout=120)
  except BaseException:
   os.killpg(test.pid,signal.SIGTERM)

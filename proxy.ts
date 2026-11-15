@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBetterAuthSession } from '@/lib/auth/better-auth';
 import { isPublicInformationPath, isPublicAuthPath } from '@/lib/public-routes';
 import { getPublicPublisher } from '@/lib/public-publisher';
+import { maintenanceResponse } from '@/lib/maintenance';
 
 export async function proxy(request: NextRequest) {
+  const maintenance = maintenanceResponse(request);
+  if (maintenance) return maintenance;
   const pathname = request.nextUrl.pathname;
   // APIs verify their own web, MCP, or widget credentials at the route boundary.
   if (pathname.startsWith('/api/') || pathname.startsWith('/.well-known/')) return NextResponse.next();
@@ -31,6 +34,7 @@ export async function proxy(request: NextRequest) {
   }
   const response = NextResponse.next();
   response.headers.set('Cache-Control', 'private, no-store');
+  if (pathname === '/oauth/consent' || pathname === '/account/sign-in-methods/complete' || pathname === '/account/owner-confirmation') response.headers.set('Referrer-Policy', 'no-referrer');
   return response;
 }
 

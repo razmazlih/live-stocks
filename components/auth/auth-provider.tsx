@@ -17,12 +17,22 @@ type AccountSession = { user: AccountUser | null; configured: boolean; options?:
 const AuthContext = createContext<{ user: AccountUser; signOut: () => void } | null>(null);
 const ACCOUNT_EVENT = 'livestocks:account-change';
 
-const DEFAULT_OPTIONS: AuthPublicOptions = { configured: true, googleEnabled: false, emailDeliveryConfigured: false };
+const DEFAULT_OPTIONS: AuthPublicOptions = { configured: true, passwordEnabled: false, googleEnabled: false, emailDeliveryConfigured: false };
 
 export function AuthProvider({ children, options = DEFAULT_OPTIONS }: { children: ReactNode; options?: AuthPublicOptions }) {
   const pathname = usePathname();
+  if (pathname === '/account/owner-confirmation') return <OwnerConfirmationBoundary>{children}</OwnerConfirmationBoundary>;
   if (isPublicInformationPath(pathname)) return <>{children}</>;
   return <PrivateAuthProvider options={options}>{children}</PrivateAuthProvider>;
+}
+
+/** The capture page checks its own server session without financial-profile bootstrap. */
+function OwnerConfirmationBoundary({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    resetSupabaseClient();
+    return () => resetSupabaseClient();
+  }, []);
+  return <>{children}</>;
 }
 
 function PrivateAuthProvider({ children, options }: { children: ReactNode; options: AuthPublicOptions }) {
@@ -119,7 +129,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
 
   if (signOutState !== 'idle') return <main className="flex min-h-screen items-center justify-center bg-[var(--color-page-bg)] p-5 text-foreground"><section className="max-w-md space-y-4 rounded-3xl border border-border bg-card p-7 text-card-foreground"><p role={signOutState === 'failed' ? 'alert' : 'status'}>{signOutState === 'failed' ? 'ההתנתקות לא הושלמה. יש לנסות שוב. / Sign-out did not complete. Please retry.' : 'מתנתק… / Signing out…'}</p>{signOutState === 'failed' && <Button onClick={() => { void signOut(); }}>ניסיון התנתקות נוסף / Retry sign-out</Button>}</section></main>;
   // Public auth forms remain usable during session checks; private providers never mount here.
-  if (isPublicAuthPath(pathname)) return <>{children}</>;
+  if (isPublicAuthPath(pathname) || pathname === '/oauth/consent' || pathname === '/account/sign-in-methods/complete' || pathname === '/account/owner-confirmation') return <>{children}</>;
   if (!session) return <main className="flex min-h-screen items-center justify-center"><p role="status">LiveStocks · טוען / Loading…</p></main>;
   if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>

@@ -5,8 +5,9 @@ import { jwt } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { betterAuthConfiguration, getAuthPublicOptions, type BetterAuthConfiguration } from './better-auth-config';
+import { betterAuthConfiguration, getAuthPublicOptions, isPasswordAuthEnabled, PASSWORD_AUTH_PATHS, type BetterAuthConfiguration } from './better-auth-config';
 import { requireAuthEmailConfiguration, sendAuthEmail } from './auth-email';
+import { methodUserValidator } from './sign-in-method-guard';
 
 export { betterAuthConfiguration, getAuthPublicOptions };
 export const AUTH_SCHEMA = 'livestocks_auth';
@@ -94,12 +95,13 @@ export function createBetterAuth(config: BetterAuthConfiguration, pool: Pool, bo
   return betterAuth({
     baseURL: config.origin, basePath: '/api/auth', secret: config.secret, database: pool,
     trustedOrigins: [config.origin], telemetry: { enabled: false }, logger: { disabled: true },
-    disabledPaths: ['/token', '/link-social', '/unlink-account', '/delete-user', '/set-password'],
-    emailAndPassword: { enabled: true, requireEmailVerification: true, autoSignIn: false, minPasswordLength: 8, maxPasswordLength: 128,
+    user: { validateUserInfo: methodUserValidator(pool, config) },
+    disabledPaths: ['/token', '/link-social', '/unlink-account', '/delete-user', '/set-password', '/verify-password', ...(!isPasswordAuthEnabled() ? [...PASSWORD_AUTH_PATHS, '/reset-password/:token'] : [])],
+    emailAndPassword: { enabled: isPasswordAuthEnabled(), requireEmailVerification: true, autoSignIn: false, minPasswordLength: 8, maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => sendAuthEmail(user.email, url, 'reset'),
     },
-    emailVerification: { sendOnSignUp: true, sendOnSignIn: false, autoSignInAfterVerification: false, expiresIn: 3600,
+    emailVerification: { sendOnSignUp: isPasswordAuthEnabled(), sendOnSignIn: false, autoSignInAfterVerification: false, expiresIn: 3600,
       sendVerificationEmail: async ({ user, url }) => sendAuthEmail(user.email, url, 'verify'),
     },
     account: { encryptOAuthTokens: true, accountLinking: { enabled: true, disableImplicitLinking: true, allowDifferentEmails: false } },
@@ -139,7 +141,7 @@ let singleton: { key: string; auth: ReturnType<typeof createBetterAuth>; pool: P
 export function getBetterAuth(): ReturnType<typeof createBetterAuth> | null {
   let config: BetterAuthConfiguration;
   try { config = betterAuthConfiguration(); } catch { return null; }
-  const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId]);
+  const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId, isPasswordAuthEnabled(), process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]);
   if (!singleton || singleton.key !== key) {
     if (singleton) void singleton.pool.end();
     const pool = createAuthPool(config);
@@ -179,6 +181,19 @@ export async function signOutBetterAuth(headers: Headers): Promise<Response> {
   return auth.api.signOut({ headers, asResponse: true });
 }
 
+/** Operator processes/tests only: release the shared pool after their work. */
+export async function shutdownBetterAuth(): Promise<void> {
+  const previous = singleton;
+  singleton = undefined;
+  await previous?.pool.end();
+}
+
+/** Dedicated authentication storage only; this role cannot read financial tables. */
+export function getAuthDatabasePool(): Pool {
+  if (!getBetterAuth() || !singleton) throw storageError();
+  return singleton.pool;
+}
+
 /** Server/CLI setup only; no HTTP route exposes this function or its privileged instance. */
 export async function seedMcpClient(headers: Headers, redirectUris: string[]): Promise<{ clientId: string; created: boolean }> {
   const config = betterAuthConfiguration();
@@ -193,12 +208,27 @@ export async function seedMcpClient(headers: Headers, redirectUris: string[]): P
       throw new Error('Invalid MCP callback');
     }
   }
-  const existing = await singleton.pool.query<{ redirectUris: string[]; requirePKCE: boolean; skipConsent: boolean; tokenEndpointAuthMethod: string }>(
-    'select "redirectUris", "requirePKCE", "skipConsent", "tokenEndpointAuthMethod" from livestocks_auth."oauthClient" where "clientId"=$1', [config.mcpClientId]);
+  const existing = await singleton.pool.query<{ redirectUris: string[]; requirePKCE: boolean; skipConsent: boolean; disabled: boolean; tokenEndpointAuthMethod: string; scopes: string[]; grantTypes: string[]; resources: string[] }>(
+    `select c."redirectUris", c."requirePKCE", c."skipConsent", c.disabled, c."tokenEndpointAuthMethod", c.scopes, c."grantTypes",
+      coalesce((select jsonb_agg(r."resourceId") from livestocks_auth."oauthClientResource" r where r."clientId"=c."clientId"),'[]'::jsonb) as resources
+      from livestocks_auth."oauthClient" c where c."clientId"=$1`, [config.mcpClientId]);
   if (existing.rows[0]) {
     const row = existing.rows[0];
-    if (!row.requirePKCE || row.skipConsent || row.tokenEndpointAuthMethod !== 'client_secret_post'
-      || JSON.stringify([...row.redirectUris].sort()) !== JSON.stringify([...redirectUris].sort())) throw new Error('Existing MCP registration requires review');
+    const exactly = (actual: unknown, expected: readonly string[]) => Array.isArray(actual)
+      && actual.every(value => typeof value === 'string')
+      && JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
+    if (row.requirePKCE !== true || row.skipConsent !== false || row.disabled !== false || row.tokenEndpointAuthMethod !== 'client_secret_post'
+      || !exactly(row.redirectUris, redirectUris) || !exactly(row.scopes, AUTH_SCOPES)
+      || !exactly(row.grantTypes, ['authorization_code', 'refresh_token']) || !exactly(row.resources, [config.mcpAudience])) throw new Error('Existing MCP registration requires review');
+    // Let the provider validate its own stored-secret format. A random nonexistent
+    // token must be inactive; this neither issues nor revokes any real token.
+    const probe = await singleton.auth.handler(new Request(`${config.issuer}/oauth2/introspect`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: config.mcpClientId, client_secret: process.env.BETTER_AUTH_MCP_CLIENT_SECRET,
+        token: `setup-check-${randomUUID()}` }),
+    }));
+    const introspection = await probe.json().catch(() => null);
+    if (!probe.ok || introspection?.active !== false) throw new Error('Configured MCP client secret requires review');
     return { clientId: config.mcpClientId, created: false };
   }
   const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);

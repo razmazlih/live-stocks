@@ -1,4 +1,5 @@
 import 'server-only';
+import { isPasswordAuthEnabled, isPasswordAuthPath } from './better-auth-config';
 import { betterAuthConfiguration, getBetterAuth } from './better-auth';
 
 const OAUTH_SERVER_POSTS = new Set(['/oauth2/token', '/oauth2/introspect', '/oauth2/revoke']);
@@ -8,6 +9,7 @@ const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authoriza
 export function validateAuthRequest(request: Request, config: { origin: string; issuer: string; mcpClientId: string; mcpAudience: string }): Response | null {
   const url = new URL(request.url);
   const path = url.pathname.slice('/api/auth'.length);
+  if (!isPasswordAuthEnabled() && isPasswordAuthPath(path)) return Response.json({ code: 'NOT_FOUND' }, { status: 404, headers: PRIVATE });
   if (path === '/oauth2/authorize') {
     if (request.method !== 'GET') return Response.json({ error: 'invalid_request' }, { status: 405, headers: PRIVATE });
     const resources = url.searchParams.getAll('resource');

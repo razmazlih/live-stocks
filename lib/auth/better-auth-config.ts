@@ -23,11 +23,16 @@ export function betterAuthConfiguration(): BetterAuthConfiguration {
     mcpClientId: BETTER_AUTH_MCP_CLIENT_ID, secret: BETTER_AUTH_SECRET, databaseUrl: BETTER_AUTH_DATABASE_URL };
 }
 
+export function isPasswordAuthEnabled(): boolean { return process.env.PASSWORD_AUTH_ENABLED === 'true'; }
+
+export const PASSWORD_AUTH_PATHS = ['/sign-in/email', '/sign-up/email', '/request-password-reset', '/reset-password', '/verify-email', '/send-verification-email', '/change-password', '/set-password', '/verify-password', '/change-email'];
+export function isPasswordAuthPath(path: string): boolean { return PASSWORD_AUTH_PATHS.includes(path) || path.startsWith('/reset-password/'); }
+
 export function getAuthPublicOptions() {
   let configured = false;
   try { betterAuthConfiguration(); configured = true; } catch { /* Public pages render while setup is incomplete. */ }
-  return { configured,
+  return { configured, passwordEnabled: isPasswordAuthEnabled(),
     googleEnabled: configured && Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    emailDeliveryConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_FROM && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
+    emailDeliveryConfigured: isPasswordAuthEnabled() && Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_FROM && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
   };
 }

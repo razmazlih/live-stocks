@@ -4,7 +4,7 @@ import { SignIn } from '@/components/auth/sign-in';
 
 describe('friendly callback failures', () => {
   it('shows verification guidance in both languages and keeps the login destination safe', () => {
-    render(<SignIn configured callbackFailed returnTo="/\\attacker.example" />);
+    render(<SignIn passwordEnabled configured callbackFailed returnTo="/\\attacker.example" />);
     expect(screen.getByRole('alert')).toHaveTextContent('לבקש קישור אימות חדש');
     expect(screen.getByRole('button', { name: 'התחברות' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'יצירת חשבון' })).toHaveAttribute('href', '/sign-up?lang=he&returnTo=%2F');
