@@ -1,6 +1,6 @@
 # LiveStocks ChatGPT OAuth activation
 
-The user-approved replacement **LiveStocks (OAuth)** is now connected privately. Real connected-tool calls to `get_profile` and `get_portfolio_snapshot` succeeded on 2026-11-15 after human consent. The old LiveStocks App remains installed and unchanged. The earlier inspection records below describe the original object and the decision that required a new OAuth-capable object; they are historical, not the current activation status.
+The user-approved replacement **LiveStocks (OAuth)** is now connected privately. Real connected-tool calls to `get_profile` and `get_portfolio_snapshot` succeeded on 2026-11-15 after human consent. After explicit user approval, the old LiveStocks plugin was uninstalled; LiveStocks (OAuth) is now the sole installed LiveStocks connection. The old owned cloud artifact and repository source were not permanently deleted. The earlier inspection records below describe the original object and the decision that required a new OAuth-capable object; they are historical, not the current activation status.
 
 ## Current OAuth connection
 
@@ -12,7 +12,7 @@ The user-approved replacement **LiveStocks (OAuth)** is now connected privately.
 - Package `1.1.0`, release `pluginrel_6af9b6cc71008191a30dc689a0af9a58`, contains the complete OAuth-first analyst skill. Source and App binding were read back and compared byte-for-byte after the update. See [the retained package source](../plugins/livestocks-oauth/README.md).
 - Real `get_profile` and `get_portfolio_snapshot` calls succeeded without reconsent after the initial five-minute access lifetime. Production read-only refresh-family timestamps independently confirm rotation from the initial 13:40:37 UTC grant through 13:53:59 UTC, without reconsent. After the website disconnect, the connected tool returned an authentication error and no profile; the host requested authentication. Following reconnect preparation and accepted host authentication, a new tool call returned the same canonical profile. Independent server readback confirmed the initial approval was revoked and a fresh approval was created at 14:06:41 UTC, after reconnect preparation at 14:04:03 UTC. The host handled its authentication challenge internally, so this evidence does not expose a raw rejected-JWT HTTP response. See the [activation record](verification/chatgpt-oauth-activation-2026-11-15.json).
 
-No raw owner identity, portfolio values, cookie or token is retained in the public evidence. The new object was created only after explicit user approval to retain the old one and create a private OAuth replacement.
+No raw owner identity, portfolio values, cookie or token is retained in the public evidence. The new object was created after explicit user approval to retain the old one during activation. After successful lifecycle checks, the user separately approved uninstalling the old plugin. The new connection continued to pass `get_profile` after that uninstall.
 
 ## Preserve the existing object
 

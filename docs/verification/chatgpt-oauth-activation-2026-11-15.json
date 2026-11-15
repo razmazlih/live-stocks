@@ -5,7 +5,6 @@
   "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
   "appVersionId": "asdk_app_v_6af9b5f79ff0819181b5178cd77e7c2c",
   "visibility": "USER_PRIVATE",
-  "oldPluginRetained": true,
   "creationExplicitlyApproved": true,
   "humanConsentObserved": true,
   "clientId": "livestocks-mcp-chatgpt",
@@ -62,8 +61,17 @@
         "initialApprovalRevoked": true,
         "evidence": "Read-only production approval metadata; website reconnect preparation creates no approval"
       }
-    }
+    },
+    "getProfileAfterLegacyUninstall": true
   },
   "publicEvidenceContainsOwnerIdentityOrPortfolioValues": false,
-  "publicEvidenceContainsCredentials": false
+  "publicEvidenceContainsCredentials": false,
+  "oldPlugin": {
+    "retainedDuringActivation": true,
+    "subsequentUninstallExplicitlyApproved": true,
+    "uninstalled": true,
+    "ownedCloudArtifactPermanentlyDeleted": false,
+    "repositorySourceRetained": true
+  },
+  "soleInstalledLiveStocksConnection": "LiveStocks (OAuth)"
 }
