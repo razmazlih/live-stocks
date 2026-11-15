@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL_NAME_VERIFIED_HOST_AVATAR_UNCHANGED",
+  "status": "PASS_WEBSITE_ICON_CONFIRMED_BY_USER",
   "observedDate": "2026-11-15",
   "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
   "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
@@ -40,14 +40,15 @@
     "refreshToolsAttempts": 1,
     "refreshControlReturnedEnabled": true,
     "browserReloadPerformed": true,
-    "websiteIconDisplayed": false,
-    "observedAvatar": "Existing generic multicolor icon",
+    "websiteIconDisplayed": true,
+    "observedAvatar": "Website icon confirmed by user after workspace version1.1.1 upload",
     "iconEditorObserved": false,
     "oauthRemainedConnected": true,
     "skillRemainedEnabled": true,
-    "appAndPluginIdentityPreserved": true
+    "appAndPluginIdentityPreserved": true,
+    "earlierRefreshOnlyAttemptDidNotChangeIcon": true
   },
-  "cloudPackageContentUpdated": false,
+  "cloudPackageContentUpdated": true,
   "newAppCreated": false,
   "permissionsChanged": true,
   "financialDataChanged": false,
@@ -143,5 +144,42 @@
     "billingChanged": false,
     "catalogVisualReadback": "Not completed: user selected another Safari tab after Save; stopped UI and verified authoritative connectors instead",
     "priorPublicationObservationsRetainedAsHistory": true
+  },
+  "workspaceBrandingUpdate": {
+    "status": "PASS",
+    "explicitFullArchiveUploadApproval": true,
+    "uiRoute": "RABEN Admin Console > exact existing plugin > Plugin actions > Upload new version",
+    "candidateSha256": "4a6bb07a564f610eafe97cda8694e3331ca72463e5074fb478cb28cbd59fcc90",
+    "fileCount": 6,
+    "version": "1.1.1",
+    "releaseId": "pluginrel_6af9cef9c9d4819186ac76a2a7a20eb4",
+    "newReleaseAccepted": true,
+    "samePluginId": true,
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "appBindingByteIdentical": true,
+    "analystSkillByteIdentical": true,
+    "composerIcon": "./assets/livestocks-composer.png",
+    "logo": "./assets/livestocks-logo.png",
+    "bothAssetsInCloudReadback": true,
+    "connectedGetProfilePassed": true,
+    "visualReadbackPending": false,
+    "newAppCreated": false,
+    "newPluginCreated": false,
+    "reviewAppApprovalChanged": false,
+    "visualVerification": {
+      "method": "explicit user confirmation",
+      "confirmation": "\u05d0\u05e0\u05d9 \u05db\u05d1\u05e8 \u05e8\u05d5\u05d0\u05d4 \u05d0\u05ea \u05d0\u05d9\u05d9\u05e7\u05d5\u05df \u05d4\u05d0\u05ea\u05e8",
+      "assistantScreenshotAfterUpload": false
+    }
+  },
+  "workspaceAvailabilityInspection": {
+    "catalogEntryVisuallyPresent": true,
+    "installationPolicy": "Unavailable",
+    "availability": "disabled",
+    "appReviewRequired": true,
+    "reviewPrompt": "Review the tools and role access to approve this app.",
+    "accessApprovalPerformed": false,
+    "note": "Directory listing is distinct from administrator approval for other workspace members."
   }
 }

@@ -2,11 +2,11 @@
 
 Retained source for the user-approved RABEN workspace [LiveStocks plugin](https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b). This is the sole installed LiveStocks connection after the user-approved legacy-plugin uninstall. The old `plugins/livestocks` source and owned cloud artifact are retained; uninstall did not permanently delete them.
 
-The published App-backed package version is `1.1.0`. `.app.json` binds the new App; `plugin.json` is the Agent Plugins manifest and `.codex-plugin/plugin.json` preserves the OpenAI overlay. The full analyst skill requires an authenticated profile before personal portfolio research and keeps the original full-sale/new-stock-only recommendation rules. It does not execute transactions.
+The published App-backed package version is `1.1.1`. `.app.json` binds the new App; `plugin.json` is the Agent Plugins manifest and `.codex-plugin/plugin.json` preserves the OpenAI overlay. The full analyst skill requires an authenticated profile before personal portfolio research and keeps the original full-sale/new-stock-only recommendation rules. It does not execute transactions.
 
 Use Plugin Creator's expected-release update workflow to change skill files. Preserve the existing App binding, metadata and RABEN WORKSPACE/LISTED audience. OAuth client credentials belong in the host's owning connection settings, never in this package. Read the [activation evidence and checklist](../../docs/CHATGPT_ACTIVATION.md) before changing the connection.
 
-The README is repository documentation; the published archive contains the two manifests, `.app.json` and the skill file only.
+The README is repository documentation; the published archive contains the two manifests, `.app.json`, the skill file and the two approved PNG icon assets.
 
 ## Public-release preparation
 
@@ -20,9 +20,9 @@ The server now advertises the existing 180px website PNG at `/brand/apple-touch-
 
 Production deployment `dpl_3okGaXimbjkVwvqBkXcFawWJstLx` was promoted after build, typecheck, focused MCP tests, public discovery/icon and authentication-boundary checks. The connected `get_profile` still succeeded afterward.
 
-**Actual ChatGPT avatar remains unchanged.** One existing-App **Refresh tools** action and a browser reload retained the generic multicolor icon; settings expose name/description edits but no observed icon editor. The name **LiveStocks**, App/plugin identity, OAuth connection and skill remain intact. Server icon metadata is not proof that a hosted App's registered logo changed. OpenAI's [MCP extensions specification](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md) distinguishes hosted registered App logos from server icons. No replacement App or permission change was made by the icon update. See [sanitized branding evidence](../../docs/verification/chatgpt-branding-2026-11-15.json).
+**Earlier metadata-only attempt did not change the avatar.** One existing-App **Refresh tools** action and a browser reload retained the generic multicolor icon; settings expose name/description edits but no observed icon editor. The name **LiveStocks**, App/plugin identity, OAuth connection and skill remain intact. Server icon metadata is not proof that a hosted App's registered logo changed. OpenAI's [MCP extensions specification](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md) distinguishes hosted registered App logos from server icons. No replacement App or permission change was made by the icon update. See [sanitized branding evidence](../../docs/verification/chatgpt-branding-2026-11-15.json).
 
-A subsequent user-authorized, expected-release-guarded update attempted to add the approved composer/logo PNGs directly to this same private package. Plugin Creator rejected it with HTTP400 `INVALID_ARGUMENT`: App-backed updates must preserve App presentation and use the owning App controls to change it. Readback confirmed unchanged release `pluginrel_6af9b6cc71008191a30dc689a0af9a58`, version1.1.0, no new assets/icon references, and unchanged PRIVATE scope. This is an observed backend limitation, not a claim that the icon was updated. No alternate hidden endpoint or replacement plugin was used.
+A subsequent user-authorized, expected-release-guarded update attempted to add the approved composer/logo PNGs directly to this same private package. Plugin Creator rejected it with HTTP400 `INVALID_ARGUMENT`: App-backed updates must preserve App presentation and use the owning App controls to change it. Readback confirmed unchanged release `pluginrel_6af9b6cc71008191a30dc689a0af9a58`, version1.1.0, no new assets/icon references, and unchanged PRIVATE scope. This records the earlier Plugin Creator endpoint limitation. After the same plugin became workspace-owned, the supported Admin Console upload path accepted the icon update described below; no hidden endpoint or replacement plugin was used.
 
 ## RABEN workspace publication
 
@@ -31,3 +31,11 @@ A subsequent user-authorized, expected-release-guarded update attempted to add t
 The earlier legacy App **Publish** flow remained pending without an error. The workspace-credit banner was not established as its cause, and billing was not changed. The working alternative above resolved workspace publication without another plugin, archive upload, or individual-user invitation. After Save the user switched Safari tabs, so confirmation used authoritative connector readbacks rather than a fresh catalog screenshot.
 
 This is workspace listing, **not global public-directory publication**. The user subsequently limited the task to RABEN; no public submission was made. [Verification evidence](../../docs/verification/chatgpt-branding-2026-11-15.json) retains the earlier failed observations and the final successful result.
+
+## Accepted workspace icon package
+
+After explicit approval to upload the complete six-file package, **RABEN Admin Console → this exact plugin → Plugin actions → Upload new version** accepted version `1.1.1`, release `pluginrel_6af9cef9c9d4819186ac76a2a7a20eb4`. Cloud readback includes the approved website composer PNG and 512px logo plus their manifest references. The App binding and complete analyst skill are byte-identical to their pre-update versions. OAuth `get_profile` still succeeds, and the same plugin remains `WORKSPACE` / `LISTED` in RABEN.
+
+**The user visually confirmed that the website icon is now displayed:** “אני כבר רואה את אייקון האתר”. This completes the requested existing-plugin icon change. The assistant did not capture an additional screenshot after upload; the rendering evidence is the user’s explicit confirmation.
+
+The fresh workspace admin catalog also showed **Unavailable / disabled** and requested **Review app** for tool and role approval. Directory listing and approval for other members are separate. No role/access approval was changed as part of this cosmetic update.
