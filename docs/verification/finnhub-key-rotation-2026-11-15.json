@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "verifiedAt": "2026-11-15T14:34:26.468Z",
+  "storedCredentialUpdatedAt": "2026-11-15T14:30:47.663Z",
+  "userConfirmedRegenerationAndSave": true,
+  "encryptedOwnerCredentialChanged": true,
+  "oldProtectedBackupCredentialMatched": true,
+  "credentialsSentInHeaderOnly": true,
+  "secretValuesPrinted": false,
+  "newProviderStatus": 200,
+  "newProviderKeyAccepted": true,
+  "oldProviderStatus": 401,
+  "oldProviderKeyRejected": true
+}

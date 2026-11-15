@@ -1,0 +1,87 @@
+{
+  "status": "PASS",
+  "verifiedAt": "2026-11-15T14:22:53.038Z",
+  "deploymentId": "dpl_9R8an9qEbXfmwZ7Lfx1HL12pG2XF",
+  "sourceCommit": "f7ba27a",
+  "cases": [
+    {
+      "name": "anonymous_merge_status_denied",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "name": "confirmed_owner_merge_status",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "name": "anonymous_recovery_hint_no_private_data",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "name": "unauthenticated_cron_denied",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "name": "invalid_cron_secret_denied",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "name": "authenticated_cron_recovery_run",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "name": "anonymous_financial_snapshot_still_denied",
+      "status": 401,
+      "noStore": true
+    }
+  ],
+  "ownerFeatureEnabled": true,
+  "ownerOperationAbsent": true,
+  "ownerCandidateCount": 0,
+  "workerResult": {
+    "processed": 0,
+    "pending": 0,
+    "deferred": 0
+  },
+  "noGeneralMergeStartedByOperator": true,
+  "secretsOrIdentityValuesIncluded": false,
+  "sourceFingerprint": "3a35f9774c304bade954dd13addbe25e558d01161ce31aeef1e88ce332a8c6e3",
+  "fullSuite": {
+    "passed": 877,
+    "skippedOptInNative": 3
+  },
+  "nativeProviderAndMergeSuitesSeparatelyPassed": true,
+  "lint": "PASS",
+  "typecheck": "PASS",
+  "localProductionBuild": "PASS",
+  "vercelProductionBuild": "PASS",
+  "userExplicitlyApprovedGeneralMergeRollout": true,
+  "newProductionVariablesCreatedWithoutOverwrite": [
+    "ACCOUNT_LINKING_ENABLED",
+    "ACCOUNT_LINKING_WORKER_SECRET",
+    "CRON_SECRET"
+  ],
+  "previewUnchanged": true,
+  "cron": {
+    "deploymentId": "dpl_9R8an9qEbXfmwZ7Lfx1HL12pG2XF",
+    "path": "/api/internal/account-merge-cron",
+    "schedule": "0 4 * * *",
+    "metadataReadbackVerified": true,
+    "authenticatedManualRunPassed": true,
+    "firstScheduledRunObserved": false
+  },
+  "oldPluginUninstalled": true,
+  "newOAuthPluginStillConnectedAfterOldRemoval": true,
+  "paidPlanChanges": false,
+  "physicalIPhoneVerified": false,
+  "publicPluginSubmissionPerformed": false,
+  "finnhubCredentialRotationVerified": true,
+  "oldFinnhubCredentialRejected": true,
+  "widgetProductionApiChecksPassed": 25,
+  "widgetProductionTemporaryRecordsCleaned": true
+}

@@ -1,6 +1,6 @@
 # LiveStocks personal widget v8 — 2026-11-14
 
-This distribution requires the personal-account backend and `POST /api/widget/summary`. It is not installed on the user's device or deployed by this change. Physical iPhone sync and native rendering remain unverified.
+The personal-account backend and `POST /api/widget/summary` are live. [25 production API checks](../../docs/verification/widget-production-api-2026-11-15.json) passed, including valid, revoked and expired credentials, restricted scope, cleanup and financial data preservation. This source distribution has not been installed or verified on the user's physical iPhone by this work; device setup, iCloud sync and native rendering remain separate.
 
 ## Connect your account
 

@@ -1,6 +1,6 @@
 # Canonical accounts and lossless merge foundation
 
-Status: the production ownership/provider cutover completed on 2026-11-15. The general two-profile proof/callback API and resumable worker are now implemented and tested locally, but **general merging remains disabled and undeployed**. See [the guarded merge service](ACCOUNT_LINKING.md) for its release gates. Matching verified emails suggests a possible connection; it never grants access or transfers ownership.
+Status: the ownership/provider cutover and the separately approved general merge rollout are live. The guarded API, durable worker and recovery UI passed independent review, native SQL/session preservation and fault tests, the 877-test suite and production build. Authenticated worker execution and the free daily fallback schedule were verified after promotion. No general two-profile production merge has been run. Matching verified emails suggests a connection; only dual fresh proof and explicit confirmation authorize it. See [production evidence](verification/personal-accounts-production-release-2026-11-15.json).
 
 The database migrations are separate from the unchanged original isolation migration:
 
@@ -43,7 +43,7 @@ These public functions are executable only by `service_role`; the browser must n
 
 Job states: `proofs_pending → review_ready → frozen → revocation_pending → completed`, with `prepared` reserved and `reconcile_required` / `cancelled` for recovery. Participants cannot join another active job. Freeze, preparation and completion should be separate committed transactions. Never unfreeze on an ambiguous worker failure. Reconciliation must inspect the same durable job rather than creating a competing transfer.
 
-The local server now implements nonce/session-bound dual proofs, opaque discovery, preview/choice confirmation, durable stage retries, and authorized recovery/status endpoints. Actual two-identity Google browser verification and worker scheduling remain release gates; the feature stays disabled. [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) documents the exact boundary and local commands.
+The local server now implements nonce/session-bound dual proofs, opaque discovery, preview/choice confirmation, durable stage retries, and authorized recovery/status endpoints. The user waived a second human Google-account test; actual two-identity Google browser verification remains an explicit limitation. The worker schedule is configured and manual authenticated execution passed; its first daily scheduled invocation has not yet occurred. [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) documents the exact boundary and local commands.
 
 ## Better Auth live token boundary
 

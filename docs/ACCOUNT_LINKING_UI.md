@@ -1,6 +1,6 @@
 # Account merging interface contract
 
-The account-settings card is implemented in Hebrew and English, but **account merging is not enabled**. The status API still returns `{ "available": false }` unless its explicit server feature flag is enabled. A new server proof/review/recovery implementation is locally tested; see [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md). Real two-identity browser proof and operational release gates remain incomplete.
+The Hebrew/English account-settings card and guarded server flow are deployed and explicitly enabled in production. Local defaults remain off: without `ACCOUNT_LINKING_ENABLED=true`, status returns `{ "available": false }`. [Production release evidence](verification/personal-accounts-production-release-2026-11-15.json) records the active rollout; [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) covers recovery and authorization. A two-human-Google ceremony was explicitly waived and is not claimed verified; synthetic real-SDK/SQL preservation tests passed.
 
 The provider-independent DTO is [`types/account-linking.ts`](../types/account-linking.ts). [`AccountLinking`](../components/auth/account-linking.tsx) is mounted in My account. [`account-linking-client.ts`](../lib/account-linking-client.ts) validates API responses, rejects API redirects and accepts navigation only to the current origin. The existing session DTO is unchanged. Linked sign-in methods come from the server's status response, never from a canonical account-ID prefix.
 
@@ -15,7 +15,7 @@ The provider-independent DTO is [`types/account-linking.ts`](../types/account-li
 | `POST /api/account/link/:id/resume` | Resume the same durable operation → status |
 | `POST /api/account/link/:id/cancel` | Cancel only when still permitted → status |
 
-Every mutation requires server-side session authorization, same-origin/CSRF validation and binding to the exact operation. Browser-supplied candidate IDs, target IDs, counts and choices are never authority. Candidate responses must contain only opaque handles; no email, subject, portfolio counts or financial records before both identity proofs.
+Every mutation requires same-origin/CSRF validation and binding to the exact operation. Starting/discovering and proving identities require verified live sessions. After freeze deliberately revokes those sessions, recovery uses only the existing HttpOnly operation capability to resume that same already-confirmed job. Browser-supplied candidate IDs, target IDs, counts and choices are never authority. Candidate responses must contain only opaque handles; no email, subject, portfolio counts or financial records before both identity proofs.
 
 The server now binds a single-use challenge, signs out the old SDK session, and returns a local `/sign-in` URL whose return path is the operation callback. That callback checks the exact new live session and subject. The component contains no provider authorization URL or bearer token. Google authentication continues through the existing approved provider flow; operation capability secrets never appear in URLs.
 
