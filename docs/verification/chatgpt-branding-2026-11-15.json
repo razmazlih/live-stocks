@@ -49,7 +49,7 @@
   },
   "cloudPackageContentUpdated": false,
   "newAppCreated": false,
-  "permissionsChanged": false,
+  "permissionsChanged": true,
   "financialDataChanged": false,
   "references": [
     "https://github.com/openai/mcp-extensions/blob/main/docs/spec.md",
@@ -120,5 +120,28 @@
     "billingChanged": false,
     "duplicateClickPerformed": false,
     "dialogLeftOpen": true
+  },
+  "workspacePublicationResolved": {
+    "status": "PASS",
+    "actionTimeUserApprovalReceived": true,
+    "route": "Existing plugin detail > More actions > Share > Link access > Visible in RABEN directory > Save",
+    "saveClicks": 1,
+    "workspaceName": "RABEN",
+    "workspaceId": "c1a4e8b0-a065-4007-96b1-a7716d7ba9d8",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "samePluginId": true,
+    "sameAppId": true,
+    "sameReleaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "version": "1.1.0",
+    "sharingAndMetadataReadbackVerified": true,
+    "ownerPrincipalCount": 1,
+    "additionalInvitedPrincipals": 0,
+    "connectedProfileReadPassed": true,
+    "newPluginCreated": false,
+    "globalPublicSubmissionPerformed": false,
+    "billingChanged": false,
+    "catalogVisualReadback": "Not completed: user selected another Safari tab after Save; stopped UI and verified authoritative connectors instead",
+    "priorPublicationObservationsRetainedAsHistory": true
   }
 }
