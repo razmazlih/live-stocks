@@ -10,6 +10,14 @@ import { closeProposalValidationSchema, validateCloseProposal } from '@/lib/clos
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 const headers = { ...PRIVATE_HEADERS, 'X-Content-Type-Options': 'nosniff' };
+// Use the configured public origin, never an untrusted request Host, for brand assets.
+function serverInfo() {
+  const origin = new URL(authenticationConfiguration().mcpAudience).origin;
+  return { name: 'livestocks-analyst', title: 'LiveStocks', version: '0.1.0',
+    websiteUrl: origin,
+    icons: [{ src: `${origin}/brand/apple-touch-icon.png`, mimeType: 'image/png', sizes: ['180x180'] }],
+  };
+}
 const versions = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26'];
 const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
 const securitySchemes = [{ type: 'oauth2', scopes: ['portfolio:read'] }];
@@ -126,9 +134,13 @@ export async function POST(request: Request) {
   const result = (value: unknown) => json({ jsonrpc: '2.0', id: rpc.id, result: value });
   if (rpc.method === 'initialize') {
     const requested = rpc.params?.protocolVersion;
-    return result({ protocolVersion: typeof requested === 'string' && versions.includes(requested) ? requested : versions[0], capabilities: { tools: {} }, serverInfo: { name: 'livestocks-analyst', version: '0.1.0' }, instructions: INVESTMENT_POLICY });
+    return result({ protocolVersion: typeof requested === 'string' && versions.includes(requested) ? requested : versions[0], capabilities: { tools: {} }, serverInfo: serverInfo(), instructions: INVESTMENT_POLICY });
   }
-  if (rpc.method === 'server/discover') return result({ supportedVersions: versions, capabilities: { tools: {} }, serverInfo: { name: 'livestocks-analyst', version: '0.1.0' }, instructions: INVESTMENT_POLICY });
+  if (rpc.method === 'server/discover') {
+    const info = serverInfo();
+    return result({ supportedVersions: versions, capabilities: { tools: {} }, serverInfo: info,
+      _meta: { 'io.modelcontextprotocol/serverInfo': info }, instructions: INVESTMENT_POLICY });
+  }
   if (rpc.method === 'ping') return result({});
   if (rpc.method === 'tools/list') return result({ tools });
   if (rpc.method !== 'tools/call') return error(rpc.id, -32601, 'Method not found.');

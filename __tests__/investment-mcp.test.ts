@@ -8,7 +8,7 @@ vi.mock('@/lib/auth/server', () => ({
   requireMcpPrincipal: async () => ({ userId: 'auth0|test-user', kind: 'mcp' }),
   authenticationResponse: () => null,
   AuthenticationError: class extends Error {},
-  auth0Configuration: () => ({ issuer: 'https://tenant.auth0.com/', mcpAudience: 'https://example.com/api/mcp' }),
+  authenticationConfiguration: () => ({ issuer: 'https://tenant.auth0.com/', mcpAudience: 'https://example.com/api/mcp' }),
   PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
 }));
 vi.mock('@/app/api/portfolio/ai/route', () => ({ GET: mocks.snapshot }));
@@ -73,11 +73,23 @@ describe('read-only MCP transport and tools', () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
+    expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
+      icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
     expect(listed.result.tools).toHaveLength(7);
     expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
-    expect((await (await POST(request('server/discover'))).json()).result.supportedVersions).toContain('2026-07-28');
+    const discovery = (await (await POST(request('server/discover'))).json()).result;
+    expect(discovery.supportedVersions).toContain('2026-07-28');
+    expect(discovery._meta['io.modelcontextprotocol/serverInfo']).toEqual(init.result.serverInfo);
     expect((await GET(new Request('https://example.com/api/mcp'))).status).toBe(405);
+  });
+  it('advertises brand assets from configured origin even with a different request host', async () => {
+    const req = new Request('https://untrusted.example/api/mcp', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer signed-test-token' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+    });
+    const { result } = await (await POST(req)).json();
+    expect(result.serverInfo.icons[0].src).toBe('https://example.com/brand/apple-touch-icon.png');
   });
   it('exposes the bound account identity as structured profile content', async () => {
     const result = await call('get_profile');

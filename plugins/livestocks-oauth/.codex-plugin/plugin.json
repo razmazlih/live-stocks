@@ -9,11 +9,12 @@
     "category": "Other",
     "defaultPrompt": null,
     "developerName": "App developer",
-    "displayName": "LiveStocks (OAuth)",
+    "displayName": "LiveStocks",
     "longDescription": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
     "shortDescription": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות."
   },
   "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
   "version": "1.1.0",
-  "skills": "./skills"
+  "skills": "./skills",
+  "keywords": []
 }

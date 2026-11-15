@@ -1,0 +1,59 @@
+{
+  "status": "PARTIAL_NAME_VERIFIED_HOST_AVATAR_UNCHANGED",
+  "observedDate": "2026-11-15",
+  "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "displayName": "LiveStocks",
+  "displayNameVerifiedInOwningUI": true,
+  "localManifestsMatchCloudPresentation": true,
+  "requestedIcon": "https://razmaz-live-stocks.vercel.app/brand/apple-touch-icon.png",
+  "iconAsset": {
+    "status": 200,
+    "mimeType": "image/png",
+    "dimensions": "180x180",
+    "existingWebsiteAssetReused": true
+  },
+  "serverMetadata": {
+    "title": "LiveStocks",
+    "initializeIconsAdvertised": true,
+    "serverDiscoverMetadataIconsAdvertised": true,
+    "iconOriginUsesTrustedConfiguration": true
+  },
+  "deployment": {
+    "id": "dpl_3okGaXimbjkVwvqBkXcFawWJstLx",
+    "url": "https://live-stocks-eqhriuzzu-razs-projects-0212f70e.vercel.app",
+    "promoted": true,
+    "runtimeDigest": "dbbc4134614bb1e5a1dbad4a26140dcfc9b91dfc923a48ce57edf4c583475ae7",
+    "sourceOnlyUpload": true
+  },
+  "checks": {
+    "focusedMcpTestsPassed": 17,
+    "typecheckPassed": true,
+    "targetedLintPassed": true,
+    "productionBuildPassed": true,
+    "canonicalDiscoveryStatus": 200,
+    "anonymousMcpStatus": 401,
+    "anonymousPortfolioStatus": 401,
+    "connectedProfileReadPassed": true
+  },
+  "host": {
+    "refreshToolsAttempts": 1,
+    "refreshControlReturnedEnabled": true,
+    "browserReloadPerformed": true,
+    "websiteIconDisplayed": false,
+    "observedAvatar": "Existing generic multicolor icon",
+    "iconEditorObserved": false,
+    "oauthRemainedConnected": true,
+    "skillRemainedEnabled": true,
+    "appAndPluginIdentityPreserved": true
+  },
+  "cloudPackageContentUpdated": false,
+  "newAppCreated": false,
+  "permissionsChanged": false,
+  "financialDataChanged": false,
+  "references": [
+    "https://github.com/openai/mcp-extensions/blob/main/docs/spec.md",
+    "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/basic/index.mdx",
+    "https://developers.openai.com/plugins/deploy/connect-chatgpt"
+  ]
+}
