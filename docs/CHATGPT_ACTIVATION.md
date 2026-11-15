@@ -26,6 +26,8 @@ After the website launch, the authorized refresh of this existing App returned *
 
 These observations establish a limitation of the inspected controls, not proof that every supported migration path is unavailable. No new App was created, no package was published, no callback was guessed, and server authentication remains enforced. The existing connection is not yet usable with the new personal-account authentication. Resolve an ID-preserving host configuration path, or obtain an explicit decision about a replacement connection, before seeding a host client. See the [sanitized host inspection record](verification/chatgpt-existing-app-refresh-2026-11-15.json).
 
+A separate, **unsubmitted** new-connection form successfully discovered the production provider and displayed `https://chatgpt.com/connector_platform_oauth_redirect` as its callback. It offers a User-Defined OAuth Client, client ID/secret inputs and `client_secret_post`, with the correct canonical endpoints/resource and OIDC scopes. Its final button is **Create as a plugin**; this is a replacement-object path, not an observed way to preserve the old App ID or transfer its skill automatically. No credentials were entered and nothing was created. See the [form-only verification](verification/chatgpt-unsubmitted-oauth-form-2026-11-15.json). A replacement still requires an explicit rollout decision and complete host verification.
+
 Google's separately approved audience publication was completed and read back as **In production / External**. This makes the Google configuration public but does not itself prove a new non-test user's login or ChatGPT OAuth connectivity; see the [Google publication record](verification/google-public-sign-in-2026-11-15.json).
 
 ## Activation sequence

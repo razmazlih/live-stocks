@@ -1,0 +1,37 @@
+{
+  "status": "PASS_DISCOVERY_FORM_ONLY_NOT_CONNECTED",
+  "observedDate": "2026-11-15",
+  "method": "Safari Plugins > Add > Add custom MCP server",
+  "serverUrl": "https://razmaz-live-stocks.vercel.app/api/mcp",
+  "authentication": "OAuth",
+  "registrationMethod": "User-Defined OAuth Client",
+  "callbackUrl": "https://chatgpt.com/connector_platform_oauth_redirect",
+  "supportedTokenEndpointAuthMethods": ["none", "client_secret_basic", "client_secret_post"],
+  "oauthClientIdAndSecretFieldsPresent": true,
+  "discovered": {
+    "authorizationEndpoint": "https://razmaz-live-stocks.vercel.app/api/auth/oauth2/authorize",
+    "tokenEndpoint": "https://razmaz-live-stocks.vercel.app/api/auth/oauth2/token",
+    "issuer": "https://razmaz-live-stocks.vercel.app/api/auth",
+    "resource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+    "oidcEnabled": true,
+    "oidcConfigurationUrl": "https://razmaz-live-stocks.vercel.app/api/auth/.well-known/openid-configuration",
+    "userinfoEndpoint": "https://razmaz-live-stocks.vercel.app/api/auth/oauth2/userinfo",
+    "scopes": ["openid", "email", "profile", "offline_access", "portfolio:read"],
+    "defaultPortfolioReadSelected": true,
+    "dcrAvailable": false,
+    "cimdAvailable": false
+  },
+  "submitLabel": "Create as a plugin",
+  "submitted": false,
+  "newAppOrPluginCreated": false,
+  "credentialsEntered": false,
+  "riskCheckboxSelected": false,
+  "staticClientSeeded": false,
+  "existingAppIdPreservationOfferedByForm": false,
+  "verificationLimits": {
+    "authorizationCodeFlow": false,
+    "hostRefresh": false,
+    "hostDisconnect": false,
+    "automaticSkillTransfer": false
+  }
+}
