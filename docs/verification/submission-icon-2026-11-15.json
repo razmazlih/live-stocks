@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-15",
+  "source": "public/brand/livestocks.svg",
+  "sourceSha256": "cd92e4afe0f2d5dfe73c1ff405479375cb2de8e9c3577638890ed901866cf83b",
+  "renderer": "Existing Sharp SVG rasterizer; exact approved source; no redesign",
+  "path": "plugins/livestocks/submission-draft/assets/listing-logo.png",
+  "format": "png",
+  "width": 512,
+  "height": 512,
+  "alpha": true,
+  "transparentCorner": true,
+  "bytes": 14874,
+  "sha256": "305ff7542992c7552e4af5a02d1c45471ce55cd80ceb8178582fc09cf5232232",
+  "listingMinimumSatisfied": true,
+  "archiveCreated": false,
+  "visualSmallSizeReview": {
+    "size": 48,
+    "backgrounds": [
+      "white",
+      "#10151f"
+    ],
+    "status": "PASS",
+    "changeToApprovedDesign": false
+  },
+  "manifestIconPathsContained": true
+}

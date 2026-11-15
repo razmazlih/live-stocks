@@ -4,6 +4,8 @@
 
 Target project: `osvwctooasdxsztatirz`. The previously confirmed Auth0 subject remains the canonical portfolio ID. A separately proved Google login in the final Better Auth store gets an explicit alias to that profile. Email matching and signup order never assign legacy data.
 
+Auth-store-only preparation was executed on 2026-11-15: the reviewed 13-table schema, restricted backend role and private provenance marker now exist in the final project. All six financial table row digests stayed identical; financial schemas, policies and ownership were not changed. A protected, unpromoted maintenance deployment passed fixed canonical discovery, public asymmetric JWKS and a 503 portfolio blockade. The live alias is unchanged. See [sanitized execution evidence](verification/production-auth-store-only-2026-11-15.json). This is not a completed owner confirmation, hosted isolation gate, financial migration or live release.
+
 ## Reviewed source bundle
 
 | Migration | SHA-256 |

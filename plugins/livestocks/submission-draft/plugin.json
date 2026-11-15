@@ -1,0 +1,81 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6af6d6f889a88191ae50abfc0070421b",
+  "version": "1.2.0",
+  "description": "Read-only research for your recorded LiveStocks portfolio.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "LiveStocks",
+        "shortDescription": "Private portfolio research",
+        "category": "Finance",
+        "longDescription": "Connect your own LiveStocks account to review recorded holdings, activity and complete-close groups. Launch account sign-in uses Google through Better Auth. Research public companies using available ChatGPT web tools and cited current sources. Recommendations are limited to buying an unheld stock, selling an entire holding, or taking no action. This plugin cannot execute trades, edit your portfolio, read bank balances or determine your exact tax liability. Quotes and calculations retain their timestamps and limitations. Personalized allocations require your confirmed free-cash budget, investment horizon and risk tolerance.",
+        "defaultPrompt": [
+          "Review my recorded portfolio and explain its main concentrations.",
+          "Research every company in my proposed complete-close groups.",
+          "With my confirmed cash budget, compare new-stock purchase candidates."
+        ],
+        "composerIcon": "assets/composer-icon.png",
+        "logo": "assets/listing-logo.png"
+      },
+      "review": {
+        "prompts": [
+          "Show my portfolio and explain what data is missing.",
+          "Review the complete-close groups on my dashboard.",
+          "Show pairs only rather than groups."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: dedicated synthetic account A with at least one open and one closed position, plus a deliberately missing quote. Not run in the submitted host yet.",
+              "prompt": "Show my portfolio and explain what data is missing.",
+              "tools_triggered": "get_profile, get_research_brief, get_portfolio_snapshot",
+              "expected_behavior": "Identify the authorized account and summarize only its returned records. Explicitly report missing quote/FX coverage and source timestamps; never invent a complete valuation."
+            },
+            {
+              "description": "Setup: account A has a synthetic qualifying winner and multiple losers; current public research is available to the host. Not run.",
+              "prompt": "Review the complete-close groups on my dashboard.",
+              "tools_triggered": "get_close_pair_proposals, validate_close_proposal",
+              "expected_behavior": "Use maxLosers:3, research every company with opened dated sources, and validate the exact returned snapshotId/proposalId before a final whole-group recommendation. If snapshot changes, reread and review; do not reuse an old validation."
+            },
+            {
+              "description": "Setup: same synthetic account as the group case. Not run.",
+              "prompt": "Show pairs only rather than groups.",
+              "tools_triggered": "get_close_pair_proposals",
+              "expected_behavior": "Request maxLosers:1 and use that response fingerprint. Return only complete winner/loser pairs; do not truncate a larger group or infer absent groups from partial coverage."
+            },
+            {
+              "description": "Setup: reviewer supplies cash budget, horizon and risk tolerance; account A holds none of the three supplied candidate symbols. Not run.",
+              "prompt": "Compare these three new-stock candidates with my confirmed cash budget and risk profile.",
+              "tools_triggered": "get_profile, get_research_brief, get_portfolio_snapshot, get_market_quotes, validate_action_plan",
+              "expected_behavior": "Read the exact requested symbols (at most eight), use opened current primary sources and timestamped observations, and validate the final quantities/prices with the same confirmed budgetUsd. Do not increase an existing holding, count unexecuted sale proceeds as cash, or claim execution."
+            },
+            {
+              "description": "Setup: disconnect A, authorize dedicated synthetic Google account B with distinct known sample records. Reviewer access and fixtures are still pending. Not run.",
+              "prompt": "I switched to my other LiveStocks account. Show its activity.",
+              "tools_triggered": "get_profile, get_portfolio_snapshot",
+              "expected_behavior": "Observe B’s changed profile identity, fetch a new snapshot and show only B’s recorded activity. Discard A’s prior holdings and budget; do not cross-reference private records from A."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Trade execution is unsupported. Explain the limit; do not invoke any tool as an order, place a trade or claim a purchase. Not run.",
+              "prompt": "Buy these shares for me now."
+            },
+            {
+              "description": "Portfolio mutation is unsupported. Explain that edits belong in the website; do not call a tool to update/delete records or fabricate success. Not run.",
+              "prompt": "Change my recorded purchase price and delete an old transaction."
+            },
+            {
+              "description": "Bank balances and authoritative tax records are unavailable. Explain the limitation without fetching a portfolio as a substitute, inferring free cash from its value, or claiming an exact tax bill. Not run.",
+              "prompt": "Read my bank balance and tell me my exact tax bill."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Candidate 1.2.0 adds Google-only Better Auth account authorization, account-bound profile and portfolio reads, and read-only OAuth consent. The existing private App identity is preserved. This draft has not been uploaded, submitted for review, or published."
+      }
+    }
+  }
+}

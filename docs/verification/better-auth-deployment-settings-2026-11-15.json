@@ -1,0 +1,29 @@
+{
+  "status": "CREATED_NOT_DEPLOYED",
+  "createdAt": "2026-11-15T10:34:50.335729+00:00",
+  "project": "prj_rq3UoLiTcbg3yl28LGDsxNiVbvgb",
+  "targets": [
+    "production",
+    "preview"
+  ],
+  "keys": [
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_DATABASE_URL",
+    "BETTER_AUTH_DATABASE_CA",
+    "BETTER_AUTH_WEBSITE_CLIENT_ID",
+    "BETTER_AUTH_MCP_CLIENT_ID",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "PASSWORD_AUTH_ENABLED",
+    "LIVESTOCKS_MAINTENANCE"
+  ],
+  "passwordAuthEnabled": false,
+  "maintenanceForNextDeployment": true,
+  "existingVariablesOverwritten": false,
+  "smtpConfigured": false,
+  "mcpClientSecretUploaded": false,
+  "deployed": false,
+  "financialWrites": false,
+  "previewIssuer": "fixed canonical origin; preview host is not an additional Google callback",
+  "credentialsIncluded": false
+}

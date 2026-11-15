@@ -2,7 +2,7 @@
 
 The single active LiveStocks plugin uses a private cloud App connection to the existing application. No new website or local MCP process is needed.
 
-**Source candidate 1.2.0:** Better Auth on-site accounts, account-bound snapshots, stable canonical `get_profile`, and read-only authorization enforced in the API and database. This source has not replaced the published 1.1.0 connection. Production data and the active App binding remain unchanged until the live provider gate and owner migration pass. See [Better Auth setup](../../docs/BETTER_AUTH_SETUP.md), [hosted integration gate](../../docs/HOSTED_AUTH_GATE.md), [account setup and cutover](../../docs/ACCOUNTS.md) and [public-release preparation](PUBLIC_RELEASE.md).
+**Source candidate 1.2.0:** Google-only Better Auth accounts (password/email flows disabled by default; no SMTP needed), account-bound snapshots, stable canonical `get_profile`, and read-only authorization enforced in the API and database. This source has not replaced the published 1.1.0 connection. Production data and the active App binding remain unchanged until the live provider gate and owner migration pass. See [Better Auth setup](../../docs/BETTER_AUTH_SETUP.md), [hosted integration gate](../../docs/HOSTED_AUTH_GATE.md), [account setup and cutover](../../docs/ACCOUNTS.md) and [public-release preparation](PUBLIC_RELEASE.md).
 
 ![LiveStocks site icon](../../public/brand/apple-touch-icon.png)
 
@@ -19,7 +19,7 @@ The single active LiveStocks plugin uses a private cloud App connection to the e
 
 In ChatGPT, use the same account, start a new Chat or Work conversation, and select **LiveStocks** with `@`. Ask it to read the portfolio or analyze investment opportunities. Personalized allocations require a confirmed free-cash budget, investment horizon and risk tolerance.
 
-Tools in this source: `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across the connected user's accounts, or no action. There is no order execution or portfolio write tool. The candidate requires the same Auth0 account used on the website; do not enter credentials in chat.
+Tools in this source: `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `get_market_quotes`, `validate_action_plan`, `validate_close_proposal`. The research skill requires current external sources and permits only a BUY of an unowned stock, a full SELL across the connected user's accounts, or no action. There is no order execution or portfolio write tool. The candidate requires the same LiveStocks Google account used on the website; do not enter credentials in chat.
 
 ## Complete-close group review (1.1.0)
 
@@ -76,3 +76,9 @@ See the official [desktop-only package limitation](https://learn.chatgpt.com/doc
 Read-only source and ChatGPT Settings inspection confirmed private release `1.1.0` (`pluginrel_6af842632d8c8191aa9425bf0485c771`) and the same App binding. Current App version is `asdk_app_v_6af6d6f889b881918e34cce7bb732ffd`; both **Authorization supported** and **Authorization used** are **None**. No OAuth callback is displayed. The existing connection has **Refresh tools**, but no direct authentication editor before refresh. Nothing was refreshed, published, connected, deleted or recreated during this check.
 
 The [official refresh workflow](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata) covers authentication changes. After the hosted gate and coordinated server switch, refresh this existing App, verify OAuth metadata, copy the exact callback exposed by its management flow, seed the fixed client, and test real ChatGPT login/refresh/revocation. An in-place refresh is supported by documentation; migration of this particular no-auth connection has not yet been executed. Do not publish the source candidate as if that gate passed. Preserve `.app.json`, presentation and plugin/App IDs; adding an archive MCP declaration does not edit an App-owned connection.
+
+## Public submission draft (2026-11-15)
+
+[Separate metadata draft](submission-draft/plugin.json) contains supported English listing text (26-character subtitle, Finance category), three prompts, five positive and three negative review cases, and release notes. It is **not an uploadable bundle or ready-to-submit ZIP**. The private App binding and compatibility manifest remain unchanged. The [preparation report](PUBLIC_RELEASE.md) distinguishes local implementation, real-host review, and remaining publisher/demo/reviewer-access requirements. No public upload or publication was performed.
+
+The submission icon gap is resolved: the separate draft now references a 512px PNG listing logo exported directly from the approved SVG, with a 180px composer icon. The coordinator has provisioned authentication-only storage and a READY **unpromoted** maintenance deployment with canonical discovery/JWKS checks and finance-route 503s. This does not claim financial cutover, human Google login, ChatGPT OAuth or public publication.

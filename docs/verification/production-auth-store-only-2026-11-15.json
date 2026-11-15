@@ -1,0 +1,42 @@
+{
+  "status": "AUTH_STORE_ONLY_PROVISIONED",
+  "verifiedAt": "2026-11-15T10:47:15.923983+00:00",
+  "project": "osvwctooasdxsztatirz",
+  "authTables": 13,
+  "financialRows": {
+    "positions": 17,
+    "position_lots": 55,
+    "position_plans": 0,
+    "settings": 1,
+    "watchlist_groups": 1,
+    "watchlist_tickers": 4
+  },
+  "allFinancialRowDigestsUnchanged": true,
+  "financialTablesPoliciesOwnershipChanged": false,
+  "portfolioTransferred": false,
+  "dedicatedBackendTlsVerified": true,
+  "dedicatedBackendFinancialAccess": false,
+  "deployment": {
+    "id": "dpl_5KyKu1U18ECq71aANTNwW7rsXCbi",
+    "url": "https://live-stocks-e08b61737-razs-projects-0212f70e.vercel.app",
+    "state": "READY",
+    "promoted": false,
+    "sourceCommit": "2bda9e3",
+    "appSourceDigest": "b9e2fb270dcc32c3b13258bec9b4a19a23f6a3f0be2b79c4408d98bc4402dd55",
+    "cleanInstall": true,
+    "buildCacheUsed": false,
+    "fixedCanonicalDiscoveryStatus": 200,
+    "publicAsymmetricJwksStatus": 200,
+    "jwksPrivateKeyFields": false,
+    "portfolioMaintenanceStatus": 503,
+    "verificationAccess": "existing authenticated Vercel CLI; deployment protection retained"
+  },
+  "liveAlias": {
+    "name": "razmaz-live-stocks.vercel.app",
+    "deploymentId": "dpl_5yLNtaDX426Cp9Qz5rVeJqjPujvK",
+    "unchanged": true
+  },
+  "productionFinancialMigrationReady": false,
+  "realGoogleOwnerConfirmed": false,
+  "actualChatgptOAuthTested": false
+}
