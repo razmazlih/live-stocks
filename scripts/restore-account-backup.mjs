@@ -3,10 +3,12 @@
  * Never accepts a database URL, reads .env, or connects to an existing database.
  * Real restored data exists only in the mode-0700 disposable cluster directory.
  */
-import { createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
+import { SignJWT } from 'jose';
+import { AUTH_TABLES, restoredAuthAclSql, preprovisionAuthSql, adoptionGuardSql, confirmationRowsSql, verifyOwnerConfirmation, CONFIRMATION_ISSUER, CONFIRMATION_AUDIENCE } from './owner-store-adoption.mjs';
 import { spawn } from 'node:child_process';
-import { createReadStream } from 'node:fs';
-import { chmod, lstat, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
@@ -14,7 +16,7 @@ import { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { safeBackupDirectory } from './prepare-account-migration.mjs';
-import { freezeSql, migrationSql, frozenAssertions } from './cutover-personal-accounts.mjs';
+import { freezeSql, migrationSql, frozenAssertions, readMigrationBundle, MIGRATIONS, BUNDLE_SHA256 } from './cutover-personal-accounts.mjs';
 
 const tables = ['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers'];
 const cleanEnv = { PATH: process.env.PATH, LC_ALL: 'C', PGPASSFILE: '/dev/null', PGSERVICEFILE: '/dev/null' };
@@ -68,8 +70,8 @@ function decrypt(archive, key) {
 }
 
 async function main() {
-  const cutover = process.argv.length === 5 && process.argv[4] === '--rehearse-cutover';
-  const rehearse = cutover || (process.argv.length === 5 && process.argv[4] === '--rehearse-migration');
+  const rehearse = process.argv.length === 5 && ['--rehearse-cutover','--rehearse-migration'].includes(process.argv[4]);
+  const cutover = rehearse; // Both legacy flags now rehearse the complete guarded bundle.
   if ((!rehearse && process.argv.length !== 4) || process.argv[2] !== '--backup-directory') fail('Usage: RESTORE_POSTGRES_BIN=/absolute/postgresql17/bin CREDENTIAL_ENCRYPTION_KEY=protected-env node scripts/restore-account-backup.mjs --backup-directory /absolute/private/backup [--rehearse-migration]');
   const directory = await safeBackupDirectory(process.argv[3]);
   const dirInfo = await lstat(directory);
@@ -78,6 +80,7 @@ async function main() {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   if (manifest.status !== 'PREPARED_RESTORE_TEST_REQUIRED' || manifest.archive?.file !== 'public.pgdump.enc'
     || manifest.archive?.encryption !== 'aes-256-gcm' || manifest.archiveAuthenticated !== true) fail('Unsupported or incomplete backup manifest');
+  const sourceHasAuth=Array.isArray(manifest.schemas)&&manifest.schemas.includes('livestocks_auth');
   const archivePath = await protectedFile(join(directory, manifest.archive.file));
   const keyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
   if (!/^[0-9a-f]{64}$/i.test(keyHex ?? '')) fail('Explicit CREDENTIAL_ENCRYPTION_KEY is required');
@@ -112,6 +115,9 @@ async function main() {
   const report = { status: 'INCOMPLETE', kind: 'DISPOSABLE_LOCAL_RESTORE', startedAt: new Date().toISOString(),
     sourceServerVersion: manifest.serverVersion, localPostgres: pgVersion, pgRestore: restoreVersion,
     ciphertextSha256: manifest.archive.ciphertextSha256, archiveAuthenticated: true, productionWrites: false,
+    tooling:{cutoverGeneratorSha256:createHash('sha256').update(await readFile(new URL('./cutover-personal-accounts.mjs',import.meta.url))).digest('hex'),
+      ownerStoreToolSha256:createHash('sha256').update(await readFile(new URL('./owner-store-adoption.mjs',import.meta.url))).digest('hex'),
+      restoreToolSha256:createHash('sha256').update(await readFile(new URL('./restore-account-backup.mjs',import.meta.url))).digest('hex')},
     restoredTables: {}, digestTimeZone: 'UTC', restoreTested: false, cleanup: 'PENDING', phase: 'initialize' };
   const query = (sql, expectedErrorMarker) => run('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'], env, sql, expectedErrorMarker);
   try {
@@ -122,6 +128,7 @@ async function main() {
     const actualData = await query('show data_directory;');
     if (resolve(actualData) !== resolve(data)) fail('Local database identity mismatch');
     await query('create role anon; create role authenticated; create role service_role;');
+    if(sourceHasAuth)await query('create role livestocks_auth_backend login noinherit nosuperuser nobypassrls nocreatedb nocreaterole;');
     report.phase = 'restore_archive';
     const restore = start('pg_restore', ['--dbname=postgres', '--clean', '--if-exists', '--no-owner', '--no-privileges', '--exit-on-error'], env);
     restore.stdout.resume();
@@ -141,16 +148,93 @@ async function main() {
     report.restoreTested = true;
     if (rehearse) {
       report.phase = 'migration_rollback_rehearsal';
-      const name = '20261114114916_auth0_user_isolation.sql';
-      const migration = await readFile(fileURLToPath(new URL(`../supabase/migrations/${name}`, import.meta.url)), 'utf8');
+      const bundle = await readMigrationBundle();
+      const binding = { adoptAuthStore:true,kind:'LOCAL_REHEARSAL', legacyOwnerSubject:manifest.ownerSubject, subject:`synthetic-owner-${randomBytes(16).toString('hex')}`,
+        origin:'https://livestocks-rehearsal.invalid',websiteClientId:'livestocks-rehearsal-web',mcpClientId:'livestocks-rehearsal-mcp' };
       const parameters = await readFile(await protectedFile(join(directory, 'migration-parameters.sql')), 'utf8');
-      if ((migration.match(/^\s*commit\s*;/gmi) ?? []).length !== 1 || !/\bcommit;\s*$/i.test(migration)) fail('Reviewed migration transaction structure has changed');
+      const quoted = value => `'${String(value).replaceAll("'", "''")}'`;
+      // pg_restore --no-privileges omits original ACLs. Reconstruct only the
+      // reviewed boundary locally; the production database is never changed.
+      await query('revoke execute on all functions in schema public from public;');
+      const owner=manifest.ownerSubject,ownerLiteral=quoted(owner);
+      let sessionId,sessionCreated,runId,syntheticConfirmationSecret;
+      if(sourceHasAuth){
+        await query(restoredAuthAclSql(bundle[2].source));
+        for(const table of AUTH_TABLES){
+          const stats=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r;`));
+          if(stats.rowCount!==manifest.authStoreTables?.[table]?.rowCount||stats.originalDigest!==manifest.authStoreTables?.[table]?.originalDigest)fail('Restored final auth store differs from its encrypted backup baseline');
+        }
+        const proof=manifest.ownerConfirmation;
+        if(!proof||typeof process.env.BETTER_AUTH_SECRET!=='string')fail('Final-store restoration requires its recorded owner proof and explicit Better Auth secret');
+        const receipt=await query(`select value from livestocks_auth.verification where id=${quoted(proof.runId)};`);
+        const artifact={proofType:'better_auth_final_store_confirmation',userId:proof.userId,email:proof.email,emailVerified:true,confirmedAt:proof.confirmedAt,authSessionId:proof.sessionId,authSessionCreatedAt:proof.sessionCreatedAt,confirmationRunId:proof.runId,confirmationReceipt:receipt,confirmationIssuer:CONFIRMATION_ISSUER,legacyOwnerSubject:owner,finalAuthStoreProject:'osvwctooasdxsztatirz'};
+        binding.subject=proof.userId;binding.ownerConfirmation=await verifyOwnerConfirmation(artifact,{userId:owner,email:proof.email,emailVerified:true},process.env.BETTER_AUTH_SECRET);
+        if(binding.ownerConfirmation.receiptSha256!==proof.receiptSha256)fail('Stored owner receipt differs from the verified backup proof');
+        sessionId=proof.sessionId;sessionCreated=proof.sessionCreatedAt;runId=proof.runId;
+      }else{
+        await query(preprovisionAuthSql(bundle[2].source,{backendPassword:randomBytes(32).toString('hex')}));
+        sessionId=`synthetic-session-${randomBytes(16).toString('hex')}`;runId=randomUUID();
+        const now=Math.floor(Date.now()/1000),confirmedAt=new Date().toISOString(),email='restore-proof@example.invalid',confirmationSecret=randomBytes(48).toString('hex');
+        sessionCreated=now-10;syntheticConfirmationSecret=confirmationSecret;
+        const receipt=await new SignJWT({purpose:'confirmed',runId,sid:sessionId,email,email_verified:true,legacy_subject:owner,auth_session_created_at:sessionCreated,confirmed_at:confirmedAt})
+          .setProtectedHeader({alg:'HS256'}).setSubject(binding.subject).setIssuer(CONFIRMATION_ISSUER).setAudience(CONFIRMATION_AUDIENCE).setJti(runId).setIssuedAt(now).setExpirationTime(now+900).sign(new TextEncoder().encode(confirmationSecret));
+        const artifact={proofType:'better_auth_final_store_confirmation',userId:binding.subject,email,emailVerified:true,confirmedAt,authSessionId:sessionId,authSessionCreatedAt:sessionCreated,confirmationRunId:runId,confirmationReceipt:receipt,confirmationIssuer:CONFIRMATION_ISSUER,legacyOwnerSubject:owner,finalAuthStoreProject:'osvwctooasdxsztatirz'};
+        binding.ownerConfirmation=await verifyOwnerConfirmation(artifact,{userId:owner,email,emailVerified:true},confirmationSecret);
+        await query(`begin read write;set local role livestocks_auth_backend;
+          insert into livestocks_auth."user"(id,name,email,"emailVerified") values(${quoted(binding.subject)},'Local restore proof',${quoted(email)},true);
+          insert into livestocks_auth.session(id,token,"userId","createdAt","updatedAt","expiresAt") values(${quoted(sessionId)},${quoted(randomBytes(32).toString('hex'))},${quoted(binding.subject)},to_timestamp(${sessionCreated}),now(),now()+interval '1 hour');
+          insert into livestocks_auth.account(id,"accountId","providerId","userId","accessToken","updatedAt") values('synthetic-google-account','synthetic-google-id','google',${quoted(binding.subject)},'encrypted-synthetic-oauth-token',now());
+          insert into livestocks_auth.verification(id,identifier,value,"expiresAt") values(${quoted(runId)},${quoted('livestocks:owner-confirmation:'+runId)},${quoted(receipt)},to_timestamp(${now+900}));
+          insert into livestocks_auth.jwks(id,"publicKey","privateKey","createdAt") values('synthetic-signing-key','synthetic-public-key','encrypted-synthetic-private-key',now());commit;`);
+      }
+      const subject=quoted(binding.subject),issuer=quoted(`${binding.origin}/api/auth`);
+      const authData=async()=>Object.fromEntries(await Promise.all(AUTH_TABLES.map(async table=>[table,await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from livestocks_auth."${table}" r;`)])));
+      const authBefore=await authData();
+      report.ownerStore={preprovisioned:true,restoredExistingStore:sourceHasAuth,legacyAclReconstructedLocally:true,financialDataUntouched:true,exactAdoptionVerified:false,receiptSignatureVerified:true,realGoogleOwnerProved:false,structureDriftDenied:false,aclDriftDenied:false,markerDriftDenied:false,receiptDriftDenied:false,deletedSessionDenied:false,authRowsPreserved:false,rollbackKeptPreprovisionedStore:false};
+      if(!sourceHasAuth&&process.env.RESTORE_FINAL_STORE_PROBE==='1'){
+        // Exercise the future final-store archive format using this already
+        // private local clone. The nested archive and both clusters are removed.
+        const nested=join(runtime,'encrypted-final-store-probe');await mkdir(nested,{mode:0o700});
+        const nestedManifest=structuredClone(manifest);nestedManifest.schemas=['public','private','supabase_migrations','livestocks_auth'];nestedManifest.ownerConfirmation=binding.ownerConfirmation;nestedManifest.authStoreTables={};
+        for(const table of AUTH_TABLES)nestedManifest.authStoreTables[table]=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r;`));
+        const iv=randomBytes(12),aad=`livestocks:local-final-store-probe:${randomBytes(16).toString('hex')}`,cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from(aad));
+        const dump=start('pg_dump',['--format=custom','--no-owner','--no-privileges',...nestedManifest.schemas.map(name=>`--schema=${name}`)],env);dump.stdin.end();
+        const nestedArchive=join(nested,'public.pgdump.enc');await Promise.all([pipeline(dump.stdout,cipher,createWriteStream(nestedArchive,{flags:'wx',mode:0o600})),dump.done]);
+        const cipherDigest=createHash('sha256');for await(const chunk of createReadStream(nestedArchive))cipherDigest.update(chunk);
+        nestedManifest.archive={...manifest.archive,iv:iv.toString('base64url'),aad,tag:cipher.getAuthTag().toString('base64url'),ciphertextSha256:cipherDigest.digest('hex')};
+        await pipeline(createReadStream(nestedArchive),decrypt(nestedManifest.archive,key),new Writable({write(_c,_e,done){done();}}));
+        await writeFile(join(nested,'manifest.json'),JSON.stringify(nestedManifest),{mode:0o600});await writeFile(join(nested,'migration-parameters.sql'),parameters,{mode:0o600});
+        await run(process.execPath,[fileURLToPath(import.meta.url),'--backup-directory',nested,'--rehearse-cutover'],{...cleanEnv,RESTORE_POSTGRES_BIN:binaries,CREDENTIAL_ENCRYPTION_KEY:keyHex,BETTER_AUTH_SECRET:syntheticConfirmationSecret});
+        const nestedReport=JSON.parse(await readFile(join(nested,'restore-report.json'),'utf8'));
+        if(nestedReport.status!=='PASS'||nestedReport.cleanup!=='COMPLETE'||!nestedReport.ownerStore?.restoredExistingStore||!nestedReport.ownerStore?.authRowsPreserved)fail('Final-store archive round trip failed');
+        report.ownerStore.finalStoreEncryptedArchiveRestoreVerified=true;
+      }
+
+      for(const table of tables)if(await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from public.${table} r;`)!==manifest.tables[table].originalDigest)fail('Auth-only provisioning changed financial data');
+      for(const [mutation,marker,key] of [
+        ['alter table livestocks_auth."user" add column unexpected text;','Owner store structure or permissions changed','structureDriftDenied'],
+        ['grant select on livestocks_auth."user" to anon;','Owner store structure or permissions changed','aclDriftDenied'],
+        ["update private.owner_store_provision set prefix_sha256='changed';",'Unreviewed or already adopted owner store','markerDriftDenied'],
+        [`update livestocks_auth.verification set value='changed' where id=${quoted(runId)};`,'Final-store Google owner/session/receipt check failed','receiptDriftDenied'],
+        [`delete from livestocks_auth.session where id=${quoted(sessionId)};`,'Final-store Google owner/session/receipt check failed','deletedSessionDenied'],
+      ]){
+        let rejected=false;try{await query(`begin read write;set local search_path='';${mutation}${adoptionGuardSql(bundle[2].source)}${confirmationRowsSql(binding.ownerConfirmation)}commit;`,marker);}catch(error){if(!error.rollbackProbe)throw error;rejected=true;}
+        if(!rejected)fail('Adoption did not reject unreviewed state');report.ownerStore[key]=true;
+      }
+      await query(`begin read write;set local search_path='';${adoptionGuardSql(bundle[2].source)}${confirmationRowsSql(binding.ownerConfirmation)}rollback;`);
+      report.ownerStore.exactAdoptionVerified=true;
+
       await query("create schema auth; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth,public to anon,authenticated,service_role;");
-      report.migration = { file: name, sha256: createHash('sha256').update(migration).digest('hex'), rollbackVerified: false,
+      report.migration = { files:MIGRATIONS,bundleSha256:BUNDLE_SHA256, rollbackVerified:false,
+        bindingScope:sourceHasAuth?'FINAL_STORE_RECEIPT_ON_LOCAL_RESTORE':'SYNTHETIC_LOCAL_ONLY',realBetterAuthOwnerProved:false,explicitAliasVerified:false,liveAliasRlsVerified:false,
         financialDataPreserved: false, ownerVerified: false, encryptedCredentialVerified: false };
-      let reviewedSql = migration;
+      let reviewedSql;
       if (cutover) {
         report.phase = 'cutover_freeze_rehearsal';
+        if (await query("select to_regclass('private.account_cutover_state') is not null;") === 't') {
+          await query('alter table private.account_cutover_state rename to restored_source_cutover_state;');
+          report.restoredSourceFreezeMarkerPreserved = true;
+        }
         await query(`create role authenticator login password '${password}';grant all privileges on table ${tables.map(table => `public.${table}`).join(',')} to anon,authenticated,service_role;grant execute on all functions in schema public to anon,authenticated,service_role;`);
         const drainProbe = start('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'], { ...env, PGUSER: 'authenticator', PGAPPNAME: 'livestocks-cutover-drain-probe' });
         drainProbe.stdout.resume(); drainProbe.stdin.end('select pg_sleep(60);');
@@ -166,42 +250,43 @@ async function main() {
         if (!drained) fail('Freeze did not terminate the prior API backend');
         await query(frozenAssertions());
         const finalBaseline = { ...manifest, generatedAt: new Date().toISOString() };
-        report.cutover = { freezeCommitted: true, priorApiBackendDrained: true, staleBaselineDenied: false, snapshotDriftDenied: false,
+        report.cutover = { freezeCommitted: true, priorApiBackendDrained: true, staleBaselineDenied: false, snapshotDriftDenied: false, snapshotDigestDriftDenied:false,
           rollbackKeptFreeze: false, historyRecordedAtomically: false, serviceFinancialAccessReadOnly: false };
         for (const [candidate, marker, key] of [
           [manifest, 'Require committed freeze, completed drain and a subsequent final backup', 'staleBaselineDenied'],
           [{ ...finalBaseline, tables: { ...manifest.tables, positions: { ...manifest.tables.positions, rowCount: manifest.tables.positions.rowCount + 1 } } }, 'Final snapshot mismatch: positions', 'snapshotDriftDenied'],
+          [{ ...finalBaseline, tables: { ...manifest.tables, positions: { ...manifest.tables.positions, originalDigest:'0'.repeat(32) } } }, 'Final snapshot mismatch: positions', 'snapshotDigestDriftDenied'],
         ]) {
           let rejected = false;
-          try { await query(migrationSql(candidate, parameters, migration), marker); } catch (error) { if (error.rollbackProbe !== true) throw error; rejected = true; }
+          try { await query(migrationSql(candidate, parameters, bundle, binding), marker); } catch (error) { if (error.rollbackProbe !== true) throw error; rejected = true; }
           if (!rejected || await query("select to_regclass('public.user_profiles') is null;") !== 't') fail('Cutover guard did not reject without migration');
           await query(frozenAssertions()); report.cutover[key] = true;
         }
-        reviewedSql = migrationSql(finalBaseline, parameters, migration);
+        reviewedSql = migrationSql(finalBaseline, parameters, bundle, binding);
       }
       const marker = `livestocks_rollback_probe_${randomBytes(16).toString('hex')}`;
-      const injected = cutover
-        ? reviewedSql.replace(/\bcommit;\nnotify pgrst/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;\nnotify pgrst`)
-        : migration.replace(/\bcommit;\s*$/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;`);
+      const injected = reviewedSql.replace(/\bcommit;\nnotify pgrst/i, () => `do $$begin raise exception '${marker}'; end$$;\ncommit;\nnotify pgrst`);
       let failed = false;
-      try { await query(`${cutover ? '' : parameters}\n${injected}`, marker); } catch (error) {
+      try { await query(injected, marker); } catch (error) {
         if (error.rollbackProbe !== true) throw error;
         failed = true;
       }
-      if (!failed || await query("select to_regclass('public.user_profiles') is null;") !== 't') fail('Injected migration failure did not roll back schema changes');
+      if (!failed || await query("select to_regclass('public.user_profiles') is null and to_regclass('private.signin_method_operations') is null and to_regnamespace('livestocks_auth') is not null and exists(select 1 from pg_roles where rolname='livestocks_auth_backend') and not exists(select 1 from pg_roles where rolname='livestocks_merge_executor') and (select adopted_at is null from private.owner_store_provision where singleton);") !== 't') fail('Injected migration failure did not roll back schema changes');
       for (const table of tables) {
         const digest = await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from public.${table} r;`);
         if (digest !== manifest.tables[table].originalDigest) fail('Injected migration failure changed restored data');
       }
+      if (await query("select count(*)=0 from supabase_migrations.schema_migrations where version in('20261114114916','20261114145729','20261114151506','20261115094000');") !== 't') fail('Injected failure left partial migration history');
+      if(JSON.stringify(await authData())!==JSON.stringify(authBefore))fail('Rollback changed preprovisioned auth records');
+      report.ownerStore.rollbackKeptPreprovisionedStore=true;
+      report.migration.historyRollbackVerified = true;
       report.migration.rollbackVerified = true;
       if (cutover) { await query(frozenAssertions()); report.cutover.rollbackKeptFreeze = true; }
       report.phase = 'migration_apply_rehearsal';
-      await query(`${cutover ? '' : parameters}\n${reviewedSql}`);
-      const owner = manifest.ownerSubject;
+      await query(reviewedSql);
       if (typeof owner !== 'string' || !owner || owner.length > 255) fail('Invalid verified owner in protected manifest');
-      const ownerLiteral = `'${owner.replaceAll("'", "''")}'`;
       for (const table of tables) {
-        const stats = JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'digest',md5(coalesce(string_agg(md5((to_jsonb(r)-'user_id')::text),'' order by id),'')),'incorrectOwner',count(*) filter(where user_id<>${ownerLiteral})) from public.${table} r;`));
+        const stats = JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'digest',md5(coalesce(string_agg(md5((to_jsonb(r)-array['user_id','consolidated_into_position_id','is_active'])::text),'' order by id),'')),'incorrectOwner',count(*) filter(where user_id<>${ownerLiteral})) from public.${table} r;`));
         if (stats.rowCount !== manifest.tables[table].rowCount || stats.digest !== manifest.tables[table].migrationDigest || stats.incorrectOwner !== 0) fail(`Migration changed original data or owner for ${table}`);
       }
       if (await query(`select count(*)=1 from public.user_profiles where id=${ownerLiteral};`) !== 't') fail('Verified owner profile missing');
@@ -219,8 +304,20 @@ async function main() {
         if (createHash('sha256').update(value).digest('hex') !== manifest.legacyCredential.plaintextSha256) fail('Migrated credential did not preserve the original value');
       } else if (envelope) fail('Unexpected migrated credential');
       report.migration.encryptedCredentialVerified = true;
+      if (await query(`select exists(select 1 from private.identity_profiles where issuer=${issuer} and subject=${subject} and profile_id=${ownerLiteral} and state='active') and exists(select 1 from public.user_profiles where id=${ownerLiteral} and primary_pinned);`) !== 't') fail('Explicit owner alias or pinned canonical profile missing');
+      report.migration.explicitAliasVerified = true;
+      if(JSON.stringify(await authData())!==JSON.stringify(authBefore))fail('Adoption changed existing auth users, accounts, sessions or keys');
+      if(await query(`select adopted_at is not null and owner_receipt_sha256=${quoted(binding.ownerConfirmation.receiptSha256)} and new_owner_subject=${subject} from private.owner_store_provision where singleton;`)!=='t')fail('Adoption marker was not committed');
+      report.ownerStore.authRowsPreserved=true;
+      const claims = JSON.stringify({iss:`${binding.origin}/api/auth`,sub:binding.subject,sid:sessionId,azp:binding.websiteClientId,aud:`${binding.origin}/api/web`,role:'authenticated',scope:'portfolio:read portfolio:write',iat:Math.floor(Date.now()/1000),
+        'https://livestocks.app/read_only':false,'https://livestocks.app/email_verified':true,'https://livestocks.app/auth_session_id':sessionId,'https://livestocks.app/auth_session_created_at':sessionCreated});
+      const aliasCount = await query(`begin read only;set local role authenticated;do $$begin perform set_config('request.jwt.claims',${quoted(claims)},true);end$$;select count(*) from public.positions;rollback;`);
+      if (Number(aliasCount) !== manifest.tables.positions.rowCount) fail('Verified synthetic alias cannot read canonical portfolio through RLS');
+      if (await query(`select public.server_better_auth_token_valid(${subject},${quoted(sessionId)},${quoted(binding.websiteClientId)});`) !== 't') fail('Synthetic live owner session rejected');
+      report.migration.liveAliasRlsVerified = true;
+
       if (cutover) {
-        if (await query("select count(*)=1 from supabase_migrations.schema_migrations where version='20261114114916';") !== 't') fail('Cutover migration history was not recorded');
+        if (await query("select count(*)=4 from supabase_migrations.schema_migrations where version in('20261114114916','20261114145729','20261114151506','20261115094000');") !== 't') fail('Cutover migration history was not recorded');
         report.cutover.historyRecordedAtomically = true;
         for (const table of tables) {
           if (await query(`select has_table_privilege('service_role','public.${table}','SELECT') and not has_table_privilege('service_role','public.${table}','INSERT,UPDATE,DELETE,TRUNCATE') and not has_table_privilege('anon','public.${table}','SELECT,INSERT,UPDATE,DELETE');`) !== 't') fail('Post-cutover financial privileges incorrect');

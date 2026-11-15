@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { AUTH_TABLES, verifyOwnerConfirmation, adoptionGuardSql, confirmationRowsSql } from './owner-store-adoption.mjs';
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tables = ['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers'];
@@ -212,21 +213,34 @@ async function main() {
       + 'AUTH0_WEB_AUDIENCE, AUTH0_MCP_AUDIENCE, APP_BASE_URL. No .env loading.\n'
       + 'Choose a private, nonsynced existing backup directory outside Git and Desktop/Documents.\n'
       + 'Outputs encrypted archive, manifest and protected SQL session parameters only. Never applies a migration.\n'
-      + 'Keep the encryption key independently recoverable; restore testing remains required.');
+      + 'Keep the encryption key independently recoverable; restore testing remains required.\n'
+      + 'Final-store mode: set FINAL_OWNER_CONFIRMATION_FILE, LEGACY_OWNER_CONFIRMATION_FILE, LEGACY_MIGRATION_PARAMETERS_FILE and BETTER_AUTH_SECRET. It verifies the fresh final-store receipt/live rows and includes livestocks_auth; no legacy Auth0 access token or network verification is then used.');
     return;
   }
   if (process.argv.length !== 4 || process.argv[2] !== '--owner-sub' || !process.argv[3]) fail('An explicit --owner-sub EXACT_AUTH0_SUB is required');
-  const config = authConfiguration();
+  const finalStoreMode=Boolean(process.env.FINAL_OWNER_CONFIRMATION_FILE);
+  let config,owner,ownerConfirmation,checkedEnvironment;
+  if(finalStoreMode){
+    const privateJson=async name=>{const path=required(name);if(!isAbsolute(path))fail('Protected proof path must be absolute');const info=await lstat(path);if(!info.isFile()||info.isSymbolicLink()||info.uid!==process.getuid()||(info.mode&0o077))fail('Proof files must be private and owned');return JSON.parse(await readFile(path,'utf8'));};
+    const legacy=await privateJson('LEGACY_OWNER_CONFIRMATION_FILE'),artifact=await privateJson('FINAL_OWNER_CONFIRMATION_FILE');
+    if(legacy.userId!==process.argv[3])fail('Explicit canonical owner differs from original confirmation');
+    ownerConfirmation=await verifyOwnerConfirmation(artifact,legacy,required('BETTER_AUTH_SECRET'));
+    const {parseLegacyParameters,checkedProductionEnvironment}=await import('./cutover-personal-accounts.mjs');
+    const parameterPath=required('LEGACY_MIGRATION_PARAMETERS_FILE');if(!isAbsolute(parameterPath))fail('Absolute legacy parameter path required');const info=await lstat(parameterPath);if(!info.isFile()||info.isSymbolicLink()||info.uid!==process.getuid()||(info.mode&0o077))fail('Legacy parameter file must be private');
+    const values=parseLegacyParameters(await readFile(parameterPath,'utf8'));if(values['app.legacy_owner_subject']!==legacy.userId)fail('Legacy parameter owner differs');
+    config={issuer:values['app.auth0_issuer'],websiteClientId:values['app.auth0_website_client_id'],mcpClientId:values['app.auth0_mcp_client_id'],websiteAudience:values['app.auth0_website_audience'],mcpAudience:values['app.auth0_mcp_audience']};
+    owner={subject:legacy.userId};checkedEnvironment=await checkedProductionEnvironment(required('MIGRATION_DATABASE_URL'),required('MIGRATION_SSL_ROOT_CERT'));
+  }else config=authConfiguration();
   const keyHex = required('CREDENTIAL_ENCRYPTION_KEY');
   if (!/^[0-9a-f]{64}$/i.test(keyHex)) fail('CREDENTIAL_ENCRYPTION_KEY must be 64 hexadecimal characters');
   const key = Buffer.from(keyHex, 'hex');
-  const owner = await verifyOwnerToken(required('LEGACY_OWNER_ACCESS_TOKEN'), process.argv[3], config,
+  if(!finalStoreMode)owner = await verifyOwnerToken(required('LEGACY_OWNER_ACCESS_TOKEN'), process.argv[3], config,
     createRemoteJWKSet(new URL('.well-known/jwks.json', config.issuer), { timeoutDuration: 10_000 }));
   const backupRoot = await safeBackupDirectory(required('MIGRATION_BACKUP_DIRECTORY'));
-  const dbEnv = await databaseEnvironment(required('MIGRATION_DATABASE_URL'), required('MIGRATION_SSL_ROOT_CERT'));
+  const dbEnv = checkedEnvironment ?? await databaseEnvironment(required('MIGRATION_DATABASE_URL'), required('MIGRATION_SSL_ROOT_CERT'));
   const [dumpVersion, restoreVersion] = await Promise.all([utilityVersion('pg_dump'), utilityVersion('pg_restore')]);
   let session; let outputDirectory;
-  const manifest = { status: 'INCOMPLETE', generatedAt: new Date().toISOString(), schemas: ['public','private','supabase_migrations'], digestTimeZone: 'UTC', restoreTested: false,
+  const manifest = { status: 'INCOMPLETE', generatedAt: new Date().toISOString(), schemas: ['public','private','supabase_migrations',...(finalStoreMode?['livestocks_auth']:[])], digestTimeZone: 'UTC', restoreTested: false,
     warning: 'Preparation is not approval to migrate. Restore-test the encrypted archive, freeze writes and recheck row hashes before cutover.' };
   try {
     session = new SnapshotSession(dbEnv);
@@ -234,6 +248,13 @@ async function main() {
     if (!Number.isInteger(serverVersion) || dumpVersion.major < Math.floor(serverVersion / 10000)
       || restoreVersion.major < dumpVersion.major) fail('pg_dump must be at least the server major; pg_restore must be at least pg_dump major');
     await session.query('begin isolation level repeatable read read only');
+    if(finalStoreMode){
+      await session.query("set local search_path=''");
+      const authSource=await readFile(new URL('../supabase/migrations/20261114151506_better_auth_private_sessions.sql',import.meta.url),'utf8');
+      await session.query(adoptionGuardSql(authSource,{readOnly:true}));await session.query(confirmationRowsSql(ownerConfirmation));
+      manifest.ownerConfirmation=ownerConfirmation;manifest.authStoreTables={};
+      for(const table of AUTH_TABLES)manifest.authStoreTables[table]=JSON.parse(await session.query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r`));
+    }
     const snapshot = await session.query('select pg_export_snapshot()');
     if (!/^[0-9a-f]+-[0-9a-f]+-\d+$/i.test(snapshot)) fail('Unexpected exported snapshot identifier');
     outputDirectory = await mkdtemp(join(backupRoot, 'livestocks-account-migration-'));
@@ -264,7 +285,7 @@ async function main() {
     const digest = createHash('sha256');
     const hasher = new Transform({ transform(chunk, _encoding, callback) { digest.update(chunk); callback(null, chunk); } });
     const archive = join(outputDirectory, 'public.pgdump.enc');
-    const dump = start('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--schema=public', '--schema=private', '--schema=supabase_migrations', `--snapshot=${snapshot}`], dbEnv);
+    const dump = start('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', ...manifest.schemas.map(schema=>`--schema=${schema}`), `--snapshot=${snapshot}`], dbEnv);
     dump.stdin.end();
     await Promise.all([pipeline(dump.stdout, cipher, hasher, createWriteStream(`${archive}.partial`, { flags: 'wx', mode: 0o600 })), dump.done]);
     await rename(`${archive}.partial`, archive);
