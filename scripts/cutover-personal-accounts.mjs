@@ -25,7 +25,8 @@ export const TABLES = ['positions','position_lots','position_plans','settings','
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 // Local bundle proof is necessary, never sufficient: real owner provisioning,
 // hosted role/JWKS/RLS gates and deployment closure must also be reviewed.
-export const CUTOVER_READY = false;
+// Operator-only process input: never a deployment/public setting or a source edit.
+export const CUTOVER_READY = process.env.LIVESTOCKS_CUTOVER_BUNDLE_APPROVAL === BUNDLE_SHA256;
 const roleList='public, anon, authenticated, service_role';
 const tableList=TABLES.map(name=>`public.${name}`).join(', ');
 function check(condition,message){if(!condition)throw new Error(message);}
@@ -260,7 +261,7 @@ export async function checkedProductionEnvironment(url,certificate){
 
 async function main(){
   if(process.argv.includes('--apply'))throw new Error('This tool cannot apply SQL. Follow the reviewed manual runbook after all gates pass.');
-  if(process.argv.includes('--help')){console.log('Preparation only: node scripts/cutover-personal-accounts.mjs --prepare|--check --project osvwctooasdxsztatirz --backup-directory /private/verified-backup --owner-file /private/confirmed-owner.json [--output-directory /private/existing-directory --binding-file /private/verified-new-owner.json]\n--check requires explicit MIGRATION_DATABASE_URL, MIGRATION_SSL_ROOT_CERT, canonical Better Auth config and --binding-file with the fresh final-store confirmation. It checks the receipt and exact live store read-only; no legacy Auth0 token or refresh is required. No .env loading, refresh token consumption or write mode. --prepare remains blocked by CUTOVER_READY; once approved it also requires the exact fresh final-store owner confirmation and provisioning proof. It never applies SQL.');return;}
+  if(process.argv.includes('--help')){console.log('Preparation only: node scripts/cutover-personal-accounts.mjs --prepare|--check --project osvwctooasdxsztatirz --backup-directory /private/verified-backup --owner-file /private/confirmed-owner.json [--output-directory /private/existing-directory --binding-file /private/verified-new-owner.json]\n--check requires explicit MIGRATION_DATABASE_URL, MIGRATION_SSL_ROOT_CERT, canonical Better Auth config and --binding-file with the fresh final-store confirmation. It checks the receipt and exact live store read-only; no legacy Auth0 token or refresh is required. No .env loading, refresh token consumption or write mode. --prepare requires LIVESTOCKS_CUTOVER_BUNDLE_APPROVAL to equal the exact reviewed BUNDLE_SHA256 in this operator process; it defaults to blocked and never loads .env. No source edit is needed. Once approved it also requires the exact fresh final-store owner confirmation and provisioning proof. It never applies SQL.');return;}
   const args=process.argv.slice(2);const mode=args.shift();check(['--check','--prepare'].includes(mode),'Select --check or --prepare');const opts={};
   while(args.length){const name=args.shift();const value=args.shift();check(['--project','--backup-directory','--owner-file','--output-directory','--binding-file'].includes(name)&&value&&!opts[name],'Invalid or duplicate argument');opts[name]=value;}
   check(opts['--project']===TARGET_PROJECT,'Exact production project confirmation required');
@@ -269,7 +270,7 @@ async function main(){
   const bundle=await readMigrationBundle();
   if(mode==='--prepare'){
     if (!CUTOVER_READY) {
-      console.error('Production package blocked: rehearse the complete canonical-profile migration and pass the on-site authentication/refresh-revocation gates first.');
+      console.error('Production package blocked: exact operator bundle approval is missing. Complete and review hosted, cleanup, deployment-closure and fresh-owner gates first.');
       throw new Error('Cutover is not ready');
     }
     const binding=await verifyProductionBinding(manifest,JSON.parse(await privateFile(opts['--binding-file'])),owner);

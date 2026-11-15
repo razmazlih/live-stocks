@@ -1,5 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { parametersFile } from '../scripts/prepare-account-migration.mjs';
 import { CUTOVER_READY, BUNDLE_SHA256, MIGRATIONS, readMigrationBundle, validateBundle, parseLegacyParameters, validatedBinding, migrationSql, comparisonSql, freezeSql } from '../scripts/cutover-personal-accounts.mjs';
 const names=['positions','position_lots','position_plans','settings','watchlist_groups','watchlist_tickers'];
@@ -7,6 +10,14 @@ const manifest={ownerSubject:'auth0|confirmed-old-owner',generatedAt:'2026-11-15
 const values={'app.auth0_issuer':'https://old.invalid/','app.auth0_website_client_id':'old-website','app.auth0_mcp_client_id':'old-mcp','app.auth0_website_audience':'https://old.invalid/api/web','app.auth0_mcp_audience':'https://old.invalid/api/mcp','app.legacy_owner_subject':manifest.ownerSubject,'app.legacy_finnhub_encrypted':'v1.synthetic.encrypted.envelope'};
 const binding={adoptAuthStore:true,ownerConfirmation:{userId:'synthetic-new-owner',sessionId:'synthetic-session',sessionCreatedAt:1000,runId:'00000000-0000-4000-8000-000000000000',confirmedAt:'2026-11-15T12:00:00Z',expiresAt:2000000000,email:'owner@example.invalid',legacyOwnerSubject:manifest.ownerSubject,receiptSha256:'c'.repeat(64)},kind:'LOCAL_REHEARSAL',legacyOwnerSubject:manifest.ownerSubject,subject:'synthetic-new-owner',origin:'https://rehearsal.invalid',websiteClientId:'rehearsal-web',mcpClientId:'rehearsal-mcp'};
 describe('complete guarded account cutover bundle',()=>{
+ it.each([undefined,'true','false','0'.repeat(64),BUNDLE_SHA256+' ',BUNDLE_SHA256])('requires exact process-only approval without editing source or running SQL: %s',value=>{
+  const file=new URL('../scripts/cutover-personal-accounts.mjs',import.meta.url),before=createHash('sha256').update(readFileSync(file)).digest('hex');
+  const env={PATH:process.env.PATH,...(value===undefined?{}:{LIVESTOCKS_CUTOVER_BUNDLE_APPROVAL:value})};
+  const code=`import {CUTOVER_READY,BUNDLE_SHA256} from ${JSON.stringify(file.href)};process.stdout.write(JSON.stringify({ready:CUTOVER_READY,bundle:BUNDLE_SHA256}));`;
+  const result=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',code],{env,encoding:'utf8',timeout:10000}));
+  expect(result).toEqual({ready:value===BUNDLE_SHA256,bundle:BUNDLE_SHA256});
+  expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(before);
+ });
  it('pins all four exact migration sources and their order',async()=>{
   const bundle=await readMigrationBundle();expect(bundle.map(entry=>entry.name)).toEqual(MIGRATIONS.map(entry=>entry.name));
   expect(()=>validateBundle([...bundle].reverse())).toThrow('order');

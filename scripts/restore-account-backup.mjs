@@ -81,6 +81,7 @@ async function main() {
   if (manifest.status !== 'PREPARED_RESTORE_TEST_REQUIRED' || manifest.archive?.file !== 'public.pgdump.enc'
     || manifest.archive?.encryption !== 'aes-256-gcm' || manifest.archiveAuthenticated !== true) fail('Unsupported or incomplete backup manifest');
   const sourceHasAuth=Array.isArray(manifest.schemas)&&manifest.schemas.includes('livestocks_auth');
+  if(sourceHasAuth&&manifest.authStoreDigestOrder!=='id COLLATE C')fail('Final auth-store backup needs explicit portable digest order; take a fresh backup');
   const archivePath = await protectedFile(join(directory, manifest.archive.file));
   const keyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
   if (!/^[0-9a-f]{64}$/i.test(keyHex ?? '')) fail('Explicit CREDENTIAL_ENCRYPTION_KEY is required');
@@ -171,7 +172,7 @@ async function main() {
       if(sourceHasAuth){
         await adminQuery(restoredAuthAclSql(bundle[2].source));
         for(const table of AUTH_TABLES){
-          const stats=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r;`));
+          const stats=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id collate "C"),''))) from livestocks_auth."${table}" r;`));
           if(stats.rowCount!==manifest.authStoreTables?.[table]?.rowCount||stats.originalDigest!==manifest.authStoreTables?.[table]?.originalDigest)fail('Restored final auth store differs from its encrypted backup baseline');
         }
         const proof=manifest.ownerConfirmation;
@@ -205,7 +206,7 @@ async function main() {
           insert into livestocks_auth.jwks(id,"publicKey","privateKey","createdAt") values('synthetic-signing-key','synthetic-public-key','encrypted-synthetic-private-key',now());commit;`);
       }
       const subject=quoted(binding.subject),issuer=quoted(`${binding.origin}/api/auth`);
-      const authData=async()=>Object.fromEntries(await Promise.all(AUTH_TABLES.map(async table=>[table,await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),'')) from livestocks_auth."${table}" r;`)])));
+      const authData=async()=>Object.fromEntries(await Promise.all(AUTH_TABLES.map(async table=>[table,await query(`select md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id collate "C"),'')) from livestocks_auth."${table}" r;`)])));
       const authBefore=await authData();
       report.ownerStore={preprovisioned:true,restoredExistingStore:sourceHasAuth,legacyAclReconstructedLocally:true,financialDataUntouched:true,exactAdoptionVerified:false,receiptSignatureVerified:true,realGoogleOwnerProved:false,structureDriftDenied:false,aclDriftDenied:false,markerDriftDenied:false,receiptDriftDenied:false,deletedSessionDenied:false,authRowsPreserved:false,rollbackKeptPreprovisionedStore:false};
       const expectedMemberships=JSON.parse(await query("select catalog_snapshot->'memberships' from private.owner_store_provision where singleton;"));
@@ -233,8 +234,8 @@ async function main() {
         // Exercise the future final-store archive format using this already
         // private local clone. The nested archive and both clusters are removed.
         const nested=join(runtime,'encrypted-final-store-probe');await mkdir(nested,{mode:0o700});
-        const nestedManifest=structuredClone(manifest);nestedManifest.schemas=['public','private','supabase_migrations','livestocks_auth'];nestedManifest.ownerConfirmation=binding.ownerConfirmation;nestedManifest.authStoreTables={};
-        for(const table of AUTH_TABLES)nestedManifest.authStoreTables[table]=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r;`));
+        const nestedManifest=structuredClone(manifest);nestedManifest.schemas=['public','private','supabase_migrations','livestocks_auth'];nestedManifest.ownerConfirmation=binding.ownerConfirmation;nestedManifest.authStoreDigestOrder='id COLLATE C';nestedManifest.authStoreTables={};
+        for(const table of AUTH_TABLES)nestedManifest.authStoreTables[table]=JSON.parse(await query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id collate "C"),''))) from livestocks_auth."${table}" r;`));
         const iv=randomBytes(12),aad=`livestocks:local-final-store-probe:${randomBytes(16).toString('hex')}`,cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from(aad));
         const dump=start('pg_dump',['--format=custom','--no-owner','--no-privileges',...nestedManifest.schemas.map(name=>`--schema=${name}`)],env);dump.stdin.end();
         const nestedArchive=join(nested,'public.pgdump.enc');await Promise.all([pipeline(dump.stdout,cipher,createWriteStream(nestedArchive,{flags:'wx',mode:0o600})),dump.done]);
@@ -375,6 +376,7 @@ async function main() {
     report.phase = 'verified';
   } catch (error) {
     // Retain diagnostics only in the user's protected backup directory; never stdout.
+    report.failure={name:error?.name??'Error',message:error?.message??'Restore failed'};
     if (error.privateDiagnostic) await writeFile(join(directory, 'restore-diagnostic.txt'), error.privateDiagnostic, { mode: 0o600 });
     throw error;
   } finally {

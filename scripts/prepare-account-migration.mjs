@@ -252,8 +252,8 @@ async function main() {
       await session.query("set local search_path=''");
       const authSource=await readFile(new URL('../supabase/migrations/20261114151506_better_auth_private_sessions.sql',import.meta.url),'utf8');
       await session.query(adoptionGuardSql(authSource,{readOnly:true}));await session.query(confirmationRowsSql(ownerConfirmation));
-      manifest.ownerConfirmation=ownerConfirmation;manifest.authStoreTables={};
-      for(const table of AUTH_TABLES)manifest.authStoreTables[table]=JSON.parse(await session.query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id),''))) from livestocks_auth."${table}" r`));
+      manifest.ownerConfirmation=ownerConfirmation;manifest.authStoreDigestOrder='id COLLATE C';manifest.authStoreTables={};
+      for(const table of AUTH_TABLES)manifest.authStoreTables[table]=JSON.parse(await session.query(`select jsonb_build_object('rowCount',count(*),'originalDigest',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'' order by id collate "C"),''))) from livestocks_auth."${table}" r`));
     }
     const snapshot = await session.query('select pg_export_snapshot()');
     if (!/^[0-9a-f]+-[0-9a-f]+-\d+$/i.test(snapshot)) fail('Unexpected exported snapshot identifier');
