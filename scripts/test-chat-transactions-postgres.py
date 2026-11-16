@@ -64,8 +64,10 @@ try:
     call(['pg_ctl', '-D', str(runtime / 'data'), '-l', str(runtime / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {port} -c unix_socket_directories=''", '-w', 'start']); started = True
     sql("create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;grant usage on schema auth,public to anon,authenticated,service_role")
     transaction_migration = root / 'supabase/migrations/20261116182648_chat_executed_transactions.sql'
+    commission_migration = root / 'supabase/migrations/20261116211749_require_chat_transaction_commission.sql'
+    correction_migration = root / 'supabase/migrations/20261117001000_web_reconciliation_corrections.sql'
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
-        if migration != transaction_migration:
+        if migration not in (transaction_migration, commission_migration, correction_migration):
             sql(migration.read_text())
     # Reproduce managed postgres: owns project objects but is NOINHERIT and
     # NOSUPERUSER, with only CREATEROLE plus explicitly granted schema rights.
@@ -106,13 +108,22 @@ try:
     # Replacing a proposal invalidates its earlier card; oversell rejects atomically.
     pending, ps, pq = prepare(source, side='SELL', quantity=1, price=155, before_quantity=1, before_average=100)
     invoke(pq)
-    replacement, rs, rq = prepare(source, side='BUY', quantity=1, price=200, commission=None, before_quantity=1, before_average=100, after_average=150)
+    unknown_pid, unknown_secret, unknown_query = prepare(source, side='BUY', quantity=1, price=200, commission=None, before_quantity=1, before_average=100, after_average=150)
+    # An old pending review may already contain unknown fees at release time.
+    invoke(unknown_query)
+    before_guard = snap()
+    sql("set session authorization fixture_transaction_migrator;" + commission_migration.read_text())
+    reject(confirm(unknown_pid, unknown_secret))
+    unknown_new, uns, unq = prepare(source, side='BUY', quantity=1, price=200, commission=None, before_quantity=1, before_average=100, after_average=150)
+    reject(unq)
+    assert snap() == before_guard
+    replacement, rs, rq = prepare(source, side='BUY', quantity=1, price=200, commission=0, before_quantity=1, before_average=100, after_average=150)
     invoke(rq); reject(confirm(pending, ps)); rr = json.loads(invoke(confirm(replacement, rs)))
-    assert not rr['commissionKnown']
-    persisted = snap(); unknown = next(row for row in persisted['lots'] if row['id'] == rr['lotId']); assert unknown['commission_known'] is False
+    assert rr['commissionKnown']
+    persisted = snap(); known = next(row for row in persisted['lots'] if row['id'] == rr['lotId']); assert known['commission_known'] is True
     bad, bs, bq = prepare(source, side='SELL', quantity=3, price=200, before_quantity=2, before_average=150, after_quantity=0, after_average=0)
     reject(bq); assert snap() == persisted
-    print('PASS pending replacement, unknown fee provenance, oversell rejection and rollback')
+    print('PASS old pending and new unknown-fee reviews denied, explicit zero retained, oversell rejection and rollback')
     # Review values and fingerprint must match; cancelling does not write a lot.
     cancelled, cs, cq = prepare(source, side='BUY', quantity=1, price=150, commission=0, before_quantity=2, before_average=150, after_average=150)
     invoke(cq); invoke("select public.cancel_chat_transaction_proposal('%s','%s')" % (cancelled, cs)); reject(confirm(cancelled, cs)); assert snap() == persisted
@@ -153,6 +164,55 @@ try:
         assert sql(f"select has_function_privilege('{role}','private.chat_transaction_worker(uuid,text,jsonb,jsonb,boolean)','EXECUTE')") == 'f'
     assert sql("select not rolcanlogin and not rolinherit and not rolsuper and not rolbypassrls from pg_roles where rolname='livestocks_transaction_executor'") == 't'
     print('PASS worker ACLs and restricted non-login non-bypass executor')
+    for role in ['anon', 'authenticated', 'service_role', 'livestocks_auth_backend']:
+        assert sql(f"select has_function_privilege('{role}','private.chat_transaction_worker_with_legacy_fee_validation(uuid,text,jsonb,jsonb,boolean)','EXECUTE')") == 'f'
+    sql(correction_migration.read_text())
+    def web(query, owner='fixture-a'):
+        claims = json.dumps({'sub': owner, 'write': True})
+        return sql(f"begin;set local role authenticated;set local request.jwt.claims='{claims}';{query};commit")
+    def web_reject(query):
+        try:
+            web(query)
+        except RuntimeError:
+            return
+        raise AssertionError('Invalid website correction succeeded')
+    def checkpoint(symbol, quantity=4):
+        position_id, lot_id = str(uuid.uuid4()), str(uuid.uuid4())
+        sql(f"insert into public.positions(id,user_id,symbol,display,image_url,location,entry_price,quantity,entry_date) values('{position_id}','fixture-a','{symbol}','{symbol}','','{source}',100,{quantity},'2026-01-01');insert into public.position_lots(id,user_id,position_id,side,price,quantity,executed_at,has_commission,commission_amount,basis_acquired_on,basis_date_estimate) values('{lot_id}','fixture-a','{position_id}','RECONCILE',100,{quantity},'2026-01-10',false,0,'2026-01-01',null)")
+        return position_id, lot_id
+    cp, cl = checkpoint('CORRECT')
+    before = sql(f"select row_to_json(l) from public.position_lots l where id='{cl}'")
+    update = f"update public.position_lots set side='BUY',price=95,executed_at='2026-01-01',has_commission=false,commission_amount=0,commission_known=true,basis_acquired_on=null,basis_date_estimate=null where id='{cl}'"
+    web(update, owner='fixture-b')
+    assert sql(f"select row_to_json(l) from public.position_lots l where id='{cl}'") == before
+    invoke(update)
+    assert sql(f"select row_to_json(l) from public.position_lots l where id='{cl}'") == before
+    for patch in ["position_id='" + result['positionId'] + "'", "id='" + str(uuid.uuid4()) + "'", "created_at='2025-01-01'", "executed_at='2099-01-01'", "commission_known=false", "basis_acquired_on='2026-01-01'"]:
+        web_reject(update.replace(' where id=', ',' + patch + ' where id='))
+        assert sql(f"select row_to_json(l) from public.position_lots l where id='{cl}'") == before
+    web(update)
+    corrected = json.loads(sql(f"select row_to_json(l) from public.position_lots l where id='{cl}'"))
+    assert corrected['side'] == 'BUY' and corrected['commission_known'] and corrected['basis_acquired_on'] is None
+    assert sql(f"select count(*) from public.position_lots where position_id='{cp}' and (side='RECONCILE' or not commission_known)") == '0'
+    summary = json.loads(sql(f"select private.chat_transaction_summary('{cp}')"))
+    assert summary['quantity'] == 4 and summary['average'] == 95
+    web(f"delete from public.position_lots where id='{cl}'")
+    assert float(sql(f"select quantity from public.positions where id='{cp}'")) == 0
+    dp, dl = checkpoint('DELETE')
+    invoke(f"delete from public.position_lots where id='{dl}'")
+    web(f"delete from public.position_lots where id='{dl}'", owner='fixture-b')
+    assert sql(f"select count(*) from public.position_lots where id='{dl}'") == '1'
+    web(f"delete from public.position_lots where id='{dl}'")
+    assert float(sql(f"select quantity from public.positions where id='{dp}'")) == 0
+    fp, fl = checkpoint('FIFO')
+    sale_id = str(uuid.uuid4())
+    sql(f"insert into public.position_lots(id,user_id,position_id,side,price,quantity,executed_at,has_commission,commission_amount) values('{sale_id}','fixture-a','{fp}','SELL',110,2,'2026-01-11',false,0)")
+    fifo_before = sql(f"select jsonb_agg(to_jsonb(l) order by id) from public.position_lots l where position_id='{fp}'")
+    web_reject(f"delete from public.position_lots where id='{fl}'")
+    web_reject(f"update public.position_lots set side='SELL',price=95,executed_at='2026-01-01',commission_known=true,basis_acquired_on=null,basis_date_estimate=null where id='{fl}'")
+    assert sql(f"select jsonb_agg(to_jsonb(l) order by id) from public.position_lots l where position_id='{fp}'") == fifo_before
+    print('PASS owner website correction/removal, known-fee BUY quality restoration, empty-position zero, crossowner/MCP denial, immutable fields and FIFO rollback')
+
 finally:
     if started:
         call(['pg_ctl', '-D', str(runtime / 'data'), '-m', 'immediate', '-w', 'stop'])
