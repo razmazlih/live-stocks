@@ -1,5 +1,9 @@
 # OAuth screenshot-sync reconnect investigation — 2026-11-16
 
+> Superseded diagnosis: the initial transport patch did not resolve the reported
+> host failure. The follow-up found and repaired a stale persisted OAuth resource
+> scope ceiling. See [the actual root-cause investigation](OAUTH_SYNC_RESOURCE_POLICY.md).
+
 ## Evidence and root-cause boundary
 
 Reading works while preparation needs an additional `portfolio:sync` scope. The

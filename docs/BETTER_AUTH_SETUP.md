@@ -39,6 +39,19 @@ Normal `npm test` skips this opt-in PostgreSQL case unless the protected local s
 
 The exported server-only `seedMcpClient(headers, redirectUris)` helper in `lib/auth/better-auth.ts` creates the configured client once from an already verified website session and `BETTER_AUTH_MCP_CLIENT_SECRET`. Supply only the host's observed exact callback URLs. It returns `{clientId, created}` without credentials. It is intentionally not an HTTP registration endpoint; there is no public DCR, client-management or seeding route. The disposable provider test exercises this helper with a synthetic authenticated cookie. The reviewed operator CLI is `scripts/seed-mcp-client.mjs`; it validates protected config, cookie and exact callback files, checks the live verified operator session, and refuses an existing differing registration. See [consent and seeding](OAUTH_CONSENT.md) and the [actual ChatGPT activation checklist](CHATGPT_ACTIVATION.md). Do not expose it as a public API.
 
+Optional screenshot sync requires **both** the registered client's scope ceiling and
+the persisted `livestocks_auth."oauthResource".allowedScopes` ceiling to include
+`portfolio:sync`. Better Auth resource seeding defaults to `insertOnly`: editing
+`providerOptions.resources` and redeploying does not update an existing resource.
+Token issuance intersects requested scopes with the persisted ceiling, potentially
+returning a successful but read-only token after sync consent. Run the reviewed
+seeder with `--enable-portfolio-sync --apply` for explicit operator opt-in. It now
+validates and repairs the exact known resource policy as well as the client,
+including when the client already supports sync. It preserves other policy fields
+and refuses disabled/unrecognized policies. This does not upgrade user consent,
+existing access tokens or read-only refresh families; fresh explicit authorization
+is still required. See [root cause and evidence](OAUTH_SYNC_RESOURCE_POLICY.md).
+
 Client policy is authorization code plus refresh token, PKCE required, explicit consent, exact MCP resource, read-only portfolio scope, five-minute access tokens. Browser `/api/auth/token` is disabled. Web database tokens are signed only by server code after checking a verified live session.
 
 Issuer: `${APP_BASE_URL}/api/auth`. JWKS: `${APP_BASE_URL}/api/auth/jwks`. Authorization-server metadata is available at `/.well-known/oauth-authorization-server/api/auth`; protected-resource metadata is at `/.well-known/oauth-protected-resource`. OIDC adds only the exact issuer-owned `/oauth2/userinfo` companion audience. MCP authorize requests without the exact canonical `${APP_BASE_URL}/api/mcp` resource are rejected before login redirects.
