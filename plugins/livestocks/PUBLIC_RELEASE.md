@@ -1,3 +1,7 @@
+## Publisher supplied — 2026-11-16
+
+The owner selected **Raz Mazlih** as the individual public publisher. Both `author.name` and `interface.developerName` now contain this exact spelling. This records the intended identity; OpenAI publisher verification has not been observed. Together with the earlier answers, publication choices are now complete: individual publisher Raz Mazlih, all available countries, free use. Older statements that these choices are unanswered are superseded. Remaining preparation concerns reviewer access, a hosted real demo, current public policy checks and the exact saved-submission tests/scans/attestations.
+
 ## Confirmed publication choices — 2026-11-16
 
 The owner explicitly selected **all available countries** and **free use**. The public manifest encodes unrestricted country targeting as `publication.countries: []`; this is intentional, not an unknown value. Free use must be reflected truthfully in the portal commerce declaration once its exact field format is verified. Publisher identity remains unanswered. Older pending-country and pending-pricing statements below are superseded by this confirmation. No submission or public publication has occurred.

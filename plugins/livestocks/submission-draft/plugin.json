@@ -20,7 +20,8 @@
         "websiteURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
         "supportURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
         "privacyPolicyURL": "https://razmaz-live-stocks.vercel.app/privacy?lang=en",
-        "termsOfServiceURL": "https://razmaz-live-stocks.vercel.app/terms?lang=en"
+        "termsOfServiceURL": "https://razmaz-live-stocks.vercel.app/terms?lang=en",
+        "developerName": "Raz Mazlih"
       },
       "review": {
         "prompts": [
@@ -84,9 +85,12 @@
         }
       },
       "publication": {
-        "release_notes": "Public candidate 1.2.0 is based on workspace release 1.1.3. Includes account-bound portfolio research, personal investment sources and optional screenshot reconciliation with separate consent and human confirmation inside ChatGPT. No trade execution. Publisher, country and commerce declarations, reviewer access, recorded demo and saved-submission checks remain pending.",
+        "release_notes": "Public candidate 1.2.0 is based on workspace release 1.1.3. Includes account-bound portfolio research, personal investment sources and optional screenshot reconciliation with separate consent and human confirmation inside ChatGPT. No trade execution. Intended publisher: Raz Mazlih. Free use in all available countries. Publisher verification, reviewer access, recorded demo and saved-submission checks remain pending.",
         "countries": []
       }
     }
+  },
+  "author": {
+    "name": "Raz Mazlih"
   }
 }
