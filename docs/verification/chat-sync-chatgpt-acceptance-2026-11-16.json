@@ -1,0 +1,818 @@
+{
+  "status": "REAL_CHATGPT_ACCEPTANCE_PASSED_AND_TEST_FIXTURE_REMOVED",
+  "observedDate": "2026-11-16",
+  "updatedAt": "2026-11-16T09:49:22.855474+00:00",
+  "source": {
+    "initialCardCommit": "c268b48b0c19f5972a50e23673d1c7616e51966d",
+    "modernResourceFixCommit": "122765321085158d2317bbffc7e1a0db09f42d4d",
+    "latestResourceUri": "ui://livestocks/screenshot-sync-v4.html",
+    "actualAppSourceNotGatewayOverride": true,
+    "resourceOverridesActive": false,
+    "finalTestedAppCommit": "2c9b845e002dbd019a42ad93dfc2cb02d74e7493"
+  },
+  "isolation": {
+    "productionAccess": false,
+    "productionPortfolioRead": false,
+    "productionPortfolioWrite": false,
+    "productionCredentialsUsed": false,
+    "productionAppChanged": false,
+    "sourceEnvironmentFilesCopied": false,
+    "syntheticAccounts": 2,
+    "database": "fresh disposable local PostgreSQL with real PostgREST",
+    "app": "real production Next build with generated test-only configuration",
+    "auth": "actual Better Auth synthetic password accounts and separate temporary ChatGPT OAuth connector",
+    "secondAccountRole": "independent financial sentinel; separate real-host sign-in not yet verified"
+  },
+  "actualChatGPT": {
+    "oauthConnection": "PASS_SYNTHETIC_ACCOUNT",
+    "initialOAuthLoginException": "Initial sign-in and consent use the isolated authorization page; financial review/confirmation remains inside ChatGPT.",
+    "syntheticImageUploads": 4,
+    "screenshotExtraction": "PASS_THREE_DISTINCT_IMAGE_TARGETS_IN_FOUR_UPLOADS",
+    "firstImageTarget": {
+      "symbol": "AAPL",
+      "quantity": 5,
+      "averageCostUsd": 110,
+      "acquiredOn": null
+    },
+    "secondImageTarget": {
+      "symbol": "AAPL",
+      "quantity": 6,
+      "averageCostUsd": 115,
+      "acquiredOn": null
+    },
+    "resourceLoaderRootCause": {
+      "httpStatus": 200,
+      "negotiatedProtocol": "2026-07-28",
+      "hostValidationType": "PerRequestReadResourceResult",
+      "missingFields": [
+        "ttlMs",
+        "cacheScope"
+      ],
+      "sourceFix": {
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "resultType": "complete"
+      },
+      "temporaryGatewayExperimentUsedOnlyForDiagnosis": true,
+      "actualSourceRebuiltBeforeFinancialConfirmation": true
+    },
+    "firstSourceCardRendering": "PASS_ACTUAL_CHATGPT_RENDERED_AFTER_PROTOCOL_FIX",
+    "firstHumanConfirmation": "PASS_APPLIED_EXACTLY_ONE_RECONCILE",
+    "firstFaultInjection": {
+      "upstreamConfirmationApplied": true,
+      "syntheticResponseLost": true,
+      "faultResponseWasInvalidModernContract": true,
+      "missingFaultResultType": true,
+      "uncertainErrorUiAcceptance": "NOT_CLAIMED_FOR_THIS_STAGE"
+    },
+    "firstHumanRetry": {
+      "status": "PASS_CACHED_RECEIPT",
+      "observedResponseAt": "2026-11-16T11:08:12+02:00",
+      "httpStatus": 200,
+      "resultType": "complete",
+      "isError": false,
+      "applied": true,
+      "uiSuccessStable": true,
+      "extraReconciliationLots": 0
+    },
+    "v2ToolMetadataRefresh": {
+      "needed": true,
+      "oldCachedUri": "ui://livestocks/screenshot-sync-v1.html",
+      "oldReadErrorCode": -32602,
+      "refreshClickedInTestAppOnly": true,
+      "actualV2ReadAt": "2026-11-16T11:16:47+02:00",
+      "actualV2ReadHttpStatus": 200,
+      "actualV2ReadResultType": "complete"
+    },
+    "v2CardRendering": "HISTORICAL_STAGE_SUPERSEDED_BY_FINAL_V4_ACCEPTANCE",
+    "v2ValidLostResponseErrorUi": "HISTORICAL_STAGE_SUPERSEDED_BY_FINAL_V4_ACCEPTANCE",
+    "v2HumanConfirmation": "HISTORICAL_STAGE_SUPERSEDED_BY_FINAL_V4_ACCEPTANCE",
+    "v2HumanRetry": "HISTORICAL_STAGE_SUPERSEDED_BY_FINAL_V4_ACCEPTANCE",
+    "cancellation": "PASS_WORK_CARD_CANCELLED_WITHOUT_FINANCIAL_CHANGE",
+    "hostSupersession": {
+      "status": "PASS_REAL_CHATGPT_PREPARE_WITHOUT_PREVIOUS_ID",
+      "twoReplacementPrepareCallsIncludedPreviousProposalId": false,
+      "observedDraftStatusCounts": {
+        "applied": 1,
+        "pending": 2
+      },
+      "nativeSupersessionTests": "PASS_RECORDED_SEPARATELY",
+      "migrationAppliedOnlyToDisposableFixture": true,
+      "afterMigrationStatusCounts": {
+        "applied": 1,
+        "pending": 1,
+        "superseded": 1
+      },
+      "migrationPreservedBothAccountsFinancialTablesExactly": true,
+      "latestPrepareAt": "2026-11-16T11:32:49+02:00",
+      "latestPrepareIncludedPreviousProposalId": false,
+      "latestStatusCounts": {
+        "applied": 1,
+        "pending": 1,
+        "superseded": 2
+      },
+      "bothFinancialAccountsUnchangedBeforeButton": true
+    },
+    "v3SourceReadProof": {
+      "authenticatedSyntheticGrant": true,
+      "httpStatus": 200,
+      "resultType": "complete",
+      "ttlMs": 0,
+      "cacheScope": "private",
+      "uri": "ui://livestocks/screenshot-sync-v3.html",
+      "htmlCharacterCount": 17679,
+      "htmlSha256": "587e9bbb2d1572bf6de32641dccd461a21a4a5fb5406a92e08aa9208a7d83fa2",
+      "overridesActive": false,
+      "actualChatGPTRendering": "PASS_PARENT_OBSERVED",
+      "actualChatGPTHostRead": {
+        "at": "2026-11-16T11:32:53+02:00",
+        "uri": "ui://livestocks/screenshot-sync-v3.html",
+        "httpStatus": 200
+      }
+    },
+    "v3HumanConfirmation": {
+      "status": "PASS_EXACTLY_ONE_RECONCILE",
+      "observedAt": "2026-11-16T11:34:28+02:00",
+      "httpStatus": 200,
+      "faultResultType": "complete",
+      "faultIsError": true,
+      "syntheticTarget": {
+        "symbol": "AAPL",
+        "quantity": 6,
+        "averageCostUsd": 115
+      },
+      "originalTradeLotsUnchanged": true,
+      "recordedRealizedProfitUsd": 40,
+      "secondAccountAllSixTablesUnchanged": true,
+      "lotCountBefore": 3,
+      "lotCountAfter": 4,
+      "uncertainErrorUi": "FAILED_RAW_TECHNICAL_ERROR_VISIBLE_REQUIRES_FRIENDLY_NORMALIZATION",
+      "retry": "NOT_RETRIED_THIS_STAGE_FINAL_V4_RETRY_PASSED"
+    },
+    "v4FinalAcceptance": {
+      "status": "PASS_REAL_CHATGPT_END_TO_END",
+      "syntheticTarget": {
+        "symbol": "AAPL",
+        "quantity": 7,
+        "averageCostUsd": 120,
+        "acquiredOn": null
+      },
+      "actualHostResourceRead": {
+        "at": "2026-11-16T11:42:42+02:00",
+        "uri": "ui://livestocks/screenshot-sync-v4.html",
+        "httpStatus": 200,
+        "resultType": "complete"
+      },
+      "reviewRenderedCorrectPreviousAndTargetHoldings": true,
+      "additionalQuestionsAsked": false,
+      "firstHumanConfirmation": {
+        "at": "2026-11-16T11:43:40+02:00",
+        "httpStatus": 200,
+        "faultResultType": "complete",
+        "faultIsError": true,
+        "upstreamAppliedExactlyOneReconciliation": true,
+        "lotCountBefore": 4,
+        "lotCountAfter": 5
+      },
+      "friendlyErrorUi": {
+        "status": "PASS_PARENT_OBSERVED",
+        "fixedHebrewCopy": true,
+        "retryButtonLabel": "\u05e0\u05d9\u05e1\u05d9\u05d5\u05df \u05d7\u05d5\u05d6\u05e8",
+        "retryEnabled": true,
+        "rawDiagnosticsVisible": false
+      },
+      "sameCardHumanRetry": {
+        "status": "PASS_CACHED_RECEIPT",
+        "at": "2026-11-16T11:44:30+02:00",
+        "httpStatus": 200,
+        "resultType": "complete",
+        "isError": false,
+        "applied": true,
+        "receiptStatus": "applied",
+        "bothAccountsExactlyEqualToAfterFirstClick": true,
+        "extraReconciliationLots": 0,
+        "stableSuccessUi": "PASS_PARENT_OBSERVED_GREEN_RECEIPT",
+        "buttonDisabled": true,
+        "buttonLabel": "\u05e1\u05d5\u05e0\u05db\u05e8\u05df",
+        "errorCleared": true
+      },
+      "originalBuySellLotsUnchanged": true,
+      "recordedRealizedProfitUsd": 40,
+      "secondAccountAllSixFinancialTablesUnchanged": true,
+      "workCancellation": {
+        "status": "PASS",
+        "workCardRendered": true,
+        "at": "2026-11-16T11:47:34+02:00",
+        "httpStatus": 200,
+        "resultType": "complete",
+        "isError": false,
+        "receiptStatus": "cancelled",
+        "bothAccountsExactlyUnchangedFromAfterRetry": true,
+        "targetQuantityNotApplied": 8
+      },
+      "actualChatGPTPortfolioReadback": {
+        "tool": "get_portfolio_snapshot",
+        "status": "PASS_PARENT_OBSERVED",
+        "symbol": "AAPL",
+        "quantity": 7,
+        "averageCostUsd": 120,
+        "at": "2026-11-16T11:45:29+02:00",
+        "httpStatus": 200,
+        "resultType": "complete",
+        "isError": false
+      }
+    },
+    "uniqueSyntheticImageFixtures": 3
+  },
+  "financialIntegrity": {
+    "before": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+          },
+          "position_lots": {
+            "count": 2,
+            "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 8,
+            "averageCostUsd": 100,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "beforeFirstSourceConfirmation": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+          },
+          "position_lots": {
+            "count": 2,
+            "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 8,
+            "averageCostUsd": 100,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "afterFirstHumanConfirmation": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+          },
+          "position_lots": {
+            "count": 3,
+            "digest": "fa22e2266541dd91c8691f85d32fa2ba4a0ca618d1de84353bd0370a861ed33e"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 5,
+            "averageCostUsd": 110,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "afterFirstHumanRetry": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+          },
+          "position_lots": {
+            "count": 3,
+            "digest": "fa22e2266541dd91c8691f85d32fa2ba4a0ca618d1de84353bd0370a861ed33e"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 5,
+            "averageCostUsd": 110,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "beforeV2FinalConfirmation": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+          },
+          "position_lots": {
+            "count": 3,
+            "digest": "fa22e2266541dd91c8691f85d32fa2ba4a0ca618d1de84353bd0370a861ed33e"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 5,
+            "averageCostUsd": 110,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "firstPhaseChecks": {
+      "accountAOriginalBuySellRowsUnchanged": true,
+      "accountARecordedRealizedProfitUsd": 40,
+      "accountALotCountBefore": 2,
+      "accountALotCountAfter": 3,
+      "exactlyOneReconciliationAdded": true,
+      "accountAAfter": {
+        "symbol": "AAPL",
+        "quantity": 5,
+        "averageCostUsd": 110
+      },
+      "retryAllFinancialStateExactlyEqual": true,
+      "accountBAllSixFinancialTablesExactlyUnchanged": true
+    },
+    "v2FinalChecks": "SUPERSEDED_BY_FINAL_V4_PROOFS"
+  },
+  "sourceResourceProof": {
+    "productionAccess": false,
+    "sourceCommit": "2c9b845e002dbd019a42ad93dfc2cb02d74e7493",
+    "authenticatedReadOnlySyntheticGrant": true,
+    "financialWriteRequested": false,
+    "resourceOverridesActive": false,
+    "actual": {
+      "status": 200,
+      "ttlMs": 0,
+      "cacheScope": "private",
+      "resultType": "complete",
+      "mimeType": "text/html;profile=mcp-app",
+      "uri": "ui://livestocks/screenshot-sync-v4.html",
+      "htmlCharacterCount": 17949,
+      "htmlSha256": "ecd887f9fb5ef08ffc2dc32ebe02b73d7a31027b69f2bcfd951a148dfdf8e069",
+      "staticMarker": false,
+      "actualConfirmButton": true,
+      "hasScript": true,
+      "hasResourceMetadata": true
+    }
+  },
+  "validation": {
+    "fullVitestPassed": 1009,
+    "fullVitestNativeSkipped": 3,
+    "nativePostgreSQLAndAuthProvider": "PASS_RECORDED_SEPARATELY",
+    "typecheck": "PASS_PARENT_RECORDED",
+    "lint": "PASS_PARENT_RECORDED",
+    "latestCommittedIsolatedBuild": "PASS",
+    "fixtureFaultGeneratorModernContractTests": 3,
+    "nativeAutomaticSupersessionSecurityAndConcurrency": "PASS_DISPOSABLE_POSTGRES"
+  },
+  "cleanup": {
+    "status": "PASS",
+    "temporaryChatGPTConnectorUninstalled": "PASS_PARENT_OBSERVED",
+    "permanentConnectorDraftDeletionClaimed": false,
+    "disposablePostgresPostgrestNextGatewayStopped": true,
+    "taskOwnedNgrokStopped": true,
+    "loopbackCredentialCopyPageStopped": true,
+    "portsNotListening": [
+      3137,
+      3138,
+      3140,
+      4040
+    ],
+    "privateCredentialStateRemoved": true,
+    "privateRuntimeAndGeneratedSourceRemoved": true,
+    "sanitizedProofsAndSyntheticImagesRetained": true,
+    "realPluginChanged": false,
+    "productionAccess": false
+  },
+  "limits": [
+    "All financial values in this artifact are synthetic fixtures, never the owner portfolio.",
+    "Initial extension file-upload permission failure was resolved through native file selection and clipboard upload; three unique synthetic images were subsequently prepared by ChatGPT.",
+    "Initial malformed fault and v3 technical-error UI are historical failures, corrected and reverified in final v4 real-host acceptance.",
+    "The model omitted previousProposalId; the final database migration automatically superseded the previous pending review and real-host evidence verified exactly one pending review.",
+    "The second account was a financial-isolation sentinel; an independent real-host sign-in as that account was not exercised.",
+    "Temporary test connector uninstall was observed; permanent connector-draft deletion is not claimed.",
+    "Actual host acceptance used Chrome desktop; physical-phone and live dark-theme acceptance are not claimed."
+  ],
+  "finalSyntheticFinancialSnapshot": [
+    {
+      "account": 1,
+      "tables": {
+        "positions": {
+          "count": 1,
+          "digest": "8c5077780d71647062ec155b65a8191bd9d1d2c1bf5a7244a648a0e306ae8852"
+        },
+        "position_lots": {
+          "count": 5,
+          "digest": "c64e88db50257694256e33cbb152676808bd930d978c2a5e1c3322a4d6d15e19"
+        },
+        "position_plans": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "settings": {
+          "count": 1,
+          "digest": "e476a7b8e6c7b58661487288dcfc4b74a594e6d846ed42cdb4810a71a28aced9"
+        },
+        "watchlist_groups": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "watchlist_tickers": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "originalTradeLots": {
+        "count": 2,
+        "digest": "8eccfe879201d55f9aad0d2d7cff474af5d438e473d16aeefd4c4b639701be5e"
+      },
+      "holdings": [
+        {
+          "symbol": "AAPL",
+          "quantity": 7,
+          "averageCostUsd": 120,
+          "recordedRealizedProfitUsd": 40
+        }
+      ]
+    },
+    {
+      "account": 2,
+      "tables": {
+        "positions": {
+          "count": 1,
+          "digest": "db4089714f09ae56f54dfcb7bca1d4c571b77ebbb3389bd346f97905a069a7b3"
+        },
+        "position_lots": {
+          "count": 1,
+          "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+        },
+        "position_plans": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "settings": {
+          "count": 1,
+          "digest": "80362fd863f947e61980ec362d792a8e26f40317c82252e47f1a325f30a955c0"
+        },
+        "watchlist_groups": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "watchlist_tickers": {
+          "count": 0,
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "originalTradeLots": {
+        "count": 1,
+        "digest": "f85660b772de448eeec2ebfe5dca6bb7430086e7c29c4b3e36da0e29da0e127b"
+      },
+      "holdings": [
+        {
+          "symbol": "MSFT",
+          "quantity": 7,
+          "averageCostUsd": 200,
+          "recordedRealizedProfitUsd": 0
+        }
+      ]
+    }
+  ],
+  "finalProposalStatusCounts": {
+    "applied": 3,
+    "cancelled": 1,
+    "superseded": 2,
+    "pending": 0
+  },
+  "screenshots": {
+    "success": "../screenshots/chat-sync-chatgpt-modern.jpg",
+    "safeRetry": "../screenshots/chat-sync-chatgpt-retry.jpg",
+    "workCancellation": "../screenshots/chat-sync-chatgpt-cancelled.jpg"
+  }
+}
