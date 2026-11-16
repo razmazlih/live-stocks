@@ -49,6 +49,9 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.body.textContent).toContain('בית השקעות אישי');
     expect(doc.body.textContent).not.toContain('private-widget-secret');
     expect(button('confirm').disabled).toBe(false);
+    expect(doc.getElementById('summary-count')?.textContent).toBe('החזקה אחת לעדכון');
+    expect(doc.getElementById('summary-state')?.textContent).toBe('ממתין לאישור שלך');
+    expect(doc.querySelector('.holding-total')?.textContent).toContain('550 USD');
     expect(toolCalls()).toHaveLength(0);
     expect(doc.querySelector('details')?.open).toBe(false);
   });
@@ -95,6 +98,8 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.getElementById('status')?.textContent).toContain('סונכרנו בהצלחה');
     expect(button('confirm').disabled).toBe(true);
     expect(button('cancel').disabled).toBe(true);
+    expect(doc.querySelector('main')?.dataset.state).toBe('applied');
+    expect(doc.getElementById('summary-state')?.textContent).toBe('הסנכרון הושלם');
   });
   it('cancels only through the app-only owner-bound tool after an explicit click', async () => {
     boot(); await initialize(); receive(); button('cancel').click();
