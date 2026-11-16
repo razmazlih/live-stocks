@@ -1,3 +1,27 @@
+## Email/password activation — 2026-11-16
+
+Canonical production now supports verified email/password alongside Google. Actual signup, verification/reset mail, login and old-session/password revocation passed with a dedicated empty demo account. Both emails landed in Gmail spam; verified sender-domain setup remains recommended for public launch. The public listing draft now reflects both sign-in methods. Account credentials remain outside Git. Reviewer fixtures, secure portal credentials, independent reviewer access and a real hosted demo remain pending; no public submission was made. Older statements that SMTP or password activation are missing are superseded. [Sanitized production evidence](../../../docs/verification/email-password-production-2026-11-16.json).
+
+Reviewer setup and a concrete synthetic-data walkthrough are documented in [REVIEWER_SETUP.md](REVIEWER_SETUP.md). Account creation and independent reviewer login remain pending.
+
+## Publisher supplied — 2026-11-16
+
+The owner selected **Raz Mazlih** as the individual public publisher. Both `author.name` and `interface.developerName` now contain this exact spelling. This records the intended identity; OpenAI publisher verification has not been observed. Together with the earlier answers, publication choices are now complete: individual publisher Raz Mazlih, all available countries, free use. Older statements that these choices are unanswered are superseded. Remaining preparation concerns reviewer access, a hosted real demo, current public policy checks and the exact saved-submission tests/scans/attestations.
+
+## Confirmed publication choices — 2026-11-16
+
+The owner explicitly selected **all available countries** and **free use**. The public manifest encodes unrestricted country targeting as `publication.countries: []`; this is intentional, not an unknown value. Free use must be reflected truthfully in the portal commerce declaration once its exact field format is verified. Publisher identity remains unanswered. Older pending-country and pending-pricing statements below are superseded by this confirmation. No submission or public publication has occurred.
+
+# Public preparation update — 2026-11-16
+
+**Incomplete, not an uploadable bundle.** Cloud readback confirms the active source is workspace release **1.1.3** (`pluginrel_6afad5c0a2c081919623d0a838fec5ff`). The public candidate remains 1.2.0. Its draft now includes optional human-confirmed screenshot reconciliation, six positive cases and three negative cases. These public submission cases remain unrun. The owner has requested global public publication; RABEN listing alone does not satisfy that request.
+
+Pending publisher/country/commerce answers, secure reviewer accounts, hosted real demo, current policy verification and saved-submission checks. Do not describe this version as universally read-only. Use the current cloud skill during final assembly; retain private bindings only in the original installed package. No cloud mutation, public upload or submission occurred in this update.
+
+The older preparation record follows for context; its source version and case count are superseded above.
+
+---
+
 # Incomplete public-submission draft
 
 **Not an uploadable package or submission-ready ZIP.** This separate draft now targets the active private **LiveStocks (OAuth)** source: App `asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`, plugin `plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`, private package **1.1.0**. The public candidate remains **1.2.0**. Its public display-name draft preserves the approved **LiveStocks** brand. The legacy private plugin was uninstalled with user approval; its owned cloud artifact and source were not permanently deleted.

@@ -25,7 +25,7 @@ export async function PublicInformation({ kind, searchParams }: {
         <div className="space-y-4">
           <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
           <p className="text-base leading-7 text-slate-600 dark:text-slate-300">{copy.intro}</p>
-          <p className="text-sm text-slate-500">{he ? 'עודכן: 14 בנובמבר 2026' : 'Updated: November 14, 2026'}</p>
+          <p className="text-sm text-slate-500">{he ? 'עודכן: 16 בנובמבר 2026' : 'Updated: November 16, 2026'}</p>
         </div>
         {copy.sections.map((section) => <section key={section.title} className="space-y-3">
           <h2 className="text-lg font-semibold">{section.title}</h2>
