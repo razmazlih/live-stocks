@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
   "author": {
     "name": "App developer"
