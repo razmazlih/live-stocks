@@ -81,3 +81,16 @@ The final source uses the versioned `ui://livestocks/screenshot-sync-v4.html` re
 ## Source-catalog production cutover — 16 November 2026
 
 The personal investment-source release applied both screenshot-sync schema prerequisites and the UUID source migration to production. Financial-table digests and legacy source assignments matched before/after cutover. Existing OAuth grants/client scopes were not widened. Plugin 1.1.2 published only source-catalog guidance; the separate screenshot-sync skill draft and ChatGPT host activation/rendering gate above remain distinct. See [source release verification](verification/investment-sources-production-2026-11-16.json).
+
+
+## Animated review and saved portfolio — local v5 redesign
+
+New tool metadata advertises `ui://livestocks/screenshot-sync-v5.html`; resource reads for v4 remain compatible for existing connections with cached templates. The new version replaces the review presentation with everyday Hebrew and the website's blue/navy palette. The review shows quantities, average purchase costs, total purchase cost, source, observation date, and known/estimated/missing acquisition dates. Original and screenshot values remain separate; accounting explanations stay in a disclosure.
+
+The user click starts a real pending state with an animated indicator. Only an authoritative applied receipt switches to the saved portfolio. `confirmChatScreenshotSync` then reads the authenticated `screenshot_sync_snapshot` after the write and returns `portfolio: {status, holdings, fetchedAt}`. Holdings include untouched accounts and use recorded quantities and cost bases, not invented live quotes. Missing costs remain null and suppress a complete aggregate. This separate read has a five-second deadline; failure returns `unavailable` while preserving the confirmed receipt. The UI distinguishes saved changes from an unavailable portfolio display. No extra write or trade is performed by the refresh.
+
+The saved screen marks affected symbol/source pairs and allows reopening the exact original review. Replayed pending results cannot erase success or re-enable confirmation. Replayed receipts without portfolio data retain an already-loaded portfolio.
+
+Theme selection follows the device's `prefers-color-scheme` through `color-scheme: light dark` and semantic `light-dark()` colors, including live theme changes without a reload. `prefers-reduced-motion: reduce` disables entrance, spinner and check-mark animations. There is no flashing, confetti, simulated percentage or artificial delay in the production UI.
+
+Local Chromium verification covers widths 320/390/760 in both themes, the pending → saving → portfolio sequence, reopening the review, live device theme changes and reduced motion. Unit coverage includes authoritative readback, untouched accounts, unknown costs, escaped data, replay, retries, and read timeouts. These are local/synthetic checks; the v4 real-ChatGPT acceptance above does not establish v5 host acceptance. No deployment, personal portfolio write, OAuth change or database migration was performed for this redesign.

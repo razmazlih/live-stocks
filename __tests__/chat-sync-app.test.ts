@@ -39,7 +39,7 @@ afterEach(() => { frame?.contentWindow?.close(); frame?.remove(); vi.clearAllTim
 
 describe('inline ChatGPT synchronization approval', () => {
   it('declares a standard self-contained MCP App without external scripts or fetch', () => {
-    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v4.html');
+    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v5.html');
     expect(CHAT_SYNC_RESOURCE_MIME).toBe('text/html;profile=mcp-app');
     expect(CHAT_SYNC_APP_HTML).not.toMatch(/<script[^>]+src=|fetch\(|localStorage|sessionStorage/);
   });
@@ -49,9 +49,9 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.body.textContent).toContain('בית השקעות אישי');
     expect(doc.body.textContent).not.toContain('private-widget-secret');
     expect(button('confirm').disabled).toBe(false);
-    expect(doc.getElementById('summary-count')?.textContent).toBe('החזקה אחת לעדכון');
-    expect(doc.getElementById('summary-state')?.textContent).toBe('ממתין לאישור שלך');
-    expect(doc.querySelector('.holding-total')?.textContent).toContain('550 USD');
+    expect(doc.getElementById('summary-count')?.textContent).toBe('מניה אחת לעדכון');
+    expect(doc.getElementById('summary-state')?.textContent).toBe('עוד לא שינינו כלום');
+    expect(doc.querySelector('.holding-total')?.textContent).toContain('550.00');
     expect(toolCalls()).toHaveLength(0);
     expect(doc.querySelector('details')?.open).toBe(false);
   });
@@ -63,8 +63,8 @@ describe('inline ChatGPT synchronization approval', () => {
     const stats = [...card.querySelectorAll('.holding-stat')];
     expect(stats.map(stat => stat.querySelector('.before bdi')?.textContent)).toEqual(['8', '100']);
     expect(stats.map(stat => stat.querySelector('.after bdi')?.textContent)).toEqual(['5', '110']);
-    expect(stats.every(stat => stat.querySelector('.before small')?.textContent === 'קיים')).toBe(true);
-    expect(stats.every(stat => stat.querySelector('.after small')?.textContent === 'אחרי הסנכרון')).toBe(true);
+    expect(stats.every(stat => stat.querySelector('.before small')?.textContent === 'בתיק')).toBe(true);
+    expect(stats.every(stat => stat.querySelector('.after small')?.textContent === 'מהצילום')).toBe(true);
     expect(toolCalls()).toHaveLength(0);
   });
   it('shows confirmed and estimated purchase dates as distinct parts of the review', async () => {
@@ -73,8 +73,8 @@ describe('inline ChatGPT synchronization approval', () => {
     Object.assign(review.structuredContent.plan.changes[0], { acquiredOn: '2026-01-02' });
     review.structuredContent.plan.changes.push({ symbol: 'NVDA', previousQuantity: 0, quantity: 3, previousAverageCostUsd: 0, averageCostUsd: 140, estimatedAcquiredOn: '2026-03-04' } as unknown as ReturnType<typeof plan>['changes'][number]);
     receive(review);
-    expect(doc.getElementById('rows')?.textContent).toContain('נרכש: 2026-01-02');
-    expect(doc.getElementById('rows')?.textContent).toContain('משוער: 2026-03-04');
+    expect(doc.getElementById('rows')?.textContent).toContain('נקנה ב־02.01.2026');
+    expect(doc.getElementById('rows')?.textContent).toContain('תאריך משוער: 04.03.2026');
     expect(toolCalls()).toHaveLength(0);
   });
   it('renders unchanged and unresolved plans without an unusable confirmation button', async () => {
@@ -95,18 +95,64 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(toolCalls()[0].params).toEqual({ name: 'confirm_screenshot_sync', arguments: { proposalId: 'proposal-one', confirmationSecret: 'private-widget-secret' } });
     message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: { proposalId: 'proposal-one', status: 'applied', applied: true } } });
     await flush();
-    expect(doc.getElementById('status')?.textContent).toContain('סונכרנו בהצלחה');
+    expect(doc.getElementById('status')?.textContent).toContain('השינויים נשמרו');
     expect(button('confirm').disabled).toBe(true);
     expect(button('cancel').disabled).toBe(true);
     expect(doc.querySelector('main')?.dataset.state).toBe('applied');
-    expect(doc.getElementById('summary-state')?.textContent).toBe('הסנכרון הושלם');
+    expect(doc.getElementById('summary-state')?.textContent).toBe('השינויים שנשמרו');
+  });
+  it('moves from saving to the actual full portfolio after the server receipt, preserving untouched accounts', async () => {
+    boot(); await initialize(); receive(); button('confirm').click();
+    expect(doc.querySelector('main')?.dataset.state).toBe('saving');
+    expect(doc.querySelector('main')?.getAttribute('aria-busy')).toBe('true');
+    expect(doc.getElementById('portfolio')?.hidden).toBe(true);
+    const portfolio = { status: 'available', fetchedAt: '2026-11-16T10:01:00Z', holdings: [
+      { symbol: 'AAPL', quantity: 5, averageCostUsd: 110, location: plan().location, sourceName: 'בית השקעות אישי' },
+      { symbol: 'MSFT', quantity: 7, averageCostUsd: 200, location: 'another-account', sourceName: 'חשבון נוסף' },
+    ] };
+    message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: { proposalId: 'proposal-one', status: 'applied', portfolio } } }); await flush();
+    expect(doc.querySelector('main')?.dataset.state).toBe('applied');
+    expect(doc.querySelector('main')?.getAttribute('aria-busy')).toBe('false');
+    expect(doc.getElementById('portfolio')?.hidden).toBe(false);
+    expect(doc.getElementById('review')?.hidden).toBe(true);
+    expect(doc.getElementById('headline')?.textContent).toBe('התיק שלך מעודכן');
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('MSFT');
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('חשבון נוסף');
+    expect(doc.querySelectorAll('.updated-tag')).toHaveLength(1);
+    expect(doc.getElementById('portfolio-total')?.textContent).toContain('1,950.00');
+    expect(doc.getElementById('portfolio-count')?.textContent).toBe('2');
+    (doc.getElementById('toggle-review') as HTMLButtonElement).click();
+    expect(doc.getElementById('review')?.hidden).toBe(false);
+    expect(doc.getElementById('toggle-review')?.getAttribute('aria-expanded')).toBe('true');
+    receive();
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('MSFT');
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'proposal-one', status: 'applied' } } });
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('MSFT');
+    expect(toolCalls()).toHaveLength(1);
+  });
+  it('keeps an applied update final when the optional portfolio refresh fails', async () => {
+    boot(); await initialize(); receive(); button('confirm').click();
+    message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: { proposalId: 'proposal-one', status: 'applied', portfolio: { status: 'unavailable', holdings: [] } } } }); await flush();
+    expect(doc.getElementById('headline')?.textContent).toBe('התיק שלך מעודכן');
+    expect(doc.getElementById('portfolio-note')?.textContent).toContain('לא הצלחנו לטעון');
+    expect(doc.getElementById('portfolio-overview')?.hidden).toBe(true);
+    expect(button('confirm').disabled).toBe(true);
+    expect(doc.getElementById('error')?.textContent).toBe('');
+  });
+  it('does not invent portfolio totals for missing costs, and escapes names in the saved portfolio', async () => {
+    boot(); await initialize(); receive();
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'proposal-one', status: 'applied', portfolio: { status: 'available', holdings: [{ symbol: '<img src=x>', quantity: 3, averageCostUsd: null, sourceName: '<script>oops</script>', location: 'other' }] } } } });
+    expect(doc.querySelector('img')).toBeNull();
+    expect(doc.getElementById('portfolio-total')?.textContent).toBe('חסרים נתוני קנייה');
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('<script>oops</script>');
+    expect(doc.getElementById('portfolio-list')?.textContent).toContain('—');
   });
   it('cancels only through the app-only owner-bound tool after an explicit click', async () => {
     boot(); await initialize(); receive(); button('cancel').click();
     expect(toolCalls()[0].params).toEqual({ name: 'cancel_screenshot_sync', arguments: { proposalId: 'proposal-one', confirmationSecret: 'private-widget-secret' } });
     message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: { proposalId: 'proposal-one', status: 'cancelled' } } });
     await flush();
-    expect(doc.getElementById('status')?.textContent).toContain('ההצעה בוטלה');
+    expect(doc.getElementById('status')?.textContent).toContain('לא עדכנו שום דבר');
     expect(button('confirm').disabled).toBe(true);
   });
   it.each(['applied', 'cancelled'])('preserves %s after host globals replay the original pending review', async status => {
@@ -117,7 +163,7 @@ describe('inline ChatGPT synchronization approval', () => {
     const receipt = doc.getElementById('status')?.textContent;
     app.dispatchEvent(new Event('openai:set_globals')); receive(original);
     expect(doc.getElementById('status')?.textContent).toBe(receipt);
-    expect(receipt).toContain(status === 'applied' ? 'סונכרנו בהצלחה' : 'ההצעה בוטלה');
+    expect(receipt).toContain(status === 'applied' ? 'השינויים נשמרו' : 'לא עדכנו שום דבר');
     expect(button('confirm').disabled).toBe(true);
     expect(button('cancel').disabled).toBe(true);
     expect(callTool).toHaveBeenCalledTimes(1);
@@ -131,17 +177,17 @@ describe('inline ChatGPT synchronization approval', () => {
     boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
     button('confirm').click(); await flush();
     app.dispatchEvent(new Event('openai:set_globals')); receive(prepared(''));
-    expect(doc.getElementById('error')?.textContent).toBe('לא התקבל אישור שמירה. אפשר לנסות שוב בבטחה; לא ייווצר עדכון כפול.');
+    expect(doc.getElementById('error')?.textContent).toBe('לא הצלחנו לוודא שהעדכון נשמר. אפשר לנסות שוב — הוא לא יישמר פעמיים.');
     expect(doc.body.textContent).not.toMatch(/private-widget-secret|confirmationSecret|INVALID_ARGUMENT|RuntimeException/);
     expect(button('confirm').textContent).toBe('ניסיון חוזר');
     expect(button('confirm').disabled).toBe(false);
     button('confirm').click(); await flush();
     expect(callTool).toHaveBeenCalledTimes(2);
-    expect(button('confirm').textContent).toBe('סונכרן');
+    expect(button('confirm').textContent).toBe('עודכן');
     expect(button('confirm').disabled).toBe(true);
-    expect(doc.getElementById('status')?.textContent).toContain('סונכרנו בהצלחה');
+    expect(doc.getElementById('status')?.textContent).toContain('השינויים נשמרו');
     const next = prepared('next-secret'); next.structuredContent.proposalId = 'proposal-two'; receive(next);
-    expect(button('confirm').textContent).toBe('אישור וסנכרון');
+    expect(button('confirm').textContent).toBe('כן, לעדכן את התיק');
   });
   it.each(['applied', 'cancelled'])('clears an earlier uncertain error when a late %s receipt arrives', async status => {
     const callTool = vi.fn().mockRejectedValue(new Error('lost reply'));
@@ -150,7 +196,7 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.getElementById('error')?.textContent).toContain('אפשר לנסות שוב');
     message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'proposal-one', status } } });
     expect(doc.getElementById('error')?.textContent).toBe('');
-    expect(doc.getElementById('status')?.textContent).toContain(status === 'applied' ? 'סונכרנו בהצלחה' : 'ההצעה בוטלה');
+    expect(doc.getElementById('status')?.textContent).toContain(status === 'applied' ? 'השינויים נשמרו' : 'לא עדכנו שום דבר');
     expect(button('confirm').disabled).toBe(true);
   });
   it('accepts private metadata arriving after an initial public pending review', async () => {
@@ -165,7 +211,7 @@ describe('inline ChatGPT synchronization approval', () => {
     const callTool = vi.fn().mockRejectedValue(new Error('confirmationSecret=private-widget-secret'));
     boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
     button('cancel').click(); await flush();
-    expect(doc.getElementById('error')?.textContent).toBe('לא התקבל אישור ביטול. אפשר לנסות לבטל שוב או לבדוק את מצב ההצעה בצ׳אט.');
+    expect(doc.getElementById('error')?.textContent).toBe('לא הצלחנו לוודא שהעדכון בוטל. אפשר לנסות שוב או לבדוק בצ׳אט.');
     expect(doc.body.textContent).not.toContain('private-widget-secret');
     expect(button('cancel').disabled).toBe(false);
   });
@@ -194,9 +240,9 @@ describe('inline ChatGPT synchronization approval', () => {
     boot(); await initialize(); receive(); button('confirm').click();
     message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { isError: true, content: [{ type: 'text', text: 'ההצעה התיישנה' }] } });
     await flush();
-    expect(doc.getElementById('error')?.textContent).toContain('אפשר לנסות שוב בבטחה');
+    expect(doc.getElementById('error')?.textContent).toContain('אפשר לנסות שוב');
     expect(doc.body.textContent).not.toContain('ההצעה התיישנה');
-    expect(doc.getElementById('status')?.textContent).not.toContain('בהצלחה');
+    expect(doc.getElementById('status')?.textContent).not.toContain('השינויים נשמרו');
     expect(button('confirm').disabled).toBe(false);
   });
   it('ignores an old receipt after a newer proposal arrives', async () => {
@@ -206,7 +252,7 @@ describe('inline ChatGPT synchronization approval', () => {
     receive(next);
     expect(button('confirm').disabled).toBe(false);
     receive({ structuredContent: { proposalId: 'proposal-one', status: 'applied', applied: true } } as unknown as ReturnType<typeof prepared>);
-    expect(doc.getElementById('status')?.textContent).not.toContain('בהצלחה');
+    expect(doc.getElementById('status')?.textContent).not.toContain('השינויים נשמרו');
     message({ jsonrpc: '2.0', id: first.id, result: { structuredContent: { proposalId: 'proposal-one', applied: true } } });
     await flush();
     expect(button('confirm').disabled).toBe(false);

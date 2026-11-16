@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { activeSourceForSync } from '@/lib/server/investment-source-catalog';
+import { activeSourceForSync, sourceCatalogSchema } from '@/lib/server/investment-source-catalog';
 import type { Principal } from '@/lib/auth/server';
 import { mapPositionRow } from '@/lib/positions';
 import { buildScreenshotSyncPlan, screenshotSyncInputSchema, type ScreenshotSyncPlan } from '@/lib/screenshot-sync';
@@ -72,11 +72,52 @@ export async function reviewChatScreenshotSync(principal: Principal, raw: unknow
   const { proposalId } = chatProposalIdSchema.parse(raw);
   return publicChatReview(await rpc(principal, 'read_chat_sync_proposal', { p_id: proposalId }));
 }
+export type ChatSyncPortfolio = {
+  status: 'available' | 'unavailable';
+  holdings: { symbol: string; quantity: number; averageCostUsd: number | null; sourceName: string; location: string }[];
+  fetchedAt: string;
+};
+
+/** A receipt is final even if this separate, read-only refresh is unavailable. */
+async function refreshedPortfolio(principal: Principal): Promise<ChatSyncPortfolio> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const snapshot = await Promise.race([
+      rpc(principal, 'screenshot_sync_snapshot', {}),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new ChatSyncUnavailableError()), 5000);
+      }),
+    ]);
+    if (!Array.isArray(snapshot.positions) || !Array.isArray(snapshot.lots)) throw new ChatSyncUnavailableError();
+    const sources = sourceCatalogSchema.parse(snapshot.sources);
+    const holdings = snapshot.positions.map((row: Parameters<typeof mapPositionRow>[0]) => {
+      const lots = snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id);
+      const validNumber = (value: unknown) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value)) && Number(value) >= 0;
+      if (lots.length ? lots.some((lot: { price: unknown; quantity: unknown; commission_amount?: unknown }) =>
+        !validNumber(lot.price) || !validNumber(lot.quantity) || (lot.commission_amount != null && !validNumber(lot.commission_amount))) : !validNumber(row.quantity)) throw new ChatSyncUnavailableError();
+      if (!lots.length && row.entry_price != null && !validNumber(row.entry_price)) throw new ChatSyncUnavailableError();
+      const position = mapPositionRow({ ...row, position_lots: lots });
+      const source = sources.find(item => item.id === position.location);
+      if (!source || !position.symbol || !Number.isFinite(position.quantity) || position.quantity < 0) throw new ChatSyncUnavailableError();
+      // Missing legacy costs must stay unknown; no current quote is inferred.
+      const hasRecordedCost = lots.length > 0 || (row.entry_price !== null && row.entry_price !== undefined);
+      return { symbol: position.symbol, quantity: position.quantity,
+        averageCostUsd: hasRecordedCost && Number.isFinite(position.entryPrice) && position.entryPrice > 0 ? position.entryPrice : null,
+        sourceName: source.name, location: position.location };
+    }).filter((holding: ChatSyncPortfolio['holdings'][number]) => holding.quantity > 0);
+    return { status: 'available', holdings, fetchedAt: new Date().toISOString() };
+  } catch {
+    return { status: 'unavailable', holdings: [], fetchedAt: new Date().toISOString() };
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
 export async function confirmChatScreenshotSync(principal: Principal, raw: unknown) {
   requireChat(principal, true);
   const input = chatConfirmationSchema.parse(raw);
   const receipt = await rpc(principal, 'confirm_chat_sync_proposal', { p_id: input.proposalId, p_confirmation_secret: input.confirmationSecret });
-  return { ...receipt, proposalId: input.proposalId, status: 'applied' as const };
+  return { ...receipt, proposalId: input.proposalId, status: 'applied' as const, portfolio: await refreshedPortfolio(principal) };
 }
 export async function cancelChatScreenshotSync(principal: Principal, raw: unknown) {
   requireChat(principal);

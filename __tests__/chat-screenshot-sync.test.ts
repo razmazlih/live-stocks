@@ -58,7 +58,7 @@ describe('ChatGPT-scoped screenshot proposals', () => {
     await prepareChatScreenshotSync(principal, { ...input, previousProposalId: id });
     expect(rpc).toHaveBeenLastCalledWith('create_chat_sync_proposal', expect.objectContaining({ p_previous_id: id }));
     await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
-    expect(rpc).toHaveBeenLastCalledWith('confirm_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
+    expect(rpc).toHaveBeenCalledWith('confirm_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
     await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret, quantity: 99 })).rejects.toThrow();
     await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret, confirmed: true })).rejects.toThrow();
   });
@@ -86,6 +86,84 @@ describe('ChatGPT-scoped screenshot proposals', () => {
     expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
     rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources: [{ ...sources[0], archived_at: '2026-01-01' }], fingerprint: 'a'.repeat(32) }, error: null });
     await expect(prepareChatScreenshotSync(principal, input)).rejects.toThrow('מקור השקעה פעיל');
+  });
+
+  it('reads the complete saved portfolio after confirmation, including untouched sources and excluding closed holdings', async () => {
+    const secondSource = { ...sources[0], id: '10000000-0000-4000-8000-000000000002', name: 'חשבון נוסף' };
+    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null }).mockResolvedValueOnce({ data: {
+      sources: [...sources, secondSource],
+      positions: [
+        { id: 'p1', symbol: 'AAPL', location: sources[0].id, quantity: 99, entry_price: 999 },
+        { id: 'p2', symbol: 'MSFT', location: secondSource.id, quantity: 3, entry_price: 250 },
+        { id: 'p3', symbol: 'CLOSED', location: sources[0].id, quantity: 4, entry_price: 20 },
+        { id: 'p4', symbol: 'UNKNOWN', location: secondSource.id, quantity: 1, entry_price: null },
+      ],
+      lots: [
+        { id: 'l1', position_id: 'p1', side: 'RECONCILE', quantity: 2, price: 100, executed_at: '2026-01-01', has_commission: false, commission_amount: 0 },
+        { id: 'l2', position_id: 'p3', side: 'RECONCILE', quantity: 0, price: 0, executed_at: '2026-01-01', has_commission: false, commission_amount: 0 },
+      ],
+    }, error: null });
+    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+    expect(result).toMatchObject({ status: 'applied', portfolio: { status: 'available', holdings: [
+      { symbol: 'AAPL', quantity: 2, averageCostUsd: 100, sourceName: sources[0].name, location: sources[0].id },
+      { symbol: 'MSFT', quantity: 3, averageCostUsd: 250, sourceName: secondSource.name, location: secondSource.id },
+      { symbol: 'UNKNOWN', quantity: 1, averageCostUsd: null, sourceName: secondSource.name, location: secondSource.id },
+    ] } });
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['confirm_chat_sync_proposal', 'screenshot_sync_snapshot']);
+    expect(result.portfolio.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+  it('retains confirmed success when the portfolio refresh fails without leaking database details', async () => {
+    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'private database detail' } });
+    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+    expect(result).toMatchObject({ status: 'applied', applied: true, portfolio: { status: 'unavailable', holdings: [] } });
+    expect(JSON.stringify(result)).not.toContain('private database detail');
+  });
+  it('does not refresh or claim success when the confirmation fails', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'write failed' } });
+    await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).rejects.toThrow();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it('distinguishes an empty saved portfolio from an unavailable portfolio', async () => {
+    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+    expect(result.portfolio).toMatchObject({ status: 'available', holdings: [] });
+  });
+
+  it('marks malformed stored quantities unavailable instead of silently dropping a holding', async () => {
+    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null }).mockResolvedValueOnce({ data: {
+      sources, positions: [{ id: 'p1', symbol: 'AAPL', location: sources[0].id, quantity: 'unknown', entry_price: 100 }], lots: [],
+    }, error: null });
+    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+    expect(result).toMatchObject({ status: 'applied', portfolio: { status: 'unavailable', holdings: [] } });
+  });
+
+  it('returns the committed receipt within five seconds when the optional portfolio read hangs', async () => {
+    vi.useFakeTimers();
+    try {
+      rpc.mockResolvedValueOnce({ data: { applied: true }, error: null })
+        .mockImplementationOnce(() => new Promise(() => {}));
+      const confirmation = confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+      let settled = false;
+      void confirmation.then(() => { settled = true; });
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(confirmation).resolves.toMatchObject({ status: 'applied', applied: true,
+        portfolio: { status: 'unavailable', holdings: [] } });
+      expect(rpc.mock.calls.map(call => call[0])).toEqual(['confirm_chat_sync_proposal', 'screenshot_sync_snapshot']);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('clears the optional refresh deadline after an immediate successful read', async () => {
+    vi.useFakeTimers();
+    try {
+      await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
 });

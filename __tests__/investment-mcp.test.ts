@@ -80,7 +80,7 @@ describe('investment action constraints', () => {
 
 describe('read-only MCP transport and tools', () => {
   it.each(['http_header', 'request_metadata'])('satisfies the 2026 per-request resource contract with private immediately-stale cache hints (%s)', async transport => {
-    const resourceUri = 'ui://livestocks/screenshot-sync-v4.html';
+    const resourceUri = 'ui://livestocks/screenshot-sync-v5.html';
     const raw = await POST(request('resources/read', { uri: resourceUri, ...(transport === 'request_metadata' ? { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } : {}) }, transport === 'http_header' ? { 'mcp-protocol-version': '2026-07-28' } : undefined));
     const envelope = await raw.json();
     const hostReadContract = z.object({ resultType: z.literal('complete'), ttlMs: z.number().int().nonnegative(), cacheScope: z.enum(['private', 'public']), contents: z.array(z.object({ uri: z.string(), mimeType: z.string(), text: z.string() })) });
@@ -89,6 +89,14 @@ describe('read-only MCP transport and tools', () => {
     expect(raw.headers.get('cache-control')).toContain('private, no-store');
     expect(envelope.result.contents[0].uri).toBe(resourceUri);
     expect(envelope.result.contents[0].text).not.toContain('private-app-capability');
+  });
+  it('keeps cached v4 tool templates usable while advertising the new v5 resource', async () => {
+    const oldUri = 'ui://livestocks/screenshot-sync-v4.html';
+    const read = (await (await POST(request('resources/read', { uri: oldUri }))).json()).result;
+    expect(read.contents[0]).toMatchObject({ uri: oldUri, mimeType: 'text/html;profile=mcp-app' });
+    expect(read.contents[0].text).toContain('התיק שלך מעודכן');
+    const list = (await (await POST(request('resources/list'))).json()).result;
+    expect(list.resources[0].uri).toBe('ui://livestocks/screenshot-sync-v5.html');
   });
   it.each(['tools/list', 'resources/list', 'resources/templates/list', 'server/discover'])('emits the required 2026 caching envelope for %s', async method => {
     const modern = (await (await POST(request(method, { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }))).json()).result;
@@ -99,7 +107,7 @@ describe('read-only MCP transport and tools', () => {
     expect(legacy).not.toHaveProperty('resultType');
   });
   it('supports per-request legacy metadata and never puts cache hints on tool invocation results', async () => {
-    const legacy = (await (await POST(request('resources/read', { uri: 'ui://livestocks/screenshot-sync-v4.html', _meta: { 'io.modelcontextprotocol/protocolVersion': '2025-11-25' } }))).json()).result;
+    const legacy = (await (await POST(request('resources/read', { uri: 'ui://livestocks/screenshot-sync-v5.html', _meta: { 'io.modelcontextprotocol/protocolVersion': '2025-11-25' } }))).json()).result;
     expect(legacy).not.toHaveProperty('ttlMs'); expect(legacy).not.toHaveProperty('resultType');
     const modernTool = await call('get_profile');
     expect(modernTool.resultType).toBe('complete');
@@ -118,7 +126,7 @@ describe('read-only MCP transport and tools', () => {
     expect(resources).toHaveLength(1);
     const resource = (await (await POST(request('resources/read', { uri: resources[0].uri }))).json()).result.contents[0];
     expect(resource.mimeType).toBe('text/html;profile=mcp-app');
-    expect(resource.text).toContain('אישור וסנכרון');
+    expect(resource.text).toContain('כן, לעדכן את התיק');
     expect(resource.text).not.toContain('private-app-capability');
     expect(resource._meta.ui.csp).toEqual({ connectDomains: [], resourceDomains: [] });
   });

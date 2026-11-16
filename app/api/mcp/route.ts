@@ -182,8 +182,10 @@ export async function POST(request: Request) {
   if (rpc.method === 'resources/templates/list') return result({ resourceTemplates: [] });
   if (rpc.method === 'resources/list') return result({ resources: [{ uri: CHAT_SYNC_RESOURCE_URI, name: 'LiveStocks screenshot review', mimeType: CHAT_SYNC_RESOURCE_MIME }] });
   if (rpc.method === 'resources/read') {
-    if (rpc.params?.uri !== CHAT_SYNC_RESOURCE_URI) return error(rpc.id, -32602, 'Unknown resource.');
-    return result({ contents: [{ uri: CHAT_SYNC_RESOURCE_URI, mimeType: CHAT_SYNC_RESOURCE_MIME, text: CHAT_SYNC_APP_HTML,
+    const resourceUri = rpc.params?.uri;
+    // Existing ChatGPT connections may still cache the previous tool template.
+    if (resourceUri !== CHAT_SYNC_RESOURCE_URI && resourceUri !== 'ui://livestocks/screenshot-sync-v4.html') return error(rpc.id, -32602, 'Unknown resource.');
+    return result({ contents: [{ uri: resourceUri, mimeType: CHAT_SYNC_RESOURCE_MIME, text: CHAT_SYNC_APP_HTML,
       _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true }, 'openai/widgetCSP': { connect_domains: [], resource_domains: [] }, 'openai/widgetDescription': 'Review and confirm a pending LiveStocks holding reconciliation without leaving ChatGPT.' } }] });
   }
   if (rpc.method === 'tools/list') return result({ tools });
