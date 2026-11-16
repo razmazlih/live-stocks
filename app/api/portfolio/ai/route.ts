@@ -1,5 +1,5 @@
 import { readSourceCatalog } from '@/lib/server/investment-source-catalog';
-import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING } from '@/lib/reconciliation-quality';
+import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, UNKNOWN_COMMISSION_WARNING, withCommissionQuality } from '@/lib/reconciliation-quality';
 import { NextResponse } from 'next/server';
 import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
 import { readFinnhubCredential } from '@/lib/auth/credentials';
@@ -45,6 +45,8 @@ async function buildSnapshot(principal: Principal) {
   if (annualGrowthRate === null) warnings.push('Annual return target is unavailable; target calculations are omitted.');
   const positions = positionRows.map(row => mapPositionRow({ ...row, position_lots: lotRows.filter(lot => lot.position_id === row.id) }));
   const historyQuality = reconciliationQuality(positions);
+  const missingFeeSymbols = new Set(historyQuality.missingCommissionSymbols);
+  if (!historyQuality.completeCommissionHistory) warnings.push(UNKNOWN_COMMISSION_WARNING);
   if (!historyQuality.completeTransactionHistory) warnings.push(RECONCILIATION_HISTORY_WARNING);
   const activations = positions.flatMap(expandPositionActivations);
   const symbols = [...new Set([...positions.map(p => p.symbol), ...planRows.map(p => p.symbol)].map(s => s.trim().toUpperCase()))].filter(Boolean).sort();
@@ -83,19 +85,22 @@ async function buildSnapshot(principal: Principal) {
   const summary = openSummary ? enrichPortfolioSummaryWithRealized(openSummary, realizedTotals, tax) : null;
   const holdings = open.map((position, index) => {
     const metric = metrics[index];
+    const commissionComplete = !missingFeeSymbols.has(position.symbol.trim().toUpperCase());
     return {
+      completeCommissionHistory: commissionComplete,
       position,
       currentPriceUsd: metric?.currentPrice ?? null,
       marketValueUsd: metric?.currentValue ?? null,
       marketValueIls: fxResult !== null ? metric?.currentValueIls ?? null : null,
-      unrealizedPnlUsd: metric?.positionPnLUsd ?? null,
-      unrealizedPnlIls: fxResult !== null ? metric?.positionPnLIls ?? null : null,
-      returnPercent: metric?.roiPercent ?? null,
+      unrealizedPnlUsd: commissionComplete ? metric?.positionPnLUsd ?? null : null,
+      unrealizedPnlIls: commissionComplete && fxResult !== null ? metric?.positionPnLIls ?? null : null,
+      returnPercent: commissionComplete ? metric?.roiPercent ?? null : null,
       allocationPercent: openSummary && openSummary.totalValue > 0 && metric ? metric.currentValue / openSummary.totalValue * 100 : null,
-      annualTargetPriceUsd: annualGrowthRate !== null ? calculateSymbolExceptionAssessment([position], undefined, annualGrowthRate)?.projectedPrice ?? null : null,
+      annualTargetPriceUsd: commissionComplete && annualGrowthRate !== null ? calculateSymbolExceptionAssessment([position], undefined, annualGrowthRate)?.projectedPrice ?? null : null,
     };
   });
   const targets = annualGrowthRate === null ? null : symbols.map(symbol => {
+    if (missingFeeSymbols.has(symbol)) return { symbol, status: 'invalid', invalidReason: 'commission_history_incomplete' };
     const grouped = activations.filter(p => p.symbol.trim().toUpperCase() === symbol);
     const assessment = calculateSymbolExceptionAssessment(grouped, quotes.get(symbol)?.price, annualGrowthRate);
     if (!assessment) return null;
@@ -103,8 +108,15 @@ async function buildSnapshot(principal: Principal) {
   }).filter(t => t !== null);
   const calculationAsOf = Date.now();
   const quoteObservations = Object.fromEntries(quoteEntries.map(([symbol, quote]) => [symbol, { priceUsd: quote?.price ?? null, dailyChangePerShareUsd: quote?.dailyChange ?? null, marketTimestamp: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null, source: 'Finnhub', status: quote ? 'last_available' : 'unavailable' }]));
-  const closePairProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
-  const closePairOnlyProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
+  const closePairProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate: historyQuality.completeCommissionHistory ? annualGrowthRate : null, asOf: calculationAsOf, quotes: quoteObservations });
+  const closePairOnlyProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate: historyQuality.completeCommissionHistory ? annualGrowthRate : null, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
+  if (!historyQuality.completeCommissionHistory) {
+    for (const proposals of [closePairProposals, closePairOnlyProposals]) {
+      proposals.unavailableReason = UNKNOWN_COMMISSION_WARNING;
+      proposals.coverage.exclusions.push(...historyQuality.missingCommissionSymbols.map(symbol => ({ symbol, reason: 'commission_history_incomplete' })));
+      proposals.limitations.unshift(UNKNOWN_COMMISSION_WARNING);
+    }
+  }
   // Never expose settings tokens. Convert non-finite/missing values to explicit nulls.
   const payload = {
     schemaVersion: 1, startedAt, generatedAt: new Date().toISOString(),
@@ -112,11 +124,17 @@ async function buildSnapshot(principal: Principal) {
     currencies: { prices: 'USD', base: 'USD', display: settings?.currency ?? 'USD', usdToIls: fxResult, fxSource: fxResult === null ? 'unavailable' : 'open.er-api.com', historicalFxPointCount: fxHistory.length },
     dataQuality: { ...historyQuality, completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
     goals: { annualGrowthRate, annualGrowthRatePercent: annualGrowthRate === null ? null : annualGrowthRate * 100, meaning: 'User annual compound return target, evaluated as of today; not a price forecast or guaranteed return. currentGapUsd is positive for a shortfall and negative for a surplus.', symbolTargets: targets },
-    summary: summary ? { ...summary, ...(!historyQuality.completeTransactionHistory ? { totalTaxesPaidUsd: null, totalTaxesPaidIls: null } : {}), ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
-    sources, closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
-    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: historyQuality.completeTransactionHistory ? tax.taxUsd : null, estimatedTaxIls: historyQuality.completeTransactionHistory && fxResult !== null ? tax.taxIls : null, recordedSalesEstimatedTaxUsd: tax.taxUsd, recordedSalesEstimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
+    summary: summary ? { ...withCommissionQuality(summary, historyQuality.completeCommissionHistory), ...(!historyQuality.completeTransactionHistory ? { totalTaxesPaidUsd: null, totalTaxesPaidIls: null } : {}), ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
+    sources, closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales: realizedSales.map(sale => missingFeeSymbols.has(sale.symbol.trim().toUpperCase()) ? {
+      ...sale, completeCommissionHistory: false, proceedsUsd: null, proceedsIls: null, costBasisUsd: null, costBasisIls: null,
+      profitUsd: null, profitIls: null, profitPercent: null, averageEntryPrice: null, matchedLots: null,
+    } : sale),
+    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls,
+      ...(!historyQuality.completeCommissionHistory ? { proceedsUsd: null, proceedsIls: null, costUsd: null, costIls: null, profitUsd: null, profitIls: null, expectedProfitUsd: null, expectedProfitIls: null } : {}),
+    }, estimatedTaxUsd: historyQuality.completeTransactionHistory && historyQuality.completeCommissionHistory ? tax.taxUsd : null, estimatedTaxIls: historyQuality.completeTransactionHistory && historyQuality.completeCommissionHistory && fxResult !== null ? tax.taxIls : null, recordedSalesEstimatedTaxUsd: historyQuality.completeCommissionHistory ? tax.taxUsd : null, recordedSalesEstimatedTaxIls: historyQuality.completeCommissionHistory && fxResult !== null ? tax.taxIls : null, assumedTaxRate: 0.25 },
     quotes: quoteObservations,
     limitations: [
+      ...(!historyQuality.completeCommissionHistory ? [UNKNOWN_COMMISSION_WARNING] : []),
       ...(!historyQuality.completeTransactionHistory ? [RECONCILIATION_HISTORY_WARNING] : []),
       'Read-only snapshot; reading this API does not execute or update pending plans.',
       'Database tables are read separately, not as an atomic transaction.',

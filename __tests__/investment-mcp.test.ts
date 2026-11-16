@@ -5,7 +5,7 @@ import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
 vi.mock('@/lib/purchase-date-candidates', () => ({ findPurchaseDateCandidates: async () => ({ status: 'no_match', estimated: true, canVerifyAcquisition: false }), purchaseDateCandidatesInputSchema: { parse: (args: unknown) => args } }));
-const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn(), prepare: vi.fn(), review: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), principal: vi.fn() }));
+const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn(), prepare: vi.fn(), review: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), txPrepare: vi.fn(), txReview: vi.fn(), txConfirm: vi.fn(), txCancel: vi.fn(), principal: vi.fn() }));
 vi.mock('@/lib/auth/server', () => ({
   requireMcpPrincipal: mocks.principal,
   authenticationResponse: (failure: unknown) => failure instanceof Error && 'status' in failure
@@ -19,9 +19,14 @@ vi.mock('@/lib/chat-screenshot-sync', () => ({
   prepareChatScreenshotSync: mocks.prepare, reviewChatScreenshotSync: mocks.review, confirmChatScreenshotSync: mocks.confirm, cancelChatScreenshotSync: mocks.cancel,
   SyncScopeRequiredError: class extends Error {}, ChatSyncUnavailableError: class extends Error {},
 }));
+vi.mock('@/lib/chat-transaction-server', () => ({
+  prepareChatTransaction: mocks.txPrepare, reviewChatTransaction: mocks.txReview, confirmChatTransaction: mocks.txConfirm, cancelChatTransaction: mocks.txCancel,
+  TransactionScopeRequiredError: class extends Error {}, ChatTransactionUnavailableError: class extends Error {},
+}));
 vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
 import { AuthenticationError } from '@/lib/auth/server';
+import { TransactionScopeRequiredError } from '@/lib/chat-transaction-server';
 import { SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
 
 const snapshot = () => ({
@@ -154,6 +159,25 @@ describe('read-only MCP transport and tools', () => {
       expect((await prepared.json()).result.isError).toBe(false);
     }
   });
+  it('requires separate transaction consent and keeps confirmation app-only and capability-only', async () => {
+    mocks.txPrepare.mockRejectedValueOnce(new TransactionScopeRequiredError());
+    const denied = await POST(request('tools/call', { name: 'prepare_chat_transaction', arguments: {} }, { 'mcp-protocol-version': '2026-07-28' }));
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get('www-authenticate')).toContain('scope="portfolio:read portfolio:transactions"');
+    const listing = (await (await POST(request('tools/list'))).json()).result.tools;
+    const confirm = listing.find((tool: { name: string }) => tool.name === 'confirm_chat_transaction');
+    expect(confirm.securitySchemes[0].scopes).toEqual(['portfolio:read', 'portfolio:transactions']);
+    expect(confirm._meta.ui.visibility).toEqual(['app']);
+    expect(Object.keys(confirm.inputSchema.properties).sort()).toEqual(['confirmationSecret', 'proposalId']);
+    mocks.txPrepare.mockResolvedValueOnce({ value: { proposalId: 'tx-one', kind: 'transaction', status: 'pending' }, meta: { confirmationSecret: 'tx-private-secret' } });
+    const prepared = await call('prepare_chat_transaction', {});
+    expect(prepared._meta.confirmationSecret).toBe('tx-private-secret');
+    expect(JSON.stringify(prepared.structuredContent)).not.toContain('tx-private-secret');
+    const args = { proposalId: 'tx-one', confirmationSecret: 'tx-private-secret' };
+    mocks.txConfirm.mockResolvedValueOnce({ status: 'applied', proposalId: 'tx-one' });
+    expect((await call('confirm_chat_transaction', args)).structuredContent.status).toBe('applied');
+    expect(mocks.txConfirm).toHaveBeenCalledWith(expect.objectContaining({ kind: 'mcp' }), args);
+  });
   it('marks expired/revoked bearer credentials invalid without narrowing reauthorization scopes', async () => {
     mocks.principal.mockRejectedValueOnce(new AuthenticationError(401));
     const rejected = await POST(request('tools/call', { name: 'prepare_screenshot_sync' }));
@@ -190,8 +214,8 @@ describe('read-only MCP transport and tools', () => {
     expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
       icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(12);
-    expect(listed.result.tools.filter((tool: { annotations: { readOnlyHint: boolean } }) => !tool.annotations.readOnlyHint).map((tool: { name: string }) => tool.name).sort()).toEqual(['cancel_screenshot_sync', 'confirm_screenshot_sync', 'prepare_screenshot_sync']);
+    expect(listed.result.tools).toHaveLength(16);
+    expect(listed.result.tools.filter((tool: { annotations: { readOnlyHint: boolean } }) => !tool.annotations.readOnlyHint).map((tool: { name: string }) => tool.name).sort()).toEqual(['cancel_chat_transaction', 'cancel_screenshot_sync', 'confirm_chat_transaction', 'confirm_screenshot_sync', 'prepare_chat_transaction', 'prepare_screenshot_sync']);
     const discovery = (await (await POST(request('server/discover'))).json()).result;
     expect(discovery.supportedVersions).toContain('2026-07-28');
     expect(discovery._meta['io.modelcontextprotocol/serverInfo']).toEqual(init.result.serverInfo);

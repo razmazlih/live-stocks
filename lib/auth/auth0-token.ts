@@ -93,7 +93,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         || payload[READ_ONLY_CLAIM] !== (kind === 'mcp') || payload[VERIFIED_EMAIL_CLAIM] !== true
         || !scopes.has('portfolio:read') || (kind === 'web' && !scopes.has('portfolio:write'))
         || (kind === 'mcp' && scopes.has('portfolio:write'))
-        || (kind === 'web' && scopes.has('portfolio:sync'))
+        || (kind === 'web' && (scopes.has('portfolio:sync') || scopes.has('portfolio:transactions')))
         || typeof payload.iat !== 'number' || !Number.isSafeInteger(payload.iat) || payload.iat < 0 || payload.iat > now + 5
         || typeof payload.exp !== 'number' || !Number.isSafeInteger(payload.exp) || payload.exp <= payload.iat
       ) {

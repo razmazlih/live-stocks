@@ -24,6 +24,8 @@ export interface PositionLot {
   executedAt: string;
   hasCommission: boolean;
   commissionAmount: number;
+  /** False means fees were not supplied, rather than confirmed as zero. */
+  commissionKnown?: boolean;
 }
 
 export type PositionPlanStatus = 'pending' | 'triggered' | 'expired' | 'cancelled';

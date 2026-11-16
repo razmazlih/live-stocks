@@ -1,5 +1,7 @@
 import { requireMcpPrincipal, authenticationResponse, AuthenticationError, authenticationConfiguration, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
 import { prepareChatScreenshotSync, reviewChatScreenshotSync, confirmChatScreenshotSync, cancelChatScreenshotSync, SyncScopeRequiredError, ChatSyncUnavailableError } from '@/lib/chat-screenshot-sync';
+import { ChatTransactionPlanError } from '@/lib/chat-transactions';
+import { prepareChatTransaction, reviewChatTransaction, confirmChatTransaction, cancelChatTransaction, TransactionScopeRequiredError, ChatTransactionUnavailableError } from '@/lib/chat-transaction-server';
 import { CHAT_SYNC_RESOURCE_URI, CHAT_SYNC_RESOURCE_MIME, CHAT_SYNC_APP_HTML } from '@/lib/chat-sync-app';
 import { findPurchaseDateCandidates, purchaseDateCandidatesInputSchema } from '@/lib/purchase-date-candidates';
 import { NextRequest } from 'next/server';
@@ -28,9 +30,14 @@ const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint
 const cacheableMethods = new Set(['tools/list', 'prompts/list', 'resources/list', 'resources/templates/list', 'resources/read', 'server/discover']);
 const securitySchemes = [{ type: 'oauth2', scopes: ['portfolio:read'] }];
 const syncSecuritySchemes = [{ type: 'oauth2', scopes: ['portfolio:read', 'portfolio:sync'] }];
+const transactionSecuritySchemes = [{ type: 'oauth2', scopes: ['portfolio:read', 'portfolio:transactions'] }];
 const syncResourceMeta = { ui: { resourceUri: CHAT_SYNC_RESOURCE_URI }, 'openai/outputTemplate': CHAT_SYNC_RESOURCE_URI };
 const confirmationInput = { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' }, confirmationSecret: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } }, required: ['proposalId', 'confirmationSecret'], additionalProperties: false };
 const tools = [
+  { name: 'prepare_chat_transaction', description: 'Record a BUY or SELL the user explicitly reports as already executed; no screenshot required. NEVER use for an investment idea, recommendation or broker order. Ask once only for missing ticker, quantity, execution price in USD, execution date and account; do not invent these. Read get_portfolio_snapshot.sources, auto-select its only active source; clarify an ambiguous account by name. Existing-stock purchases and partial or full sales are allowed when recording actual executions; research recommendation restrictions remain unchanged. commissionUsd=null means not supplied, 0 means explicitly no fee; do not delay for optional fee details. Prepare a 15-minute immutable review only. Requires separate optional portfolio:transactions consent; existing read or screenshot-sync permission is insufficient. Only the user clicking the embedded card can confirm. Never call confirm or claim saved before its receipt; keep chat reply brief, friendly and in the user language.', inputSchema: { type: 'object', properties: { location: { type: 'string', format: 'uuid' }, side: { type: 'string', enum: ['BUY','SELL'] }, symbol: { type: 'string', minLength: 1, maxLength: 32 }, quantity: { type: 'number', exclusiveMinimum: 0 }, priceUsd: { type: 'number', exclusiveMinimum: 0 }, executedOn: { type: 'string', format: 'date', description: 'Actual execution calendar date supplied by the user. Resolve today/yesterday from the user date context; never invent a missing date.' }, commissionUsd: { type: ['number','null'], minimum: 0 } }, required: ['location','side','symbol','quantity','priceUsd','executedOn','commissionUsd'], additionalProperties: false }, securitySchemes: transactionSecuritySchemes, _meta: syncResourceMeta, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
+  { name: 'review_chat_transaction', description: 'Read a stored already-executed BUY/SELL review and its status; no portfolio mutation. Corrections require a new prepare_chat_transaction review.', inputSchema: { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' } }, required: ['proposalId'], additionalProperties: false }, annotations: { ...annotations, openWorldHint: false } },
+  { name: 'confirm_chat_transaction', description: 'APP ONLY. After the user clicks the embedded confirmation button, record exactly the stored already-executed BUY/SELL transaction once and return the saved portfolio. No broker orders, editable trade fields or model confirmation.', inputSchema: confirmationInput, securitySchemes: transactionSecuritySchemes, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+  { name: 'cancel_chat_transaction', description: 'APP ONLY. Cancel only the stored pending transaction review shown in the embedded card. No trade or holding changes.', inputSchema: confirmationInput, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
   { name: 'review_screenshot_sync', description: 'Read the exact immutable before/after screenshot proposal already presented in the ChatGPT review card, including status and expiry. Does not confirm or mutate holdings. Corrections require prepare_screenshot_sync with previousProposalId, which invalidates the previous pending review.', inputSchema: { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' } }, required: ['proposalId'], additionalProperties: false }, annotations: { ...annotations, openWorldHint: false } },
   { name: 'confirm_screenshot_sync', description: 'Only the embedded ChatGPT review card may call this after the user clicks its confirmation button. Apply exactly the stored proposal under portfolio:sync, preserving transaction history. Accepts no editable quantities, owner IDs, trading orders, settings or general portfolio writes. A model-supplied boolean is never confirmation.', inputSchema: confirmationInput, securitySchemes: syncSecuritySchemes, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
   { name: 'cancel_screenshot_sync', description: 'Cancel only the pending proposal shown in this embedded ChatGPT review card. Does not modify holdings. Requires the app-private confirmation capability; cancelled proposals cannot later apply.', inputSchema: confirmationInput, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -72,6 +79,10 @@ class ChatToolOutput {
   constructor(public value: object, public meta?: Record<string, unknown>) {}
 }
 async function callTool(name: string, args: unknown, request: Request, principal: Principal) {
+  if (name === 'prepare_chat_transaction') { const prepared = await prepareChatTransaction(principal, args); return new ChatToolOutput(prepared.value, prepared.meta); }
+  if (name === 'review_chat_transaction') return reviewChatTransaction(principal, args);
+  if (name === 'confirm_chat_transaction') return confirmChatTransaction(principal, args);
+  if (name === 'cancel_chat_transaction') return cancelChatTransaction(principal, args);
   if (name === 'find_purchase_date_candidates') return findPurchaseDateCandidates(purchaseDateCandidatesInputSchema.parse(args));
   if (name === 'prepare_screenshot_sync') {
     const prepared = await prepareChatScreenshotSync(principal, args);
@@ -198,16 +209,17 @@ export async function POST(request: Request) {
     const meta = value instanceof ChatToolOutput ? value.meta : undefined;
     return result({ content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload, ...(meta ? { _meta: meta } : {}), isError: false });
   } catch (failure) {
-    if (failure instanceof SyncScopeRequiredError) {
+    if (failure instanceof SyncScopeRequiredError || failure instanceof TransactionScopeRequiredError) {
       const audience = authenticationConfiguration().mcpAudience;
       const metadata = new URL('/.well-known/oauth-protected-resource', audience).href;
-      const challenge = `Bearer resource_metadata="${metadata}", error="insufficient_scope", scope="portfolio:read portfolio:sync"`;
+      const requiredScope = failure instanceof TransactionScopeRequiredError ? 'portfolio:transactions' : 'portfolio:sync';
+      const challenge = `Bearer resource_metadata="${metadata}", error="insufficient_scope", scope="portfolio:read ${requiredScope}"`;
       // Apps hosts consume the tool-result hint; HTTP clients can inspect the same
       // challenge without misclassifying a valid read token as expired.
       return result({ isError: true, content: [{ type: 'text', text: failure.message }],
         _meta: { 'mcp/www_authenticate': [challenge] } }, { 'WWW-Authenticate': challenge }, modern ? 403 : 200);
     }
-    if (failure instanceof ChatSyncUnavailableError) return result({ isError: true, content: [{ type: 'text', text: failure.message }] });
+    if (failure instanceof ChatSyncUnavailableError || failure instanceof ChatTransactionUnavailableError || failure instanceof ChatTransactionPlanError) return result({ isError: true, content: [{ type: 'text', text: failure.message }] });
     const authResponse = authFailure(failure, request);
     if (authResponse) return authResponse;
     const message = failure instanceof z.ZodError ? 'Invalid tool input or incompatible portfolio data; no recommendation has been validated.' : 'LiveStocks data is temporarily unavailable; retry later. No values have been inferred.';

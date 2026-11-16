@@ -36,3 +36,20 @@ it('loads FX back to a known original basis years before its observation date', 
   expect(data.stocks[0]).toMatchObject({ quantity: 3, currentPnLUsd: 90, currentPnLIls: 450 });
   expect(data.summary.totalNetPnLUsd).toBeNull();
 });
+
+it('account/widget response preserves valuation while unknown fees suppress complete costs and profits', async () => {
+  mocks.candles.mockResolvedValue({ s: 'ok', t: [Date.UTC(2026, 0, 1) / 1000], c: [3.5] });
+  const response = await buildPortfolioResponse({ supabase: {} as SupabaseClient, userId: 'owner', finnhubToken: null, snapshot: {
+    positions: [{ id: 'p', symbol: 'ABC', display: 'ABC', image_url: '', quantity: 2, entry_price: 100, entry_date: '2026-01-01', location: 'bank_one' }],
+    position_lots: [{ id: 'buy', position_id: 'p', side: 'BUY', quantity: 2, price: 100, executed_at: '2026-01-01', has_commission: false, commission_amount: 0, commission_known: false }],
+    settings: { annual_growth_rate: .1 },
+  } }, { includeWeightedPrice: true });
+  const data = await response.json();
+  expect(response.status).toBe(200);
+  expect(data.dataQuality).toMatchObject({ completeCommissionHistory: false, missingCommissionSymbols: ['ABC'] });
+  expect(data.dataQuality.warnings.join(' ')).toContain('unknown, not zero');
+  expect(data.summary).toMatchObject({ totalValue: 240, totalCost: null, totalCurrentPnLUsd: null, totalNetPnLUsd: null, totalTaxesPaidUsd: null });
+  expect(data.stocks[0]).toMatchObject({ quantity: 2, currentPrice: 120, totalValueUsd: 240, entryPrice: null, currentPnLUsd: null, roiPercent: null });
+  expect(data.stocks[0].pnlDelta.value).toBeNull();
+  expect(data.weightedPrice).toBeUndefined();
+});

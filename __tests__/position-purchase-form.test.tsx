@@ -26,8 +26,8 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
 vi.mock('@/components/ui/stock-avatar-image', () => ({ StockAvatarImage: () => null }));
 
 const successfulPurchase = { data: [{ position_id: 'existing-adbe', lot_id: 'new-buy', reused: true }], error: null };
-function seedPosition(closed = false) {
-  const lots = [{ id: 'old-buy', position_id: 'existing-adbe', side: 'BUY', price: 100, quantity: 5, executed_at: '2026-01-01', has_commission: false, commission_amount: 0 }];
+function seedPosition(closed = false, commissionKnown?: boolean) {
+  const lots = [{ id: 'old-buy', position_id: 'existing-adbe', side: 'BUY', price: 100, quantity: 5, executed_at: '2026-01-01', has_commission: false, commission_amount: 0, ...(commissionKnown === undefined ? {} : { commission_known: commissionKnown }) }];
   if (closed) lots.push({ ...lots[0], id: 'old-sale', side: 'SELL', price: 110, executed_at: '2026-02-01' });
   const row = { id: 'existing-adbe', symbol: 'ADBE', display: 'Adobe Inc', image_url: '', quantity: closed ? 0 : 5, entry_price: 100, entry_date: '2026-01-01', location: 'bank_one', position_lots: lots };
   from.mockImplementation((table: string) => {
@@ -121,4 +121,40 @@ it('selects a newly created third source immediately and purchases into its ID',
   fireEvent.submit(form);
   await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
   expect(rpc.mock.calls[0][1]).toMatchObject({ p_location: '10000000-0000-4000-8000-000000000003', p_symbol: 'ADBE' });
+});
+
+
+describe('editing transactions with unknown commissions', () => {
+  it.each(['unrelated', 'switch-only', 'amount', 'cleared-amount', 'confirmed-zero'])('preserves unknown fees until explicit input (%s)', async action => {
+    seedPosition(false, false);
+    const previousFrom = from.getMockImplementation()!;
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    from.mockImplementation((table: string) => table === 'position_lots' ? { update } : previousFrom(table));
+    const user = userEvent.setup();
+    render(<PositionsPage />);
+    const histories = await screen.findAllByRole('button', { name: 'Manage history' });
+    await user.click(histories[0]);
+    const history = await screen.findByRole('dialog', { name: 'Manage history' });
+    expect(within(history).getByText(/Commission unknown/)).toBeInTheDocument();
+    await user.click(within(history).getByRole('button', { name: 'Edit transaction' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit transaction' });
+    expect(within(dialog).getByText(/commission for this transaction is still unknown/)).toBeInTheDocument();
+    if (action === 'unrelated') {
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Price' }), { target: { value: '105' } });
+    } else if (action === 'confirmed-zero') {
+      await user.click(within(dialog).getByRole('button', { name: 'No commission was charged' }));
+    } else {
+      await user.click(within(dialog).getByRole('switch', { name: 'Track commission' }));
+      const amount = dialog.querySelector('#transaction-commission-amount')!;
+      expect(amount).toHaveValue(0);
+      if (action === 'amount' || action === 'cleared-amount') fireEvent.change(amount, { target: { value: '2.5' } });
+      if (action === 'cleared-amount') fireEvent.change(amount, { target: { value: '' } });
+    }
+    await user.click(within(dialog).getByRole('button', { name: 'Save transaction' }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      commission_known: action === 'amount' || action === 'confirmed-zero',
+      commission_amount: action === 'amount' ? 2.5 : 0,
+    }));
+  });
 });

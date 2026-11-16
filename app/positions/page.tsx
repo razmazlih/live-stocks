@@ -101,6 +101,7 @@ interface TransactionFormData {
   executedAt: string;
   hasCommission: boolean;
   commissionAmount: number;
+  commissionKnown: boolean;
 }
 
 type PositionLocationFilter = PositionLocation | "all";
@@ -148,6 +149,7 @@ function createDefaultTransactionForm(): TransactionFormData {
     executedAt: getTodayIsoDate(),
     hasCommission: false,
     commissionAmount: 0,
+    commissionKnown: true,
   };
 }
 
@@ -514,6 +516,7 @@ export default function PositionsPage() {
       executedAt: lot.executedAt,
       hasCommission: lot.hasCommission,
       commissionAmount: lot.hasCommission ? lot.commissionAmount : 0,
+      commissionKnown: lot.commissionKnown !== false,
     });
     setTransactionDialogOpen(true);
   }
@@ -768,6 +771,7 @@ export default function PositionsPage() {
             executed_at: transactionForm.executedAt,
             has_commission: transactionForm.hasCommission,
             commission_amount: commissionAmount,
+            commission_known: transactionForm.commissionKnown,
           })
           .eq("id", transactionForm.id);
 
@@ -783,6 +787,7 @@ export default function PositionsPage() {
           executed_at: transactionForm.executedAt,
           has_commission: transactionForm.hasCommission,
           commission_amount: commissionAmount,
+          commission_known: transactionForm.commissionKnown,
         });
 
         if (error) throw error;
@@ -1240,15 +1245,24 @@ export default function PositionsPage() {
                       setTransactionForm((previous) => ({
                         ...previous,
                         hasCommission: checked,
+                        commissionKnown: checked ? previous.commissionKnown : true,
                         commissionAmount: checked
                           ? previous.commissionAmount > 0
                             ? previous.commissionAmount
-                            : DEFAULT_COMMISSION_USD
+                            : previous.commissionKnown ? DEFAULT_COMMISSION_USD : 0
                           : 0,
                       }))
                     }
                   />
                 </div>
+                {!transactionForm.commissionKnown ? (
+                  <div className="mt-3 rounded-lg bg-[var(--warning-soft)] p-3 text-xs leading-relaxed text-[var(--warning-text)]" role="status">
+                    <p>{locale === "he" ? "העמלה בעסקה הזאת עדיין לא ידועה. אפשר להפעיל את שדה העמלה ולהזין את הסכום, או לאשר שלא הייתה עמלה." : "The commission for this transaction is still unknown. Enable the commission field and enter the amount, or confirm there was no commission."}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => setTransactionForm(previous => ({ ...previous, hasCommission: false, commissionAmount: 0, commissionKnown: true }))}>
+                      {locale === "he" ? "לא הייתה עמלה" : "No commission was charged"}
+                    </Button>
+                  </div>
+                ) : null}
                 {transactionForm.hasCommission && <div className="mt-4 border-t border-slate-200 pt-4">
                   <Label htmlFor="transaction-commission-amount">
                     {t.positions.transactionCommissionAmount}
@@ -1262,6 +1276,7 @@ export default function PositionsPage() {
                     onChange={(e) =>
                       setTransactionForm({
                         ...transactionForm,
+                        commissionKnown: e.target.value.trim() !== "" && Number.isFinite(Number(e.target.value)),
                         commissionAmount:
                           Number.parseFloat(e.target.value) || 0,
                       })
@@ -1326,7 +1341,9 @@ export default function PositionsPage() {
                           : "bg-rose-100 text-rose-700";
                       const commissionApplied =
                         lot.hasCommission && lot.commissionAmount > 0;
-                      const commissionLabel = commissionApplied
+                      const commissionLabel = lot.commissionKnown === false
+                        ? (locale === "he" ? "העמלה לא ידועה" : "Commission unknown")
+                        : commissionApplied
                         ? t.positions.transactionCommissionApplied(
                             formatCurrency(lot.commissionAmount, "USD", locale),
                           )

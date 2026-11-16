@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHAT_SYNC_APP_HTML, CHAT_SYNC_RESOURCE_MIME, CHAT_SYNC_RESOURCE_URI } from '@/lib/chat-sync-app';
+import { CHAT_SYNC_APP_HTML, CHAT_SYNC_BRAND_ICON_DATA_URI, CHAT_SYNC_RESOURCE_MIME, CHAT_SYNC_RESOURCE_URI } from '@/lib/chat-sync-app';
 
 const plan = () => ({ location: '10000000-0000-4000-8000-000000000001', sourceName: 'בית השקעות אישי', observedAt: '2026-11-16', changes: [{ symbol: 'AAPL', previousQuantity: 8, quantity: 5, previousAverageCostUsd: 100, averageCostUsd: 110 }], unchanged: [], blocked: [], canApply: true });
 const prepared = (secret = 'private-widget-secret') => ({ structuredContent: { proposalId: 'proposal-one', status: 'pending', expiresAt: '2026-11-16T10:15:00Z', plan: plan() }, _meta: secret ? { confirmationSecret: secret } : {} });
@@ -142,10 +142,36 @@ describe('inline ChatGPT synchronization approval', () => {
   it('does not invent portfolio totals for missing costs, and escapes names in the saved portfolio', async () => {
     boot(); await initialize(); receive();
     message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'proposal-one', status: 'applied', portfolio: { status: 'available', holdings: [{ symbol: '<img src=x>', quantity: 3, averageCostUsd: null, sourceName: '<script>oops</script>', location: 'other' }] } } } });
-    expect(doc.querySelector('img')).toBeNull();
-    expect(doc.getElementById('portfolio-total')?.textContent).toBe('חסרים נתוני קנייה');
+    expect(doc.querySelector('#rows img, #portfolio img')).toBeNull();
+    expect(doc.getElementById('portfolio-total')?.textContent).toBe('חסרים נתוני קנייה או עמלות');
     expect(doc.getElementById('portfolio-list')?.textContent).toContain('<script>oops</script>');
     expect(doc.getElementById('portfolio-list')?.textContent).toContain('—');
+  });
+  it.each(['BUY', 'SELL'])('reviews an already executed %s without a screenshot and dispatches the exact transaction capability', async side => {
+    boot(); await initialize();
+    const input = { side, symbol: 'AAPL', location: plan().location, quantity: 2, priceUsd: 120, executedOn: '2026-11-15', commissionUsd: 1 };
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'tx-one', kind: 'transaction', status: 'pending', input, plan: { ...plan(), warnings: [] } }, _meta: { confirmationSecret: 'tx-private-secret' } } });
+    expect(doc.getElementById('transaction-details')?.hidden).toBe(false);
+    expect(doc.getElementById('headline')?.textContent).toBe(side === 'BUY' ? 'נרשום את הקנייה?' : 'נרשום את המכירה?');
+    expect(doc.getElementById('trade-facts')?.textContent).toContain('15.11.2026');
+    expect(doc.getElementById('trade-facts')?.textContent).toContain(side === 'BUY' ? '241.00' : '239.00');
+    expect(doc.querySelector('.brand-mark img')?.getAttribute('src')).toBe(CHAT_SYNC_BRAND_ICON_DATA_URI);
+    expect(doc.body.textContent).not.toContain('tx-private-secret');
+    button('confirm').click(); button('confirm').click();
+    expect(toolCalls()).toHaveLength(1);
+    expect(toolCalls()[0].params).toEqual({ name: 'confirm_chat_transaction', arguments: { proposalId: 'tx-one', confirmationSecret: 'tx-private-secret' } });
+    message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: { proposalId: 'tx-one', kind: 'transaction', status: 'applied', portfolio: { status: 'available', holdings: [] } } } }); await flush();
+    expect(doc.getElementById('headline')?.textContent).toBe('התיק שלך מעודכן');
+    expect(doc.getElementById('portfolio')?.hidden).toBe(false);
+    expect(doc.querySelector('main')?.dataset.state).toBe('applied');
+  });
+  it('marks an omitted fee as unknown and cancels through the transaction-only tool', async () => {
+    boot(); await initialize();
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'tx-one', kind: 'transaction', status: 'pending', input: { side: 'BUY', quantity: 2, priceUsd: 120, executedOn: '2026-11-15', commissionUsd: null, symbol: 'AAPL' }, plan: { ...plan(), warnings: [] } }, _meta: { confirmationSecret: 'tx-private-secret' } } });
+    expect(doc.getElementById('trade-facts')?.textContent).toContain('לא נמסרה');
+    expect(doc.getElementById('trade-facts')?.textContent).toContain('הסכום הסופי תלוי בעמלה');
+    button('cancel').click();
+    expect(toolCalls()[0].params.name).toBe('cancel_chat_transaction');
   });
   it('cancels only through the app-only owner-bound tool after an explicit click', async () => {
     boot(); await initialize(); receive(); button('cancel').click();
@@ -230,7 +256,7 @@ describe('inline ChatGPT synchronization approval', () => {
     const value = prepared(); value.structuredContent.expiresAt = '2026-11-16T09:00:00Z';
     value.structuredContent.plan.changes[0].symbol = '<img src=x onerror=alert(1)>';
     receive(value);
-    expect(doc.querySelector('img')).toBeNull();
+    expect(doc.querySelector('#rows img, #portfolio img')).toBeNull();
     expect(doc.body.textContent).toContain('<img src=x onerror=alert(1)>');
     expect(button('confirm').disabled).toBe(true);
     const blocked = prepared(); blocked.structuredContent.plan.canApply = false; receive(blocked);

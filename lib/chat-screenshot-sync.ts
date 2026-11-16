@@ -74,12 +74,12 @@ export async function reviewChatScreenshotSync(principal: Principal, raw: unknow
 }
 export type ChatSyncPortfolio = {
   status: 'available' | 'unavailable';
-  holdings: { symbol: string; quantity: number; averageCostUsd: number | null; sourceName: string; location: string }[];
+  holdings: { symbol: string; quantity: number; averageCostUsd: number | null; sourceName: string; location: string; costComplete?: boolean }[];
   fetchedAt: string;
 };
 
 /** A receipt is final even if this separate, read-only refresh is unavailable. */
-async function refreshedPortfolio(principal: Principal): Promise<ChatSyncPortfolio> {
+export async function refreshedPortfolio(principal: Principal): Promise<ChatSyncPortfolio> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const snapshot = await Promise.race([
@@ -103,7 +103,7 @@ async function refreshedPortfolio(principal: Principal): Promise<ChatSyncPortfol
       const hasRecordedCost = lots.length > 0 || (row.entry_price !== null && row.entry_price !== undefined);
       return { symbol: position.symbol, quantity: position.quantity,
         averageCostUsd: hasRecordedCost && Number.isFinite(position.entryPrice) && position.entryPrice > 0 ? position.entryPrice : null,
-        sourceName: source.name, location: position.location };
+        sourceName: source.name, location: position.location, ...(lots.some((lot: { commission_known?: boolean }) => lot.commission_known === false) ? { costComplete: false } : {}) };
     }).filter((holding: ChatSyncPortfolio['holdings'][number]) => holding.quantity > 0);
     return { status: 'available', holdings, fetchedAt: new Date().toISOString() };
   } catch {

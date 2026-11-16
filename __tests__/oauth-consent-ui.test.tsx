@@ -22,6 +22,13 @@ describe('reviewed OAuth consent', () => {
     expect(screen.queryByText(/Read-only access/)).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
+  it.each([['portfolio:transactions'], ['portfolio:sync', 'portfolio:transactions']])('shows explicit already-executed transaction permission for %j', (...optionalScopes) => {
+    render(<OAuthConsent review={{ ...review, scopes: [...review.scopes, ...optionalScopes] }} initialLocale="en" />);
+    expect(screen.getByText(/Record purchases and sales you already made/)).toBeVisible();
+    expect(screen.getByText(/Every entry needs your confirmation/)).toBeVisible();
+    expect(screen.queryByText(/Read-only access/)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it.each([true, false])('submits explicit choice %s with the bound review and follows only checked destinations', async accept => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ url: 'https://chatgpt.com/callback?' + (accept ? 'code=synthetic' : 'error=access_denied') }));
     render(<OAuthConsent review={review} initialLocale="en" />);

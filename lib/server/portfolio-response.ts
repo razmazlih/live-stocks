@@ -1,5 +1,5 @@
 import { readSourceCatalog, type SourceCatalog } from '@/lib/server/investment-source-catalog';
-import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, positionFxTimestamps } from '@/lib/reconciliation-quality';
+import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, positionFxTimestamps, UNKNOWN_COMMISSION_WARNING, withCommissionQuality } from '@/lib/reconciliation-quality';
 import 'server-only';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -122,6 +122,7 @@ export async function buildPortfolioResponse(
     const rawPositions = Array.isArray(positionsData) ? positionsData : [];
     const mappedPositions: Position[] = rawPositions.map(mapPositionRow);
     const historyQuality = reconciliationQuality(mappedPositions);
+    const missingFeeSymbols = new Set(historyQuality.missingCommissionSymbols);
     const activationPositions = mappedPositions.flatMap((position) =>
       expandPositionActivations(position),
     );
@@ -197,7 +198,7 @@ export async function buildPortfolioResponse(
     const totalForecastGapUsd = enrichedSummary.totalNetPnLUsd - enrichedSummary.totalProjectedPnLUsd;
     const totalForecastGapIls = enrichedSummary.totalNetPnLIls - enrichedSummary.totalProjectedPnLIls;
 
-    const summary = {
+    const summary = withCommissionQuality({
       ...baseSummary,
       totalCurrentPnLUsd: toFixedNumber(enrichedSummary.totalCurrentPnLUsd),
       totalCurrentPnLIls: toFixedNumber(enrichedSummary.totalCurrentPnLIls),
@@ -216,7 +217,7 @@ export async function buildPortfolioResponse(
       totalValue: toFixedNumber(baseSummary.totalValue),
       totalCost: toFixedNumber(baseSummary.totalCost),
       usdToIlsRate: toFixedNumber(baseSummary.usdToIlsRate),
-    };
+    }, historyQuality.completeCommissionHistory);
 
     const gapCandidates = metrics
       .map((metric) => {
@@ -238,46 +239,50 @@ export async function buildPortfolioResponse(
       return value;
     };
 
-    const mappedStocks = gapCandidates.map(({ metric, priceGap, pnlGapUsd }) => ({
-      symbol: metric.position.symbol,
-      display: metric.position.display,
-      imageUrl: metric.position.imageUrl,
-      location: metric.position.location,
-      sourceName: sources.find(source => source.id === metric.position.location)?.name ?? null,
-      entryPrice: toFixedNumber(metric.position.entryPrice),
-      quantity: metric.position.quantity,
-      entryDate: metric.position.entryDate,
-      currentPrice: toFixedNumber(metric.currentPrice),
-      projectedPrice: toFixedNumber(metric.projectedPrice),
-      currentPnLUsd: toFixedNumber(metric.positionPnLUsd),
-      currentPnLIls: toFixedNumber(metric.positionPnLIls),
-      projectedPnLUsd: toFixedNumber(metric.projectedPnLUsd),
-      projectedPnLIls: toFixedNumber(metric.projectedPnLIls),
-      totalValueUsd: toFixedNumber(metric.currentValue),
-      totalValueIls: toFixedNumber(metric.currentValueIls),
-      roiPercent: toFixedNumber(metric.roiPercent),
-      dailyChange: isFiniteNumber(metric.dailyChange) ? toFixedNumber(metric.dailyChange) : null,
-      dailyChangePercent: isFiniteNumber(metric.dailyChangePercent)
-        ? toFixedNumber(metric.dailyChangePercent)
-        : null,
-      pnlDelta: {
-        currency: 'USD',
-        value: toFixedNumber(pnlGapUsd),
-        ...(targetCurrency !== 'USD' ? {
-          targetCurrency,
-          targetValue: toFixedNumber(targetCurrency === 'ILS' ? metric.combinedIls : convertToTarget(pnlGapUsd)),
-        } : {}),
-      },
-      priceGap: {
-        currency: 'USD',
-        value: toFixedNumber(priceGap),
-        ...(targetCurrency !== 'USD' ? {
-          targetCurrency,
-          targetValue: toFixedNumber(convertToTarget(priceGap)),
-        } : {}),
-      },
-    }));
-    const topStocks = mappedStocks.slice(0, 3);
+    const mappedStocks = gapCandidates.map(({ metric, priceGap, pnlGapUsd }) => {
+      const commissionComplete = !missingFeeSymbols.has(metric.position.symbol.trim().toUpperCase());
+      return {
+        completeCommissionHistory: commissionComplete,
+        symbol: metric.position.symbol,
+        display: metric.position.display,
+        imageUrl: metric.position.imageUrl,
+        location: metric.position.location,
+        sourceName: sources.find(source => source.id === metric.position.location)?.name ?? null,
+        entryPrice: commissionComplete ? toFixedNumber(metric.position.entryPrice) : null,
+        quantity: metric.position.quantity,
+        entryDate: metric.position.entryDate,
+        currentPrice: toFixedNumber(metric.currentPrice),
+        projectedPrice: commissionComplete ? toFixedNumber(metric.projectedPrice) : null,
+        currentPnLUsd: commissionComplete ? toFixedNumber(metric.positionPnLUsd) : null,
+        currentPnLIls: commissionComplete ? toFixedNumber(metric.positionPnLIls) : null,
+        projectedPnLUsd: commissionComplete ? toFixedNumber(metric.projectedPnLUsd) : null,
+        projectedPnLIls: commissionComplete ? toFixedNumber(metric.projectedPnLIls) : null,
+        totalValueUsd: toFixedNumber(metric.currentValue),
+        totalValueIls: toFixedNumber(metric.currentValueIls),
+        roiPercent: commissionComplete ? toFixedNumber(metric.roiPercent) : null,
+        dailyChange: isFiniteNumber(metric.dailyChange) ? toFixedNumber(metric.dailyChange) : null,
+        dailyChangePercent: isFiniteNumber(metric.dailyChangePercent)
+          ? toFixedNumber(metric.dailyChangePercent)
+          : null,
+        pnlDelta: {
+          currency: 'USD',
+          value: commissionComplete ? toFixedNumber(pnlGapUsd) : null,
+          ...(targetCurrency !== 'USD' ? {
+            targetCurrency,
+            targetValue: commissionComplete ? toFixedNumber(targetCurrency === 'ILS' ? metric.combinedIls : convertToTarget(pnlGapUsd)) : null,
+          } : {}),
+        },
+        priceGap: {
+          currency: 'USD',
+          value: commissionComplete ? toFixedNumber(priceGap) : null,
+          ...(targetCurrency !== 'USD' ? {
+            targetCurrency,
+            targetValue: commissionComplete ? toFixedNumber(convertToTarget(priceGap)) : null,
+          } : {}),
+        },
+      };
+    });
+    const topStocks = mappedStocks.filter(stock => stock.completeCommissionHistory).slice(0, 3);
 
     const responsePayload: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
@@ -285,13 +290,16 @@ export async function buildPortfolioResponse(
       targetCurrency,
       sources,
       summary,
-      dataQuality: { ...historyQuality, warnings: historyQuality.completeTransactionHistory ? [] : [RECONCILIATION_HISTORY_WARNING] },
+      dataQuality: { ...historyQuality, warnings: [
+        ...(!historyQuality.completeTransactionHistory ? [RECONCILIATION_HISTORY_WARNING] : []),
+        ...(!historyQuality.completeCommissionHistory ? [UNKNOWN_COMMISSION_WARNING] : []),
+      ] },
       stocks: mappedStocks,
       topStocks,
       realizedSalesCount: realizedSales.length,
     };
 
-    if (includeWeightedPrice) {
+    if (includeWeightedPrice && historyQuality.completeCommissionHistory) {
       const weightedPrices = calculateWeightedPortfolioPrices(metrics);
       if (weightedPrices) {
         responsePayload.weightedPrice = {
