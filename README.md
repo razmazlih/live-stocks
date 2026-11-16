@@ -1,3 +1,5 @@
+<div dir="rtl">
+
 <p align="center">
   <img src="public/brand/livestocks.svg" alt="LiveStocks" width="80" height="80" />
 </p>
@@ -138,6 +140,8 @@ LiveStocks מרכזת החזקות ועסקאות ממקורות השקעה שו
 
 ההחזקות, מנות הרכישה, ההגדרות ורשימות המעקב שייכות למשתמש. `investment_sources` מחזיקה את קטלוג המקורות האישי, והפניות `location` משתמשות במזהי UUID. מפתחות Finnhub נשמרים מוצפנים בשרת; סודות אינם מוחזרים לממשק או נשמרים ב־localStorage. חיבורי ChatGPT והווידג׳ט ניתנים לביטול.
 
+<div dir="ltr">
+
 ```text
 app/                    מסכים, API, כניסה ו־OAuth
 components/             רכיבי הממשק והתצוגות
@@ -151,16 +155,22 @@ output/widget/          קוד Scriptable, בדיקות ותצוגה מקדימ�
 docs/                   מדריכים, ראיות אימות וצילומי מסך
 ```
 
+</div>
+
 <a id="local-development"></a>
 
 ## התחלה למפתחים
 
 נדרשים Node.js ו־npm התואמים לתלויות ב־`package.json`. להרצת Supabase מקומית נדרשים גם Docker וה־Supabase CLI; לכלי הבדיקות המבודדים נדרשים כלי PostgreSQL מקומיים.
 
+<div dir="ltr">
+
 ```bash
 npm ci
 cp .env.example .env.local
 ```
+
+</div>
 
 לפני ההרצה, מגדירים סביבת נתונים ואימות לפי [מדריך Better Auth](docs/BETTER_AUTH_SETUP.md). קובץ `.env.example` מספק את בסיס התצורה; הגישה לתיק דורשת גם תפקיד מסד ייעודי ואינטגרציית issuer/JWKS מול Supabase.
 
@@ -174,11 +184,15 @@ cp .env.example .env.local
 
 בסביבת פיתוח מקומית חדשה אפשר לאתחל את הנתונים כך. `db reset` מאפס את מסד הפיתוח המקומי ומחיל מיגרציות ו־seed; אין להשתמש בו מול מסד שרוצים לשמור.
 
+<div dir="ltr">
+
 ```bash
 npx supabase start
 npx supabase db reset
 npm run dev
 ```
+
+</div>
 
 פותחים את [localhost:3000](http://localhost:3000). ללא תצורת אימות מלאה המידע הפרטי חסום ומוצגת הודעת הגדרה חסרה. לתצורת ענן ולמעבר נתונים קיימים יש לפעול לפי המדריכים הייעודיים, כולל מיפוי החשבון ובדיקות שימור.
 
@@ -218,3 +232,5 @@ npm run dev
 | פרטיות ותנאי שימוש | [אודות](https://razmaz-live-stocks.vercel.app/about) · [פרטיות](https://razmaz-live-stocks.vercel.app/privacy) · [תנאי שימוש](https://razmaz-live-stocks.vercel.app/terms) |
 
 צילומי תיעוד נשמרים ב־`docs/screenshots/` ומתעדכנים כשמסך או זרימת שימוש משתנים. תוצרי צילום ובנייה זמניים אינם חלק מהתיעוד שב־Git. ראיות הבדיקה נשמרות ב־`docs/verification/`, עם ההבחנה בין בדיקות מקומיות, נתונים סינתטיים ואימות בייצור.
+
+</div>
