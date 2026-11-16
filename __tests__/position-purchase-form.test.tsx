@@ -6,7 +6,10 @@ vi.mock('@/hooks/use-investment-sources', () => {
   ];
   return { useInvestmentSources: () => ({ sources, activeSources: sources, loading: false, error: null,
     sourceName: (id: string) => sources.find(source => source.id === id)?.name ?? 'Unavailable source',
-    resolveLocation: (id: string) => id, createSource: vi.fn(),
+    resolveLocation: (id: string) => id, createSource: async (name: string) => {
+      const source = { id: '10000000-0000-4000-8000-000000000003', name: name.trim(), archivedAt: null, createdAt: '2026-01-03' };
+      sources.push(source); return source;
+    },
   }) };
 });
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -107,4 +110,15 @@ describe('continuing existing positions from the new-position form', () => {
     await act(async () => resolvePurchase(successfulPurchase));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+});
+
+it('selects a newly created third source immediately and purchases into its ID', async () => {
+  const { user, dialog, form } = await openPurchaseForm();
+  fireEvent.change(within(dialog).getByLabelText('New source name'), { target: { value: 'בית השקעות שלישי' } });
+  await user.click(within(dialog).getByRole('button', { name: 'Add source' }));
+  await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Investment source' })).toHaveTextContent('בית השקעות שלישי'));
+  expect(within(dialog).queryByText('This position is already active in this account')).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+  expect(rpc.mock.calls[0][1]).toMatchObject({ p_location: '10000000-0000-4000-8000-000000000003', p_symbol: 'ADBE' });
 });
