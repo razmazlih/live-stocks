@@ -4,9 +4,10 @@ import { z } from 'zod';
 import type { Principal } from '@/lib/auth/server';
 import { betterAuthConfiguration } from '@/lib/auth/better-auth-config';
 import { mapPositionRow } from '@/lib/positions';
+import { findPurchaseDateCandidates } from '@/lib/purchase-date-candidates';
 import { buildScreenshotSyncPlan, screenshotSyncInputSchema } from '@/lib/screenshot-sync';
 
-const envelopeSchema = z.object({ version: z.literal(1), owner: z.string(), expires: z.number(), fingerprint: z.string().regex(/^[a-f0-9]{32}$/), input: screenshotSyncInputSchema, lotIds: z.array(z.string().uuid()), importSymbols: z.array(z.string()), canApply: z.boolean() }).strict();
+const envelopeSchema = z.object({ version: z.literal(2), owner: z.string(), expires: z.number(), fingerprint: z.string().regex(/^[a-f0-9]{32}$/), input: screenshotSyncInputSchema, lotIds: z.array(z.string().uuid()), importSymbols: z.array(z.string()), canApply: z.boolean() }).strict();
 function key() { return createHash('sha256').update('livestocks:screenshot-sync:v1:').update(betterAuthConfiguration().secret).digest(); }
 function seal(value: z.infer<typeof envelopeSchema>) {
   const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key(), iv);
@@ -36,8 +37,8 @@ function planFor(input: z.infer<typeof screenshotSyncInputSchema>, snapshot: Awa
 export async function prepareScreenshotSync(principal: Principal, raw: unknown) {
   const input = screenshotSyncInputSchema.parse(raw), snapshot = await readSnapshot(principal), plan = planFor(input, snapshot);
   const expires = Date.now() + 15 * 60 * 1000;
-  const token = seal({ version: 1, owner: principal.userId, expires, fingerprint: snapshot.fingerprint, input, lotIds: input.rows.map(() => randomUUID()), importSymbols: plan.changes.map(row => row.symbol), canApply: plan.canApply });
-  return { plan, expiresAt: new Date(expires).toISOString(), reviewUrl: `${betterAuthConfiguration().origin}/positions/sync#${token}`, instructions: 'פתח את קישור הסקירה ואשר באתר. אין שינוי בתיק לפני אישור. שורות חסומות דורשות תיקון פרטים בצ׳אט; היסטוריה קיימת אינה מוחלפת.' };
+  const token = seal({ version: 2, owner: principal.userId, expires, fingerprint: snapshot.fingerprint, input, lotIds: input.rows.map(() => randomUUID()), importSymbols: plan.changes.map(row => row.symbol), canApply: plan.canApply });
+  return { plan, expiresAt: new Date(expires).toISOString(), reviewUrl: `${betterAuthConfiguration().origin}/positions/sync#${token}`, instructions: 'פתח את קישור הסקירה ואשר באתר. אין שינוי בתיק לפני אישור. היתרות יתעדכנו באמצעות רישום התאמה נפרד; עסקאות עבר נשמרות, ונתוני רווח היסטוריים חסרים לא יומצאו.' };
 }
 export async function reviewScreenshotSync(principal: Principal, token: string) {
   const proposal = openScreenshotProposal(token, principal.userId), snapshot = await readSnapshot(principal);
@@ -48,8 +49,28 @@ export async function applyScreenshotSync(principal: Principal, token: string) {
   const proposal = openScreenshotProposal(token, principal.userId);
   // SQL checks freshness and exact replay atomically. No administrator client or MCP write capability.
   if (!proposal.canApply) throw new Error('יש להשלים את כל השורות החסומות בצ׳אט לפני שמירה.');
-  const rows = proposal.input.rows.map((row, index) => ({ ...row, location: proposal.input.location, lotId: proposal.lotIds[index] })).filter(row => proposal.importSymbols.includes(row.symbol));
+  const rows = proposal.input.rows.map((row, index) => ({ ...row, averageCostUsd: row.quantity === 0 ? 0 : row.averageCostUsd, estimatedAcquiredOn: row.estimatedAcquiredOn ?? null, observedAt: proposal.input.observedAt, location: proposal.input.location, lotId: proposal.lotIds[index] })).filter(row => proposal.importSymbols.includes(row.symbol));
   const { data, error } = await principal.supabase.rpc('apply_screenshot_sync', { p_expected: proposal.fingerprint, p_rows: rows });
   if (error) throw new Error('לא נשמר שינוי. ההצעה חסרה פרטים או שהתיק השתנה; הכינו הצעה חדשה בצ׳אט.');
   return data;
+}
+
+const dateRevisionSchema = z.array(z.object({ symbol: z.string(), acquiredOn: z.string().nullable(), estimatedAcquiredOn: z.string().nullable().optional() }).strict()).min(1).max(100);
+export async function reviseScreenshotDates(principal: Principal, token: string, raw: unknown) {
+  const original = openScreenshotProposal(token, principal.userId), dates = dateRevisionSchema.parse(raw);
+  if (new Set(dates.map(row => row.symbol)).size !== dates.length || dates.some(row => !original.input.rows.some(holding => holding.symbol === row.symbol))) throw new Error('יש לעדכן רק מניות המופיעות בהצעה.');
+  const input = screenshotSyncInputSchema.parse({ ...original.input, rows: original.input.rows.map(row => {
+    const revision = dates.find(item => item.symbol === row.symbol);
+    return revision ? { ...row, acquiredOn: revision.acquiredOn, estimatedAcquiredOn: revision.estimatedAcquiredOn ?? null } : row;
+  }) });
+  const snapshot = await readSnapshot(principal);
+  if (snapshot.fingerprint !== original.fingerprint) throw new Error('התיק השתנה. יש להכין הצעה חדשה לפני שמירה.');
+  const plan = planFor(input, snapshot);
+  const revisedToken = seal({ ...original, input, importSymbols: plan.changes.map(row => row.symbol), canApply: plan.canApply });
+  return { token: revisedToken, review: { input, plan, stale: false, expiresAt: new Date(original.expires).toISOString() } };
+}
+export async function suggestScreenshotDate(principal: Principal, token: string, symbol: string) {
+  const original = openScreenshotProposal(token, principal.userId), row = original.input.rows.find(item => item.symbol === symbol);
+  if (!row || !(row.quantity > 0) || !row.averageCostUsd) throw new Error('יש לבחור החזקה עם עלות קנייה ידועה.');
+  return findPurchaseDateCandidates({ symbol: row.symbol, priceUsd: row.averageCostUsd, lookbackDays: 1825, throughDate: original.input.observedAt });
 }

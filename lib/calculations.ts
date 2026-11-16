@@ -1,5 +1,5 @@
 import { CandleData, HistoricalPoint, PortfolioAllocationDatum, PortfolioPnLDatum, Position, PositionLot, PositionMetrics, PortfolioSummary, PortfolioTimelinePoint, RealizedSale, SymbolExceptionAssessment } from '@/types';
-import { calculateCommissionTotals, computeOpenLots, computeRealizedSales, summarizeLots } from '@/lib/positions';
+import { calculateCommissionTotals, computeOpenLots, computeRealizedSales, summarizeLots, hasReconciliation } from '@/lib/positions';
 
 export { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/display/formatting';
 
@@ -68,11 +68,12 @@ export function calculatePositionMetrics(
   const hasLots = lots.length > 0;
   const summary = hasLots ? summarizeLots(lots, now) : undefined;
 
-  const normalizedQuantity = summary && summary.totalQuantity > 0 ? summary.totalQuantity : position.quantity;
+  const normalizedQuantity = summary ? summary.totalQuantity : position.quantity;
   const normalizedEntryPrice = summary && summary.totalQuantity > 0 ? summary.averageEntryPrice : position.entryPrice;
   const normalizedEntryDate = summary?.earliestEntryDate ?? position.entryDate;
   const normalizedPosition: Position = {
     ...position,
+    accountingIncomplete: hasReconciliation(position),
     entryPrice: normalizedEntryPrice,
     quantity: normalizedQuantity,
     entryDate: normalizedEntryDate,
@@ -83,7 +84,7 @@ export function calculatePositionMetrics(
     ? 0
     : Math.max((now.getTime() - entryDate.getTime()) / MS_PER_YEAR, 0);
 
-  const yearsHeld = summary ? summary.weightedHoldingYears || fallbackYearsHeld : fallbackYearsHeld;
+  const yearsHeld = summary ? summary.weightedHoldingYears : fallbackYearsHeld;
 
   const positionPnLUsd = (currentPrice - normalizedEntryPrice) * normalizedQuantity;
   const openLots = hasLots ? computeOpenLots(lots) : [{
@@ -92,7 +93,7 @@ export function calculatePositionMetrics(
     executedAt: normalizedEntryDate,
   }];
   const costBasisIls = openLots.reduce((sum, lot) =>
-    sum + lot.totalCost * getFxRateAt(new Date(lot.executedAt).getTime()), 0);
+    sum + lot.totalCost * (Number.isFinite(Date.parse(lot.executedAt)) ? getFxRateAt(Date.parse(lot.executedAt)) : Number.NaN), 0);
   const positionPnLIls = currentPrice * normalizedQuantity * usdToIlsRate - costBasisIls;
 
   const projectedPrice = normalizedQuantity > 0 && hasLots
@@ -102,7 +103,7 @@ export function calculatePositionMetrics(
   const projectedPnLUsd = (projectedPrice - normalizedEntryPrice) * normalizedQuantity;
   const projectedPnLIls = openLots.reduce((sum, lot) => {
     const timestamp = new Date(lot.executedAt).getTime();
-    const years = Number.isFinite(timestamp) ? Math.max((now.getTime() - timestamp) / MS_PER_YEAR, 0) : 0;
+    const years = Number.isFinite(timestamp) ? Math.max((now.getTime() - timestamp) / MS_PER_YEAR, 0) : Number.NaN;
     return sum + lot.totalCost * getFxRateAt(timestamp) * (Math.pow(1 + annualGrowthRate, years) - 1);
   }, 0);
 
@@ -171,7 +172,7 @@ export function calculateWeightedProjectedPrice(
   const weightedSum = openLots.reduce((sum, lot) => {
     const executedAt = new Date(lot.executedAt);
     if (Number.isNaN(executedAt.getTime())) {
-      return sum;
+      return Number.NaN;
     }
 
     const yearsHeld = Math.max((asOf.getTime() - executedAt.getTime()) / MS_PER_YEAR, 0);
@@ -204,7 +205,7 @@ export function calculateRequiredExitPrice(
   annualGrowthRate: number,
   asOf: Date = new Date(),
 ): number | undefined {
-  if (!Array.isArray(positions) || positions.length === 0 || !Number.isFinite(annualGrowthRate)) {
+  if (!Array.isArray(positions) || positions.length === 0 || positions.some(hasReconciliation) || !Number.isFinite(annualGrowthRate)) {
     return undefined;
   }
 
@@ -280,6 +281,8 @@ export function calculateSymbolExceptionAssessment(
     actualProfitUsd: 0,
     profitGapUsd: 0,
   };
+
+  if (positions.some(hasReconciliation)) return { ...assessmentBase, status: 'invalid', invalidReason: 'reconciliation_history_incomplete' };
 
   if (!Number.isFinite(annualGrowthRate)) {
     return { ...assessmentBase, status: 'invalid', invalidReason: 'invalid_annual_growth_rate' };
@@ -471,6 +474,7 @@ export function calculatePortfolioSummary(
 
   return {
     ...summary,
+    accountingIncomplete: (commissionPositions ?? metrics.map(metric => metric.position)).some(hasReconciliation),
     totalRealizedProfitUsd: 0,
     totalRealizedProfitIls: 0,
     totalTaxesPaidUsd: 0,
@@ -537,10 +541,10 @@ export function enrichPortfolioSummaryWithRealized(
   realizedTotals: RealizedPortfolioTotals,
   taxTotals: PortfolioTaxTotals,
 ): PortfolioSummary {
-  const totalCurrentPnLUsd = summary.totalCurrentPnLUsd + realizedTotals.profitUsd;
-  const totalCurrentPnLIls = summary.totalCurrentPnLIls + realizedTotals.profitIls;
-  const totalProjectedPnLUsd = Math.max(summary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd, 0);
-  const totalProjectedPnLIls = Math.max(summary.totalProjectedPnLIls + realizedTotals.expectedProfitIls, 0);
+  const totalCurrentPnLUsd = summary.accountingIncomplete ? Number.NaN : summary.totalCurrentPnLUsd + realizedTotals.profitUsd;
+  const totalCurrentPnLIls = summary.accountingIncomplete ? Number.NaN : summary.totalCurrentPnLIls + realizedTotals.profitIls;
+  const totalProjectedPnLUsd = summary.accountingIncomplete ? Number.NaN : Math.max(summary.totalProjectedPnLUsd + realizedTotals.expectedProfitUsd, 0);
+  const totalProjectedPnLIls = summary.accountingIncomplete ? Number.NaN : Math.max(summary.totalProjectedPnLIls + realizedTotals.expectedProfitIls, 0);
 
   return {
     ...summary,
@@ -552,8 +556,8 @@ export function enrichPortfolioSummaryWithRealized(
     totalCombinedIls: totalCurrentPnLIls - totalProjectedPnLIls,
     totalRealizedProfitUsd: realizedTotals.profitUsd,
     totalRealizedProfitIls: realizedTotals.profitIls,
-    totalTaxesPaidUsd: taxTotals.taxUsd,
-    totalTaxesPaidIls: taxTotals.taxIls,
+    totalTaxesPaidUsd: summary.accountingIncomplete ? Number.NaN : taxTotals.taxUsd,
+    totalTaxesPaidIls: summary.accountingIncomplete ? Number.NaN : taxTotals.taxIls,
     totalNetPnLUsd: totalCurrentPnLUsd - taxTotals.taxUsd,
     totalNetPnLIls: totalCurrentPnLIls - taxTotals.taxIls,
   };

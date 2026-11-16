@@ -16,6 +16,9 @@ interface SupabasePositionLot {
   id: string;
   position_id: string;
   side: PositionLotType;
+  basis_acquired_on?: string | null;
+  basis_date_estimate?: string | null;
+  created_at?: string;
   price: number | string;
   quantity: number | string;
   executed_at: string;
@@ -63,6 +66,7 @@ export interface OpenLot {
   quantity: number;
   executedAt: string;
   totalCost: number;
+  basisDateKnown?: boolean;
 }
 
 export interface PositionSummary {
@@ -93,6 +97,9 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
     id: lot.id,
     positionId: lot.position_id,
     type: lot.side,
+    basisAcquiredOn: lot.basis_acquired_on,
+    basisDateEstimate: lot.basis_date_estimate,
+    createdAt: lot.created_at,
     price: parseNumeric(lot.price),
     quantity: parseNumeric(lot.quantity),
     executedAt: lot.executed_at,
@@ -148,7 +155,7 @@ export function calculateCommissionTotals(
 ): { commissionUsd: number; commissionIls: number } {
   return lots.reduce((totals, lot) => {
     const timestamp = Date.parse(lot.executedAt);
-    if (!Number.isFinite(timestamp) || timestamp > asOf || !(lot.quantity > 0) || !lot.hasCommission) return totals;
+    if (lot.type === 'RECONCILE' || !Number.isFinite(timestamp) || timestamp > asOf || !(lot.quantity > 0) || !lot.hasCommission) return totals;
     const commission = Number.isFinite(lot.commissionAmount) ? Math.max(lot.commissionAmount, 0) : 0;
     if (commission === 0) return totals;
     totals.commissionUsd += commission;
@@ -157,24 +164,63 @@ export function calculateCommissionTotals(
   }, { commissionUsd: 0, commissionIls: 0 });
 }
 
+/** Preserve legacy FIFO before reconciliation; afterward use recorded insertion order. */
+export function orderPositionLots(lots: PositionLot[]): PositionLot[] {
+  const recordedTime = (lot: PositionLot) => {
+    const timestamp = lot.createdAt ? Date.parse(lot.createdAt) : Number.NaN;
+    return Number.isFinite(timestamp) ? timestamp : lot.type === 'RECONCILE' ? Infinity : 0;
+  };
+  const checkpoints = new Map<string, PositionLot[]>();
+  for (const lot of lots) {
+    if (lot.type !== 'RECONCILE') continue;
+    const day = lot.executedAt.slice(0, 10);
+    checkpoints.set(day, [...(checkpoints.get(day) ?? []), lot]);
+  }
+  for (const entries of checkpoints.values()) entries.sort((a, b) => {
+    const left = recordedTime(a), right = recordedTime(b);
+    return left === right ? 0 : left < right ? -1 : 1;
+  });
+  const firstCheckpointDay = [...checkpoints.keys()].sort()[0];
+  const bucket = (lot: PositionLot) => {
+    const entries = checkpoints.get(lot.executedAt.slice(0, 10)) ?? [];
+    if (lot.type === 'RECONCILE') return entries.indexOf(lot) * 2 + 1;
+    // Legacy trades remain stable within each side of an observation. A later
+    // real trade must follow its checkpoint even if the input array is shuffled.
+    return entries.filter(entry => recordedTime(entry) < recordedTime(lot)).length * 2;
+  };
+  return [...lots].sort((a, b) => {
+    const dateDelta = Date.parse(a.executedAt) - Date.parse(b.executedAt);
+    if (Number.isFinite(dateDelta) && dateDelta !== 0) return dateDelta;
+    const aBucket = bucket(a), bBucket = bucket(b);
+    if (aBucket !== bBucket) return aBucket - bBucket;
+    const afterCheckpoint = firstCheckpointDay !== undefined && (a.executedAt.slice(0, 10) > firstCheckpointDay || aBucket > 0);
+    if (afterCheckpoint && a.createdAt && b.createdAt) {
+      const creationDelta = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+      if (Number.isFinite(creationDelta) && creationDelta !== 0) return creationDelta;
+    }
+    return 0;
+  });
+}
+export function hasReconciliation(position: Position): boolean {
+  return position.accountingIncomplete === true || (position.lots ?? []).some(lot => lot.type === 'RECONCILE');
+}
+
 export function computeOpenLots(lots: PositionLot[]): OpenLot[] {
   if (!lots.length) {
     return [];
   }
 
-  const sorted = [...lots].sort((a, b) => {
-    const aTime = new Date(a.executedAt).getTime();
-    const bTime = new Date(b.executedAt).getTime();
-    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-      return 0;
-    }
-    return aTime - bTime;
-  });
+  const sorted = orderPositionLots(lots);
 
   const queue: OpenLot[] = [];
 
   for (const lot of sorted) {
     const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (lot.type === 'RECONCILE') {
+      queue.length = 0;
+      if (quantity > 0) queue.push({ id: lot.id, price: lot.price, quantity, executedAt: lot.basisAcquiredOn ?? '', totalCost: quantity * lot.price, basisDateKnown: Boolean(lot.basisAcquiredOn) });
+      continue;
+    }
     if (quantity === 0) {
       continue;
     }
@@ -256,7 +302,7 @@ export function summarizeLots(lots: PositionLot[], asOf: Date = new Date()): Pos
     ? openLots.reduce((acc, lot) => {
         const executedAt = new Date(lot.executedAt);
         if (Number.isNaN(executedAt.getTime())) {
-          return acc;
+          return Number.NaN;
         }
         const heldYears = Math.max((asOf.getTime() - executedAt.getTime()) / MS_PER_YEAR, 0);
         return acc + heldYears * lot.quantity;
@@ -296,10 +342,9 @@ function collectActivationSegments(position: Position): ActivationSegment[] {
     return [];
   }
 
-  const orderedLots = lots
+  const orderedLots = orderPositionLots(lots)
     .map((lot) => ({ lot, timestamp: normalizeLotTimestamp(lot) }))
-    .filter((entry): entry is { lot: PositionLot; timestamp: number } => entry.timestamp !== null)
-    .sort((a, b) => a.timestamp - b.timestamp);
+    .filter((entry): entry is { lot: PositionLot; timestamp: number } => entry.timestamp !== null);
 
   const segments: ActivationSegment[] = [];
   let currentLots: PositionLot[] = [];
@@ -308,6 +353,16 @@ function collectActivationSegments(position: Position): ActivationSegment[] {
 
   for (const { lot, timestamp } of orderedLots) {
     const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (lot.type === 'RECONCILE') {
+      if (!currentLots.length && quantity > 0) currentStart = timestamp;
+      currentLots.push(lot);
+      runningQuantity = quantity;
+      if (quantity <= 1e-8) {
+        segments.push({ lots: [...currentLots], startTimestamp: currentStart, endTimestamp: timestamp, remainingQuantity: 0 });
+        currentLots = []; currentStart = null;
+      }
+      continue;
+    }
     if (quantity === 0) {
       continue;
     }
@@ -411,7 +466,8 @@ export function expandPositionActivations(position: Position): Position[] {
   return segments.map((segment, index) => {
     const activationId = `${baseId}::activation-${index + 1}`;
     const { average: averageBuyPrice, earliestBuy } = computeAverageBuyPrice(segment.lots);
-    const derivedEntryPrice = averageBuyPrice > 0 ? averageBuyPrice : position.entryPrice;
+    const checkpointSummary = segment.lots.some(lot => lot.type === 'RECONCILE') ? summarizeLots(segment.lots) : null;
+    const derivedEntryPrice = checkpointSummary && checkpointSummary.totalQuantity > 0 ? checkpointSummary.averageEntryPrice : averageBuyPrice > 0 ? averageBuyPrice : position.entryPrice;
     const startIso = earliestBuy
       ? new Date(earliestBuy).toISOString()
       : segment.startTimestamp
@@ -436,13 +492,14 @@ export function expandPositionActivations(position: Position): Position[] {
       entryDate: startIso ?? position.entryDate,
       quantity: remainingQuantity,
       lots: segment.lots,
+      accountingIncomplete: hasReconciliation(position),
     };
   });
 }
 
 export function mapPositionRow(row: SupabasePositionRow): Position {
   const lots = Array.isArray(row.position_lots)
-    ? row.position_lots.map(normalizeLot).filter((lot) => lot.quantity > 0)
+    ? row.position_lots.map(normalizeLot).filter((lot) => lot.quantity > 0 || lot.type === 'RECONCILE')
     : [];
 
   const plans = Array.isArray(row.position_plans)
@@ -474,10 +531,12 @@ export function mapPositionRow(row: SupabasePositionRow): Position {
     location: normalizePositionLocation(row.location),
     lots,
     plans,
+    accountingIncomplete: lots.some(lot => lot.type === 'RECONCILE'),
   };
 }
 
 type RealizedBuyLot = {
+  reconciledAverage?: boolean;
   id?: string;
   price: number;
   quantity: number;
@@ -496,14 +555,7 @@ function computeRealizedSalesInternal(
     return [];
   }
 
-  const sortedLots = [...lots].sort((a, b) => {
-    const aTime = new Date(a.executedAt).getTime();
-    const bTime = new Date(b.executedAt).getTime();
-    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-      return 0;
-    }
-    return aTime - bTime;
-  });
+  const sortedLots = orderPositionLots(lots);
 
   const shouldIncludeFx = typeof getFxRateAt === 'function';
   const openBuys: RealizedBuyLot[] = [];
@@ -511,6 +563,13 @@ function computeRealizedSalesInternal(
 
   for (const lot of sortedLots) {
     const quantity = Number.isFinite(lot.quantity) ? Math.max(lot.quantity, 0) : 0;
+    if (lot.type === 'RECONCILE') {
+      openBuys.length = 0;
+      if (quantity > 0) openBuys.push({ id: lot.id, price: lot.price, quantity,
+        executedAt: lot.basisAcquiredOn ?? '', timestamp: lot.basisAcquiredOn ? Date.parse(lot.basisAcquiredOn) : Number.NaN,
+        totalCost: quantity * lot.price, reconciledAverage: true });
+      continue;
+    }
     if (quantity === 0) {
       continue;
     }
@@ -540,6 +599,7 @@ function computeRealizedSalesInternal(
     let costBasisUsd = 0;
     let costBasisIls = 0;
     let weightedHoldingDays = 0;
+    let matchedReconciledAverage = false;
     const matchedLots: NonNullable<RealizedSale['matchedLots']> = [];
 
     while (remaining > 0 && openBuys.length) {
@@ -549,15 +609,17 @@ function computeRealizedSalesInternal(
         continue;
       }
       const matched = Math.min(remaining, current.quantity);
+      if (current.reconciledAverage) matchedReconciledAverage = true;
 
       const costPerUnit = current.quantity > 0 ? current.totalCost / current.quantity : current.price;
       const costPortion = costPerUnit * matched;
       costBasisUsd += costPortion;
       matchedLots.push({ buyTimestamp: current.timestamp, costBasisUsd: costPortion });
-      costBasisIls += shouldIncludeFx ? costPortion * getFxRateAt(current.timestamp) : 0;
+      costBasisIls += shouldIncludeFx ? costPortion * (Number.isFinite(current.timestamp) ? getFxRateAt(current.timestamp) : Number.NaN) : 0;
       matchedQuantity += matched;
 
       const buyDate = new Date(current.executedAt);
+      if (!Number.isFinite(current.timestamp)) weightedHoldingDays = Number.NaN;
       if (!Number.isNaN(buyDate.getTime()) && !Number.isNaN(sellDate.getTime())) {
         const diffMs = sellDate.getTime() - buyDate.getTime();
         const diffDays = Math.max(diffMs / (1000 * 60 * 60 * 24), 0);
@@ -599,6 +661,8 @@ function computeRealizedSalesInternal(
       holdingPeriodDays,
       matchedLots,
     };
+
+    if (matchedReconciledAverage) sale.basisSource = 'reconciled_average';
 
     if (shouldIncludeFx) {
       sale.proceedsIls = proceedsIls;
