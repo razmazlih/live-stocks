@@ -26,3 +26,10 @@ The user must then authorize the newly requested `portfolio:transactions` scope 
 ## Verification
 
 Focused tests cover signed token boundaries, optional scope defaults/union, explicit consent text and bootstrap guardrails. The native Better Auth test also verifies an actual consent/code/token exchange for transaction-only permission after enabling the ceiling, and verifies that old screenshot/read-only tokens stay unexpanded and refresh escalation is refused. Native tests use disposable localhost PostgreSQL and synthetic accounts only; they are not proof of a production consent flow.
+
+
+## Production activation on 16 November 2026
+
+The additive transaction migration was applied to the existing `supabase-live-stocks` project. The operator enabled `portfolio:transactions` on both the exact registered `livestocks-mcp-chatgpt` client and canonical `https://razmaz-live-stocks.vercel.app/api/mcp` resource, guarded by their observed prior scope arrays and SHA-256 hashes of every non-scope/non-timestamp field. The invariant hashes were identical afterward. No user grant, token, session, callback, secret, signing, expiry, PKCE or consent field changed. Financial table counts and digests matched before and after the migration/configuration update.
+
+Production deployment `dpl_3FJff5RdRpGHTxdZcLffmRBEyjF5` serves commit `c541bf7` on the existing domain. Public protected-resource discovery includes the optional transaction scope; unauthenticated MCP access still returns 401. Plugin 1.2.0 was published and source-read back; existing App tools were refreshed. A connected profile read still succeeds. New transaction consent and a real transaction-card write have not been performed in the owner's personal account; first use must obtain the user's new optional consent.
