@@ -11,20 +11,22 @@
     "failedInitialization": "Discard only the matching failed auth singleton and close its own pool. A later independent request may initialize fresh.",
     "operationReplay": false,
     "diagnostics": "Allowlisted phase/error class/code/cause only; no raw messages, stack, SQL, request fields, cookies or credentials.",
-    "authSecurityChanges": false
+    "authSecurityChanges": false,
+    "availability": "Session/database/key-service failures return503; explicit invalid/expired/revoked/unverified credentials retain401/403. Existing browser session remains on temporary failure."
   },
   "validation": {
-    "vitestPassed": 1005,
+    "vitestPassed": 1019,
     "vitestOptionalSkipped": 3,
     "typecheck": "PASS",
     "lint": "PASS",
-    "nativeBetterAuthAndSignInMethods": "PASS PostgreSQL 17",
+    "nativeBetterAuthAndSignInMethods": "PASS PostgreSQL17 after availability change",
     "liveGoogleSignIn": "PASS on temporarily restored compatible deployment",
     "liveDesktopSourceCreateRename": "PASS",
     "liveMobileArchiveRestore": "PASS at 390x844",
     "liveRenamePersistsAfterReload": "PASS",
     "liveActiveHoldingArchiveRejected": "PASS",
-    "mobileHorizontalOverflow": false
+    "mobileHorizontalOverflow": false,
+    "nativeSdkMerge": "PASS PostgreSQL17 after initialization change"
   },
   "testData": {
     "testSource": "בדיקת מקורות זמנית – נבדק",
@@ -34,5 +36,14 @@
     "Mobile browser viewport emulation, not a physical phone.",
     "Permanent cause of the initial transient 503 remains unconfirmed.",
     "Final main-branch deployment verification will be appended after the follow-up fix is merged."
-  ]
+  ],
+  "mainIntermediateDeployment": {
+    "commit": "ae25b50376c5a8e6c14a6f5020f4828e433fceb0",
+    "deployment": "dpl_DpJjNofmxLahx55Po5eAvscQYBRw",
+    "state": "READY",
+    "actualGoogleCallbackToSettings": "PASS",
+    "desktopSourceRestore": "PASS",
+    "mobileSourceArchive": "PASS",
+    "note": "An initial reload briefly returned to sign-in; inspection found broad infrastructure-error-to401 conversion, addressed by the availability fix recorded above."
+  }
 }

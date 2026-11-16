@@ -2,8 +2,8 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { CompactSign, SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from 'jose';
-import { Auth0TokenVerificationError, createAuth0TokenVerifier, type Auth0TokenKind } from '@/lib/auth/auth0-token';
+import { CompactSign, SignJWT, errors, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from 'jose';
+import { Auth0TokenVerificationError, Auth0TokenInfrastructureError, createAuth0TokenVerifier, type Auth0TokenKind } from '@/lib/auth/auth0-token';
 
 const issuer = 'https://livestocks-test.eu.auth0.com/';
 const websiteAudience = 'https://stocks.example.com/api/web';
@@ -138,9 +138,26 @@ describe('Auth0 access-token trust boundaries', () => {
   });
   it('fails closed without exposing credentials or JWKS error details', async () => {
     const unavailable = createAuth0TokenVerifier({ ...configuration, jwks: async () => { throw new Error('internal secret'); } });
-    await expect(unavailable(await sign(), 'mcp')).rejects.toThrow('Invalid Auth0 access token');
+    await expect(unavailable(await sign(), 'mcp')).rejects.toThrow('Authentication key service is unavailable');
     for (const token of ['', 'sensitive-token', 'a.b.c', 'Bearer sensitive-token']) {
       await expect(verify(token, 'mcp')).rejects.toThrow('Invalid Auth0 access token');
+    }
+  });
+  it.each([
+    new errors.JWKSTimeout(), new errors.JOSEError('SECRET_ENDPOINT_RESPONSE'),
+    new errors.JWKSInvalid('SECRET_INVALID_KEYSET'),
+    Object.assign(new TypeError('SECRET_FETCH_URL'), { cause: Object.assign(new Error('SECRET_SOCKET'), { code: 'ECONNRESET' }) }),
+  ])('distinguishes trusted key-service failure from token rejection', async failure => {
+    const unavailable = createAuth0TokenVerifier({ ...configuration, jwks: async () => { throw failure; } });
+    const error = await unavailable(await sign(), 'mcp').catch(error => error);
+    expect(error).toBeInstanceOf(Auth0TokenInfrastructureError);
+    expect(error.message).toBe('Authentication key service is unavailable');
+    expect(JSON.stringify(error)).not.toContain('SECRET');
+  });
+  it('keeps no matching trusted key and unsupported token keys as invalid tokens', async () => {
+    for (const failure of [new errors.JWKSNoMatchingKey(), new errors.JOSENotSupported('unsupported header')]) {
+      const invalid = createAuth0TokenVerifier({ ...configuration, jwks: async () => { throw failure; } });
+      await expect(invalid(await sign(), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
     }
   });
   it('requires explicit and distinct website/MCP configuration', () => {

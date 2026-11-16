@@ -1,10 +1,11 @@
 import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createRemoteJWKSet } from 'jose';
+import { logAuthFailure, type AuthFailurePhase } from '@/lib/auth/diagnostics';
 import { headers } from 'next/headers';
 import { getBetterAuthSession, getWebsiteDatabaseToken } from '@/lib/auth/better-auth';
 import { betterAuthConfiguration } from '@/lib/auth/better-auth-config';
-import { createAuth0TokenVerifier } from '@/lib/auth/auth0-token';
+import { createAuth0TokenVerifier, Auth0TokenVerificationError } from '@/lib/auth/auth0-token';
 import { getAdminSupabase } from '@/lib/auth/admin';
 import { parseResolvedIdentity, verifiedEmailDigest } from '@/lib/auth/identity';
 
@@ -53,20 +54,24 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
   }
   let identity;
   try { identity = await verifierCache.verify(token, kind); }
-  catch { throw new AuthenticationError(); }
+  catch (error) {
+    if (error instanceof Auth0TokenVerificationError) throw new AuthenticationError();
+    logAuthFailure('token-verification', error);
+    throw new AuthenticationError(503, 'Authentication is temporarily unavailable');
+  }
   const rawSubject = identity.userId;
   const live = await getAdminSupabase().rpc('server_better_auth_token_valid', {
     p_subject: rawSubject, p_session_id: identity.authSessionId, p_client_id: identity.clientId,
     p_grant_id: identity.grantId ?? null,
   });
-  if (live.error) throw new AuthenticationError(503, 'Account storage is not ready');
+  if (live.error) { logAuthFailure('account-storage', live.error); throw new AuthenticationError(503, 'Account storage is not ready'); }
   if (live.data !== true) throw new AuthenticationError(401, 'Sign in again to access this account');
   const resolved = await getAdminSupabase().rpc('server_identity_resolve', {
     p_issuer: config.issuer, p_subject: rawSubject,
     p_email_hash: verifiedEmailDigest(config.issuer, identity.verifiedEmail),
     p_auth_session_created_at: identity.authSessionCreatedAt ?? null,
   });
-  if (resolved.error) throw new AuthenticationError(503, 'Account storage is not ready');
+  if (resolved.error) { logAuthFailure('account-storage', resolved.error); throw new AuthenticationError(503, 'Account storage is not ready'); }
   const owner = parseResolvedIdentity(resolved.data, rawSubject);
   if (!owner) throw new AuthenticationError(503, 'Account storage is not ready');
   if (owner.state !== 'active') throw new AuthenticationError(401, 'Sign in again to access this account');
@@ -82,20 +87,25 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
 }
 
 export async function requireWebPrincipal(): Promise<Principal> {
+  let phase: AuthFailurePhase = 'configuration';
   try {
     authenticationConfiguration();
+    phase = 'session';
     const requestHeaders = new Headers(await headers());
     const existing = await getBetterAuthSession(requestHeaders);
     if (!existing?.user?.id) throw new AuthenticationError();
     if (existing.user.emailVerified !== true) throw new AuthenticationError(403, 'Verify your email before continuing');
+    phase = 'website-token';
     const { token, session } = await getWebsiteDatabaseToken(requestHeaders);
+    phase = 'token-verification';
     const principal = await verifyToken(token, 'web');
     if (principal.rawSubject !== session.user.id || principal.authSessionId !== session.session.id
       || principal.authSessionCreatedAt !== Math.floor(new Date(session.session.createdAt).getTime() / 1000)) throw new AuthenticationError();
     return { ...principal, accountEmail: session.user.email, accountName: session.user.name };
   } catch (error) {
     if (error instanceof AuthenticationError) throw error;
-    throw new AuthenticationError();
+    logAuthFailure(phase, error);
+    throw new AuthenticationError(503, 'Authentication is temporarily unavailable');
   }
 }
 
