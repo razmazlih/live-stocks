@@ -20,6 +20,7 @@ import { SignJWT } from 'jose';
 import { applyChatSyncResourceDiagnostic } from './lib/chat-sync-resource-diagnostic.mjs';
 import { makeLostConfirmationReply } from './lib/chat-sync-fixture-fault.mjs';
 import { runOAuthSyncGate } from './lib/chat-sync-oauth-gate.mjs';
+import { authTrace } from './lib/chat-sync-auth-trace.mjs';
 import { gunzipSync, brotliDecompressSync, inflateSync } from 'node:zlib';
 const execute = promisify(execFile);
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -166,6 +167,8 @@ async function serve(state) {
       let resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
       const responseChunks = []; for await (const chunk of upstream) responseChunks.push(chunk);
       let responseBody = Buffer.concat(responseChunks);
+      const trace = authTrace({ productionAccess: state.productionAccess, requestUrl: request.url, rpc, protocol: request.headers['mcp-protocol-version'], status: upstream.statusCode, headers: resultHeaders, body: responseBody });
+      if (trace) await appendFile(join(state.runtime, 'auth-trace.jsonl'), JSON.stringify(trace) + '\n', { mode: 0o600 });
       const diagnostic = await applyChatSyncResourceDiagnostic({ runtime: state.runtime, productionAccess: state.productionAccess, rpc, statusCode: upstream.statusCode, headers: resultHeaders, body: responseBody });
       resultHeaders = diagnostic.headers; responseBody = diagnostic.body;
       if (diagnostic.observation.applied) await appendFile(join(state.runtime, 'resource-diagnostic-observations.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...diagnostic.observation }) + '\n', { mode: 0o600 });

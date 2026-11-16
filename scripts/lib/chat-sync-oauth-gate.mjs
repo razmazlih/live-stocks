@@ -16,17 +16,18 @@ export async function runOAuthSyncGate({ state, sdk, snapshot }) {
   const issuerPath = '/api/auth', callback = state.callback;
   assert.equal(new URL(callback).hostname, 'chatgpt.com');
   const scope = 'openid email profile offline_access portfolio:read';
-  let phase = 'baseline', calls = 0;
+  let phase = 'baseline', calls = 0, checkpoint = 'start', lastHttpStatus = null;
   const observations = [];
   async function request(path, { body, cookie, bearer, form = false, protocol } = {}) {
     const response = await fetch('http://127.0.0.1:3137' + path, {
       method: body ? 'POST' : 'GET', redirect: 'manual',
-      headers: { origin, ...(cookie ? { cookie } : {}), ...(bearer ? { authorization: 'Bearer ' + bearer } : {}),
+      headers: { ...(bearer ? {} : { origin }), ...(cookie ? { cookie } : {}), ...(bearer ? { authorization: 'Bearer ' + bearer } : {}),
         ...(protocol ? { 'mcp-protocol-version': protocol } : {}),
         ...(path.includes('/oauth2/authorize?') ? { 'sec-fetch-mode': 'cors' } : {}),
         ...(body ? { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' } : {}) },
       body: body ? (form ? new URLSearchParams(body).toString() : JSON.stringify(body)) : undefined,
     });
+    lastHttpStatus = response.status;
     const data = await response.json().catch(() => ({}));
     return { response, data };
   }
@@ -36,16 +37,22 @@ export async function runOAuthSyncGate({ state, sdk, snapshot }) {
       response_type: 'code', redirect_uri: callback, resource, scope: requestedScope, prompt: 'consent',
       state: randomBytes(20).toString('hex'), code_challenge_method: 'S256',
       code_challenge: createHash('sha256').update(verifier).digest('base64url') });
+    checkpoint = 'authorization-start';
     const start = await request(issuerPath + '/oauth2/authorize?' + params, { cookie: account.cookie });
+    checkpoint = 'authorization-destination';
     const target = start.response.headers.get('location') || start.data.url;
     assert.equal(typeof target, 'string', 'Authorization must return a consent destination');
     const consent = new URL(target, origin);
+    checkpoint = 'consent-path';
     assert.equal(consent.pathname, '/oauth/consent');
+    checkpoint = 'signed-consent-review';
     const review = await sdk.consentReview(consent.search.slice(1), account.cookie);
     assert.equal(review.account.id, account.subject);
+    checkpoint = 'consent-accept';
     const accepted = await request('/api/account/oauth/consent', { cookie: account.cookie,
       body: { query: review.query, receipt: review.receipt, accept: true } });
     assert.equal(accepted.response.status, 200, 'Synthetic OAuth consent failed');
+    checkpoint = 'consent-callback';
     const returned = new URL(accepted.data.url);
     assert.equal(returned.searchParams.get('state'), params.get('state'));
     assert.ok(returned.searchParams.get('code'), 'OAuth authorization code missing');
@@ -53,6 +60,7 @@ export async function runOAuthSyncGate({ state, sdk, snapshot }) {
       code_verifier: verifier, redirect_uri: callback, resource });
   }
   async function token(fields) {
+    checkpoint = 'token-' + fields.grant_type;
     const result = await request(issuerPath + '/oauth2/token', { form: true, body: {
       client_id: state.environment.BETTER_AUTH_MCP_CLIENT_ID,
       client_secret: state.environment.BETTER_AUTH_MCP_CLIENT_SECRET, ...fields,
@@ -63,7 +71,7 @@ export async function runOAuthSyncGate({ state, sdk, snapshot }) {
   }
   async function rpc(bearer, name, args = {}, protocol = '2026-07-28') {
     assert.notEqual(name, 'confirm_screenshot_sync', 'This gate never confirms proposals');
-    calls++;
+    calls++; checkpoint = 'mcp-' + name;
     return request('/api/mcp', { bearer, protocol, body: {
       jsonrpc: '2.0', id: calls, method: 'tools/call', params: { name, arguments: args },
     } });
@@ -119,6 +127,6 @@ export async function runOAuthSyncGate({ state, sdk, snapshot }) {
       holdingsUnchanged: true, confirmationCalls: 0, mcpCalls: calls };
   } catch {
     // Never surface provider errors, response bodies, credentials or signed OAuth queries.
-    throw new Error('Isolated OAuth/MCP gate failed at phase: ' + phase);
+    throw new Error('Isolated OAuth/MCP gate failed: ' + JSON.stringify({ phase, checkpoint, httpStatus: lastHttpStatus }));
   }
 }
