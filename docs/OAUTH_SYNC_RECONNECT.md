@@ -123,8 +123,9 @@ The fix was deployed and promoted to the existing production domain:
   without scope narrowing. No financial data was accessed.
 - Post-deployment error-log query succeeded with zero entries in the first
   15-minute query window; this is an immediate smoke check, not long-term monitoring.
-- Source commits remain local and are not merged to `main`. A future release
-  must include this patch to retain it.
+- The isolated release patch and verification report are integrated into `main`
+  for future deployments. Unrelated commits from the original working branch
+  are excluded. The original working branch is also published on GitHub.
 - Live authenticated read/sync, step-up consent and review-card retry in the
   existing ChatGPT connection remain **unverified**. Native provider + SQL tests
   and public live probes do not replace this host acceptance.
