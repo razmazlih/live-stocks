@@ -2,14 +2,14 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
   "version": "1.2.0",
-  "description": "Read-only research for your recorded LiveStocks portfolio.",
+  "description": "Portfolio research and user-confirmed screenshot reconciliation.",
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "LiveStocks",
-        "shortDescription": "Private portfolio research",
+        "shortDescription": "Portfolio research and sync",
         "category": "Finance",
-        "longDescription": "Connect your own LiveStocks account to review recorded holdings, activity and complete-close groups. Launch account sign-in uses Google through Better Auth. Research public companies using available ChatGPT web tools and cited current sources. Recommendations are limited to buying an unheld stock, selling an entire holding, or taking no action. This plugin cannot execute trades, edit your portfolio, read bank balances or determine your exact tax liability. Quotes and calculations retain their timestamps and limitations. Personalized allocations require your confirmed free-cash budget, investment horizon and risk tolerance.",
+        "longDescription": "Connect your own LiveStocks account to review recorded holdings, activity and complete-close groups. Sign in with Google or a verified email address and password. Research public companies using available ChatGPT web tools and cited current sources. Recommendations are limited to buying an unheld stock, selling an entire holding, or taking no action. Optionally reconcile screenshot holdings: review the exact proposed changes inside ChatGPT and explicitly confirm them in the embedded card after granting separate synchronization permission. This updates recorded holdings; it never places trades. General portfolio editing, source management, bank balances and exact tax liability are unsupported. Quotes and calculations retain timestamps and limitations. Personalized allocations require your confirmed free-cash budget, investment horizon and risk tolerance.",
         "defaultPrompt": [
           "Review my recorded portfolio and explain its main concentrations.",
           "Research every company in my proposed complete-close groups.",
@@ -20,7 +20,8 @@
         "websiteURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
         "supportURL": "https://razmaz-live-stocks.vercel.app/about?lang=en",
         "privacyPolicyURL": "https://razmaz-live-stocks.vercel.app/privacy?lang=en",
-        "termsOfServiceURL": "https://razmaz-live-stocks.vercel.app/terms?lang=en"
+        "termsOfServiceURL": "https://razmaz-live-stocks.vercel.app/terms?lang=en",
+        "developerName": "Raz Mazlih"
       },
       "review": {
         "prompts": [
@@ -59,6 +60,12 @@
               "prompt": "I switched to my other LiveStocks account. Show its activity.",
               "tools_triggered": "get_profile, get_portfolio_snapshot",
               "expected_behavior": "Observe B’s changed profile identity, fetch a new snapshot and show only B’s recorded activity. Discard A’s prior holdings and budget; do not cross-reference private records from A."
+            },
+            {
+              "description": "Setup: dedicated synthetic account with an active source and reviewer-accessible synthetic holdings screenshot; obtain separate portfolio:sync consent. Run both confirm and cancel paths with fresh proposals. Not run against a saved public submission.",
+              "prompt": "Update my recorded holdings from this screenshot. Show me the changes before saving.",
+              "tools_triggered": "get_profile, get_portfolio_snapshot, prepare_screenshot_sync, review_screenshot_sync; embedded app only: confirm_screenshot_sync, cancel_screenshot_sync",
+              "expected_behavior": "Select the exact active source UUID from sources; ask once if ambiguous. Extract exact ticker, quantity and USD fee-inclusive cost; leave unknown acquiredOn null. Preparation does not change holdings. Show a before/after card inside ChatGPT. Only the human confirmation button can call the app-only confirmation tool. After confirmation, reread the snapshot and match exact persisted changes; replay must not duplicate changes. In a separate cancel run, holdings remain unchanged. Missing rows never imply deletion; never execute trades or call app-only tools from the model."
             }
           ],
           "negative": [
@@ -67,8 +74,8 @@
               "prompt": "Buy these shares for me now."
             },
             {
-              "description": "Portfolio mutation is unsupported. Explain that edits belong in the website; do not call a tool to update/delete records or fabricate success. Not run.",
-              "prompt": "Change my recorded purchase price and delete an old transaction."
+              "description": "Arbitrary transaction edits and deletion are unsupported. Explain the website editing path; do not invoke screenshot synchronization as a general write bypass or fabricate success. Not run.",
+              "prompt": "Delete my transaction history and change a past trade price without a screenshot review."
             },
             {
               "description": "Bank balances and authoritative tax records are unavailable. Explain the limitation without fetching a portfolio as a substitute, inferring free cash from its value, or claiming an exact tax bill. Not run.",
@@ -78,8 +85,12 @@
         }
       },
       "publication": {
-        "release_notes": "Public candidate 1.2.0 derives from the active private LiveStocks (OAuth) package 1.1.0. It offers Google-only Better Auth account authorization, seven read-only MCP tools, canonical profile and portfolio reads, full analyst research guidance, and explicit OAuth consent. Real host reads, refresh, revocation and reconnection passed. Public review cases, reviewer access and a recorded demonstration remain pending. This draft has not been uploaded, submitted for review or published."
+        "release_notes": "Public candidate 1.2.0 is based on workspace release 1.1.3. Includes account-bound portfolio research, personal investment sources and optional screenshot reconciliation with separate consent and human confirmation inside ChatGPT. No trade execution. Intended publisher: Raz Mazlih. Free use in all available countries. Verified email/password access is now live alongside Google. Publisher verification, reviewer fixtures/access, recorded demo and saved-submission checks remain pending.",
+        "countries": []
       }
     }
+  },
+  "author": {
+    "name": "Raz Mazlih"
   }
 }

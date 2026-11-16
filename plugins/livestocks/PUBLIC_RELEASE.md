@@ -1,3 +1,27 @@
+## Email/password activation — 2026-11-16
+
+Canonical production now supports verified email/password alongside Google. Actual signup, verification/reset mail, login and old-session/password revocation passed with a dedicated empty demo account. Both emails landed in Gmail spam; verified sender-domain setup remains recommended for public launch. The public listing draft now reflects both sign-in methods. Account credentials remain outside Git. Reviewer fixtures, secure portal credentials, independent reviewer access and a real hosted demo remain pending; no public submission was made. Older statements that SMTP or password activation are missing are superseded. [Sanitized production evidence](../../docs/verification/email-password-production-2026-11-16.json).
+
+## Publisher supplied — 2026-11-16
+
+The owner selected **Raz Mazlih** as the individual public publisher. Both `author.name` and `interface.developerName` now contain this exact spelling. This records the intended identity; OpenAI publisher verification has not been observed. Together with the earlier answers, publication choices are now complete: individual publisher Raz Mazlih, all available countries, free use. Older statements that these choices are unanswered are superseded. Remaining preparation concerns reviewer access, a hosted real demo, current public policy checks and the exact saved-submission tests/scans/attestations.
+
+## Confirmed publication choices — 2026-11-16
+
+The owner explicitly selected **all available countries** and **free use**. The public manifest encodes unrestricted country targeting as `publication.countries: []`; this is intentional, not an unknown value. Free use must be reflected truthfully in the portal commerce declaration once its exact field format is verified. Publisher identity remains unanswered. Older pending-country and pending-pricing statements below are superseded by this confirmation. No submission or public publication has occurred.
+
+# Current public preparation — 2026-11-16
+
+Live Plugin Creator readback confirms the existing plugin is WORKSPACE / LISTED in RABEN, version **1.1.3**, release `pluginrel_6afad5c0a2c081919623d0a838fec5ff`. This is not global public publication. The owner now requests public publication; earlier RABEN-only scope is superseded.
+
+The 1.2.0 public manifest draft now describes optional screenshot reconciliation and separate consent accurately, adds a sixth positive review case for human confirmation/cancellation, and narrows the unsupported-write negative case to arbitrary transaction editing. No public upload or submission was made. The installed package still has historical read-only presentation; this draft does not change it.
+
+The sections below are historical preparation evidence. Their 1.1.0 source, seven-tools-only and no-portfolio-write statements are superseded by the current source and screenshot-sync documentation. Screenshot preparation stores a draft, confirmation modifies exact recorded holdings and cancellation changes proposal status; their annotations must not be represented as universally read-only. See [current source](../livestocks-oauth/README.md) and [screenshot-sync evidence](../../docs/SCREENSHOT_SYNC.md).
+
+Still needed: the owner's intended verified publisher, explicit countries and commerce decision; secure dedicated reviewer access and fixtures; a real hosted demo including screenshot confirmation/cancellation; policy coverage for this behavior; and tests/scans/attestations on the exact saved portal version. Current web-tool rechecks of the three public pages returned access errors, so the older successful URL checks below are not a fresh verification. Do not claim a submission-ready ZIP. Final packaging must use the authoritative current skill, exclude private bindings and preserve the existing installed plugin.
+
+---
+
 # LiveStocks public-release preparation
 
 **Preparation only: no public ZIP, upload, submission or publication.** Public candidate **1.2.0** is based on the active private **LiveStocks (OAuth) 1.1.0**, not the retired unauthenticated App. The public listing retains the approved LiveStocks brand; no private presentation or binding was changed by this draft.
