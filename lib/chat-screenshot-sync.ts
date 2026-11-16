@@ -1,4 +1,5 @@
 import 'server-only';
+import { rejectScreenshotReconciliation } from '@/lib/screenshot-reconciliation-retired';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { activeSourceForSync, sourceCatalogSchema } from '@/lib/server/investment-source-catalog';
@@ -45,6 +46,7 @@ export function publicChatReview(raw: unknown) {
 
 /** Only the opaque one-use capability goes to host _meta, never model-visible output. */
 export async function prepareChatScreenshotSync(principal: Principal, raw: unknown) {
+  rejectScreenshotReconciliation();
   requireChat(principal, true);
   const { input, previousProposalId } = parseChatPrepare(raw);
   const snapshot = await rpc(principal, 'screenshot_sync_snapshot', {});
@@ -114,6 +116,7 @@ export async function refreshedPortfolio(principal: Principal): Promise<ChatSync
 }
 
 export async function confirmChatScreenshotSync(principal: Principal, raw: unknown) {
+  rejectScreenshotReconciliation();
   requireChat(principal, true);
   const input = chatConfirmationSchema.parse(raw);
   const receipt = await rpc(principal, 'confirm_chat_sync_proposal', { p_id: input.proposalId, p_confirmation_secret: input.confirmationSecret });

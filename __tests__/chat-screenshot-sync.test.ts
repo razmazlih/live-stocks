@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
+import { ScreenshotReconciliationRetiredError } from '@/lib/screenshot-reconciliation-retired';
 import type { Principal } from '@/lib/auth/server';
-import { prepareChatScreenshotSync, reviewChatScreenshotSync, confirmChatScreenshotSync, cancelChatScreenshotSync, SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
+import { prepareChatScreenshotSync, reviewChatScreenshotSync, confirmChatScreenshotSync, cancelChatScreenshotSync, refreshedPortfolio } from '@/lib/chat-screenshot-sync';
 const rpc = vi.fn();
 const principal = { userId: 'owner', rawSubject: 'subject', kind: 'mcp', authSessionId: 'session', portfolioSync: true, supabase: { rpc } } as unknown as Principal;
 const sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
@@ -15,82 +16,37 @@ beforeEach(() => {
     return { data: { applied: true }, error: null };
   });
 });
-describe('ChatGPT-scoped screenshot proposals', () => {
-  it('requires explicit signed sync capability before preparation or confirmation', async () => {
-    await expect(prepareChatScreenshotSync({ ...principal, portfolioSync: false }, input)).rejects.toBeInstanceOf(SyncScopeRequiredError);
-    await expect(confirmChatScreenshotSync({ ...principal, portfolioSync: false }, { proposalId: id, confirmationSecret: secret })).rejects.toBeInstanceOf(SyncScopeRequiredError);
+describe('retired screenshot reconciliation and retained read-only portfolio refresh', () => {
+  it('rejects preparation before reading or persisting any draft, even with old sync consent', async () => {
+    await expect(prepareChatScreenshotSync(principal, input)).rejects.toBeInstanceOf(ScreenshotReconciliationRetiredError);
+    await expect(prepareChatScreenshotSync({ ...principal, portfolioSync: false }, input)).rejects.toBeInstanceOf(ScreenshotReconciliationRetiredError);
     expect(rpc).not.toHaveBeenCalled();
   });
-  it('returns immutable review with its capability only in host-private metadata', async () => {
-    const result = await prepareChatScreenshotSync(principal, input);
-    expect(result.value).toMatchObject({ status: 'pending', plan: { canApply: true, sourceName: 'בית השקעות אישי' } });
-    expect(result.meta?.confirmationSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(JSON.stringify(result.value)).not.toContain(result.meta!.confirmationSecret);
-    expect(JSON.stringify(result.value)).not.toContain('reviewUrl');
-    expect(rpc).toHaveBeenLastCalledWith('create_chat_sync_proposal', expect.objectContaining({ p_expected: 'a'.repeat(32), p_rows: [expect.objectContaining({ symbol: 'AAPL', quantity: 2, acquiredOn: null, estimatedAcquiredOn: null })], p_confirmation_hash: expect.stringMatching(/^[a-f0-9]{64}$/), p_previous_id: null }));
-    expect(JSON.stringify(rpc.mock.calls)).not.toContain(result.meta!.confirmationSecret);
+  it('rejects confirmation of an old card before any write or optional refresh', async () => {
+    await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).rejects.toBeInstanceOf(ScreenshotReconciliationRetiredError);
+    expect(rpc).not.toHaveBeenCalled();
   });
-  it('does not persist blocked or unchanged drafts or issue a confirmation capability', async () => {
-    const result = await prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] });
-    expect(result.value.status).toBe('needs_details'); expect(result.meta).toBeUndefined();
-    expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot', 'supersede_pending_chat_sync_proposals']);
-    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: null });
-  });
-  it('invalidates a previous pending card even if the correction is incomplete', async () => {
-    await prepareChatScreenshotSync(principal, { ...input, previousProposalId: id, rows: [{ ...input.rows[0], averageCostUsd: null }] });
-    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: id });
-    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
-  });
-  it('invalidates pending cards for an unchanged correction without a model-supplied previous ID', async () => {
-    const result = await prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], quantity: 0, averageCostUsd: null }] });
-    expect(result.value.status).toBe('unchanged');
-    expect(result.meta).toBeUndefined();
-    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: null });
-    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
-  });
-  it('does not report a corrected draft successfully if invalidating older cards fails', async () => {
-    rpc.mockImplementation(async name => name === 'screenshot_sync_snapshot'
-      ? { data: { positions: [], lots: [], sources, fingerprint: 'a'.repeat(32) }, error: null }
-      : { data: null, error: { message: 'private detail' } });
-    await expect(prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] })).rejects.toThrow('ההצעה אינה זמינה');
-  });
-  it('passes previous proposal for atomic supersession, never appends an editable confirm payload', async () => {
-    await prepareChatScreenshotSync(principal, { ...input, previousProposalId: id });
-    expect(rpc).toHaveBeenLastCalledWith('create_chat_sync_proposal', expect.objectContaining({ p_previous_id: id }));
-    await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
-    expect(rpc).toHaveBeenCalledWith('confirm_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
-    await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret, quantity: 99 })).rejects.toThrow();
-    await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret, confirmed: true })).rejects.toThrow();
-  });
-  it('reads the saved review rather than recalculating a different plan', async () => {
-    const prepared = await prepareChatScreenshotSync(principal, input);
-    const review = { input, plan: prepared.value.plan };
-    rpc.mockClear().mockResolvedValueOnce({ data: { id, review, status: 'pending', expiresAt: '2026-11-16T12:00:00Z' }, error: null });
-    expect(await reviewChatScreenshotSync(principal, { proposalId: id })).toMatchObject({ proposalId: id, plan: prepared.value.plan });
+  const savedReview = { input, plan: { location: input.location, sourceName: sources[0].name, observedAt: input.observedAt, changes: [], unchanged: [], blocked: [], canApply: true } };
+  it('keeps owner/session-bound historical reviews readable', async () => {
+    rpc.mockResolvedValueOnce({ data: { id, review: savedReview, status: 'pending', expiresAt: '2026-11-16T12:00:00Z' }, error: null });
+    expect(await reviewChatScreenshotSync(principal, { proposalId: id })).toMatchObject({ proposalId: id });
     expect(rpc).toHaveBeenCalledExactlyOnceWith('read_chat_sync_proposal', { p_id: id });
   });
-  it('requires an MCP session and treats storage errors generically', async () => {
-    await expect(prepareChatScreenshotSync({ ...principal, kind: 'web' }, input)).rejects.toThrow();
-    await expect(prepareChatScreenshotSync({ ...principal, authSessionId: undefined }, input)).rejects.toThrow();
+  it('allows cancellation of old proposals through the original private capability', async () => {
+    rpc.mockResolvedValueOnce({ data: { id, review: savedReview, status: 'cancelled', expiresAt: '2026-11-16T12:00:00Z' }, error: null });
+    expect(await cancelChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).toMatchObject({ status: 'cancelled' });
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('cancel_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
+  });
+  it('preserves session checks on read/cancel and hides database failures', async () => {
+    await expect(reviewChatScreenshotSync({ ...principal, kind: 'web' }, { proposalId: id })).rejects.toThrow();
+    await expect(cancelChatScreenshotSync({ ...principal, authSessionId: undefined }, { proposalId: id, confirmationSecret: secret })).rejects.toThrow();
+    expect(rpc).not.toHaveBeenCalled();
     rpc.mockResolvedValueOnce({ data: null, error: { details: 'private database detail' } });
-    await expect(prepareChatScreenshotSync(principal, input)).rejects.toThrow('ההצעה אינה זמינה');
+    await expect(reviewChatScreenshotSync(principal, { proposalId: id })).rejects.toThrow('ההצעה אינה זמינה');
   });
-  it('cancels only an existing owner/session-bound proposal through its private capability', async () => {
-    const prepared = await prepareChatScreenshotSync(principal, input);
-    rpc.mockResolvedValueOnce({ data: { id, review: { input, plan: prepared.value.plan }, status: 'cancelled', expiresAt: '2026-11-16T12:00:00Z' }, error: null });
-    expect(await cancelChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).toMatchObject({ proposalId: id, status: 'cancelled' });
-    expect(rpc).toHaveBeenLastCalledWith('cancel_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
-  });
-  it('never saves a proposal for an absent or archived source', async () => {
-    await expect(prepareChatScreenshotSync(principal, { ...input, location: '10000000-0000-4000-8000-000000000003' })).rejects.toThrow('מקור השקעה פעיל');
-    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
-    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources: [{ ...sources[0], archived_at: '2026-01-01' }], fingerprint: 'a'.repeat(32) }, error: null });
-    await expect(prepareChatScreenshotSync(principal, input)).rejects.toThrow('מקור השקעה פעיל');
-  });
-
-  it('reads the complete saved portfolio after confirmation, including untouched sources and excluding closed holdings', async () => {
+  it('reads the complete saved portfolio in a read-only refresh, including untouched sources and excluding closed holdings', async () => {
     const secondSource = { ...sources[0], id: '10000000-0000-4000-8000-000000000002', name: 'חשבון נוסף' };
-    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null }).mockResolvedValueOnce({ data: {
+    rpc.mockResolvedValueOnce({ data: {
       sources: [...sources, secondSource],
       positions: [
         { id: 'p1', symbol: 'AAPL', location: sources[0].id, quantity: 99, entry_price: 999 },
@@ -103,54 +59,46 @@ describe('ChatGPT-scoped screenshot proposals', () => {
         { id: 'l2', position_id: 'p3', side: 'RECONCILE', quantity: 0, price: 0, executed_at: '2026-01-01', has_commission: false, commission_amount: 0 },
       ],
     }, error: null });
-    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
-    expect(result).toMatchObject({ status: 'applied', portfolio: { status: 'available', holdings: [
+    const result = ({ portfolio: await refreshedPortfolio(principal) });
+    expect(result).toMatchObject({ portfolio: { status: 'available', holdings: [
       { symbol: 'AAPL', quantity: 2, averageCostUsd: 100, sourceName: sources[0].name, location: sources[0].id },
       { symbol: 'MSFT', quantity: 3, averageCostUsd: 250, sourceName: secondSource.name, location: secondSource.id },
       { symbol: 'UNKNOWN', quantity: 1, averageCostUsd: null, sourceName: secondSource.name, location: secondSource.id },
     ] } });
-    expect(rpc.mock.calls.map(call => call[0])).toEqual(['confirm_chat_sync_proposal', 'screenshot_sync_snapshot']);
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot']);
     expect(result.portfolio.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
-  it('retains confirmed success when the portfolio refresh fails without leaking database details', async () => {
-    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { message: 'private database detail' } });
-    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
-    expect(result).toMatchObject({ status: 'applied', applied: true, portfolio: { status: 'unavailable', holdings: [] } });
+  it('returns unavailable when the portfolio refresh fails without leaking database details', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'private database detail' } });
+    const result = ({ portfolio: await refreshedPortfolio(principal) });
+    expect(result).toMatchObject({ portfolio: { status: 'unavailable', holdings: [] } });
     expect(JSON.stringify(result)).not.toContain('private database detail');
   });
-  it('does not refresh or claim success when the confirmation fails', async () => {
-    rpc.mockResolvedValueOnce({ data: null, error: { message: 'write failed' } });
-    await expect(confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).rejects.toThrow();
-    expect(rpc).toHaveBeenCalledTimes(1);
-  });
   it('distinguishes an empty saved portfolio from an unavailable portfolio', async () => {
-    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+    const result = ({ portfolio: await refreshedPortfolio(principal) });
     expect(result.portfolio).toMatchObject({ status: 'available', holdings: [] });
   });
 
   it('marks malformed stored quantities unavailable instead of silently dropping a holding', async () => {
-    rpc.mockResolvedValueOnce({ data: { applied: true }, error: null }).mockResolvedValueOnce({ data: {
+    rpc.mockResolvedValueOnce({ data: {
       sources, positions: [{ id: 'p1', symbol: 'AAPL', location: sources[0].id, quantity: 'unknown', entry_price: 100 }], lots: [],
     }, error: null });
-    const result = await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
-    expect(result).toMatchObject({ status: 'applied', portfolio: { status: 'unavailable', holdings: [] } });
+    const result = ({ portfolio: await refreshedPortfolio(principal) });
+    expect(result).toMatchObject({ portfolio: { status: 'unavailable', holdings: [] } });
   });
 
-  it('returns the committed receipt within five seconds when the optional portfolio read hangs', async () => {
+  it('bounds the optional portfolio read to five seconds', async () => {
     vi.useFakeTimers();
     try {
-      rpc.mockResolvedValueOnce({ data: { applied: true }, error: null })
-        .mockImplementationOnce(() => new Promise(() => {}));
-      const confirmation = confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+      rpc.mockImplementationOnce(() => new Promise(() => {}));
+      const confirmation = refreshedPortfolio(principal).then(portfolio => ({ portfolio }));
       let settled = false;
       void confirmation.then(() => { settled = true; });
       await vi.advanceTimersByTimeAsync(4999);
       expect(settled).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
-      await expect(confirmation).resolves.toMatchObject({ status: 'applied', applied: true,
-        portfolio: { status: 'unavailable', holdings: [] } });
-      expect(rpc.mock.calls.map(call => call[0])).toEqual(['confirm_chat_sync_proposal', 'screenshot_sync_snapshot']);
+      await expect(confirmation).resolves.toMatchObject({ portfolio: { status: 'unavailable', holdings: [] } });
+      expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot']);
       expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();
@@ -159,7 +107,7 @@ describe('ChatGPT-scoped screenshot proposals', () => {
   it('clears the optional refresh deadline after an immediate successful read', async () => {
     vi.useFakeTimers();
     try {
-      await confirmChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret });
+      ({ portfolio: await refreshedPortfolio(principal) });
       expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();

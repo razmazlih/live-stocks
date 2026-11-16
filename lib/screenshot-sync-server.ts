@@ -1,4 +1,5 @@
 import 'server-only';
+import { rejectScreenshotReconciliation } from '@/lib/screenshot-reconciliation-retired';
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Principal } from '@/lib/auth/server';
@@ -37,6 +38,7 @@ function planFor(input: z.infer<typeof screenshotSyncInputSchema>, snapshot: Awa
   return { ...buildScreenshotSyncPlan(input, snapshot.positions.map((row: Parameters<typeof mapPositionRow>[0]) => mapPositionRow({ ...row, position_lots: snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id) }))), sourceName: source.name };
 }
 export async function prepareScreenshotSync(principal: Principal, raw: unknown) {
+  rejectScreenshotReconciliation();
   const input = screenshotSyncInputSchema.parse(raw), snapshot = await readSnapshot(principal), plan = planFor(input, snapshot);
   const expires = Date.now() + 15 * 60 * 1000;
   const token = seal({ version: 2, owner: principal.userId, expires, fingerprint: snapshot.fingerprint, input, lotIds: input.rows.map(() => randomUUID()), importSymbols: plan.changes.map(row => row.symbol), canApply: plan.canApply });
@@ -47,6 +49,7 @@ export async function reviewScreenshotSync(principal: Principal, token: string) 
   return { input: proposal.input, plan: planFor(proposal.input, snapshot), stale: snapshot.fingerprint !== proposal.fingerprint, expiresAt: new Date(proposal.expires).toISOString() };
 }
 export async function applyScreenshotSync(principal: Principal, token: string) {
+  rejectScreenshotReconciliation();
   if (principal.kind !== 'web') throw new Error('נדרש אישור באתר.');
   const proposal = openScreenshotProposal(token, principal.userId);
   // SQL checks freshness and exact replay atomically. No administrator client or MCP write capability.

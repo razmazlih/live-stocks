@@ -19,6 +19,7 @@ export class ChatTransactionPlanError extends Error {}
 /** Simulate the recorded ledger, including historical inserts and checkpoints. */
 export function buildChatTransactionPlan(raw: ChatTransactionInput, positions: Position[], sourceName: string) {
   const input = chatTransactionInputSchema.parse(raw);
+  if (input.commissionUsd === null) throw new ChatTransactionPlanError('כדי לשמור עסקה רגילה עם רווח נטו ותחזית, צריך לציין את העמלה בדולרים או לאשר שלא הייתה עמלה (0).');
   const matching = positions.filter(position => position.location === input.location && position.symbol.trim().toUpperCase() === input.symbol);
   const open = matching.filter(position => position.quantity > 0);
   if (open.length > 1) throw new ChatTransactionPlanError('המניה מפוצלת לכמה רשומות בחשבון הזה. צריך לאחד אותן באתר לפני שמוסיפים פעולה.');

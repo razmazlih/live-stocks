@@ -31,10 +31,14 @@ describe('recording an already executed trade', () => {
     expect(plan.changes[0]).toMatchObject({ quantity: 4, averageCostUsd: 120 });
     expect(plan.warnings.join(' ')).toContain('צילום מצב');
   });
-  it('preserves unknown commission as unknown, with a clear warning and no invented cash total', () => {
-    const plan = buildChatTransactionPlan({ ...input, commissionUsd: null }, [], 'חשבון');
-    expect(plan.commissionKnown).toBe(false); expect(plan.costComplete).toBe(false); expect(plan.cashAmountUsd).toBeNull();
-    expect(plan.warnings.join(' ')).toContain('לא נמסרה עמלה');
+  it('requires an explicit fee or confirmed zero so new trades retain net profit and forecasts', () => {
+    for (const side of ['BUY', 'SELL'] as const) {
+      expect(() => buildChatTransactionPlan({ ...input, side, commissionUsd: null }, [position()], 'חשבון')).toThrow('לאשר שלא הייתה עמלה');
+      const plan = buildChatTransactionPlan({ ...input, side, commissionUsd: 0 }, [position()], 'חשבון');
+      expect(plan.commissionKnown).toBe(true);
+      expect(plan.costComplete).toBe(true);
+      expect(plan.cashAmountUsd).toBe(300);
+    }
   });
   it('warns about a possible duplicate and never chooses an ambiguous source', () => {
     const plan = buildChatTransactionPlan({ ...input, quantity: 8, priceUsd: 100, executedOn: '2026-01-01', commissionUsd: 0 }, [position()], 'חשבון');

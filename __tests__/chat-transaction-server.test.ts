@@ -6,7 +6,7 @@ import { prepareChatTransaction, confirmChatTransaction, cancelChatTransaction, 
 const rpc = vi.fn();
 const principal = { userId: 'owner', rawSubject: 'subject', kind: 'mcp', authSessionId: 'session', portfolioSync: false, scopes: ['portfolio:read', 'portfolio:transactions'], supabase: { rpc } } as unknown as Principal;
 const source = { id: '10000000-0000-4000-8000-000000000001', name: 'החשבון שלי', archived_at: null, created_at: '2026-01-01', legacy_location: null };
-const input = { location: source.id, side: 'BUY', symbol: 'AAPL', quantity: 2, priceUsd: 100, executedOn: '2026-01-02', commissionUsd: null };
+const input = { location: source.id, side: 'BUY', symbol: 'AAPL', quantity: 2, priceUsd: 100, executedOn: '2026-01-02', commissionUsd: 0 };
 const id = '00000000-0000-4000-8000-000000000001', secret = 'a'.repeat(43);
 beforeEach(() => {
   rpc.mockReset().mockImplementation(async (name, args) => {
@@ -25,12 +25,16 @@ describe('ChatGPT actual transaction proposal server', () => {
   });
   it('prepares an exact immutable transaction without a financial write, with the capability only in hidden metadata', async () => {
     const result = await prepareChatTransaction(principal, input);
-    expect(result.value).toMatchObject({ kind: 'transaction', status: 'pending', input, plan: { commissionKnown: false, sourceName: source.name, changes: [{ previousQuantity: 0, quantity: 2 }] } });
+    expect(result.value).toMatchObject({ kind: 'transaction', status: 'pending', input, plan: { commissionKnown: true, sourceName: source.name, changes: [{ previousQuantity: 0, quantity: 2 }] } });
     expect(result.meta.confirmationSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(JSON.stringify(result.value)).not.toContain(result.meta.confirmationSecret);
     expect(JSON.stringify(rpc.mock.calls)).not.toContain(result.meta.confirmationSecret);
     expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot', 'create_chat_transaction_proposal']);
     expect(rpc).toHaveBeenLastCalledWith('create_chat_transaction_proposal', expect.objectContaining({ p_expected: 'a'.repeat(32), p_input: input, p_confirmation_hash: expect.stringMatching(/^[a-f0-9]{64}$/) }));
+  });
+  it('does not prepare a transaction with unknown fees that would suppress net profit and forecasts', async () => {
+    await expect(prepareChatTransaction(principal, { ...input, commissionUsd: null })).rejects.toThrow('לאשר שלא הייתה עמלה');
+    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_transaction_proposal')).toBe(false);
   });
   it('uses only proposal identity and hidden capability to confirm, and reads the actually saved portfolio', async () => {
     expect(await confirmChatTransaction(principal, { proposalId: id, confirmationSecret: secret })).toMatchObject({ proposalId: id, kind: 'transaction', status: 'applied', portfolio: { status: 'available', holdings: [] } });

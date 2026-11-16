@@ -27,7 +27,6 @@ vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
 import { AuthenticationError } from '@/lib/auth/server';
 import { TransactionScopeRequiredError } from '@/lib/chat-transaction-server';
-import { SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
 
 const snapshot = () => ({
   schemaVersion: 1 as const, generatedAt: new Date().toISOString(),
@@ -118,46 +117,23 @@ describe('read-only MCP transport and tools', () => {
     expect(modernTool.resultType).toBe('complete');
     expect(modernTool).not.toHaveProperty('ttlMs'); expect(modernTool).not.toHaveProperty('cacheScope');
   });
-  it('keeps the final capability out of model-visible content and serves an inline resource', async () => {
-    mocks.prepare.mockResolvedValueOnce({ value: { proposalId: 'review-id', status: 'pending', plan: { canApply: true } }, meta: { confirmationSecret: 'private-app-capability' } });
-    const prepared = await call('prepare_screenshot_sync', {});
-    expect(prepared._meta.confirmationSecret).toBe('private-app-capability');
-    expect(JSON.stringify(prepared.structuredContent)).not.toContain('private-app-capability');
-    expect(JSON.stringify(prepared.content)).not.toContain('private-app-capability');
-    const listed = (await (await POST(request('tools/list'))).json()).result.tools;
-    const confirm = listed.find((tool: { name: string }) => tool.name === 'confirm_screenshot_sync');
-    expect(confirm).toMatchObject({ securitySchemes: [{ type: 'oauth2', scopes: ['portfolio:read', 'portfolio:sync'] }], _meta: { ui: { visibility: ['app'] } }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true } });
-    const resources = (await (await POST(request('resources/list'))).json()).result.resources;
-    expect(resources).toHaveLength(1);
-    const resource = (await (await POST(request('resources/read', { uri: resources[0].uri }))).json()).result.contents[0];
-    expect(resource.mimeType).toBe('text/html;profile=mcp-app');
-    expect(resource.text).toContain('כן, לעדכן את התיק');
-    expect(resource.text).not.toContain('private-app-capability');
-    expect(resource._meta.ui.csp).toEqual({ connectDomains: [], resourceDomains: [] });
-  });
-  it.each(['2026-07-28', '2025-11-25'])('challenges missing sync consent with complete scopes (%s)', async protocol => {
-    mocks.prepare.mockRejectedValueOnce(new SyncScopeRequiredError());
-    const response = await POST(request('tools/call', { name: 'prepare_screenshot_sync', arguments: {} }, { 'mcp-protocol-version': protocol }));
-    expect(response.status).toBe(protocol === '2026-07-28' ? 403 : 200);
-    const { result } = await response.json();
-    const challenge = result._meta['mcp/www_authenticate'][0];
-    expect(result.isError).toBe(true);
-    expect(challenge).toContain('error="insufficient_scope"');
-    expect(challenge).toContain('scope="portfolio:read portfolio:sync"');
-    expect(challenge).not.toContain('invalid_token');
-    expect(response.headers.get('www-authenticate')).toBe(challenge);
+  it('retires balance preparation and confirmation even for cached clients', async () => {
+    for (const name of ['prepare_screenshot_sync', 'confirm_screenshot_sync']) {
+      const result = await call(name, {});
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('prepare_chat_transaction');
+      expect(result.content[0].text).toContain('No portfolio changes');
+    }
+    expect(mocks.prepare).not.toHaveBeenCalled();
     expect(mocks.confirm).not.toHaveBeenCalled();
-    // The existing read grant continues to serve both read tools.
+    const listed = (await (await POST(request('tools/list'))).json()).result.tools;
+    expect(listed.some((tool: { name: string }) => ['prepare_screenshot_sync', 'confirm_screenshot_sync'].includes(tool.name))).toBe(false);
     expect((await call('get_profile')).isError).toBe(false);
     expect((await call('get_portfolio_snapshot')).isError).toBe(false);
-    // After explicit authorization, repeated preparations never challenge again.
-    mocks.prepare.mockResolvedValue({ value: { status: 'pending', proposalId: 'mock-proposal' } });
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const prepared = await POST(request('tools/call', { name: 'prepare_screenshot_sync', arguments: {} }, { 'mcp-protocol-version': protocol }));
-      expect(prepared.status).toBe(200);
-      expect(prepared.headers.has('www-authenticate')).toBe(false);
-      expect((await prepared.json()).result.isError).toBe(false);
-    }
+    const resources = (await (await POST(request('resources/list'))).json()).result.resources;
+    const resource = (await (await POST(request('resources/read', { uri: resources[0].uri }))).json()).result.contents[0];
+    expect(resource.mimeType).toBe('text/html;profile=mcp-app');
+    expect(resource._meta.ui.csp).toEqual({ connectDomains: [], resourceDomains: [] });
   });
   it('requires separate transaction consent and keeps confirmation app-only and capability-only', async () => {
     mocks.txPrepare.mockRejectedValueOnce(new TransactionScopeRequiredError());
@@ -198,11 +174,7 @@ describe('read-only MCP transport and tools', () => {
       expect(response.headers.has('www-authenticate')).toBe(false);
     }
   });
-  it('forwards app confirmation without exposing an editable trade payload', async () => {
-    const args = { proposalId: 'stored-id', confirmationSecret: 'private-app-capability' };
-    mocks.confirm.mockResolvedValueOnce({ proposalId: 'stored-id', status: 'applied', applied: true });
-    expect((await call('confirm_screenshot_sync', args)).structuredContent).toMatchObject({ applied: true, status: 'applied' });
-    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ kind: 'mcp' }), args);
+  it('rejects unknown review resources', async () => {
     const response = await POST(request('resources/read', { uri: 'ui://other' }));
     expect((await response.json()).error.code).toBe(-32602);
   });
@@ -214,8 +186,8 @@ describe('read-only MCP transport and tools', () => {
     expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
       icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(16);
-    expect(listed.result.tools.filter((tool: { annotations: { readOnlyHint: boolean } }) => !tool.annotations.readOnlyHint).map((tool: { name: string }) => tool.name).sort()).toEqual(['cancel_chat_transaction', 'cancel_screenshot_sync', 'confirm_chat_transaction', 'confirm_screenshot_sync', 'prepare_chat_transaction', 'prepare_screenshot_sync']);
+    expect(listed.result.tools).toHaveLength(14);
+    expect(listed.result.tools.filter((tool: { annotations: { readOnlyHint: boolean } }) => !tool.annotations.readOnlyHint).map((tool: { name: string }) => tool.name).sort()).toEqual(['cancel_chat_transaction', 'cancel_screenshot_sync', 'confirm_chat_transaction', 'prepare_chat_transaction']);
     const discovery = (await (await POST(request('server/discover'))).json()).result;
     expect(discovery.supportedVersions).toContain('2026-07-28');
     expect(discovery._meta['io.modelcontextprotocol/serverInfo']).toEqual(init.result.serverInfo);

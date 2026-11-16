@@ -26,8 +26,8 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
 vi.mock('@/components/ui/stock-avatar-image', () => ({ StockAvatarImage: () => null }));
 
 const successfulPurchase = { data: [{ position_id: 'existing-adbe', lot_id: 'new-buy', reused: true }], error: null };
-function seedPosition(closed = false, commissionKnown?: boolean) {
-  const lots = [{ id: 'old-buy', position_id: 'existing-adbe', side: 'BUY', price: 100, quantity: 5, executed_at: '2026-01-01', has_commission: false, commission_amount: 0, ...(commissionKnown === undefined ? {} : { commission_known: commissionKnown }) }];
+function seedPosition(closed = false, commissionKnown?: boolean, checkpoint = false) {
+  const lots = [{ id: 'old-buy', position_id: 'existing-adbe', side: checkpoint ? 'RECONCILE' : 'BUY', price: 100, quantity: 5, executed_at: '2026-01-01', has_commission: false, commission_amount: 0, ...(commissionKnown === undefined ? {} : { commission_known: commissionKnown }) }];
   if (closed) lots.push({ ...lots[0], id: 'old-sale', side: 'SELL', price: 110, executed_at: '2026-02-01' });
   const row = { id: 'existing-adbe', symbol: 'ADBE', display: 'Adobe Inc', image_url: '', quantity: closed ? 0 : 5, entry_price: 100, entry_date: '2026-01-01', location: 'bank_one', position_lots: lots };
   from.mockImplementation((table: string) => {
@@ -156,5 +156,38 @@ describe('editing transactions with unknown commissions', () => {
       commission_known: action === 'amount' || action === 'confirmed-zero',
       commission_amount: action === 'amount' ? 2.5 : 0,
     }));
+  });
+});
+
+
+describe('correcting old plugin balance checkpoints', () => {
+  it('enables owner edit/delete and requires actual execution details with an explicit before/after review', async () => {
+    seedPosition(false, true, true);
+    const previousFrom = from.getMockImplementation()!;
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    from.mockImplementation((table: string) => table === 'position_lots' ? { update } : previousFrom(table));
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<PositionsPage />);
+    await user.click((await screen.findAllByRole('button', { name: 'Manage history' }))[0]);
+    const history = await screen.findByRole('dialog', { name: 'Manage history' });
+    expect(within(history).getByRole('button', { name: 'Delete transaction' })).toBeEnabled();
+    await user.click(within(history).getByRole('button', { name: 'Edit transaction' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit transaction' });
+    expect(within(dialog).getByText(/A balance checkpoint is not a transaction/)).toBeInTheDocument();
+    expect(dialog.querySelector('#transactionDate')).toHaveValue('');
+    expect(within(dialog).getByRole('spinbutton', { name: 'Price' })).toHaveValue(0);
+    expect(within(dialog).getByRole('spinbutton', { name: 'Quantity' })).toHaveValue(0);
+    fireEvent.submit(dialog.querySelector('form')!);
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Price' }), { target: { value: '100' } });
+    fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Quantity' }), { target: { value: '5' } });
+    fireEvent.change(dialog.querySelector('#transactionDate')!, { target: { value: '2026-01-01' } });
+    await user.click(within(dialog).getByRole('button', { name: 'No commission was charged' }));
+    fireEvent.submit(dialog.querySelector('form')!);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(confirmation).toHaveBeenCalledWith(expect.stringContaining('Shares before: 5; after: 5'));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ side: 'BUY', quantity: 5, executed_at: '2026-01-01', commission_known: true, basis_acquired_on: null, basis_date_estimate: null }));
+    confirmation.mockRestore();
   });
 });
