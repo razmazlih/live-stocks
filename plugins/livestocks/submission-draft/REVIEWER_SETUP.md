@@ -4,6 +4,8 @@ Status: preparation only. No Google identity or LiveStocks reviewer account has 
 
 ## Identity and access
 
+The owner now requests email/password as an alternative to creating a Google reviewer identity. That path already exists in the application but requires operational SMTP and explicit activation. No SMTP variable names were configured in Vercel production/preview at the 2026-11-16 check. Once activated and actual verification/reset delivery is verified, register a dedicated reviewer account, verify its email, populate synthetic fixtures and verify independent password sign-in. Do not describe password access as available or change the public listing until that gate passes. See [activation status](../../../docs/BETTER_AUTH_SETUP.md).
+
 Use a dedicated test Google identity with no personal portfolio or unrelated personal content. The owner creates it and signs in to the existing LiveStocks website through `/sign-in`. Do not reuse the owner account or enable a reviewer authentication bypass. Local source supports Google; password login is separately gated and must not be assumed enabled in production.
 
 Before submission, verify that reviewers can sign in independently without the owner’s mailbox, phone, social account or private network. A fresh Google identity alone does not prove this. Put login instructions and credentials only in the secure portal fields, never Git, this package or chat. If Google challenges prevent independent access, resolve an officially supported reviewer access method before submission; do not disable safeguards or claim access passed.
