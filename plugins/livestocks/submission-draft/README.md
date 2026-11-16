@@ -1,3 +1,5 @@
+Reviewer setup and a concrete synthetic-data walkthrough are documented in [REVIEWER_SETUP.md](REVIEWER_SETUP.md). Account creation and independent reviewer login remain pending.
+
 ## Publisher supplied — 2026-11-16
 
 The owner selected **Raz Mazlih** as the individual public publisher. Both `author.name` and `interface.developerName` now contain this exact spelling. This records the intended identity; OpenAI publisher verification has not been observed. Together with the earlier answers, publication choices are now complete: individual publisher Raz Mazlih, all available countries, free use. Older statements that these choices are unanswered are superseded. Remaining preparation concerns reviewer access, a hosted real demo, current public policy checks and the exact saved-submission tests/scans/attestations.
