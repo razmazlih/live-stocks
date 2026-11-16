@@ -34,7 +34,7 @@ export interface Auth0TokenIdentity {
 }
 
 export class Auth0TokenVerificationError extends Error {
-  constructor() {
+  constructor(public readonly reason: 'invalid_token' | 'token_expired' = 'invalid_token') {
     super('Invalid Auth0 access token');
     this.name = 'Auth0TokenVerificationError';
   }
@@ -121,7 +121,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
     } catch (error) {
       if (error instanceof Auth0TokenInfrastructureError) throw error;
       // Do not reveal tokens, untrusted claims, or JWKS/network error details.
-      throw new Auth0TokenVerificationError();
+      throw new Auth0TokenVerificationError(error instanceof errors.JWTExpired ? 'token_expired' : 'invalid_token');
     }
   };
 }

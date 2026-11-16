@@ -20,6 +20,18 @@ beforeEach(() => {
 });
 
 describe('authentication availability is distinct from logout', () => {
+  it('returns distinct safe codes for expired, revoked and unavailable authorization', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.verify.mockRejectedValueOnce(new Auth0TokenVerificationError('token_expired'));
+    const expired = await requireMcpPrincipal(new Request('https://example.test/api/mcp', { headers: { authorization: 'Bearer SECRET_TOKEN' } })).catch(error => error);
+    expect(expired).toMatchObject({ status: 401, code: 'token_expired' });
+    expect(await authenticationResponse(expired)!.json()).toEqual({ error: 'Authentication required', code: 'token_expired' });
+    mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
+    const revoked = await requireMcpPrincipal(new Request('https://example.test/api/mcp', { headers: { authorization: 'Bearer SECRET_TOKEN' } })).catch(error => error);
+    expect(revoked).toMatchObject({ status: 401, code: 'authorization_revoked' });
+    expect(await authenticationResponse(new AuthenticationError(503))!.json()).toMatchObject({ code: 'auth_unavailable' });
+    expect(log).not.toHaveBeenCalled();
+  });
   it.each(['session', 'token'] as const)('returns 503 for infrastructure failure during %s without exposing secrets', async stage => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks[stage].mockRejectedValue(Object.assign(new Error('SECRET_DATABASE_URL'), { code: 'ECONNRESET' }));

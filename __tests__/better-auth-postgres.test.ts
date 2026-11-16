@@ -17,6 +17,7 @@ import { getBetterAuth, getWebsiteDatabaseToken, seedMcpClient } from '@/lib/aut
 import { handleBetterAuthRequest } from '@/lib/auth/better-auth-handler';
 import { createAuth0TokenVerifier } from '@/lib/auth/auth0-token';
 import { getConsentReview, decideConsent } from '@/lib/auth/oauth-consent';
+import { GET as authorizationMetadata } from '@/app/.well-known/oauth-authorization-server/api/auth/route';
 import { POST as consentPost } from '@/app/api/account/oauth/consent/route';
 
 describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with isolated PostgreSQL', () => {
@@ -31,6 +32,13 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     Object.entries(env).forEach(([key, value]) => vi.stubEnv(key, value as string));
     const debugAuth = getBetterAuth(); expect(debugAuth).not.toBeNull(); await debugAuth!.$context;
     const origin = state.origin, issuer = origin + '/api/auth', resource = origin + '/api/mcp', callback = 'http://localhost:3110/callback';
+    const metadataResponse = await authorizationMetadata(new Request(origin + '/.well-known/oauth-authorization-server/api/auth'));
+    expect(metadataResponse.status).toBe(200);
+    const metadata = await metadataResponse.json();
+    expect(metadata.issuer).toBe(issuer);
+    expect(metadata.scopes_supported).toEqual(expect.arrayContaining(['portfolio:read', 'portfolio:sync', 'offline_access']));
+    expect(metadata.grant_types_supported).toEqual(expect.arrayContaining(['authorization_code', 'refresh_token']));
+    expect(metadata.token_endpoint).toBe(issuer + '/oauth2/token');
     async function request(path: string, body?: Record<string, unknown>, cookie = '', form = false) {
       const response = await handleBetterAuthRequest(new Request(path.startsWith('http') ? path : issuer + path, {
         method: body ? 'POST' : 'GET', headers: { origin, ...(path.includes('/oauth2/authorize?') ? { 'sec-fetch-mode': 'cors' } : {}), ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' } : {}) },
@@ -149,8 +157,28 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(syncIdentity.portfolioSync).toBe(true);
     expect(syncIdentity.scopes).toContain('portfolio:sync');
     expect(syncIdentity.scopes).not.toContain('portfolio:write');
-    const syncRefresh = await token({ grant_type: 'refresh_token', refresh_token: syncIssued.data.refresh_token, resource });
-    expect((await verify(syncRefresh.data.access_token, 'mcp')).portfolioSync).toBe(true);
+    // Expiry is a token failure, not lost consent. Advance Date only so SDK
+    // cleanup/network timers remain real, then refresh the existing sync grant.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let latestSyncRefreshToken = syncIssued.data.refresh_token;
+    try {
+      vi.setSystemTime((syncIdentity.expiresAt + 1) * 1000);
+      await expect(verify(syncIssued.data.access_token, 'mcp')).rejects.toThrow();
+      const syncRefresh = await token({ grant_type: 'refresh_token', refresh_token: syncIssued.data.refresh_token, resource });
+      expect(syncRefresh.response.status).toBe(200);
+      const renewed = await verify(syncRefresh.data.access_token, 'mcp');
+      expect(renewed.portfolioSync).toBe(true);
+      expect(renewed.grantId).toBe(syncIdentity.grantId);
+      expect(renewed.authSessionId).toBe(syncIdentity.authSessionId);
+      expect(renewed.expiresAt).toBeGreaterThan(syncIdentity.expiresAt);
+      // Reusing the refreshed access token needs no new consent or refresh.
+      expect((await verify(syncRefresh.data.access_token, 'mcp')).portfolioSync).toBe(true);
+      const rotated = await token({ grant_type: 'refresh_token', refresh_token: syncRefresh.data.refresh_token, resource });
+      expect(rotated.response.status).toBe(200);
+      expect(rotated.data.refresh_token).not.toBe(syncRefresh.data.refresh_token);
+      expect((await verify(rotated.data.access_token, 'mcp')).portfolioSync).toBe(true);
+      latestSyncRefreshToken = rotated.data.refresh_token;
+    } finally { vi.useRealTimers(); }
     const readForEscalation = await exchange();
     const escalated = await token({ grant_type: 'refresh_token', refresh_token: readForEscalation.data.refresh_token, resource, scope: syncScope });
     expect(escalated.data.access_token).toBeUndefined();
@@ -164,6 +192,9 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     const badRefresh = await token({ grant_type: 'refresh_token', refresh_token: refresh.data.refresh_token, resource: 'https://evil.invalid' }); expect(badRefresh.data.access_token).toBeUndefined(); expect(badRefresh.data.error).toBe('invalid_target');
     expect((await request('/sign-out', {}, a.cookie)).response.status).toBe(200);
     const afterSignout = await token({ grant_type: 'refresh_token', refresh_token: refresh.data.refresh_token, resource }); expect(afterSignout.data.access_token).toBeUndefined(); expect(afterSignout.data.error).toBe('invalid_grant');
+    const revokedSync = await token({ grant_type: 'refresh_token', refresh_token: latestSyncRefreshToken, resource });
+    expect(revokedSync.data.access_token).toBeUndefined();
+    expect(revokedSync.data.error).toBe('invalid_grant');
     await expect(getWebsiteDatabaseToken(new Headers({ cookie: a.cookie }))).rejects.toThrow();
     vi.unstubAllEnvs();
   }, 60_000);

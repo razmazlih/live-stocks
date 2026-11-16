@@ -5,11 +5,12 @@ import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
 vi.mock('@/lib/purchase-date-candidates', () => ({ findPurchaseDateCandidates: async () => ({ status: 'no_match', estimated: true, canVerifyAcquisition: false }), purchaseDateCandidatesInputSchema: { parse: (args: unknown) => args } }));
-const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn(), prepare: vi.fn(), review: vi.fn(), confirm: vi.fn(), cancel: vi.fn() }));
+const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn(), prepare: vi.fn(), review: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), principal: vi.fn() }));
 vi.mock('@/lib/auth/server', () => ({
-  requireMcpPrincipal: async () => ({ userId: 'auth0|test-user', kind: 'mcp' }),
-  authenticationResponse: () => null,
-  AuthenticationError: class extends Error {},
+  requireMcpPrincipal: mocks.principal,
+  authenticationResponse: (failure: unknown) => failure instanceof Error && 'status' in failure
+    ? Response.json({ error: failure.message }, { status: Number(failure.status) }) : null,
+  AuthenticationError: class extends Error { constructor(public status = 401) { super('Authentication required'); } },
   authenticationConfiguration: () => ({ issuer: 'https://tenant.auth0.com/', mcpAudience: 'https://example.com/api/mcp' }),
   PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
 }));
@@ -20,6 +21,7 @@ vi.mock('@/lib/chat-screenshot-sync', () => ({
 }));
 vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
+import { AuthenticationError } from '@/lib/auth/server';
 import { SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
 
 const snapshot = () => ({
@@ -39,6 +41,7 @@ async function call(name: string, args: object = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.principal.mockResolvedValue({ userId: 'auth0|test-user', kind: 'mcp' });
   mocks.snapshot.mockImplementation(async () => Response.json(snapshot()));
   mocks.quote.mockImplementation(async () => Response.json({ c: 10, t: 1794000000, d: 1 }));
 });
@@ -119,13 +122,49 @@ describe('read-only MCP transport and tools', () => {
     expect(resource.text).not.toContain('private-app-capability');
     expect(resource._meta.ui.csp).toEqual({ connectDomains: [], resourceDomains: [] });
   });
-  it('challenges an old read-only grant for explicit sync consent instead of writing', async () => {
+  it.each(['2026-07-28', '2025-11-25'])('challenges missing sync consent with complete scopes (%s)', async protocol => {
     mocks.prepare.mockRejectedValueOnce(new SyncScopeRequiredError());
-    const result = await call('prepare_screenshot_sync', {});
+    const response = await POST(request('tools/call', { name: 'prepare_screenshot_sync', arguments: {} }, { 'mcp-protocol-version': protocol }));
+    expect(response.status).toBe(protocol === '2026-07-28' ? 403 : 200);
+    const { result } = await response.json();
+    const challenge = result._meta['mcp/www_authenticate'][0];
     expect(result.isError).toBe(true);
-    expect(result._meta['mcp/www_authenticate'][0]).toContain('error="insufficient_scope"');
-    expect(result._meta['mcp/www_authenticate'][0]).toContain('scope="portfolio:read portfolio:sync"');
+    expect(challenge).toContain('error="insufficient_scope"');
+    expect(challenge).toContain('scope="portfolio:read portfolio:sync"');
+    expect(challenge).not.toContain('invalid_token');
+    expect(response.headers.get('www-authenticate')).toBe(challenge);
     expect(mocks.confirm).not.toHaveBeenCalled();
+    // The existing read grant continues to serve both read tools.
+    expect((await call('get_profile')).isError).toBe(false);
+    expect((await call('get_portfolio_snapshot')).isError).toBe(false);
+    // After explicit authorization, repeated preparations never challenge again.
+    mocks.prepare.mockResolvedValue({ value: { status: 'pending', proposalId: 'mock-proposal' } });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prepared = await POST(request('tools/call', { name: 'prepare_screenshot_sync', arguments: {} }, { 'mcp-protocol-version': protocol }));
+      expect(prepared.status).toBe(200);
+      expect(prepared.headers.has('www-authenticate')).toBe(false);
+      expect((await prepared.json()).result.isError).toBe(false);
+    }
+  });
+  it('marks expired/revoked bearer credentials invalid without narrowing reauthorization scopes', async () => {
+    mocks.principal.mockRejectedValueOnce(new AuthenticationError(401));
+    const rejected = await POST(request('tools/call', { name: 'prepare_screenshot_sync' }));
+    expect(rejected.status).toBe(401);
+    expect(rejected.headers.get('www-authenticate')).toContain('error="invalid_token"');
+    expect(rejected.headers.get('www-authenticate')).not.toContain('scope=');
+    // A newly refreshed token is accepted; the resource never performs an auth retry loop.
+    expect((await call('get_profile')).isError).toBe(false);
+  });
+  it('does not label absent credentials, forbidden accounts or server failure as expired tokens', async () => {
+    mocks.principal.mockRejectedValueOnce(new AuthenticationError(401));
+    const absent = await GET(new Request('https://example.com/api/mcp'));
+    expect(absent.headers.get('www-authenticate')).toBe('Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"');
+    for (const status of [403, 503]) {
+      mocks.principal.mockRejectedValueOnce(new AuthenticationError(status));
+      const response = await POST(request('tools/list'));
+      expect(response.status).toBe(status);
+      expect(response.headers.has('www-authenticate')).toBe(false);
+    }
   });
   it('forwards app confirmation without exposing an editable trade payload', async () => {
     const args = { proposalId: 'stored-id', confirmationSecret: 'private-app-capability' };

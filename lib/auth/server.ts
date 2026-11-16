@@ -11,7 +11,9 @@ import { parseResolvedIdentity, verifiedEmailDigest } from '@/lib/auth/identity'
 
 export const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0', 'Vary': 'Cookie, Authorization' };
 export class AuthenticationError extends Error {
-  constructor(public readonly status = 401, message = 'Authentication required') { super(message); }
+  constructor(public readonly status = 401, message = 'Authentication required',
+    public readonly code: 'invalid_token' | 'token_expired' | 'authorization_revoked' | 'forbidden' | 'auth_unavailable' =
+      status === 503 ? 'auth_unavailable' : status === 403 ? 'forbidden' : 'invalid_token') { super(message); }
 }
 export type Principal = {
   userId: string; portfolioSync: boolean; scopes: readonly string[]; clientId: string; issuedAt: number; expiresAt: number;
@@ -55,7 +57,7 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
   let identity;
   try { identity = await verifierCache.verify(token, kind); }
   catch (error) {
-    if (error instanceof Auth0TokenVerificationError) throw new AuthenticationError();
+    if (error instanceof Auth0TokenVerificationError) throw new AuthenticationError(401, 'Authentication required', error.reason);
     logAuthFailure('token-verification', error);
     throw new AuthenticationError(503, 'Authentication is temporarily unavailable');
   }
@@ -65,7 +67,7 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
     p_grant_id: identity.grantId ?? null,
   });
   if (live.error) { logAuthFailure('account-storage', live.error); throw new AuthenticationError(503, 'Account storage is not ready'); }
-  if (live.data !== true) throw new AuthenticationError(401, 'Sign in again to access this account');
+  if (live.data !== true) throw new AuthenticationError(401, 'Sign in again to access this account', 'authorization_revoked');
   const resolved = await getAdminSupabase().rpc('server_identity_resolve', {
     p_issuer: config.issuer, p_subject: rawSubject,
     p_email_hash: verifiedEmailDigest(config.issuer, identity.verifiedEmail),
@@ -74,7 +76,7 @@ async function verifyToken(token: string, kind: 'web' | 'mcp'): Promise<Principa
   if (resolved.error) { logAuthFailure('account-storage', resolved.error); throw new AuthenticationError(503, 'Account storage is not ready'); }
   const owner = parseResolvedIdentity(resolved.data, rawSubject);
   if (!owner) throw new AuthenticationError(503, 'Account storage is not ready');
-  if (owner.state !== 'active') throw new AuthenticationError(401, 'Sign in again to access this account');
+  if (owner.state !== 'active') throw new AuthenticationError(401, 'Sign in again to access this account', 'authorization_revoked');
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !publishableKey) throw new AuthenticationError(503, 'Database is not configured');
@@ -131,7 +133,7 @@ export async function requireMcpPrincipal(request: Request): Promise<Principal> 
     p_user_id: principal.userId, p_action: 'bootstrap', p_valid_after: principal.issuedAt,
   });
   if (error) throw new AuthenticationError(503, 'Connection storage is not ready');
-  if (!data?.enabled || principal.issuedAt <= Number(data.valid_after)) throw new AuthenticationError(401, 'Reconnect LiveStocks from account settings');
+  if (!data?.enabled || principal.issuedAt <= Number(data.valid_after)) throw new AuthenticationError(401, 'Reconnect LiveStocks from account settings', 'authorization_revoked');
   return principal;
 }
 
@@ -142,7 +144,7 @@ export async function requireApiPrincipal(request?: Request): Promise<Principal>
 
 export function authenticationResponse(error: unknown): Response | null {
   return error instanceof AuthenticationError
-    ? Response.json({ error: error.message }, { status: error.status, headers: PRIVATE_HEADERS }) : null;
+    ? Response.json({ error: error.message, code: error.code }, { status: error.status, headers: PRIVATE_HEADERS }) : null;
 }
 
 export function requireSameOrigin(request: Request): void {
