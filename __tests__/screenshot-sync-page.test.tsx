@@ -6,7 +6,7 @@ import Page from '@/app/positions/sync/page';
 afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 it('keeps the sealed proposal through StrictMode effect replay and confirms only after click', async () => {
   window.history.replaceState(null, '', '/positions/sync#sealed');
-  const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ input: { location: 'bank_one', observedAt: '2026-01-01' }, stale: false, plan: { changes: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: '2025-01-01', kind: 'reconcile', previousQuantity: 1, previousAverageCostUsd: 90 }], unchanged: [], blocked: [], canApply: true } }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ applied: true }) });
+  const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ input: { location: '10000000-0000-4000-8000-000000000001', observedAt: '2026-01-01' }, stale: false, plan: { sourceName: 'בית השקעות אישי', changes: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: '2025-01-01', kind: 'reconcile', previousQuantity: 1, previousAverageCostUsd: 90 }], unchanged: [], blocked: [], canApply: true } }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ applied: true }) });
   vi.stubGlobal('fetch', fetcher);
   render(<StrictMode><Page /></StrictMode>);
   await screen.findByText('AAPL');
@@ -21,7 +21,7 @@ it('keeps the sealed proposal through StrictMode effect replay and confirms only
 });
 
 function missingDateReview(extra: Record<string, unknown> = {}) {
-  return { input: { location: 'bank_one', observedAt: '2026-11-16' }, stale: false, plan: { changes: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: null, kind: 'reconcile', previousQuantity: 1, previousAverageCostUsd: 90, ...extra }], unchanged: [], blocked: [], canApply: true } };
+  return { input: { location: '10000000-0000-4000-8000-000000000001', observedAt: '2026-11-16' }, stale: false, plan: { sourceName: 'בית השקעות אישי', changes: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: null, kind: 'reconcile', previousQuantity: 1, previousAverageCostUsd: 90, ...extra }], unchanged: [], blocked: [], canApply: true } };
 }
 function response(data: unknown) { return { ok: true, json: async () => data }; }
 function openOptionalDates() { fireEvent.click(screen.getByText('השלמת תאריך רכישה (לא חובה)')); }

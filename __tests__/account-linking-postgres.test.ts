@@ -44,7 +44,7 @@ describe.skipIf(!process.env.ACCOUNT_LINKING_LOCAL_TEST_STATE)('native durable a
     };
     // In-process transport adapter only: queries below execute against the real local schema.
     const from = (table: string) => {
-      if (!['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers'].includes(table)) throw Error('Unexpected fixture table');
+      if (!['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers', 'investment_sources'].includes(table)) throw Error('Unexpected fixture table');
       let columns = 'id', head = false; const values: unknown[] = [], conditions: string[] = [];
       const query = {
         select(value: string, options?: { head?: boolean }) { columns = value; head = Boolean(options?.head); return query; },
@@ -61,8 +61,8 @@ describe.skipIf(!process.env.ACCOUNT_LINKING_LOCAL_TEST_STATE)('native durable a
     const transport = { rpc: (name: string, args: Record<string, unknown>) => ({ abortSignal: () => rpc(name, args) }), from } as unknown as SupabaseClient;
     async function snapshot() {
       const result: Record<string, unknown[]> = {};
-      for (const t of ['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers']) {
-        result[t] = (await admin.query(`select to_jsonb(r)-array['user_id','consolidated_into_position_id','is_active'] row from public.${t} r order by id`)).rows.map(r => r.row);
+      for (const t of ['positions', 'position_lots', 'position_plans', 'settings', 'watchlist_groups', 'watchlist_tickers', 'investment_sources']) {
+        result[t] = (await admin.query(`select to_jsonb(r)-array['user_id','consolidated_into_position_id','is_active']-case when '${t}'='investment_sources' then array['name','legacy_location'] else array[]::text[] end row from public.${t} r order by id`)).rows.map(r => r.row);
       }
       return result;
     }
@@ -85,15 +85,24 @@ describe.skipIf(!process.env.ACCOUNT_LINKING_LOCAL_TEST_STATE)('native durable a
         await admin.query('select public.server_bootstrap_web_account($1,$2)', [issuer, id]);
       }
       await admin.query("update public.user_profiles set primary_pinned=true where id='merge-import-a'");
+      const sourceIds = new Map<string, string>();
+      for (const owner of ['merge-import-a', 'merge-import-b']) {
+        const first = (await admin.query('select id from public.investment_sources where user_id=$1 order by created_at limit 1', [owner])).rows[0].id;
+        sourceIds.set(owner + ':bank_one', first);
+        if (owner === 'merge-import-b') {
+          const second = (await admin.query("insert into public.investment_sources(user_id,name) values($1,'מקור נוסף') returning id", [owner])).rows[0].id;
+          sourceIds.set(owner + ':bank_two', second);
+        }
+      }
       for (const row of fixture.before.positions) {
         await admin.query('insert into public.positions(id,user_id,symbol,display,image_url,entry_price,quantity,entry_date,location,created_at,updated_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
-          [row.id, row.user_id === 'auth0|merge-a' ? 'merge-import-a' : 'merge-import-b', row.symbol, row.display, row.image_url, row.entry_price, row.quantity, row.entry_date, row.location, row.created_at, row.updated_at]);
+          [row.id, row.user_id === 'auth0|merge-a' ? 'merge-import-a' : 'merge-import-b', row.symbol, row.display, row.image_url, row.entry_price, row.quantity, row.entry_date, sourceIds.get((row.user_id === 'auth0|merge-a' ? 'merge-import-a' : 'merge-import-b') + ':' + row.location), row.created_at, row.updated_at]);
       }
       for (const row of fixture.before.position_lots) {
         await admin.query('insert into public.position_lots(id,user_id,position_id,side,price,quantity,executed_at,created_at,updated_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9)',
           [row.id, row.user_id === 'auth0|merge-a' ? 'merge-import-a' : 'merge-import-b', row.position_id, row.side, row.price, row.quantity, row.executed_at, row.created_at, row.updated_at]);
       }
-      await admin.query("insert into public.position_plans(user_id,position_id,symbol,target_price,target_quantity,target_date) values('merge-import-b','b0000000-0000-4000-8000-000000000001','SAME',50,1,'2030-01-01')");
+      await admin.query("insert into public.position_plans(user_id,position_id,symbol,target_price,target_quantity,target_date,location) values('merge-import-b','b0000000-0000-4000-8000-000000000001','SAME',50,1,'2030-01-01',(select location from public.positions where id='b0000000-0000-4000-8000-000000000001'))");
       for (const id of ['merge-import-a', 'merge-import-b']) {
         const group = (await admin.query('insert into public.watchlist_groups(user_id,name) values($1,\'Same group\') returning id', [id])).rows[0].id;
         await admin.query('insert into public.watchlist_tickers(user_id,group_id,symbol) values($1,$2,\'SAME\')', [id, group]);

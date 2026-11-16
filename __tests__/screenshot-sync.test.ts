@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildScreenshotSyncPlan, screenshotSyncInputSchema, type ScreenshotSyncInput } from '@/lib/screenshot-sync';
 import type { Position } from '@/types';
-const input = (overrides: Partial<ScreenshotSyncInput> = {}): ScreenshotSyncInput => ({ location: 'bank_one', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 1.25, averageCostUsd: 100, acquiredOn: '2025-01-01' }], ...overrides });
-const position = (overrides: Partial<Position> = {}): Position => ({ symbol: 'AAPL', quantity: 1.25, entryPrice: 100, entryDate: '2025-01-01', location: 'bank_one', display: 'Apple', imageUrl: '', ...overrides });
+const input = (overrides: Partial<ScreenshotSyncInput> = {}): ScreenshotSyncInput => ({ location: '10000000-0000-4000-8000-000000000001', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 1.25, averageCostUsd: 100, acquiredOn: '2025-01-01' }], ...overrides });
+const position = (overrides: Partial<Position> = {}): Position => ({ symbol: 'AAPL', quantity: 1.25, entryPrice: 100, entryDate: '2025-01-01', location: '10000000-0000-4000-8000-000000000001', display: 'Apple', imageUrl: '', ...overrides });
 describe('screenshot synchronization boundaries', () => {
   it('normalizes symbols and preserves fractional quantities', () => {
     const parsed = screenshotSyncInputSchema.parse(input({ rows: [{ ...input().rows[0], symbol: ' aapl ' }] }));
@@ -34,7 +34,7 @@ describe('screenshot synchronization boundaries', () => {
     expect(plan.blocked).toEqual([]);
   });
   it('keeps brokerage accounts isolated', () => {
-    expect(buildScreenshotSyncPlan(input(), [position({ location: 'bank_two' })]).canApply).toBe(true);
+    expect(buildScreenshotSyncPlan(input(), [position({ location: '10000000-0000-4000-8000-000000000002' })]).canApply).toBe(true);
   });
   it('reconciles quantity and cost changes without fabricating trades', () => {
     const quantityChange = buildScreenshotSyncPlan(input(), [position({ quantity: 2 })]);

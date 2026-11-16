@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { activeSourceForSync } from '@/lib/server/investment-source-catalog';
 import type { Principal } from '@/lib/auth/server';
 import { mapPositionRow } from '@/lib/positions';
 import { buildScreenshotSyncPlan, screenshotSyncInputSchema, type ScreenshotSyncPlan } from '@/lib/screenshot-sync';
@@ -32,7 +33,7 @@ const storedSchema = z.object({
   id: z.string().uuid(), status: z.enum(['pending', 'applied', 'cancelled', 'superseded']),
   expiresAt: z.string().datetime({ offset: true }),
   review: z.object({ input: screenshotSyncInputSchema, plan: z.object({
-    location: z.enum(['bank_one', 'bank_two']), observedAt: z.string(), changes: z.array(z.unknown()), unchanged: z.array(z.unknown()), blocked: z.array(z.unknown()), canApply: z.boolean(),
+    location: z.string().uuid(), sourceName: z.string().trim().min(1), observedAt: z.string(), changes: z.array(z.unknown()), unchanged: z.array(z.unknown()), blocked: z.array(z.unknown()), canApply: z.boolean(),
   }).passthrough() }).passthrough(),
   receipt: z.unknown().optional(),
 });
@@ -50,7 +51,8 @@ export async function prepareChatScreenshotSync(principal: Principal, raw: unkno
   if (!Array.isArray(snapshot.positions) || !Array.isArray(snapshot.lots) || !/^[a-f0-9]{32}$/.test(snapshot.fingerprint)) throw new ChatSyncUnavailableError();
   const positions = snapshot.positions.map((row: Parameters<typeof mapPositionRow>[0]) =>
     mapPositionRow({ ...row, position_lots: snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id) }));
-  const plan = buildScreenshotSyncPlan(input, positions);
+  const source = activeSourceForSync(snapshot.sources, input.location);
+  const plan = { ...buildScreenshotSyncPlan(input, positions), sourceName: source.name };
   if (!plan.canApply && previousProposalId) await rpc(principal, 'supersede_chat_sync_proposal', { p_id: previousProposalId });
   if (!plan.canApply) return { value: { input, plan, status: plan.blocked.length ? 'needs_details' : 'unchanged', instructions: plan.blocked.length ? 'יש להשלים רק את הפרטים החסרים. תאריך רכישה אינו חובה.' : 'היתרות כבר תואמות; לא נדרש שינוי.' } };
   const proposalId = randomUUID(), confirmationSecret = randomBytes(32).toString('base64url');

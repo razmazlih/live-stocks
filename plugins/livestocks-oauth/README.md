@@ -46,3 +46,7 @@ The fresh workspace admin catalog also showed **Unavailable / disabled** and req
 The pending source change adds an inline MCP App review and final confirmation inside ChatGPT; no website handoff is needed. A separately consented optional portfolio:sync scope permits only exact persisted RECONCILE proposals. Existing tokens stay read-only, general portfolio writes remain denied, and confirm/cancel are app-only with a model-hidden capability. Corrections invalidate old cards and receipts are replay-safe.
 
 This repository change is not a published package or a production OAuth-scope upgrade. Follow the existing tool-refresh and expected-release skill publication workflow, preserving the App/plugin IDs and workspace audience. See [screenshot-sync accounting/security](../../docs/SCREENSHOT_SYNC.md) and [activation requirements](../../docs/CHATGPT_ACTIVATION.md).
+
+## Configurable investment sources
+
+The local source now discovers each user's investment sources from `get_portfolio_snapshot.sources`. Screenshot synchronization passes the selected active source UUID as `location` and shows its actual name in the review card. A single active source is selected automatically; multiple ambiguous sources require one clarification by name. Source creation and renaming remain website actions. This source change has not been uploaded as a new workspace plugin release.

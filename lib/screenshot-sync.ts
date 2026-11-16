@@ -22,7 +22,7 @@ export const screenshotSyncRowSchema = z.object({
   if (row.quantity === 0 && row.averageCostUsd !== null && row.averageCostUsd !== 0) context.addIssue({ code: z.ZodIssueCode.custom, path: ['averageCostUsd'], message: 'A zero balance cannot carry an open cost basis' });
 });
 export const screenshotSyncInputSchema = z.object({
-  location: z.enum(['bank_one', 'bank_two']),
+  location: z.string().uuid(),
   observedAt: calendarDate,
   rows: z.array(screenshotSyncRowSchema).min(1).max(100),
 }).strict().superRefine((input, context) => {
@@ -47,6 +47,7 @@ export type ScreenshotSyncChange = Omit<ScreenshotSyncRow, 'averageCostUsd'> & {
 export type ScreenshotSyncBlockedReason = 'missing_cost' | 'invalid_existing_position' | 'observation_precedes_recorded_events';
 export interface ScreenshotSyncPlan {
   location: ScreenshotSyncInput['location'];
+  sourceName?: string;
   observedAt: string;
   changes: ScreenshotSyncChange[];
   unchanged: ScreenshotSyncRow[];

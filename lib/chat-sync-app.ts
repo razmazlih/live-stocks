@@ -64,7 +64,7 @@ function accept(result){
   // Only the hidden result metadata supplies the mutation capability.
   confirmationSecret=result._meta&&typeof result._meta.confirmationSecret==='string'?result._meta.confirmationSecret:'';
   el('review').hidden=false;el('rows').replaceChildren();text('error','');text('status','');
-  var location=value.plan.location==='bank_two'?'בנק 2':'בנק 1';
+  var location=typeof value.plan.sourceName==='string'?value.plan.sourceName:'';
   text('description',location+' · מצב ההחזקות נכון ל־'+(value.plan.observedAt||''));
   (Array.isArray(value.plan.changes)?value.plan.changes:[]).forEach(function(row){
     var tr=document.createElement('tr');

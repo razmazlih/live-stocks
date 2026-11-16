@@ -1,4 +1,6 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({ from: vi.fn(), quote: vi.fn(), fx: vi.fn() }));
 vi.mock('@/lib/auth/server', () => ({
   requireApiPrincipal: async () => ({ userId: 'auth0|test-user', supabase: { from: mocks.from } }),
@@ -21,6 +23,7 @@ beforeEach(async () => {
   rows.positions = [{ id: 'p1', symbol: 'ABC', display: 'ABC', quantity: 2, entry_price: 100, entry_date: '2025-01-01', location: 'bank_one' }];
   rows.position_lots = [{ id: 'l1', position_id: 'p1', side: 'BUY', price: 100, quantity: 2, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 }];
   rows.position_plans = [{ id: 'plan1', position_id: null, symbol: 'XYZ', side: 'buy', target_price: 50, target_quantity: 3, target_date: '2027-01-01', status: 'pending' }];
+  rows.investment_sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
   rows.settings = [{ annual_growth_rate: 0.1, currency: 'ILS', finnhub_token: 'secret-do-not-export' }];
   mocks.from.mockImplementation((table: string) => ({ select: () => ({ eq: () => ({ order: () => ({ range: async (start: number, end: number) => ({ data: rows[table].slice(start, end + 1), error: null }) }) }) }) }));
   mocks.quote.mockResolvedValue({ price: 120, dailyChange: 2, timestamp: 1793000000 });
@@ -36,6 +39,7 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.holdings[0]).toMatchObject({ currentPriceUsd: 120, marketValueUsd: 240, allocationPercent: 100 });
     expect(data.goals.annualGrowthRatePercent).toBe(10);
     expect(data.goals.symbolTargets[0].requiredExitPrice).toBeGreaterThan(100);
+    expect(data.sources[0]).toMatchObject({ name: 'בית השקעות אישי' });
     expect(data.plans[0]).toMatchObject({ symbol: 'XYZ', targetQuantity: 3, status: 'pending' });
     expect(data.positions[0].lots).toHaveLength(1);
     expect(data.closePairProposals.policy.maxLosers).toBe(3);
@@ -101,7 +105,7 @@ describe('GET portfolio AI snapshot', () => {
     expect(response.status).toBe(500);
     expect(response.headers.get('retry-after')).toBe('30');
     await readSnapshot();
-    expect(mocks.from).toHaveBeenCalledTimes(8);
+    expect(mocks.from).toHaveBeenCalledTimes(10);
   });
   it('reads beyond the first page and deduplicates market requests', async () => {
     rows.positions = Array.from({ length: 501 }, (_, i) => ({ ...(rows.positions[0] as object), id: `p${i}` }));
@@ -110,7 +114,8 @@ describe('GET portfolio AI snapshot', () => {
     expect(mocks.quote).toHaveBeenCalledTimes(2);
   });
   it('does not replace a missing user target with an invented goal', async () => {
-    rows.settings = [];
+    rows.investment_sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
+  rows.settings = [];
     const data = await (await readSnapshot()).json();
     expect(data.goals.annualGrowthRate).toBeNull();
     expect(data.closePairProposals.availability).toBe('unavailable');
@@ -118,4 +123,13 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.summary.totalProjectedPnLUsd).toBeNull();
     expect(data.realized.totals.expectedProfitUsd).toBeNull();
   });
+  it('exports the source catalog even when no positions exist', async () => {
+    rows.positions = []; rows.position_lots = []; rows.position_plans = [];
+    const response = await readSnapshot();
+    const data = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.holdings).toEqual([]);
+    expect(data.sources).toEqual(rows.investment_sources);
+  });
+
 });

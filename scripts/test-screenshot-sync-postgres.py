@@ -82,7 +82,7 @@ def create_proposal(proposal_id, fingerprint, target, secret, previous=None, mis
     if misleading:
         change['quantity'] += 1
     review = {'input': {'location': target['location'], 'observedAt': target['observedAt'], 'rows': [change]},
-              'plan': {'location': target['location'], 'observedAt': target['observedAt'], 'changes': [change], 'blocked': [], 'canApply': True}}
+              'plan': {'sourceName': 'מקור ראשי', 'location': target['location'], 'observedAt': target['observedAt'], 'changes': [change], 'blocked': [], 'canApply': True}}
     digest = hashlib.sha256(secret.encode()).hexdigest()
     return "select public.create_chat_sync_proposal('%s','%s','%s','%s','%s',%s)" % (
         proposal_id, fingerprint, json.dumps([target]), json.dumps(review), digest,
@@ -103,10 +103,12 @@ try:
         "insert into private.auth_config(singleton,issuer,website_client_id,mcp_client_id,website_audience,mcp_audience,auth_provider) values(true,'https://fixture.invalid/auth','fixture-web','fixture-mcp','https://fixture.invalid/web','https://fixture.invalid/mcp','better_auth');"
         "create or replace function private.authorized_subject(require_write boolean default false) returns text language sql stable security definer set search_path='' as $$"
         "select case when (not require_write or auth.jwt()->>'write'='true') and auth.jwt()->>'live' is distinct from 'false' and auth.jwt()->>'sub' in ('fixture-a','fixture-b') then auth.jwt()->>'sub' end$$")
+    source_one = json.loads(as_user('select public.screenshot_sync_snapshot()'))['sources'][0]['id']
+    source_two = json.loads(as_user("insert into public.investment_sources(name) values('מקור נוסף') returning to_jsonb(investment_sources)"))['id']
     snapshot = json.loads(as_user('select public.screenshot_sync_snapshot()'))
     assert snapshot['positions'] == [] and snapshot['lots'] == []
     rows = [{'symbol': 'ABC', 'quantity': 1.25, 'averageCostUsd': 12.5, 'acquiredOn': '2026-01-01', 'estimatedAcquiredOn': None, 'observedAt': '2026-02-01',
-             'location': 'bank_one', 'lotId': str(uuid.uuid4())}]
+             'location': source_one, 'lotId': str(uuid.uuid4())}]
     rejected(apply(snapshot['fingerprint'], rows), write=False)
     result = json.loads(as_user(apply(snapshot['fingerprint'], rows)))
     assert result['applied'] and not result['replayed']
@@ -125,7 +127,7 @@ try:
     rejected(apply(before['fingerprint'], [dict(new, acquiredOn=None, estimatedAcquiredOn='2099-01-01')]))
     rejected(apply(before['fingerprint'], [dict(new, quantity=0.00001)]))
     rejected(apply(before['fingerprint'], [dict(new, unknown='field')]))
-    json.loads(as_user(apply(before['fingerprint'], [dict(new, location='bank_two')])))
+    json.loads(as_user(apply(before['fingerprint'], [dict(new, location=source_two)])))
     assert len(json.loads(as_user('select public.screenshot_sync_snapshot()'))['positions']) == 2
     checkpoint_id = rows[0]['lotId']
     position_id = result['positions'][0]['positionId']
@@ -134,13 +136,13 @@ try:
     rejected(f"delete from public.positions where id='{position_id}'")
     # A real subsequent purchase is a BUY and remains intact across a correction.
     buy_id = str(uuid.uuid4())
-    as_user(f"select * from public.record_position_purchase('{buy_id}','ABC','ABC','','bank_one',14,2,'2026-02-02',false,0)")
+    as_user(f"select * from public.record_position_purchase('{buy_id}','ABC','ABC','','{source_one}',14,2,'2026-02-02',false,0)")
     sell_id = str(uuid.uuid4())
     as_user(f"insert into public.position_lots(id,user_id,position_id,side,price,quantity,executed_at,has_commission,commission_amount) values('{sell_id}','fixture-a','{position_id}','SELL',17,1,'2026-02-03',false,0)")
     # A canonical identity may retain several separate ledgers after account merge.
     consolidated_id = str(uuid.uuid4())
     sql("alter table public.positions disable trigger a_account_write_fence;"
-        f"insert into public.positions(id,user_id,symbol,display,image_url,location,entry_price,quantity,entry_date,consolidated_into_position_id) values('{consolidated_id}','fixture-a','ABC','ABC','','bank_one',9,4,'2026-01-01','{position_id}');"
+        f"insert into public.positions(id,user_id,symbol,display,image_url,location,entry_price,quantity,entry_date,consolidated_into_position_id) values('{consolidated_id}','fixture-a','ABC','ABC','','{source_one}',9,4,'2026-01-01','{position_id}');"
         "alter table public.positions enable trigger a_account_write_fence")
     original = json.loads(as_user('select public.screenshot_sync_snapshot()'))
     corrected = dict(rows[0], quantity=8, averageCostUsd=11, acquiredOn=None, estimatedAcquiredOn='2026-01-15', observedAt='2026-02-04', lotId=str(uuid.uuid4()))
@@ -168,7 +170,8 @@ try:
     # without altering its financial fields or losing its immutable provenance.
     transferred_position = next(item['id'] for item in closed_snapshot['positions'] if item['symbol'] == 'XYZ')
     sql("begin;set local role livestocks_merge_executor;"
-        "set constraints public.position_lots_position_owner_fkey deferred;"
+        "set constraints all deferred;"
+        f"update public.investment_sources set user_id='fixture-b' where id='{source_two}';"
         f"update public.positions set user_id='fixture-b' where id='{transferred_position}';"
         f"update public.position_lots set user_id='fixture-b' where position_id='{transferred_position}';commit")
     transferred = json.loads(as_user('select public.screenshot_sync_snapshot()', 'fixture-b'))
@@ -216,8 +219,8 @@ try:
              for symbol in ('CHATNEW', 'CHATMORE')]
     batch_changes = [{key: value for key, value in item.items() if key not in ('lotId', 'location', 'observedAt')}
                      for item in batch]
-    batch_review = {'input': {'location': 'bank_one', 'observedAt': target['observedAt'], 'rows': batch_changes},
-                    'plan': {'location': 'bank_one', 'observedAt': target['observedAt'], 'changes': batch_changes, 'blocked': [], 'canApply': True}}
+    batch_review = {'input': {'location': source_one, 'observedAt': target['observedAt'], 'rows': batch_changes},
+                    'plan': {'sourceName': 'מקור ראשי', 'location': source_one, 'observedAt': target['observedAt'], 'changes': batch_changes, 'blocked': [], 'canApply': True}}
     batch_id = str(uuid.uuid4())
     batch_query = "select public.create_chat_sync_proposal('%s','%s','%s','%s','%s')" % (
         batch_id, fresh['fingerprint'], json.dumps(batch), json.dumps(batch_review), hashlib.sha256(secret.encode()).hexdigest())
@@ -251,7 +254,7 @@ try:
     mcp_rejected(f"select public.confirm_chat_sync_proposal('{expiring_id}','{secret}')", sync=True)
     stale_id = str(uuid.uuid4())
     mcp(create_proposal(stale_id, fresh['fingerprint'], next_target, secret))
-    as_user(f"select * from public.record_position_purchase('{uuid.uuid4()}','AFTER','AFTER','','bank_one',1,1,'2026-02-06',false,0)")
+    as_user(f"select * from public.record_position_purchase('{uuid.uuid4()}','AFTER','AFTER','','{source_one}',1,1,'2026-02-06',false,0)")
     mcp_rejected(f"select public.confirm_chat_sync_proposal('{stale_id}','{secret}')", sync=True)
     assert json.loads(mcp(f"select public.read_chat_sync_proposal('{stale_id}')"))['status'] == 'pending'
     assert sql("select has_function_privilege('authenticated','public.apply_chat_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHAT_SYNC_APP_HTML, CHAT_SYNC_RESOURCE_MIME, CHAT_SYNC_RESOURCE_URI } from '@/lib/chat-sync-app';
 
-const plan = () => ({ location: 'bank_one', observedAt: '2026-11-16', changes: [{ symbol: 'AAPL', previousQuantity: 8, quantity: 5, previousAverageCostUsd: 100, averageCostUsd: 110 }], unchanged: [], blocked: [], canApply: true });
+const plan = () => ({ location: '10000000-0000-4000-8000-000000000001', sourceName: 'בית השקעות אישי', observedAt: '2026-11-16', changes: [{ symbol: 'AAPL', previousQuantity: 8, quantity: 5, previousAverageCostUsd: 100, averageCostUsd: 110 }], unchanged: [], blocked: [], canApply: true });
 const prepared = (secret = 'private-widget-secret') => ({ structuredContent: { proposalId: 'proposal-one', status: 'pending', expiresAt: '2026-11-16T10:15:00Z', plan: plan() }, _meta: secret ? { confirmationSecret: secret } : {} });
 let frame: HTMLIFrameElement;
 let app: Window;
@@ -46,6 +46,7 @@ describe('inline ChatGPT synchronization approval', () => {
   it('renders an immutable review but never invokes a write before user interaction', async () => {
     boot(); await initialize(); receive();
     expect(doc.body.textContent).toContain('AAPL');
+    expect(doc.body.textContent).toContain('בית השקעות אישי');
     expect(doc.body.textContent).not.toContain('private-widget-secret');
     expect(button('confirm').disabled).toBe(false);
     expect(toolCalls()).toHaveLength(0);

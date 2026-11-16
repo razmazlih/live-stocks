@@ -13,7 +13,7 @@ const symbolKey = (symbol: string) => symbol.trim().toUpperCase();
 /** Compact server-computed proposals; no lot/account records are duplicated in the response. */
 export function buildCloseProposalSnapshot(input: {
   positions: Position[]; metrics: PositionMetrics[]; annualGrowthRate: number | null;
-  ownerId?: string; asOf: number; quotes: Record<string, QuoteObservation>; maxLosers?: 1 | 3;
+  ownerId?: string; sources?: { id: string; name: string }[]; asOf: number; quotes: Record<string, QuoteObservation>; maxLosers?: 1 | 3;
 }) {
   const { positions, metrics, annualGrowthRate, asOf, quotes } = input;
   const policy = { ...DEFAULT_CLOSE_PAIR_POLICY, maxLosers: input.maxLosers ?? 3 };
@@ -58,6 +58,7 @@ export function buildCloseProposalSnapshot(input: {
         cumulativeProfitUsd: leg.pnlUsd, personalTargetProfitUsd: leg.targetProfitUsd,
         surplusAboveTargetUsd: leg.surplusUsd, weightedHoldingDays: leg.weightedHoldingDays ?? null, openLossPercent: leg.lossPercent ?? null,
         accounts: (leg.historicalPositions ?? [leg.position]).map(position => ({ location: position.location,
+          sourceName: input.sources?.find(source => source.id === position.location)?.name ?? null,
           quantity: position.lots?.length ? computeOpenLots(position.lots).reduce((sum, lot) => sum + lot.quantity, 0) : position.quantity,
         })).filter(account => account.quantity > 1e-8),
       }));

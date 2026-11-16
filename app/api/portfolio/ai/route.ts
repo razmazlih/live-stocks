@@ -1,3 +1,4 @@
+import { readSourceCatalog } from '@/lib/server/investment-source-catalog';
 import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING } from '@/lib/reconciliation-quality';
 import { NextResponse } from 'next/server';
 import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
@@ -29,11 +30,12 @@ async function loadRows<T extends keyof Tables>(principal: Principal, table: T, 
 
 async function buildSnapshot(principal: Principal) {
   const startedAt = new Date().toISOString();
-  const [positionRows, lotRows, planRows, settingsRows] = await Promise.all([
+  const [positionRows, lotRows, planRows, settingsRows, sources] = await Promise.all([
     loadRows(principal, 'positions', '*', 'id'),
     loadRows(principal, 'position_lots', '*', 'id'),
     loadRows(principal, 'position_plans', '*', 'id'),
     loadRows(principal, 'settings', 'annual_growth_rate,currency,updated_at', 'id'),
+    readSourceCatalog(principal.supabase, principal.userId),
   ]);
   const settings = settingsRows[0];
   const warnings: string[] = [];
@@ -101,8 +103,8 @@ async function buildSnapshot(principal: Principal) {
   }).filter(t => t !== null);
   const calculationAsOf = Date.now();
   const quoteObservations = Object.fromEntries(quoteEntries.map(([symbol, quote]) => [symbol, { priceUsd: quote?.price ?? null, dailyChangePerShareUsd: quote?.dailyChange ?? null, marketTimestamp: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null, source: 'Finnhub', status: quote ? 'last_available' : 'unavailable' }]));
-  const closePairProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
-  const closePairOnlyProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
+  const closePairProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
+  const closePairOnlyProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
   // Never expose settings tokens. Convert non-finite/missing values to explicit nulls.
   const payload = {
     schemaVersion: 1, startedAt, generatedAt: new Date().toISOString(),
@@ -111,7 +113,7 @@ async function buildSnapshot(principal: Principal) {
     dataQuality: { ...historyQuality, completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
     goals: { annualGrowthRate, annualGrowthRatePercent: annualGrowthRate === null ? null : annualGrowthRate * 100, meaning: 'User annual compound return target, evaluated as of today; not a price forecast or guaranteed return. currentGapUsd is positive for a shortfall and negative for a surplus.', symbolTargets: targets },
     summary: summary ? { ...summary, ...(!historyQuality.completeTransactionHistory ? { totalTaxesPaidUsd: null, totalTaxesPaidIls: null } : {}), ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
-    closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
+    sources, closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
     realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: historyQuality.completeTransactionHistory ? tax.taxUsd : null, estimatedTaxIls: historyQuality.completeTransactionHistory && fxResult !== null ? tax.taxIls : null, recordedSalesEstimatedTaxUsd: tax.taxUsd, recordedSalesEstimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
     quotes: quoteObservations,
     limitations: [
