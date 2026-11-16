@@ -11,7 +11,7 @@ export function parsePositionsState(params: URLSearchParams) {
   const pageSize = Number(params.get('pageSize') ?? 20);
   return {
     searchTerm: (params.get('q') ?? '').slice(0, 200),
-    locationFilter: account === 'bank_one' || account === 'bank_two' ? account : 'all' as const,
+    locationFilter: account && (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(account) || account === 'bank_one' || account === 'bank_two') ? account : 'all' as const,
     sortOption: POSITION_SORTS.includes(sort as PositionSort) ? sort as PositionSort : 'latest_activity' as const,
     currentPage: Number.isSafeInteger(page) && page > 0 ? page : 1,
     pageSize: [10, 20, 50].includes(pageSize) ? pageSize : 20,

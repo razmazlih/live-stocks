@@ -237,9 +237,7 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
     let planClaimed = false;
     let claimedUpdatedAt: string | undefined;
     let planUpdated = false;
-    let resolvedLocation: PositionLocation | null = plan.positionId
-      ? plan.location ?? null
-      : plan.location ?? 'bank_one';
+    let resolvedLocation: PositionLocation | null = plan.location ?? null;
 
     try {
       const quote = quotes.get(plan.symbol);
@@ -301,7 +299,8 @@ export async function processPendingPlans(options: ProcessPlansOptions): Promise
 
         const fallbackImage = getStockLogoUrl(plan.symbol, plan.imageUrl);
         const fallbackDisplay = plan.display ?? plan.symbol;
-        const locationToUse = resolvedLocation ?? 'bank_one';
+        if (!resolvedLocation) throw new Error(`Plan ${plan.id} is missing its investment source`);
+        const locationToUse = resolvedLocation;
 
         const { data: newPosition, error: positionError } = await supabase
           .from('positions')

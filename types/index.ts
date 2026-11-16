@@ -1,5 +1,14 @@
 export type PositionLotType = 'BUY' | 'SELL' | 'RECONCILE';
-export type PositionLocation = 'bank_one' | 'bank_two';
+/** Immutable ID of an owner-scoped investment source. */
+export type PositionLocation = string;
+
+export interface InvestmentSource {
+  id: string;
+  name: string;
+  archivedAt: string | null;
+  createdAt: string;
+  legacyLocation?: string | null;
+}
 
 export interface PositionLot {
   id?: string;

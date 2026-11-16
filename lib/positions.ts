@@ -109,11 +109,14 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
 }
 
 function normalizePositionLocation(value: unknown): PositionLocation {
-  return value === 'bank_two' ? 'bank_two' : 'bank_one';
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('Position is missing its investment source');
+  }
+  return value;
 }
 
 function normalizePlanLocation(value: unknown): PositionLocation | null {
-  if (value === 'bank_one' || value === 'bank_two') {
+  if (typeof value === 'string' && value.trim()) {
     return value;
   }
   return null;

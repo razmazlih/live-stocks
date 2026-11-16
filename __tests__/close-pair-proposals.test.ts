@@ -20,6 +20,16 @@ const lot = (overrides: Partial<PositionLot> = {}): PositionLot => ({
 });
 
 describe('non-overlapping full-close pairs', () => {
+  it('includes holdings in arbitrary third and fourth sources', () => {
+    const metrics = [
+      metric('WIN', 140, { location: '30000000-0000-4000-8000-000000000003' }),
+      metric('LOSS', 80, { location: '40000000-0000-4000-8000-000000000004' }),
+    ];
+    const [proposal] = buildClosePairProposals(metrics, 3, asOf, 0, metrics.map(item => item.position));
+    expect(proposal.netProfitUsd).toBe(200);
+    expect(proposal.winner.position.location).toBe('30000000-0000-4000-8000-000000000003');
+  });
+
   it('requires a cent above the personal target as well as positive actual profit', () => {
     const yearEnd = Date.parse(entryDate) + 365.25 * 86_400_000;
     const metrics = [metric('WIN', 125), metric('LOSS', 80)];

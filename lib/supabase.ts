@@ -118,6 +118,18 @@ export const supabase = new Proxy(
 export type Database = {
   public: {
     Tables: {
+      investment_sources: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          created_at: string;
+          archived_at: string | null;
+          legacy_location: string | null;
+        };
+        Insert: { name: string };
+        Update: { name?: string; archived_at?: string | null };
+      };
       positions: {
         Row: {
           id: string;
@@ -129,7 +141,7 @@ export type Database = {
           entry_date: string;
           created_at: string;
           updated_at: string;
-          location: 'bank_one' | 'bank_two';
+          location: string;
         };
         Insert: {
           id?: string;
@@ -141,7 +153,7 @@ export type Database = {
           entry_date: string;
           created_at?: string;
           updated_at?: string;
-          location?: 'bank_one' | 'bank_two';
+          location?: string;
         };
         Update: {
           id?: string;
@@ -153,7 +165,7 @@ export type Database = {
           entry_date?: string;
           created_at?: string;
           updated_at?: string;
-          location?: 'bank_one' | 'bank_two';
+          location?: string;
         };
       };
       position_lots: {
@@ -219,7 +231,7 @@ export type Database = {
       commission_amount: number;
       created_at: string;
       updated_at: string;
-      location: 'bank_one' | 'bank_two' | null;
+      location: string | null;
     };
     Insert: {
       id?: string;
@@ -239,7 +251,7 @@ export type Database = {
       commission_amount?: number;
       created_at?: string;
       updated_at?: string;
-      location?: 'bank_one' | 'bank_two' | null;
+      location?: string | null;
     };
     Update: {
       id?: string;
@@ -259,7 +271,7 @@ export type Database = {
       commission_amount?: number;
       created_at?: string;
       updated_at?: string;
-      location?: 'bank_one' | 'bank_two' | null;
+      location?: string | null;
     };
   };
       settings: {
