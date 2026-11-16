@@ -39,7 +39,7 @@ afterEach(() => { frame?.contentWindow?.close(); frame?.remove(); vi.clearAllTim
 
 describe('inline ChatGPT synchronization approval', () => {
   it('declares a standard self-contained MCP App without external scripts or fetch', () => {
-    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v2.html');
+    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v3.html');
     expect(CHAT_SYNC_RESOURCE_MIME).toBe('text/html;profile=mcp-app');
     expect(CHAT_SYNC_APP_HTML).not.toMatch(/<script[^>]+src=|fetch\(|localStorage|sessionStorage/);
   });
@@ -50,6 +50,18 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(button('confirm').disabled).toBe(false);
     expect(toolCalls()).toHaveLength(0);
     expect(doc.querySelector('details')?.open).toBe(false);
+  });
+  it('keeps existing and updated values explicitly labelled in the responsive holding card', async () => {
+    boot(); await initialize(); receive();
+    const card = doc.querySelector('.holding-card')!;
+    expect(card.getAttribute('role')).toBe('row');
+    expect(card.querySelector('.ticker-symbol')?.textContent).toBe('AAPL');
+    const stats = [...card.querySelectorAll('.holding-stat')];
+    expect(stats.map(stat => stat.querySelector('.before bdi')?.textContent)).toEqual(['8', '100']);
+    expect(stats.map(stat => stat.querySelector('.after bdi')?.textContent)).toEqual(['5', '110']);
+    expect(stats.every(stat => stat.querySelector('.before small')?.textContent === 'קיים')).toBe(true);
+    expect(stats.every(stat => stat.querySelector('.after small')?.textContent === 'אחרי הסנכרון')).toBe(true);
+    expect(toolCalls()).toHaveLength(0);
   });
   it('shows confirmed and estimated purchase dates as distinct parts of the review', async () => {
     boot(); await initialize();

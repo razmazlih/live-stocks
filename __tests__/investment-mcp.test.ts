@@ -77,7 +77,7 @@ describe('investment action constraints', () => {
 
 describe('read-only MCP transport and tools', () => {
   it.each(['http_header', 'request_metadata'])('satisfies the 2026 per-request resource contract with private immediately-stale cache hints (%s)', async transport => {
-    const resourceUri = 'ui://livestocks/screenshot-sync-v2.html';
+    const resourceUri = 'ui://livestocks/screenshot-sync-v3.html';
     const raw = await POST(request('resources/read', { uri: resourceUri, ...(transport === 'request_metadata' ? { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } : {}) }, transport === 'http_header' ? { 'mcp-protocol-version': '2026-07-28' } : undefined));
     const envelope = await raw.json();
     const hostReadContract = z.object({ resultType: z.literal('complete'), ttlMs: z.number().int().nonnegative(), cacheScope: z.enum(['private', 'public']), contents: z.array(z.object({ uri: z.string(), mimeType: z.string(), text: z.string() })) });
@@ -96,7 +96,7 @@ describe('read-only MCP transport and tools', () => {
     expect(legacy).not.toHaveProperty('resultType');
   });
   it('supports per-request legacy metadata and never puts cache hints on tool invocation results', async () => {
-    const legacy = (await (await POST(request('resources/read', { uri: 'ui://livestocks/screenshot-sync-v2.html', _meta: { 'io.modelcontextprotocol/protocolVersion': '2025-11-25' } }))).json()).result;
+    const legacy = (await (await POST(request('resources/read', { uri: 'ui://livestocks/screenshot-sync-v3.html', _meta: { 'io.modelcontextprotocol/protocolVersion': '2025-11-25' } }))).json()).result;
     expect(legacy).not.toHaveProperty('ttlMs'); expect(legacy).not.toHaveProperty('resultType');
     const modernTool = await call('get_profile');
     expect(modernTool.resultType).toBe('complete');

@@ -87,7 +87,7 @@ The default registration and every existing grant remain read-only. Operator opt
 
 Protected-resource discovery lists the optional sync scope. prepare_screenshot_sync and the app-only confirm_screenshot_sync declare read+sync; an old read-only token receives an insufficient_scope tool-result challenge, allowing the host to run its OAuth flow. The consent screen clearly distinguishes the narrow bookkeeping capability from trading/general writes.
 
-Source tools now also include find_purchase_date_candidates, prepare_screenshot_sync, review_screenshot_sync, confirm_screenshot_sync and cancel_screenshot_sync. Review renders from ui://livestocks/screenshot-sync-v2.html inside ChatGPT. The confirmation capability is in private result metadata only; confirm/cancel are app-only. Read review output never includes that secret. Corrections supersede old cards, including incomplete/no-op revisions.
+Source tools now also include find_purchase_date_candidates, prepare_screenshot_sync, review_screenshot_sync, confirm_screenshot_sync and cancel_screenshot_sync. Review renders from ui://livestocks/screenshot-sync-v3.html inside ChatGPT. The confirmation capability is in private result metadata only; confirm/cancel are app-only. Read review output never includes that secret. Corrections supersede old cards, including incomplete/no-op revisions.
 
 Apply both feature migrations, deploy compatible code, opt the existing OAuth client into the optional scope explicitly, then refresh tools and publish the updated skill through the existing process. This PR performs none of those live mutations. Existing workspace role/tool approval may need review for the new mutating tool; do not replace the App or broaden its audience.
 
