@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-16",
+  "status": "DEPLOYED",
+  "project": "live-stocks",
+  "productionUrl": "https://razmaz-live-stocks.vercel.app",
+  "deploymentId": "dpl_BSoaf6YoP2nKq7MCidzdetUFa8pD",
+  "runtimeDigest": "3d19522793fc0162d127469cdb289dfb3c166b01691d5d292d281999a4768b32",
+  "runtimeSourceMatchesRepository": true,
+  "migrations": [
+    {
+      "source": "20261116065346_screenshot_position_import.sql",
+      "hostedVersion": "20261116090032"
+    },
+    {
+      "source": "20261116073637_chat_sync_confirmations.sql",
+      "hostedVersion": "20261116090053"
+    },
+    {
+      "source": "20261116084605_personal_investment_sources.sql",
+      "hostedVersion": "20261116090509"
+    }
+  ],
+  "releaseGate": {
+    "method": "Temporarily revoke authenticated financial INSERT/UPDATE/DELETE and restricted sync INSERT/UPDATE; restore verified original grants after migration audit and prepared deployment promotion.",
+    "writesRestored": true,
+    "unfinishedMergesBefore": 0
+  },
+  "preservation": {
+    "before": {
+      "financial": {
+        "settings": {
+          "count": 1,
+          "digest": "3d7b69ae1df599fe0f5dd821b02e1b2ebfc2f42bf2825405eb24ad37e7d8cfcf"
+        },
+        "positions": {
+          "count": 17,
+          "digest": "d08ab7acb384ef5ad3f8e8787d571306e8f71c38994b37a4e9dd78cfc7edee08"
+        },
+        "position_lots": {
+          "count": 55,
+          "digest": "b63f95612d1c53e16831b4d95b297f282ffb0cf7b4adc2a3768f5789733a904b"
+        },
+        "position_plans": {
+          "count": 0,
+          "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "watchlist_groups": {
+          "count": 1,
+          "digest": "5a4f871f47b2abf4c7e1de2deee6b8f82154c3567004a0e989d74119002e7e29"
+        },
+        "watchlist_tickers": {
+          "count": 4,
+          "digest": "cdc006bd6c70918ad85294006817ec465ab3a4b5f0f19103d2e07b5f635a3d39"
+        }
+      },
+      "sourceAssignmentDigest": "1fe58e4da789f839d8a88d798dedf9334e15036f420e65ce7d93fe8cdf149b89"
+    },
+    "after": {
+      "financial": {
+        "settings": {
+          "count": 1,
+          "digest": "3d7b69ae1df599fe0f5dd821b02e1b2ebfc2f42bf2825405eb24ad37e7d8cfcf"
+        },
+        "positions": {
+          "count": 17,
+          "digest": "d08ab7acb384ef5ad3f8e8787d571306e8f71c38994b37a4e9dd78cfc7edee08"
+        },
+        "position_lots": {
+          "count": 55,
+          "digest": "b63f95612d1c53e16831b4d95b297f282ffb0cf7b4adc2a3768f5789733a904b"
+        },
+        "position_plans": {
+          "count": 0,
+          "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "watchlist_groups": {
+          "count": 1,
+          "digest": "5a4f871f47b2abf4c7e1de2deee6b8f82154c3567004a0e989d74119002e7e29"
+        },
+        "watchlist_tickers": {
+          "count": 4,
+          "digest": "cdc006bd6c70918ad85294006817ec465ab3a4b5f0f19103d2e07b5f635a3d39"
+        }
+      },
+      "sourceAssignmentDigest": "1fe58e4da789f839d8a88d798dedf9334e15036f420e65ce7d93fe8cdf149b89"
+    },
+    "allFinancialDigestsEqual": true,
+    "sourceAssignmentDigestEqual": true,
+    "invalidSourceForeignKeys": 0
+  },
+  "security": {
+    "sourceRls": true,
+    "anonymousSourceRead": false,
+    "authenticatedOwnerColumnUpdate": false,
+    "sourceColumnType": "uuid",
+    "sourceForeignKeysValid": true,
+    "mergeExecutorSchemaCreateAfterRelease": false
+  },
+  "validation": {
+    "vitestPassed": 994,
+    "vitestSkipped": 3,
+    "typecheck": "PASS",
+    "eslint": "PASS",
+    "localProductionBuild": "PASS",
+    "vercelProductionBuild": "PASS",
+    "nativeSourceRehearsal": "PASS PostgreSQL 17",
+    "nativeScreenshotSync": "PASS",
+    "nativeSdkAccountMerge": "PASS PostgreSQL 17",
+    "liveSignInHttpStatus": 200,
+    "liveSettingsSignedOutRedirect": "PASS",
+    "connectedLiveMcpSourceCatalog": {
+      "success": true,
+      "count": 1,
+      "validUUIDs": true,
+      "hasNames": true
+    },
+    "nativeBetterAuthAndSignInMethods": "PASS PostgreSQL 17",
+    "nativeTenancy": "PASS PostgreSQL 17; legacy fixtures at predecessor checkpoint, full source cutover and current owner-isolation suite for empty and adopted legacy databases"
+  },
+  "plugin": {
+    "plugin_id": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "description": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
+    "version": "1.1.2",
+    "current_release_id": "pluginrel_6afac82680cc8191bf9db8c8c7bab7b0",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "workspace_id": "c1a4e8b0-a065-4007-96b1-a7716d7ba9d8",
+    "readbackVerified": true,
+    "appAndAudiencePreserved": true,
+    "update": "Source catalog guidance only; the separate local screenshot-sync draft was not published."
+  },
+  "limitations": [
+    "Browser CRUD evidence uses real source components against disposable PostgreSQL/PostgREST, not the complete authenticated production Next.js navigation.",
+    "Live browser did not have a signed-in website session; authenticated production reading was verified through the existing LiveStocks MCP connection.",
+    "No physical phone or end-to-end ChatGPT screenshot extraction/iframe rendering test.",
+    "Existing real-token Auth0/browser smoke scripts were adapted and syntax/lint checked, but their external identity flows were not rerun."
+  ],
+  "securityAdvisors": {
+    "errors": 0,
+    "warnings": 0,
+    "info": {
+      "rls_enabled_no_policy": 7
+    },
+    "investmentSourceFindings": 0,
+    "note": "Informational findings concern existing private tables intentionally denied to application roles."
+  }
+}

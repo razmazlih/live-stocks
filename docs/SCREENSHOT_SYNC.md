@@ -66,3 +66,7 @@ Current test totals and native runs are recorded in the PR description. Syntheti
 ![Synthetic inline desktop review](screenshots/chat-sync-desktop.png)
 
 ![Synthetic inline mobile review](screenshots/chat-sync-mobile.png)
+
+## Source-catalog production cutover — 16 November 2026
+
+The personal investment-source release applied both screenshot-sync schema prerequisites and the UUID source migration to production. Financial-table digests and legacy source assignments matched before/after cutover. Existing OAuth grants/client scopes were not widened. Plugin 1.1.2 published only source-catalog guidance; the separate screenshot-sync skill draft and ChatGPT host activation/rendering gate above remain distinct. See [source release verification](verification/investment-sources-production-2026-11-16.json).
