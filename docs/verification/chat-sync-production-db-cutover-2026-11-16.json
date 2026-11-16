@@ -1,0 +1,132 @@
+{
+  "kind": "production-chat-sync-database-cutover",
+  "project": "osvwctooasdxsztatirz",
+  "authorizedScope": "Apply only the third chat sync migration; no actual portfolio synchronization or financial changes.",
+  "beforeAt": "2026-11-16T10:05:15.282073+00:00",
+  "afterAt": "2026-11-16T10:06:03.106049+00:00",
+  "migration": {
+    "source": "supabase/migrations/20261116092048_one_pending_chat_sync_review.sql",
+    "sourceSha256": "609b3c4c60fe767d24476f3a62eb321454a142d38aa9fbf36d7a3ce7f3d56aa8",
+    "cloudVersion": "20261116100527",
+    "name": "one_pending_chat_sync_review",
+    "applied": true,
+    "priorFeatureMigrationsReapplied": false
+  },
+  "financialIntegrity": {
+    "allSevenTablesIdentical": true,
+    "perUserComparisonsIdentical": true,
+    "tables": [
+      {
+        "table": "investment_sources",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "position_lots",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "position_plans",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "positions",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "settings",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "watchlist_groups",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      },
+      {
+        "table": "watchlist_tickers",
+        "countsIdentical": true,
+        "fullRowSha256Identical": true,
+        "perUserCountsAndSha256Identical": true
+      }
+    ],
+    "rawIdentifiersOrHoldingsIncluded": false
+  },
+  "security": {
+    "roles": [
+      {
+        "bulk": false,
+        "role": "anon",
+        "oldHelper": false,
+        "newDispatcher": false,
+        "rawPublicWorker": false,
+        "rawPrivateWorker": false,
+        "proposalTableRead": false
+      },
+      {
+        "bulk": true,
+        "role": "authenticated",
+        "oldHelper": false,
+        "newDispatcher": true,
+        "rawPublicWorker": false,
+        "rawPrivateWorker": false,
+        "proposalTableRead": false
+      },
+      {
+        "bulk": false,
+        "role": "service_role",
+        "oldHelper": false,
+        "newDispatcher": false,
+        "rawPublicWorker": false,
+        "rawPrivateWorker": false,
+        "proposalTableRead": false
+      },
+      {
+        "bulk": false,
+        "role": "livestocks_auth_backend",
+        "oldHelper": false,
+        "newDispatcher": false,
+        "rawPublicWorker": false,
+        "rawPrivateWorker": false,
+        "proposalTableRead": false
+      }
+    ],
+    "wrapper": {
+      "owner": "livestocks_sync_executor",
+      "definer": true,
+      "emptySearchPath": true
+    },
+    "checkedAt": "2026-11-16T10:05:58.891441+00:00",
+    "proposalRls": true,
+    "publicBulkInvoker": true,
+    "pendingUniqueIndex": true,
+    "proposalStatusCounts": {},
+    "savedValidatorSha256": "45efebe6c80c928932d358cd51c9ddc9762e473d0e46edeefbbeadbc9f032c9b",
+    "executorCreateRevoked": true,
+    "rawWorkerPublicExecute": false,
+    "savedHelperPublicExecute": false,
+    "originalSavedValidatorPreserved": true
+  },
+  "advisors": {
+    "warnings": 0,
+    "errors": 0,
+    "information": 7,
+    "notes": "Seven existing private RLS-enabled/no-policy informational findings; no new warnings or errors."
+  },
+  "execution": {
+    "financialDml": false,
+    "realPortfolioSync": false,
+    "oauthClientChanged": false,
+    "pluginChanged": false,
+    "noCommitByThisAgent": true
+  }
+}
