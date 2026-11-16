@@ -1,3 +1,14 @@
+
+vi.mock('@/hooks/use-investment-sources', () => {
+  const sources = [
+    { id: 'bank_one', name: 'ONE ZERO', archivedAt: null, createdAt: '2026-01-01' },
+    { id: 'bank_two', name: 'Pepper', archivedAt: null, createdAt: '2026-01-02' },
+  ];
+  return { useInvestmentSources: () => ({ sources, activeSources: sources, loading: false, error: null,
+    sourceName: (id: string) => sources.find(source => source.id === id)?.name ?? 'Unavailable source',
+    resolveLocation: (id: string) => id, createSource: vi.fn(),
+  }) };
+});
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

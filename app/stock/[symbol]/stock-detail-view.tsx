@@ -156,7 +156,7 @@ function buildLocationBreakdowns(positions: Position[]): LocationBreakdown[] {
       if (a.location === b.location) {
         return 0;
       }
-      return a.location === 'bank_one' ? -1 : 1;
+      return a.location.localeCompare(b.location);
     });
 }
 

@@ -9,14 +9,16 @@ import type { Principal } from '@/lib/auth/server';
 const rpc = vi.fn();
 const principal = { userId: 'owner-one', kind: 'mcp', supabase: { rpc } } as unknown as Principal;
 const web = { ...principal, kind: 'web' } as Principal;
-const input = { location: 'bank_one', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: '2025-01-01' }] };
+const sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
+const input = { location: '10000000-0000-4000-8000-000000000001', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: '2025-01-01' }] };
 function token(url: string) { return new URL(url).hash.slice(1); }
-beforeEach(() => { vi.useRealTimers(); rpc.mockReset(); rpc.mockResolvedValue({ data: { positions: [], lots: [], fingerprint: 'a'.repeat(32) }, error: null }); });
+beforeEach(() => { vi.useRealTimers(); rpc.mockReset(); rpc.mockResolvedValue({ data: { positions: [], lots: [], sources, fingerprint: 'a'.repeat(32) }, error: null }); });
 describe('owner-bound screenshot proposal', () => {
   it('only reads during preparation and hides private input in encrypted fragment', async () => {
     const proposal = await prepareScreenshotSync(principal, input);
     expect(rpc).toHaveBeenCalledExactlyOnceWith('screenshot_sync_snapshot');
     expect(proposal.plan.canApply).toBe(true);
+    expect(proposal.plan.sourceName).toBe('בית השקעות אישי');
     expect(new URL(proposal.reviewUrl).search).toBe('');
     expect(proposal.reviewUrl).not.toContain('AAPL');
     expect(openScreenshotProposal(token(proposal.reviewUrl), 'owner-one').input).toEqual(input);
@@ -34,7 +36,7 @@ describe('owner-bound screenshot proposal', () => {
     await expect(applyScreenshotSync(principal, value)).rejects.toThrow();
     rpc.mockResolvedValueOnce({ data: { applied: true }, error: null });
     await expect(applyScreenshotSync(web, value)).resolves.toEqual({ applied: true });
-    expect(rpc).toHaveBeenLastCalledWith('apply_screenshot_sync', { p_expected: 'a'.repeat(32), p_rows: [expect.objectContaining({ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, location: 'bank_one', lotId: expect.any(String) })] });
+    expect(rpc).toHaveBeenLastCalledWith('apply_screenshot_sync', { p_expected: 'a'.repeat(32), p_rows: [expect.objectContaining({ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, location: '10000000-0000-4000-8000-000000000001', lotId: expect.any(String) })] });
   });
   it('revises owner-bound dates without converting a price estimate into an actual acquisition', async () => {
     const value = token((await prepareScreenshotSync(principal, input)).reviewUrl);
@@ -54,7 +56,14 @@ describe('owner-bound screenshot proposal', () => {
   it('blocks incomplete proposals even when called directly and marks changed snapshots stale', async () => {
     const proposal = await prepareScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] });
     await expect(applyScreenshotSync(web, token(proposal.reviewUrl))).rejects.toThrow();
-    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], fingerprint: 'b'.repeat(32) }, error: null });
+    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources, fingerprint: 'b'.repeat(32) }, error: null });
     expect((await reviewScreenshotSync(web, token(proposal.reviewUrl))).stale).toBe(true);
   });
+  it('rejects unknown, foreign or archived investment sources before proposing changes', async () => {
+    await expect(prepareScreenshotSync(principal, { ...input, location: '10000000-0000-4000-8000-000000000003' })).rejects.toThrow('מקור השקעה פעיל');
+    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources: [{ ...sources[0], archived_at: '2026-01-01' }], fingerprint: 'a'.repeat(32) }, error: null });
+    await expect(prepareScreenshotSync(principal, input)).rejects.toThrow('מקור השקעה פעיל');
+    await expect(prepareScreenshotSync(principal, { ...input, location: 'bank_one' })).rejects.toThrow();
+  });
+
 });

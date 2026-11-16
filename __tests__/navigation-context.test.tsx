@@ -21,6 +21,11 @@ describe('list navigation continuity', () => {
     expect(parsePositionsState(new URL(restored, 'https://local.test').searchParams)).toEqual({ searchTerm: 'Apple', locationFilter: 'bank_two', sortOption: 'symbol_desc', currentPage: 2, pageSize: 10 });
   });
 
+  it('preserves a custom source UUID in list navigation', () => {
+    const id = '30000000-0000-4000-8000-000000000003';
+    expect(parsePositionsState(new URLSearchParams({ account: id })).locationFilter).toBe(id);
+  });
+
   it('restores the originating card focus and scroll after the list is ready', async () => {
     window.history.replaceState(null, '', '/positions?q=Apple&page=2');
     const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);

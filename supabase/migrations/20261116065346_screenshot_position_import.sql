@@ -1,5 +1,12 @@
 -- Screenshot extraction is untrusted input. OAuth can inspect a reconciliation,
 -- checkpoint writes require the website writer or the isolated MCP sync RPC.
+-- Managed PostgreSQL 16+ needs SET membership when a CREATEROLE migration
+-- transfers a function to the restricted executor it creates below.
+do $$begin
+ if current_setting('server_version_num')::integer>=160000 then
+  perform set_config('createrole_self_grant','set',true);
+ end if;
+end$$;
 alter table public.position_lots add column basis_acquired_on date;
 -- A user-reviewed market-price date guess is an annotation, never an actual
 -- acquisition date, exchange-rate date or FIFO holding-age input.

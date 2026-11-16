@@ -65,12 +65,12 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('same-user sign-in me
       await getBetterAuth()!.$context;
       const owner = await account(), other = await account();
       await admin.query('select public.server_bootstrap_web_account($1,$2)', [issuer, owner.id]);
-      await admin.query("insert into public.positions(user_id,symbol,display,image_url,entry_price,quantity,entry_date) values($1,'KEEP','Synthetic preserved','',12.5,3,'2026-01-01')", [owner.id]);
+      await admin.query("insert into public.positions(user_id,symbol,display,image_url,location,entry_price,quantity,entry_date) values($1,'KEEP','Synthetic preserved','',(select id from public.investment_sources where user_id=$1 and archived_at is null order by created_at,id limit 1),12.5,3,'2026-01-01')", [owner.id]);
       await admin.query("insert into public.position_lots(position_id,user_id,side,price,quantity,executed_at) select id,user_id,'BUY',12.5,3,'2026-01-01' from public.positions where user_id=$1", [owner.id]);
-      await admin.query("insert into public.position_plans(user_id,symbol,target_price,target_quantity,target_date)values($1,'FUTURE',22,4,'2027-01-01')", [owner.id]);
+      await admin.query("insert into public.position_plans(user_id,symbol,target_price,target_quantity,target_date,location)values($1,'FUTURE',22,4,'2027-01-01',(select id from public.investment_sources where user_id=$1 and archived_at is null order by created_at,id limit 1))", [owner.id]);
       await admin.query("insert into public.watchlist_groups(user_id,name)values($1,'Preserved watchlist')", [owner.id]);
       await admin.query("insert into public.watchlist_tickers(user_id,group_id,symbol)select user_id,id,'KEEP' from public.watchlist_groups where user_id=$1", [owner.id]);
-      const snapshot = async (userId = owner.id) => (await admin.query("select jsonb_build_object('profile',(select to_jsonb(p) from public.user_profiles p where id=$1),'positions',(select jsonb_agg(to_jsonb(p) order by id) from public.positions p where user_id=$1),'lots',(select jsonb_agg(to_jsonb(l) order by id) from public.position_lots l where user_id=$1),'settings',(select jsonb_agg(to_jsonb(s) order by id) from public.settings s where user_id=$1),'plans',(select jsonb_agg(to_jsonb(p) order by id) from public.position_plans p where user_id=$1),'groups',(select jsonb_agg(to_jsonb(g) order by id) from public.watchlist_groups g where user_id=$1),'tickers',(select jsonb_agg(to_jsonb(t) order by id) from public.watchlist_tickers t where user_id=$1)) as data", [userId])).rows[0].data;
+      const snapshot = async (userId = owner.id) => (await admin.query("select jsonb_build_object('sources',(select jsonb_agg(to_jsonb(s) order by id) from public.investment_sources s where user_id=$1),'profile',(select to_jsonb(p) from public.user_profiles p where id=$1),'positions',(select jsonb_agg(to_jsonb(p) order by id) from public.positions p where user_id=$1),'lots',(select jsonb_agg(to_jsonb(l) order by id) from public.position_lots l where user_id=$1),'settings',(select jsonb_agg(to_jsonb(s) order by id) from public.settings s where user_id=$1),'plans',(select jsonb_agg(to_jsonb(p) order by id) from public.position_plans p where user_id=$1),'groups',(select jsonb_agg(to_jsonb(g) order by id) from public.watchlist_groups g where user_id=$1),'tickers',(select jsonb_agg(to_jsonb(t) order by id) from public.watchlist_tickers t where user_id=$1)) as data", [userId])).rows[0].data;
       const before = await snapshot();
       const start = (password = owner.password, cookie = owner.cookie) => post(googlePost, { consent: true, password }, cookie);
       expect((await post(googlePost, { consent: true, password: owner.password }, owner.cookie, 'https://evil.invalid')).status).toBe(403);
@@ -100,7 +100,7 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('same-user sign-in me
       const first = await googleCallback(firstStart.response, '', googleEmail);
       const firstSession = await auth('/get-session', undefined, first.cookie); const firstId = firstSession.data.user.id;
       await admin.query('select public.server_bootstrap_web_account($1,$2)', [issuer, firstId]);
-      await admin.query("insert into public.positions(user_id,symbol,display,image_url,entry_price,quantity,entry_date) values($1,'GKEEP','Google portfolio','',19.5,2,'2026-01-01')", [firstId]);
+      await admin.query("insert into public.positions(user_id,symbol,display,image_url,location,entry_price,quantity,entry_date) values($1,'GKEEP','Google portfolio','',(select id from public.investment_sources where user_id=$1 and archived_at is null order by created_at,id limit 1),19.5,2,'2026-01-01')", [firstId]);
       const googleBefore = await snapshot(firstId);
       const requested = await post(passwordPost, { consent: true }, first.cookie); expect(requested.status).toBe(200);
       const mail = mailbox.pop()!; expect(mail.email).toBe(googleEmail);

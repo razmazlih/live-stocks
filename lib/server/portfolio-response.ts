@@ -1,3 +1,4 @@
+import { readSourceCatalog, type SourceCatalog } from '@/lib/server/investment-source-catalog';
 import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, positionFxTimestamps } from '@/lib/reconciliation-quality';
 import 'server-only';
 import { NextResponse } from 'next/server';
@@ -39,6 +40,7 @@ export type PortfolioSourceSnapshot = {
   positions: Record<string, unknown>[];
   position_lots: Record<string, unknown>[];
   settings: Record<string, unknown> | null;
+  sources?: SourceCatalog;
 };
 
 function calculateWeightedPortfolioPrices(metrics: PositionMetrics[]): WeightedPortfolioPrices | null {
@@ -116,6 +118,7 @@ export async function buildPortfolioResponse(
       console.error('Failed to load settings:', settingsError);
     }
 
+    const sources = context.snapshot ? context.snapshot.sources ?? [] : await readSourceCatalog(supabase, userId);
     const rawPositions = Array.isArray(positionsData) ? positionsData : [];
     const mappedPositions: Position[] = rawPositions.map(mapPositionRow);
     const historyQuality = reconciliationQuality(mappedPositions);
@@ -240,6 +243,7 @@ export async function buildPortfolioResponse(
       display: metric.position.display,
       imageUrl: metric.position.imageUrl,
       location: metric.position.location,
+      sourceName: sources.find(source => source.id === metric.position.location)?.name ?? null,
       entryPrice: toFixedNumber(metric.position.entryPrice),
       quantity: metric.position.quantity,
       entryDate: metric.position.entryDate,
@@ -279,6 +283,7 @@ export async function buildPortfolioResponse(
       timestamp: new Date().toISOString(),
       usdToIlsRate,
       targetCurrency,
+      sources,
       summary,
       dataQuality: { ...historyQuality, warnings: historyQuality.completeTransactionHistory ? [] : [RECONCILIATION_HISTORY_WARNING] },
       stocks: mappedStocks,

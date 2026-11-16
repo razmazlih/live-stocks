@@ -90,7 +90,7 @@ describe('immutable broker checkpoints', () => {
     expect(calculateSymbolExceptionAssessment([source], 150, 0.05)?.invalidReason).toBe('reconciliation_history_incomplete');
   });
   it('maps zero checkpoints and preserves original database lots', () => {
-    const mapped = mapPositionRow({ id: 'p1', symbol: 'ABC', display: 'ABC', image_url: '', quantity: 10, entry_price: 100, entry_date: '2025-01-01', position_lots: [
+    const mapped = mapPositionRow({ id: 'p1', symbol: 'ABC', display: 'ABC', image_url: '', location: '10000000-0000-4000-8000-000000000001', quantity: 10, entry_price: 100, entry_date: '2025-01-01', position_lots: [
       { id: 'l1', position_id: 'p1', side: 'BUY', quantity: 10, price: 100, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 },
       { id: 'l2', position_id: 'p1', side: 'RECONCILE', quantity: 0, price: 0, executed_at: '2025-03-01', has_commission: false, commission_amount: 0, basis_acquired_on: null, created_at: '2025-03-01T10:00:00Z' },
     ] });

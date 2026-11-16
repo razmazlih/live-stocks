@@ -77,3 +77,7 @@ The final source uses the versioned `ui://livestocks/screenshot-sync-v4.html` re
 ![Actual ChatGPT modern review using synthetic holdings](screenshots/chat-sync-chatgpt-modern.jpg)
 
 ![Actual ChatGPT safe retry using synthetic holdings](screenshots/chat-sync-chatgpt-retry.jpg)
+
+## Source-catalog production cutover — 16 November 2026
+
+The personal investment-source release applied both screenshot-sync schema prerequisites and the UUID source migration to production. Financial-table digests and legacy source assignments matched before/after cutover. Existing OAuth grants/client scopes were not widened. Plugin 1.1.2 published only source-catalog guidance; the separate screenshot-sync skill draft and ChatGPT host activation/rendering gate above remain distinct. See [source release verification](verification/investment-sources-production-2026-11-16.json).

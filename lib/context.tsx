@@ -12,6 +12,7 @@ import { Locale, Settings } from '@/types';
 import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
+import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
 
 interface AppContextType {
   locale: Locale;
@@ -128,7 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         triggerRefresh,
       }}
     >
-      <PortfolioDataProvider>{children}</PortfolioDataProvider>
+      <InvestmentSourcesProvider><PortfolioDataProvider>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
     </AppContext.Provider>
   );
 }

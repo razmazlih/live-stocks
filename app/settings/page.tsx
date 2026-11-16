@@ -27,6 +27,7 @@ import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shel
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardContainer, DashboardMain, DashboardSurface } from "@/components/dashboard/page-primitives";
 import { AccountSettings } from "@/components/auth/account-settings";
+import { InvestmentSourceSettings } from "@/components/settings/investment-source-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 
 export default function SettingsPage() {
@@ -178,6 +179,7 @@ export default function SettingsPage() {
         <DashboardMain>
           <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />
           <AppearanceSettings locale={locale} />
+          <InvestmentSourceSettings locale={locale} />
           <DashboardSurface>
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid gap-6 md:grid-cols-2">

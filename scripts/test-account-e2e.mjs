@@ -185,11 +185,14 @@ async function main(){
     phase='browser_financial_fixtures';const fixtures=[];
     for(let i=0;i<2;i++){
       const page=pages[i];const label=i===0?'E2EA':'E2EB';const rows={};
-      const purchase={p_request_id:randomUUID(),p_symbol:label,p_display:`Synthetic ${label}`,p_image_url:'',p_location:'bank_one',p_price:10+i,p_quantity:2,p_executed_at:'2026-01-01',p_has_commission:false,p_commission_amount:0};
+      const source=one(await browserDb(page,'read','investment_sources'),'Default investment source missing');
+      check(source.user_id===users[i].user_id&&source.archived_at===null,'Default source owner/state mismatch');
+      rows.investment_sources=source;
+      const purchase={p_request_id:randomUUID(),p_symbol:label,p_display:`Synthetic ${label}`,p_image_url:'',p_location:source.id,p_price:10+i,p_quantity:2,p_executed_at:'2026-01-01',p_has_commission:false,p_commission_amount:0};
       one(await browserDb(page,'rpc','record_position_purchase',purchase),'Real browser purchase RPC failed');
       one(await browserDb(page,'rpc','record_position_purchase',purchase),'Real browser idempotent retry failed');
       rows.positions=one(await browserDb(page,'read','positions'),'Browser position missing');rows.position_lots=one(await browserDb(page,'read','position_lots'),'Browser lot missing');
-      rows.position_plans=one(await browserDb(page,'insert','position_plans',{symbol:`${label}PLAN`,target_price:20,target_quantity:1,target_date:'2027-01-01'}),'Browser plan creation failed');
+      rows.position_plans=one(await browserDb(page,'insert','position_plans',{symbol:`${label}PLAN`,location:source.id,target_price:20,target_quantity:1,target_date:'2027-01-01'}),'Browser plan creation failed');
       rows.settings=one(await browserDb(page,'read','settings'),'Browser settings missing');
       rows.watchlist_groups=one(await browserDb(page,'insert','watchlist_groups',{name:`Synthetic ${label}`}),'Browser group creation failed');
       rows.watchlist_tickers=one(await browserDb(page,'insert','watchlist_tickers',{group_id:rows.watchlist_groups.id,symbol:label}),'Browser ticker creation failed');fixtures.push(rows);

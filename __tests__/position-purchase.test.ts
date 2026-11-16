@@ -70,3 +70,12 @@ describe('purchase continuation calculations', () => {
     expect(computeRealizedSales(reopened)[0].profitUsd).toBe(50);
   });
 });
+
+ describe('custom source mapping', () => {
+  it('preserves the exact source ID without a bank fallback', () => {
+    const source = '30000000-0000-4000-8000-000000000003';
+    const row = { id: 'custom', symbol: 'ABC', display: 'ABC', image_url: '', location: source, entry_price: 10, quantity: 2, entry_date: '2026-01-01' };
+    expect(mapPositionRow(row).location).toBe(source);
+    expect(() => mapPositionRow({ ...row, location: null })).toThrow('investment source');
+  });
+});

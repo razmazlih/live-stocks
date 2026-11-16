@@ -5,11 +5,12 @@ import type { Principal } from '@/lib/auth/server';
 import { prepareChatScreenshotSync, reviewChatScreenshotSync, confirmChatScreenshotSync, cancelChatScreenshotSync, SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
 const rpc = vi.fn();
 const principal = { userId: 'owner', rawSubject: 'subject', kind: 'mcp', authSessionId: 'session', portfolioSync: true, supabase: { rpc } } as unknown as Principal;
-const input = { location: 'bank_one', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: null }] };
+const sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
+const input = { location: '10000000-0000-4000-8000-000000000001', observedAt: '2026-01-01', rows: [{ symbol: 'AAPL', quantity: 2, averageCostUsd: 100, acquiredOn: null }] };
 const id = '00000000-0000-4000-8000-000000000001', secret = 'a'.repeat(43);
 beforeEach(() => {
   rpc.mockReset().mockImplementation(async (name, args) => {
-    if (name === 'screenshot_sync_snapshot') return { data: { positions: [], lots: [], fingerprint: 'a'.repeat(32) }, error: null };
+    if (name === 'screenshot_sync_snapshot') return { data: { positions: [], lots: [], sources, fingerprint: 'a'.repeat(32) }, error: null };
     if (name === 'create_chat_sync_proposal') return { data: { id: args.p_id, review: args.p_review, status: 'pending', expiresAt: new Date(Date.now() + 900000).toISOString() }, error: null };
     return { data: { applied: true }, error: null };
   });
@@ -22,7 +23,7 @@ describe('ChatGPT-scoped screenshot proposals', () => {
   });
   it('returns immutable review with its capability only in host-private metadata', async () => {
     const result = await prepareChatScreenshotSync(principal, input);
-    expect(result.value).toMatchObject({ status: 'pending', plan: { canApply: true } });
+    expect(result.value).toMatchObject({ status: 'pending', plan: { canApply: true, sourceName: 'בית השקעות אישי' } });
     expect(result.meta?.confirmationSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(JSON.stringify(result.value)).not.toContain(result.meta!.confirmationSecret);
     expect(JSON.stringify(result.value)).not.toContain('reviewUrl');
@@ -49,7 +50,7 @@ describe('ChatGPT-scoped screenshot proposals', () => {
   });
   it('does not report a corrected draft successfully if invalidating older cards fails', async () => {
     rpc.mockImplementation(async name => name === 'screenshot_sync_snapshot'
-      ? { data: { positions: [], lots: [], fingerprint: 'a'.repeat(32) }, error: null }
+      ? { data: { positions: [], lots: [], sources, fingerprint: 'a'.repeat(32) }, error: null }
       : { data: null, error: { message: 'private detail' } });
     await expect(prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] })).rejects.toThrow('ההצעה אינה זמינה');
   });
@@ -80,4 +81,11 @@ describe('ChatGPT-scoped screenshot proposals', () => {
     expect(await cancelChatScreenshotSync(principal, { proposalId: id, confirmationSecret: secret })).toMatchObject({ proposalId: id, status: 'cancelled' });
     expect(rpc).toHaveBeenLastCalledWith('cancel_chat_sync_proposal', { p_id: id, p_confirmation_secret: secret });
   });
+  it('never saves a proposal for an absent or archived source', async () => {
+    await expect(prepareChatScreenshotSync(principal, { ...input, location: '10000000-0000-4000-8000-000000000003' })).rejects.toThrow('מקור השקעה פעיל');
+    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
+    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources: [{ ...sources[0], archived_at: '2026-01-01' }], fingerprint: 'a'.repeat(32) }, error: null });
+    await expect(prepareChatScreenshotSync(principal, input)).rejects.toThrow('מקור השקעה פעיל');
+  });
+
 });

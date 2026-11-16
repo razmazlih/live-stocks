@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Principal } from '@/lib/auth/server';
 import { betterAuthConfiguration } from '@/lib/auth/better-auth-config';
 import { mapPositionRow } from '@/lib/positions';
+import { activeSourceForSync } from '@/lib/server/investment-source-catalog';
 import { findPurchaseDateCandidates } from '@/lib/purchase-date-candidates';
 import { buildScreenshotSyncPlan, screenshotSyncInputSchema } from '@/lib/screenshot-sync';
 
@@ -32,7 +33,8 @@ async function readSnapshot(principal: Principal) {
   return data;
 }
 function planFor(input: z.infer<typeof screenshotSyncInputSchema>, snapshot: Awaited<ReturnType<typeof readSnapshot>>) {
-  return buildScreenshotSyncPlan(input, snapshot.positions.map((row: Parameters<typeof mapPositionRow>[0]) => mapPositionRow({ ...row, position_lots: snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id) })));
+  const source = activeSourceForSync(snapshot.sources, input.location);
+  return { ...buildScreenshotSyncPlan(input, snapshot.positions.map((row: Parameters<typeof mapPositionRow>[0]) => mapPositionRow({ ...row, position_lots: snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id) }))), sourceName: source.name };
 }
 export async function prepareScreenshotSync(principal: Principal, raw: unknown) {
   const input = screenshotSyncInputSchema.parse(raw), snapshot = await readSnapshot(principal), plan = planFor(input, snapshot);

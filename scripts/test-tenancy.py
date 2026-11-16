@@ -27,6 +27,11 @@ def sql(text=None,path=None,db='postgres',expect=0,settings=None):
 base="create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth,public to anon,authenticated,service_role;"
 worker=None
 migrations=sorted((root/'supabase/migrations').glob('*.sql')); new=root/'supabase/migrations/20261114114916_auth0_user_isolation.sql'
+source_migrations=[path for path in migrations if path.name.endswith('_personal_investment_sources.sql')]
+if len(source_migrations)!=1: raise RuntimeError('Expected one investment-source cutover migration')
+source_cutover=source_migrations[0]
+legacy_migrations=[path for path in migrations if path<source_cutover]
+current_migrations=[path for path in migrations if path>=source_cutover]
 try:
  if len(sys.argv)!=1: raise ValueError('This local-only runner accepts no arguments or database URL')
  for binary in ['initdb','pg_ctl','psql']: call([binary,'--version'])
@@ -35,8 +40,8 @@ try:
  call(['initdb','-D',str(pg),'-U','postgres','--auth=trust','--no-locale','-E','UTF8'])
  call(['pg_ctl','-D',str(pg),'-l',str(run/'postgres.log'),'-o',f"-h 127.0.0.1 -p {port} -c unix_socket_directories=''",'-w','-t','30','start'])
  sql(text=base)
- for migration in migrations: sql(path=migration)
- print('PASS empty-database migration without legacy owner')
+ for migration in legacy_migrations: sql(path=migration)
+ print('PASS empty-database legacy checkpoint migration without legacy owner')
  sql(path=root/'supabase/tests/multi_user_isolation.sql')
  print('PASS real-role multi-user SQL suite on empty migrated database')
  sql(path=root/'supabase/tests/position_identity.sql')
@@ -78,10 +83,20 @@ try:
  frozen=sql(text=write_sql,expect=1)
  if 'Authorized website write required' not in frozen.stderr: raise RuntimeError('Post-freeze writer did not fail closed')
  print('PASS concurrent writer drains before freeze, stale review rejected, subsequent writes blocked')
+ # Finish the synthetic frozen job through its real lifecycle before the cutover,
+ # which correctly rejects installations with unfinished frozen account merges.
+ sql(text="select public.server_merge_prepare(id) from private.account_merge_jobs where request_id='eeeeeeee-0000-4000-8000-000000000001';")
+ sql(text="""select public.server_merge_finish(j.id,jsonb_build_object('revoked',
+ (select jsonb_agg(jsonb_build_object('subject',r.subject,'client_id',r.client_id,'verified_at',clock_timestamp()))
+ from private.account_merge_revocations r where r.job_id=j.id)))
+ from private.account_merge_jobs j where j.request_id='eeeeeeee-0000-4000-8000-000000000001';""")
+ for migration in current_migrations: sql(path=migration)
+ sql(path=root/'supabase/tests/investment_sources.sql')
+ print('PASS current source migration and real-role source isolation after legacy/concurrency regressions')
 
  sql(text='create database legacy')
  sql(text=base.replace('create role anon; create role authenticated; create role service_role bypassrls; ',''),db='legacy')
- for migration in migrations:
+ for migration in legacy_migrations:
   if migration<new: sql(path=migration,db='legacy')
  seed="""insert into public.positions(id,symbol,display,image_url,entry_price,quantity,entry_date,created_at,updated_at) values('11111111-1111-4111-8111-111111111111','OLD','Legacy','',12.34,5,'2020-01-01','2020-01-01Z','2020-02-01Z');
  insert into public.position_lots(position_id,side,price,quantity,executed_at,commission_amount,created_at,updated_at) values('11111111-1111-4111-8111-111111111111','BUY',12.34,5,'2020-01-01',3.21,'2020-01-01Z','2020-02-01Z');
@@ -104,12 +119,15 @@ try:
  if (select encrypted_value from private.user_credentials where user_id='auth0|legacy-owner')<>'encrypted-synthetic-token' then raise exception 'credential lost'; end if;
  end$$;""",db='legacy')
  print('PASS all six legacy tables preserve timestamps/values and encrypted credential transfer')
- for migration in migrations:
+ for migration in legacy_migrations:
   if migration>new: sql(path=migration,db='legacy',settings=owner)
  sql(path=root/'supabase/tests/multi_user_isolation.sql',db='legacy')
  print('PASS real-role multi-user SQL suite on populated migrated database')
  sql(path=root/'supabase/tests/position_identity.sql',db='legacy')
  print('PASS position identity regression with pre-existing migrated portfolio')
+ for migration in current_migrations: sql(path=migration,db='legacy',settings=owner)
+ sql(path=root/'supabase/tests/investment_sources.sql',db='legacy')
+ print('PASS current source migration and source isolation with adopted legacy portfolio')
 finally:
  if worker is not None and worker.poll() is None:
   worker.terminate()

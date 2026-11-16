@@ -14,9 +14,17 @@ create unique index chat_sync_one_pending_binding_idx
 
 -- Keep the reviewed validator/confirmation implementation, but remove every
 -- ordinary caller's route around the new binding-level serialization wrapper.
+-- Managed postgres has SET membership without inherited executor ownership.
+-- Act as the exact owner so ALTER/REVOKE cannot fail or merely warn and leave
+-- an inherited PUBLIC grant on the raw checkpoint worker or renamed helper.
+grant create on schema private to livestocks_sync_executor;
+set local role livestocks_sync_executor;
 alter function private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid) rename to chat_sync_dispatch_saved;
 revoke all on function private.chat_sync_dispatch_saved(text,uuid,text,jsonb,jsonb,text,text,uuid)
  from public,anon,authenticated,service_role,livestocks_auth_backend;
+revoke all on function private.apply_chat_screenshot_sync(text,jsonb)
+ from public,anon,authenticated,service_role,livestocks_auth_backend;
+reset role;
 
 create function private.chat_sync_dispatch(p_action text,p_id uuid,p_expected text default null,p_rows jsonb default null,
  p_review jsonb default null,p_confirmation_hash text default null,p_confirmation_secret text default null,p_previous_id uuid default null)
@@ -63,10 +71,12 @@ end;
 $$;
 grant create on schema private to livestocks_sync_executor;
 alter function private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid) owner to livestocks_sync_executor;
-revoke create on schema private from livestocks_sync_executor;
+set local role livestocks_sync_executor;
 revoke all on function private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid)
  from public,anon,authenticated,service_role,livestocks_auth_backend;
 grant execute on function private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid) to authenticated;
+reset role;
+revoke create on schema private from livestocks_sync_executor;
 
 -- Replace all wrappers explicitly so cached dependencies cannot retain the
 -- renamed implementation's OID and bypass the new serialization boundary.

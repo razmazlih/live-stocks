@@ -222,7 +222,10 @@ async function start() {
       const restConfig = join(runtime, 'postgrest.conf'); await writeFile(restConfig, config, { mode: 0o600 });
       for (let index = 0; index < state.users.length; index++) {
         const user = state.users[index], symbol = index ? 'MSFT' : 'AAPL';
-        const position = await admin.query('insert into public.positions(user_id,symbol,display,image_url,location,entry_price,quantity,entry_date)values($1,$2,$2,\'\',\'bank_one\',$3,$4,\'2026-01-01\')returning id', [user.profileId, symbol, index ? 200 : 100, index ? 7 : 8]);
+        const source = await admin.query('select id from public.investment_sources where user_id=$1 and archived_at is null order by created_at,id', [user.profileId]);
+        if (source.rows.length !== 1) throw Error('Synthetic account must have one initial source');
+        user.sourceId = source.rows[0].id;
+        const position = await admin.query('insert into public.positions(user_id,symbol,display,image_url,location,entry_price,quantity,entry_date)values($1,$2,$2,\'\',$5,$3,$4,\'2026-01-01\')returning id', [user.profileId, symbol, index ? 200 : 100, index ? 7 : 8, user.sourceId]);
         await admin.query('insert into public.position_lots(user_id,position_id,side,price,quantity,executed_at,has_commission,commission_amount)values($1,$2,\'BUY\',$3,$4,\'2026-01-01\',false,0)', [user.profileId, position.rows[0].id, index ? 200 : 100, index ? 7 : 10]);
         if (!index) await admin.query('insert into public.position_lots(user_id,position_id,side,price,quantity,executed_at,has_commission,commission_amount)values($1,$2,\'SELL\',120,2,\'2026-02-01\',false,0)', [user.profileId, position.rows[0].id]);
       }

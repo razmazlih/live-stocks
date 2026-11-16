@@ -259,7 +259,7 @@ describe('isolated widget summary access', () => {
 
   it('uses the hash-resolved owner, fixed read options, and a restricted DTO regardless of URL/body', async () => {
     const snapshot = { user_id: userId, expires_at: widgetRow.expires_at, positions: [], position_lots: [], settings: null,
-      encrypted_credential: 'encrypted-widget-key', credential_aad_subject: userId };
+      sources: [], encrypted_credential: 'encrypted-widget-key', credential_aad_subject: userId };
     mocks.rpc.mockImplementation(async (name: string) => ({ data: name === 'server_widget_snapshot' ? snapshot : { user_id: userId, expires_at: widgetRow.expires_at }, error: null }));
     const response = await widgetSummary(request('POST', { userId: otherUserId, operation: 'delete', includeClosed: true }, { authorization: `Bearer ${widgetToken}`, cookie: 'appSession=another-browser-account' }, `?user_id=${otherUserId}&token=ignored`));
     expect(response.status).toBe(200);
@@ -277,7 +277,7 @@ describe('isolated widget summary access', () => {
   });
   it('withholds a snapshot when the widget is revoked while market quotes are loading', async () => {
     mocks.rpc.mockResolvedValueOnce({ data: { user_id: userId, expires_at: widgetRow.expires_at, positions: [], position_lots: [], settings: null,
-      encrypted_credential: null, credential_aad_subject: userId }, error: null }).mockResolvedValueOnce({ data: null, error: null });
+      sources: [], encrypted_credential: null, credential_aad_subject: userId }, error: null }).mockResolvedValueOnce({ data: null, error: null });
     const response = await widgetSummary(request('POST', {}, { authorization: `Bearer ${widgetToken}` }));
     expect(response.status).toBe(401);
     expect(mocks.buildPortfolio).toHaveBeenCalledOnce();

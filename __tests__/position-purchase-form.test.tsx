@@ -1,3 +1,17 @@
+
+vi.mock('@/hooks/use-investment-sources', () => {
+  const sources = [
+    { id: 'bank_one', name: 'ONE ZERO', archivedAt: null, createdAt: '2026-01-01' },
+    { id: 'bank_two', name: 'Pepper', archivedAt: null, createdAt: '2026-01-02' },
+  ];
+  return { useInvestmentSources: () => ({ sources, activeSources: sources, loading: false, error: null,
+    sourceName: (id: string) => sources.find(source => source.id === id)?.name ?? 'Unavailable source',
+    resolveLocation: (id: string) => id, createSource: async (name: string) => {
+      const source = { id: '10000000-0000-4000-8000-000000000003', name: name.trim(), archivedAt: null, createdAt: '2026-01-03' };
+      sources.push(source); return source;
+    },
+  }) };
+});
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,7 +44,7 @@ async function openPurchaseForm() {
   await within(chooser).findByRole('button', { name: 'Select ADBE · Adobe Inc · ONE ZERO' });
   await user.click(within(chooser).getByRole('button', { name: /New position/ }));
   const dialog = await screen.findByRole('dialog', { name: 'New position' });
-  fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'adbe' } });
+  fireEvent.change(within(dialog).getByRole('combobox', { name: 'Symbol' }), { target: { value: 'adbe' } });
   fireEvent.change(dialog.querySelector('#initialPrice')!, { target: { value: '120' } });
   fireEvent.change(dialog.querySelector('#initialQuantity')!, { target: { value: '3' } });
   return { user, dialog, submit: within(dialog).getByRole('button', { name: 'Add purchase to position' }), form: dialog.querySelector('form')! };
@@ -96,4 +110,15 @@ describe('continuing existing positions from the new-position form', () => {
     await act(async () => resolvePurchase(successfulPurchase));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+});
+
+it('selects a newly created third source immediately and purchases into its ID', async () => {
+  const { user, dialog, form } = await openPurchaseForm();
+  fireEvent.change(within(dialog).getByLabelText('New source name'), { target: { value: 'בית השקעות שלישי' } });
+  await user.click(within(dialog).getByRole('button', { name: 'Add source' }));
+  await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Investment source' })).toHaveTextContent('בית השקעות שלישי'));
+  expect(within(dialog).queryByText('This position is already active in this account')).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+  expect(rpc.mock.calls[0][1]).toMatchObject({ p_location: '10000000-0000-4000-8000-000000000003', p_symbol: 'ADBE' });
 });
