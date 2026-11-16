@@ -1,5 +1,5 @@
 -- Screenshot extraction is untrusted input. OAuth can inspect a reconciliation,
--- but only the existing website writer can record user-approved checkpoints.
+-- checkpoint writes require the website writer or the isolated MCP sync RPC.
 alter table public.position_lots add column basis_acquired_on date;
 -- A user-reviewed market-price date guess is an annotation, never an actual
 -- acquisition date, exchange-rate date or FIFO holding-age input.
@@ -34,6 +34,93 @@ revoke all on function private.immutable_reconciliation() from public,anon,authe
 create trigger b_immutable_reconciliation before update or delete on public.position_lots
 for each row execute function private.immutable_reconciliation();
 
+-- portfolio:sync is deliberately not portfolio:write. The OAuth subject retains
+-- no INSERT/UPDATE/DELETE policies. Only this non-login, non-inherited role may
+-- perform the fixed checkpoint operation through its private definer worker.
+do $$begin
+ if not exists(select 1 from pg_roles where rolname='livestocks_sync_executor') then
+  create role livestocks_sync_executor nologin noinherit nosuperuser nobypassrls nocreatedb nocreaterole;
+ elsif exists(select 1 from pg_roles where rolname='livestocks_sync_executor'
+  and (rolcanlogin or rolinherit or rolsuper or rolbypassrls or rolcreatedb or rolcreaterole)) then
+  raise exception 'Unsafe existing screenshot sync executor role';
+ end if;
+end$$;
+grant usage on schema private,public,auth to livestocks_sync_executor;
+
+create function private.sync_authorized_subject() returns text
+language plpgsql stable security definer set search_path='' as $$
+declare claims jsonb:=auth.jwt();cfg private.auth_config%rowtype;owner_id text;
+begin
+ select * into cfg from private.auth_config where singleton and auth_provider='better_auth';
+ if not found or jsonb_typeof(claims->'scope') is distinct from 'string'
+  or not string_to_array(claims->>'scope',' ') @> array['portfolio:sync']
+  or string_to_array(claims->>'scope',' ') @> array['portfolio:write']
+  or claims->>'azp' is distinct from cfg.mcp_client_id
+  or claims->'https://livestocks.app/read_only' is distinct from 'true'::jsonb then return null;end if;
+ -- This repeats live session, canonical identity, immutable OAuth approval,
+ -- client/audience, account state, connection revocation and cutoff checks.
+ owner_id:=private.authorized_subject(false);
+ return owner_id;
+end;
+$$;
+revoke all on function private.sync_authorized_subject() from public,anon,authenticated,service_role,livestocks_auth_backend;
+grant execute on function private.sync_authorized_subject(),private.authorized_subject(boolean),private.lock_active_profile(text) to livestocks_sync_executor;
+-- The shared invoker function references this read-only predicate in a CASE;
+-- PostgreSQL checks EXECUTE at expression planning even for website callers.
+grant execute on function private.sync_authorized_subject() to authenticated;
+
+-- UPDATE is required by PostgreSQL for the brief table lock, not row updates:
+-- there is no executor UPDATE policy and the write fence rejects non-INSERT.
+grant select,insert,update on public.positions,public.position_lots to livestocks_sync_executor;
+create policy sync_executor_read on public.positions for select to livestocks_sync_executor
+ using(user_id=(select private.sync_authorized_subject()));
+create policy sync_executor_insert on public.positions for insert to livestocks_sync_executor
+ with check(user_id=(select private.sync_authorized_subject()));
+create policy sync_executor_read on public.position_lots for select to livestocks_sync_executor
+ using(user_id=(select private.sync_authorized_subject()));
+create policy sync_executor_insert on public.position_lots for insert to livestocks_sync_executor
+ with check(user_id=(select private.sync_authorized_subject()));
+
+create or replace function private.account_write_fence() returns trigger language plpgsql security invoker set search_path='' as $$
+declare owner_id text; allowed text[]:=array['user_id','consolidated_into_position_id','is_active'];
+begin
+ if current_user='livestocks_merge_executor' then
+  if tg_op<>'UPDATE' then raise exception 'Merge executor cannot insert or delete financial records';end if;
+  if (to_jsonb(new)-allowed) is distinct from (to_jsonb(old)-allowed) then raise exception 'Merge executor changed financial business fields';end if;
+  return new;
+ end if;
+ if current_user='livestocks_sync_executor' then
+  if tg_op<>'INSERT' or tg_table_schema<>'public' or tg_table_name not in ('positions','position_lots')
+   or new.user_id is distinct from private.sync_authorized_subject() or new.user_id is null
+  then raise exception using errcode='42501',message='Restricted screenshot sync insert required';end if;
+  if tg_table_name='position_lots' then
+   -- BUY is allowed only to preserve an existing no-lot legacy opening balance.
+   if new.side not in ('BUY','RECONCILE') or new.has_commission is distinct from false or new.commission_amount is distinct from 0
+    or (new.side='BUY' and not exists(select 1 from public.positions p where p.id=new.position_id and p.user_id=new.user_id
+     and p.entry_price=new.price and p.quantity=new.quantity and p.entry_date=new.executed_at
+     and not exists(select 1 from public.position_lots l where l.position_id=p.id and l.user_id=p.user_id)))
+   then raise exception using errcode='42501',message='Only reconciliations or recorded legacy baselines may be inserted';end if;
+  elsif new.consolidated_into_position_id is not null then
+   raise exception using errcode='42501',message='Merge metadata is server-managed';
+  end if;
+  perform private.lock_active_profile(new.user_id);
+  if new.user_id is distinct from private.sync_authorized_subject() then raise exception using errcode='42501',message='Account authorization changed';end if;
+  return new;
+ end if;
+ owner_id:=case when tg_op='DELETE' then old.user_id else new.user_id end;
+ if tg_op='UPDATE' and new.user_id is distinct from old.user_id then raise exception using errcode='42501',message='Row ownership is immutable';end if;
+ if tg_op='UPDATE' and ((to_jsonb(new)->'consolidated_into_position_id') is distinct from (to_jsonb(old)->'consolidated_into_position_id')
+  or (to_jsonb(new)->'is_active') is distinct from (to_jsonb(old)->'is_active')) then raise exception 'Merge metadata is immutable';end if;
+ if tg_op='INSERT' and ((to_jsonb(new)->>'consolidated_into_position_id') is not null or to_jsonb(new)->'is_active'='false'::jsonb) then raise exception 'Merge metadata is server-managed';end if;
+ if current_user not in ('postgres','service_role','supabase_admin') and (owner_id is null or owner_id is distinct from private.authorized_subject(true))
+ then raise exception using errcode='42501',message='Authorized website write required';end if;
+ perform private.lock_active_profile(owner_id);
+ if current_user not in ('postgres','service_role','supabase_admin') and owner_id is distinct from private.authorized_subject(true) then
+  raise exception using errcode='42501',message='Account authorization changed while waiting';end if;
+ return case when tg_op='DELETE' then old else new end;
+end;
+$$;
+
 create function public.screenshot_sync_snapshot()
 returns jsonb language plpgsql stable security invoker set search_path='' as $$
 declare owner_id text:=private.authorized_subject(false); snapshot jsonb;
@@ -48,11 +135,12 @@ end;
 $$;
 revoke all on function public.screenshot_sync_snapshot() from public,anon,authenticated,service_role;
 grant execute on function public.screenshot_sync_snapshot() to authenticated;
+grant execute on function public.screenshot_sync_snapshot() to livestocks_sync_executor;
 
 create function public.apply_screenshot_sync(p_expected text,p_rows jsonb)
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
- owner_id text:=private.authorized_subject(true);
+ owner_id text:=case when current_user='livestocks_sync_executor' then private.sync_authorized_subject() else private.authorized_subject(true) end;
  v_row jsonb; v_symbol text; v_location public.position_location; v_quantity numeric; v_price numeric;
  v_acquired date; v_estimated date; v_observed date; v_lot_id uuid; v_position_id uuid; v_new_position boolean; matching integer:=0; total integer;
  v_existing public.position_lots%rowtype; v_position public.positions%rowtype;
@@ -71,7 +159,7 @@ begin
  -- position or changed lot can pass the reviewed fingerprint check.
  lock table public.positions,public.position_lots in share row exclusive mode;
  perform private.lock_active_profile(owner_id);
- if owner_id is distinct from private.authorized_subject(true)
+ if owner_id is distinct from (case when current_user='livestocks_sync_executor' then private.sync_authorized_subject() else private.authorized_subject(true) end)
  then raise exception using errcode='42501',message='Account authorization changed';end if;
 
  for v_row in select value from jsonb_array_elements(p_rows) loop
@@ -164,3 +252,22 @@ end;
 $$;
 revoke all on function public.apply_screenshot_sync(text,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.apply_screenshot_sync(text,jsonb) to authenticated;
+grant execute on function public.apply_screenshot_sync(text,jsonb) to livestocks_sync_executor;
+
+create function private.apply_chat_screenshot_sync(p_expected text,p_rows jsonb) returns jsonb
+language sql security definer set search_path='' as $$
+ select public.apply_screenshot_sync(p_expected,p_rows);
+$$;
+-- Ownership is transferred while schema creation is temporarily permitted;
+-- the runtime executor cannot create a replacement function or arbitrary SQL.
+grant create on schema private to livestocks_sync_executor;
+alter function private.apply_chat_screenshot_sync(text,jsonb) owner to livestocks_sync_executor;
+revoke create on schema private from livestocks_sync_executor;
+revoke all on function private.apply_chat_screenshot_sync(text,jsonb) from public,anon,authenticated,service_role,livestocks_auth_backend;
+grant execute on function private.apply_chat_screenshot_sync(text,jsonb) to livestocks_sync_executor;
+create function public.apply_chat_screenshot_sync(p_expected text,p_rows jsonb) returns jsonb
+language sql security invoker set search_path='' as $$
+ select private.apply_chat_screenshot_sync(p_expected,p_rows);
+$$;
+revoke all on function public.apply_chat_screenshot_sync(text,jsonb) from public,anon,authenticated,service_role,livestocks_auth_backend;
+grant execute on function public.apply_chat_screenshot_sync(text,jsonb) to livestocks_sync_executor;

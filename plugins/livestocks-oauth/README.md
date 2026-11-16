@@ -39,3 +39,10 @@ After explicit approval to upload the complete six-file package, **RABEN Admin C
 **The user visually confirmed that the website icon is now displayed:** “אני כבר רואה את אייקון האתר”. This completes the requested existing-plugin icon change. The assistant did not capture an additional screenshot after upload; the rendering evidence is the user’s explicit confirmation.
 
 The fresh workspace admin catalog also showed **Unavailable / disabled** and requested **Review app** for tool and role approval. Directory listing and approval for other members are separate. No role/access approval was changed as part of this cosmetic update.
+
+
+## In-chat screenshot synchronization source
+
+The pending source change adds an inline MCP App review and final confirmation inside ChatGPT; no website handoff is needed. A separately consented optional portfolio:sync scope permits only exact persisted RECONCILE proposals. Existing tokens stay read-only, general portfolio writes remain denied, and confirm/cancel are app-only with a model-hidden capability. Corrections invalidate old cards and receipts are replay-safe.
+
+This repository change is not a published package or a production OAuth-scope upgrade. Follow the existing tool-refresh and expected-release skill publication workflow, preserving the App/plugin IDs and workspace audience. See [screenshot-sync accounting/security](../../docs/SCREENSHOT_SYNC.md) and [activation requirements](../../docs/CHATGPT_ACTIVATION.md).

@@ -4,7 +4,7 @@ import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
 vi.mock('@/lib/purchase-date-candidates', () => ({ findPurchaseDateCandidates: async () => ({ status: 'no_match', estimated: true, canVerifyAcquisition: false }), purchaseDateCandidatesInputSchema: { parse: (args: unknown) => args } }));
-const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn() }));
+const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn(), prepare: vi.fn(), review: vi.fn(), confirm: vi.fn(), cancel: vi.fn() }));
 vi.mock('@/lib/auth/server', () => ({
   requireMcpPrincipal: async () => ({ userId: 'auth0|test-user', kind: 'mcp' }),
   authenticationResponse: () => null,
@@ -13,9 +13,13 @@ vi.mock('@/lib/auth/server', () => ({
   PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
 }));
 vi.mock('@/app/api/portfolio/ai/route', () => ({ GET: mocks.snapshot }));
-vi.mock('@/lib/screenshot-sync-server', () => ({ prepareScreenshotSync: vi.fn() }));
+vi.mock('@/lib/chat-screenshot-sync', () => ({
+  prepareChatScreenshotSync: mocks.prepare, reviewChatScreenshotSync: mocks.review, confirmChatScreenshotSync: mocks.confirm, cancelChatScreenshotSync: mocks.cancel,
+  SyncScopeRequiredError: class extends Error {}, ChatSyncUnavailableError: class extends Error {},
+}));
 vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
+import { SyncScopeRequiredError } from '@/lib/chat-screenshot-sync';
 
 const snapshot = () => ({
   schemaVersion: 1 as const, generatedAt: new Date().toISOString(),
@@ -71,15 +75,49 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
-  it('negotiates initialization, discovery and nine exclusively read-only tools', async () => {
+  it('keeps the final capability out of model-visible content and serves an inline resource', async () => {
+    mocks.prepare.mockResolvedValueOnce({ value: { proposalId: 'review-id', status: 'pending', plan: { canApply: true } }, meta: { confirmationSecret: 'private-app-capability' } });
+    const prepared = await call('prepare_screenshot_sync', {});
+    expect(prepared._meta.confirmationSecret).toBe('private-app-capability');
+    expect(JSON.stringify(prepared.structuredContent)).not.toContain('private-app-capability');
+    expect(JSON.stringify(prepared.content)).not.toContain('private-app-capability');
+    const listed = (await (await POST(request('tools/list'))).json()).result.tools;
+    const confirm = listed.find((tool: { name: string }) => tool.name === 'confirm_screenshot_sync');
+    expect(confirm).toMatchObject({ securitySchemes: [{ type: 'oauth2', scopes: ['portfolio:read', 'portfolio:sync'] }], _meta: { ui: { visibility: ['app'] } }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true } });
+    const resources = (await (await POST(request('resources/list'))).json()).result.resources;
+    expect(resources).toHaveLength(1);
+    const resource = (await (await POST(request('resources/read', { uri: resources[0].uri }))).json()).result.contents[0];
+    expect(resource.mimeType).toBe('text/html;profile=mcp-app');
+    expect(resource.text).toContain('אישור וסנכרון');
+    expect(resource.text).not.toContain('private-app-capability');
+    expect(resource._meta.ui.csp).toEqual({ connectDomains: [], resourceDomains: [] });
+  });
+  it('challenges an old read-only grant for explicit sync consent instead of writing', async () => {
+    mocks.prepare.mockRejectedValueOnce(new SyncScopeRequiredError());
+    const result = await call('prepare_screenshot_sync', {});
+    expect(result.isError).toBe(true);
+    expect(result._meta['mcp/www_authenticate'][0]).toContain('error="insufficient_scope"');
+    expect(result._meta['mcp/www_authenticate'][0]).toContain('scope="portfolio:read portfolio:sync"');
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+  it('forwards app confirmation without exposing an editable trade payload', async () => {
+    const args = { proposalId: 'stored-id', confirmationSecret: 'private-app-capability' };
+    mocks.confirm.mockResolvedValueOnce({ proposalId: 'stored-id', status: 'applied', applied: true });
+    expect((await call('confirm_screenshot_sync', args)).structuredContent).toMatchObject({ applied: true, status: 'applied' });
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ kind: 'mcp' }), args);
+    const response = await POST(request('resources/read', { uri: 'ui://other' }));
+    expect((await response.json()).error.code).toBe(-32602);
+  });
+
+  it('negotiates initialization, discovery and read-only research plus restricted ChatGPT sync tools', async () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
     expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
       icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(9);
-    expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
+    expect(listed.result.tools).toHaveLength(12);
+    expect(listed.result.tools.filter((tool: { annotations: { readOnlyHint: boolean } }) => !tool.annotations.readOnlyHint).map((tool: { name: string }) => tool.name).sort()).toEqual(['cancel_screenshot_sync', 'confirm_screenshot_sync', 'prepare_screenshot_sync']);
     const discovery = (await (await POST(request('server/discover'))).json()).result;
     expect(discovery.supportedVersions).toContain('2026-07-28');
     expect(discovery._meta['io.modelcontextprotocol/serverInfo']).toEqual(init.result.serverInfo);

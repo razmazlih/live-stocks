@@ -6,6 +6,7 @@ verification. These checks run as the real authenticated role with real RLS,
 write fences, transactions, constraints and purchase RPCs.
 """
 import json
+import hashlib
 import os
 import pathlib
 import shutil
@@ -42,8 +43,8 @@ def sql(query=None, path=None):
                 (['-f', str(path)] if path else []), input_text=None if path else query)
 
 
-def as_user(query, owner='fixture-a', write=True):
-    claims = json.dumps({'sub': owner, 'write': write})
+def as_user(query, owner='fixture-a', write=True, extra=None):
+    claims = json.dumps({'sub': owner, 'write': write, **(extra or {})})
     return sql(f"begin;set local role authenticated;set local request.jwt.claims='{claims}';{query};commit")
 
 
@@ -59,6 +60,35 @@ def apply(fingerprint, rows):
     return "select public.apply_screenshot_sync('%s','%s'::jsonb)" % (fingerprint, json.dumps(rows))
 
 
+fixture_grant = str(uuid.uuid4())
+
+
+def mcp(query, owner='fixture-a', sync=False, session='fixture-session', grant=fixture_grant, **extra):
+    return as_user(query, owner, False, {'azp': 'fixture-mcp', 'sid': session,
+        'https://livestocks.app/grant_id': grant, 'https://livestocks.app/read_only': True,
+        'scope': 'portfolio:read' + (' portfolio:sync' if sync else ''), **extra})
+
+
+def mcp_rejected(query, **kwargs):
+    try:
+        mcp(query, **kwargs)
+    except RuntimeError:
+        return
+    raise AssertionError('Unsafe chat confirmation unexpectedly succeeded')
+
+
+def create_proposal(proposal_id, fingerprint, target, secret, previous=None, misleading=False):
+    change = {key: value for key, value in target.items() if key not in ('lotId', 'location', 'observedAt')}
+    if misleading:
+        change['quantity'] += 1
+    review = {'input': {'location': target['location'], 'observedAt': target['observedAt'], 'rows': [change]},
+              'plan': {'location': target['location'], 'observedAt': target['observedAt'], 'changes': [change], 'blocked': [], 'canApply': True}}
+    digest = hashlib.sha256(secret.encode()).hexdigest()
+    return "select public.create_chat_sync_proposal('%s','%s','%s','%s','%s',%s)" % (
+        proposal_id, fingerprint, json.dumps([target]), json.dumps(review), digest,
+        "'%s'" % previous if previous else 'null')
+
+
 try:
     call(['initdb', '-D', str(runtime / 'data'), '-U', 'postgres', '--auth=trust', '--no-locale', '-E', 'UTF8'])
     call(['pg_ctl', '-D', str(runtime / 'data'), '-l', str(runtime / 'postgres.log'), '-o',
@@ -70,8 +100,9 @@ try:
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
         sql(path=migration)
     sql("insert into public.user_profiles(id) values('fixture-a'),('fixture-b');"
+        "insert into private.auth_config(singleton,issuer,website_client_id,mcp_client_id,website_audience,mcp_audience,auth_provider) values(true,'https://fixture.invalid/auth','fixture-web','fixture-mcp','https://fixture.invalid/web','https://fixture.invalid/mcp','better_auth');"
         "create or replace function private.authorized_subject(require_write boolean default false) returns text language sql stable security definer set search_path='' as $$"
-        "select case when (not require_write or auth.jwt()->>'write'='true') and auth.jwt()->>'sub' in ('fixture-a','fixture-b') then auth.jwt()->>'sub' end$$")
+        "select case when (not require_write or auth.jwt()->>'write'='true') and auth.jwt()->>'live' is distinct from 'false' and auth.jwt()->>'sub' in ('fixture-a','fixture-b') then auth.jwt()->>'sub' end$$")
     snapshot = json.loads(as_user('select public.screenshot_sync_snapshot()'))
     assert snapshot['positions'] == [] and snapshot['lots'] == []
     rows = [{'symbol': 'ABC', 'quantity': 1.25, 'averageCostUsd': 12.5, 'acquiredOn': '2026-01-01', 'estimatedAcquiredOn': None, 'observedAt': '2026-02-01',
@@ -144,6 +175,88 @@ try:
     assert len(transferred['lots']) == 1 and transferred['lots'][0]['side'] == 'RECONCILE'
     assert sql("select has_function_privilege('anon','public.apply_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
     assert sql("select has_function_privilege('service_role','public.apply_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
+    # Persisted in-chat reviews: read OAuth can prepare, only the exact secret-
+    # confirmed review plus optional sync scope may enter the financial worker.
+    live_snapshot = json.loads(mcp('select public.screenshot_sync_snapshot()'))
+    target = dict(corrected, quantity=12, observedAt='2026-02-06', lotId=str(uuid.uuid4()))
+    proposal_id, secret = str(uuid.uuid4()), uuid.uuid4().hex + uuid.uuid4().hex
+    create = create_proposal(proposal_id, live_snapshot['fingerprint'], target, secret)
+    saved = json.loads(mcp(create))
+    assert saved['status'] == 'pending' and saved['receipt'] is None
+    assert not {'confirmation_hash', 'rows', 'expected', 'session_id', 'grant_id'} & saved.keys()
+    assert json.loads(mcp(create)) == saved  # retry preserves original expiry
+    read = f"select public.read_chat_sync_proposal('{proposal_id}')"
+    confirm = f"select public.confirm_chat_sync_proposal('{proposal_id}','{secret}')"
+    mcp_rejected(read, owner='fixture-b')
+    mcp_rejected(read, session='different-session')
+    mcp_rejected(read, grant=str(uuid.uuid4()))
+    mcp_rejected(read, live=False)
+    mcp_rejected(read, azp='unapproved-client')
+    mcp_rejected(read, scope='portfolio:read portfolio:sync portfolio:write')
+    mcp_rejected("select confirmation_hash from private.chat_sync_proposals", sync=True)
+    mcp_rejected(confirm)  # read-only token has no optional sync capability
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{proposal_id}','{'x' * 64}')", sync=True)
+    mcp_rejected(apply(live_snapshot['fingerprint'], [target]), sync=True)
+    mcp_rejected("select public.apply_chat_screenshot_sync('%s','%s')" % (live_snapshot['fingerprint'], json.dumps([target])), sync=True)
+    assert sql("select pg_has_role('authenticated','livestocks_sync_executor','MEMBER')") == 'f'
+    mcp_rejected(f"insert into public.position_lots(user_id,position_id,side,price,quantity,executed_at) values('fixture-a','{position_id}','BUY',2,1,'2026-02-06')", sync=True)
+    mcp(f"update public.positions set quantity=999 where id='{position_id}'", sync=True)
+    mcp(f"delete from public.position_lots where position_id='{position_id}'", sync=True)
+    assert json.loads(mcp('select public.screenshot_sync_snapshot()')) == live_snapshot
+    receipt = json.loads(mcp(confirm, sync=True))
+    assert receipt['applied'] and len(receipt['positions']) == 1
+    assert json.loads(mcp(confirm, sync=True)) == receipt  # saved exact receipt
+    assert json.loads(mcp(read))['status'] == 'applied'
+    mcp_rejected(confirm, sync=True, live=False)
+    mcp_rejected(f"select public.cancel_chat_sync_proposal('{proposal_id}','{secret}')")
+    fresh = json.loads(mcp('select public.screenshot_sync_snapshot()'))
+    # New holdings use the same isolated worker, including its positions INSERT
+    # fence and owner RLS, and a two-row confirmation remains one transaction.
+    batch = [dict(target, symbol=symbol, acquiredOn=None, estimatedAcquiredOn=None, lotId=str(uuid.uuid4()))
+             for symbol in ('CHATNEW', 'CHATMORE')]
+    batch_changes = [{key: value for key, value in item.items() if key not in ('lotId', 'location', 'observedAt')}
+                     for item in batch]
+    batch_review = {'input': {'location': 'bank_one', 'observedAt': target['observedAt'], 'rows': batch_changes},
+                    'plan': {'location': 'bank_one', 'observedAt': target['observedAt'], 'changes': batch_changes, 'blocked': [], 'canApply': True}}
+    batch_id = str(uuid.uuid4())
+    batch_query = "select public.create_chat_sync_proposal('%s','%s','%s','%s','%s')" % (
+        batch_id, fresh['fingerprint'], json.dumps(batch), json.dumps(batch_review), hashlib.sha256(secret.encode()).hexdigest())
+    mcp(batch_query)
+    batch_receipt = json.loads(mcp(f"select public.confirm_chat_sync_proposal('{batch_id}','{secret}')", sync=True))
+    assert len(batch_receipt['positions']) == 2
+    fresh = json.loads(mcp('select public.screenshot_sync_snapshot()'))
+    assert all(any(item['id'] == row['lotId'] and item['side'] == 'RECONCILE' for item in fresh['lots']) for row in batch)
+    next_target = dict(target, quantity=13, lotId=str(uuid.uuid4()))
+    mcp_rejected(create_proposal(str(uuid.uuid4()), fresh['fingerprint'], next_target, secret, misleading=True))
+    old_id, revised_id = str(uuid.uuid4()), str(uuid.uuid4())
+    mcp(create_proposal(old_id, fresh['fingerprint'], next_target, secret))
+    mcp(create_proposal(revised_id, fresh['fingerprint'], next_target, secret, previous=old_id))
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{old_id}')"))['status'] == 'superseded'
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{old_id}','{secret}')", sync=True)
+    cancel = f"select public.cancel_chat_sync_proposal('{revised_id}','{secret}')"
+    assert json.loads(mcp(cancel))['status'] == 'cancelled'
+    assert json.loads(mcp(cancel))['status'] == 'cancelled'
+    invalidated_id = str(uuid.uuid4())
+    mcp(create_proposal(invalidated_id, fresh['fingerprint'], next_target, secret))
+    invalidate = f"select public.supersede_chat_sync_proposal('{invalidated_id}')"
+    mcp_rejected(invalidate, session='another-session')
+    assert json.loads(mcp(invalidate))['status'] == 'superseded'
+    assert json.loads(mcp(invalidate))['status'] == 'superseded'
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{invalidated_id}','{secret}')", sync=True)
+    expiring_id = str(uuid.uuid4())
+    mcp(create_proposal(expiring_id, fresh['fingerprint'], next_target, secret))
+    sql("alter table private.chat_sync_proposals disable trigger chat_sync_proposal_immutable;"
+        f"update private.chat_sync_proposals set created_at=clock_timestamp()-interval '16 minutes',expires_at=clock_timestamp()-interval '2 minutes' where id='{expiring_id}';"
+        "alter table private.chat_sync_proposals enable trigger chat_sync_proposal_immutable")
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{expiring_id}','{secret}')", sync=True)
+    stale_id = str(uuid.uuid4())
+    mcp(create_proposal(stale_id, fresh['fingerprint'], next_target, secret))
+    as_user(f"select * from public.record_position_purchase('{uuid.uuid4()}','AFTER','AFTER','','bank_one',1,1,'2026-02-06',false,0)")
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{stale_id}','{secret}')", sync=True)
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{stale_id}')"))['status'] == 'pending'
+    assert sql("select has_function_privilege('authenticated','public.apply_chat_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
+    assert sql("select has_function_privilege('anon','public.confirm_chat_sync_proposal(uuid,text)','EXECUTE')") == 'f'
+    print('PASS persisted inline chat reviews, exact display binding, scope-limited confirmation, session/grant isolation, hidden hash, retry receipt, supersession/cancellation, expiry, revocation and stale rejection; direct MCP writes remain denied')
     sql("update public.user_profiles set merge_state='frozen' where id='fixture-a'")
     rejected(apply(before['fingerprint'], [dict(new, symbol='LOCKED', lotId=str(uuid.uuid4()))]))
     print('PASS SQL checkpoints, actual/estimated date separation, existing-balance correction, explicit zero, consolidated ledger zeroing, legacy baseline preservation, immutable history, merge ownership transfer, later BUY/SELL preservation, replay/tamper, isolation, read-only denial, stale/backdated review, rollback, limits, role grants and frozen-account fence')

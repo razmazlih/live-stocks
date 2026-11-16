@@ -38,7 +38,7 @@
 
 בדיקות הטפסים והגבולות הציבוריים עברו **43 תרחישים ב־5 קבצים**, יחד עם בדיקת טיפוסים ו־lint ממוקד. בדפדפן מקומי נבדקו חמשת המסכים, עברית RTL ואנגלית LTR, מצב בהיר וכהה וגדלי מחשב ונייד. צילומי המסך משתמשים בתצורה סינתטית ובתגובה מדומה של בדיקת session; הם אינם הוכחה למשלוח דוא״ל או לכניסה אמיתית. בדיקת ספק נפרדת מול PostgreSQL מקומי כללה הרשמה, אימות, כניסה וטוקנים חתומים, עם דוא״ל מדומה.
 
-השרת מאמת את המשתמש בכל API; לקוח Supabase בדפדפן מקבל הרשאה זמנית דרך `/api/account/database-token`, ללא שמירת טוקנים בדפדפן. נתוני התיק מוגנים בבעלות לפי חשבון ו־RLS. מפתחות Finnhub מוצפנים בשרת. החלפת חשבון או התנתקות מאפסות את נתוני הממשק והבקשות הקודמות. חיבורי הפלאגין והווידג׳ט מיועדים לקריאה בלבד.
+השרת מאמת את המשתמש בכל API; לקוח Supabase בדפדפן מקבל הרשאה זמנית דרך `/api/account/database-token`, ללא שמירת טוקנים בדפדפן. נתוני התיק מוגנים בבעלות לפי חשבון ו־RLS. מפתחות Finnhub מוצפנים בשרת. החלפת חשבון או התנתקות מאפסות את נתוני הממשק והבקשות הקודמות. חיבור הפלאגין הוא לקריאה בלבד כברירת מחדל. הרשאת סנכרון נפרדת ומוגבלת מאפשרת רק התאמת יתרות שאושרה בכרטיס בתוך ChatGPT; הווידג׳ט נשאר לקריאה בלבד.
 
 בדיקות Auth0 הקודמות נשמרות כראיה היסטורית בלבד ואינן מאמתות את Better Auth: [בדיקת ספק](docs/verification/auth0-oauth-gate-2026-11-14.json) הסתיימה ב־14 PASS ו־1 FAIL; [בדיקת Supabase מבודדת בענן](docs/verification/auth0-hosted-gate-2026-11-14.json) עברה 22 תרחישי הרשאה ו־4 בדיקות ניקוי; [בדיקת האתר המקומית הקודמת](docs/verification/account-local-e2e-2026-11-14.json) עברה 13 תרחישים. החריגה הידועה אצל Auth0 נשארת מסומנת FAIL בדוח המקורי.
 
@@ -391,16 +391,14 @@ curl --fail --header "Authorization: Bearer $LIVESTOCKS_OAUTH_ACCESS_TOKEN" http
 
 התשובה כוללת מידע כספי מלא של המשתמש המאומת בלבד. מפתחות ספקים אינם כלולים בתשובה. לא נשמרים באפליקציה מזומן, התחייבויות, הפקדות/משיכות, דיבידנדים, אופק השקעה או סיבולת סיכון; אין להסיק שהם אפס.
 
-## Screenshot portfolio reconciliation
+## Screenshot portfolio reconciliation inside ChatGPT
 
-ChatGPT reads a user's holdings screenshot and calls `prepare_screenshot_sync`. The tool compares new and existing positions and returns a 15-minute encrypted owner-bound review link. The same user signs into `/positions/sync`, checks the before/after quantities and USD average costs, acknowledges accounting limitations, and explicitly saves using existing website permissions. No screenshot is uploaded to or retained by LiveStocks, and MCP OAuth remains read-only.
+The fast path is **photo → short inline review → one confirm button**, without opening the website. ChatGPT reads the screenshot and calls prepare_screenshot_sync. A compact MCP App card shows the exact before/after balances, account, observation date and any confirmed/estimated dates. The user clicks “אישור וסנכרון” or cancels inside ChatGPT. Missing acquisition dates never block synchronization; dates can be supplied briefly in chat, from a transaction screenshot, or as separately labeled historical price-match estimates.
 
-Existing quantity and cost changes are recorded as immutable **RECONCILE checkpoints**, never fabricated BUY/SELL trades. All prior trades and recorded realized sales remain intact; open holdings and future FIFO calculations use the confirmed balance and cost. Explicit zero rows can clear a holding without inventing sale proceeds; omitted rows are untouched. Missing positive cost, older observations and changed portfolio snapshots block the batch. Original acquisition dates may remain unknown. Optional date completion accepts a known date, a transaction screenshot in chat, or a clearly labeled historical price-match estimate; it never blocks the fast photo → review → confirm path. Repeated confirmations cannot duplicate updates.
+Research remains read-only. Users separately consent to the optional portfolio:sync scope; it allows only exact saved checkpoint proposals, not trading, history deletion, settings, plans or keys. A random confirmation secret travels only in host-private result metadata to the app-only tool and never appears in model-visible output. Proposals expire after 15 minutes and bind to the same owner, session, client and grant. Corrections supersede the old card, cancellation persists, and uncertain-response retries return the saved receipt.
 
-Screenshots cannot reconstruct missing executions: incomplete lifetime return, tax and cumulative history remain unavailable, while current USD value and open gain use the confirmed basis. The website, AI snapshots, close-proposal screening and widget expose that limitation. See [the accounting model, examples and release checks](docs/SCREENSHOT_SYNC.md).
+Existing quantity and cost changes append immutable **RECONCILE checkpoints**, preserving historical trades and recorded realized sales. Future sales consuming snapshot basis are labeled reconciled_average. Incomplete lifetime returns, tax, benchmarks and historical FX remain unavailable rather than guessed; current USD value and open gain remain calculable. Omitted holdings are untouched; only an explicit zero clears a balance. See [the full accounting and security model](docs/SCREENSHOT_SYNC.md).
 
-Apply the migration before deployment and refresh the existing App's tools and analyst skill through its established release process. This PR does not deploy, publish a plugin update, or change OAuth scopes, identities or sharing.
+Deployment requires both migrations, compatible readers/writers, explicit operator opt-in for the client’s optional sync scope, user OAuth consent, and refresh of the existing App tools/skill. No production settings or plugin publication are changed by this PR. Real ChatGPT host acceptance remains a release check; the screenshots below use a synthetic MCP host.
 
-Screenshot review with synthetic data (mobile browser emulation):
-
-<img src="docs/screenshots/screenshot-sync-mobile.png" alt="Screenshot reconciliation before-and-after review with synthetic holdings" width="300" />
+<img src="docs/screenshots/chat-sync-mobile.png" alt="Inline ChatGPT-style reconciliation review in a synthetic MCP host" width="300" />

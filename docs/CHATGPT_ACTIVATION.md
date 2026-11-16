@@ -76,6 +76,19 @@ The registration is confidential, uses `client_secret_post`, requires S256 PKCE 
 
 ## Expected tools and acceptance record
 
-The source advertises `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `validate_close_proposal`, `get_market_quotes`, and `validate_action_plan`. Every tool requires OAuth scope `portfolio:read` and is read-only. `get_profile` returns only its canonical `id` and carries the host profile annotation. Proposal validation must still reject a stale or another account's snapshot.
+The source advertises `get_profile`, `get_research_brief`, `get_portfolio_snapshot`, `get_close_pair_proposals`, `validate_close_proposal`, `get_market_quotes`, and `validate_action_plan`. Research tools require OAuth scope `portfolio:read` and remain read-only. The screenshot-sync additions described below use a separate optional scope. `get_profile` returns only its canonical `id` and carries the host profile annotation. Proposal validation must still reject a stale or another account's snapshot.
 
 Record timestamps, App/plugin/release IDs, observed callback, metadata checks, tool names, profile-match boolean, portfolio-match boolean, refresh result, disconnect result and reconnect result. Keep credentials, cookies, raw tokens, owner identity and portfolio values out of the public report. A missing host check remains **unverified**, even when native provider tests and managed Supabase JWT/RLS checks pass.
+
+
+## Optional in-chat screenshot sync (PR implementation)
+
+The default registration and every existing grant remain read-only. Operator opt-in uses the same reviewed seeder command above with the additional --enable-portfolio-sync flag; review the exact client/callback target before --apply. This only expands the existing client's allowed scopes. A user must separately consent to a signed OAuth request containing portfolio:read portfolio:sync. Old access/refresh tokens do not acquire sync rights. Never request portfolio:write for the MCP client or change callback URLs, IDs, secrets or sharing.
+
+Protected-resource discovery lists the optional sync scope. prepare_screenshot_sync and the app-only confirm_screenshot_sync declare read+sync; an old read-only token receives an insufficient_scope tool-result challenge, allowing the host to run its OAuth flow. The consent screen clearly distinguishes the narrow bookkeeping capability from trading/general writes.
+
+Source tools now also include find_purchase_date_candidates, prepare_screenshot_sync, review_screenshot_sync, confirm_screenshot_sync and cancel_screenshot_sync. Review renders from ui://livestocks/screenshot-sync-v1.html inside ChatGPT. The confirmation capability is in private result metadata only; confirm/cancel are app-only. Read review output never includes that secret. Corrections supersede old cards, including incomplete/no-op revisions.
+
+Apply both feature migrations, deploy compatible code, opt the existing OAuth client into the optional scope explicitly, then refresh tools and publish the updated skill through the existing process. This PR performs none of those live mutations. Existing workspace role/tool approval may need review for the new mutating tool; do not replace the App or broaden its audience.
+
+Acceptance must verify actual ChatGPT inline rendering, model-hidden metadata, app-only visibility, explicit click, optional OAuth consent, stored receipt and real account isolation. Native provider tests and synthetic browser checks do not replace those host checks.

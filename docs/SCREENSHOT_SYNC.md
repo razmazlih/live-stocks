@@ -2,7 +2,9 @@
 
 ## User flow
 
-A user uploads a holdings screenshot in ChatGPT. Host vision extracts structured observations, asks about ambiguous tickers/currency/decimal separators, and prepares a same-owner review link. No server model, OCR vendor, screenshot upload or public search of private holdings is used. The website shows the logged-in account, brokerage location, observation date, and before/after quantity and USD average cost. Original acquisition dates may remain unknown. Date completion is optional and collapsed by default: enter a known date, return to chat with a transaction screenshot, or request the most recent daily price-range match (within 0.5%, up to five years before the observation). Selecting an estimate stores `estimatedAcquiredOn` / `basis_date_estimate` separately from the actual acquisition date. It never drives historical FX, holding age, or tax-lot assertions. A no-match/provider failure leaves the date unknown without blocking sync. Date edits travel with the same final confirmation; the original snapshot must still match, and there is no extra save step. The user acknowledges the accounting limitations and explicitly confirms the batch.
+A user uploads a holdings screenshot in ChatGPT. Host vision extracts clear values, asks once about blocking ambiguity, and calls prepare_screenshot_sync. The result opens a compact MCP App review **inside ChatGPT** with account, observation date, before/after quantities/costs and known or estimated dates. One human button click confirms; Cancel cancels. No website review or final approval is needed. No screenshot, OCR vendor or server model is involved.
+
+Acquisition dates are optional. A short chat answer or transaction screenshot can supply a real date. The existing bounded history helper can suggest a price-match date (0.5% daily-range tolerance, up to five years). An estimate is stored separately and never establishes original FIFO lots, acquisition FX or holding age. Missing dates and optional lookup outages do not block the fast path. Corrections call prepare_screenshot_sync with previousProposalId and invalidate the old card, including blocked/no-op corrections.
 
 New, existing, previously closed, and consolidated holdings are supported. Existing quantity and cost changes are not blocked merely because they differ from recorded history. Explicit zero rows clear an observed balance; omitted symbols never mean zero. Positive balances require a known fee-inclusive USD cost. A screenshot preceding any recorded event for that instrument/account is rejected; it must not undo later real trades. Mixed accounts require separate proposals.
 
@@ -27,26 +29,38 @@ Current quantity, current USD valuation, fee-inclusive current cost and open USD
 
 ## Isolation, atomicity and replay
 
-Existing MCP OAuth stays `portfolio:read`. `prepare_screenshot_sync` reads only the RLS-scoped owner snapshot and seals the proposal with AES-256-GCM using a domain-separated key derived from the existing Better Auth secret. The encrypted envelope binds canonical owner, schema version, validated input, immutable per-row UUIDs, eligible symbols, full snapshot fingerprint and 15-minute expiry. Secret rotation invalidates pending links.
+### Limited OAuth capability
 
-The proposal is in the URL fragment, cleared after reading, not query parameters or local storage. Reopen the chat link after sign-in/reload if needed. Review and apply are same-origin POST, require the website principal and enforce an explicit limitations acknowledgment on apply. MCP bearer tokens cannot gain write permission or choose another owner. Tampered, expired, wrong-owner and stale proposals fail closed.
+Default OAuth grants and existing refresh families remain read-only. The optional portfolio:sync capability requires an explicit operator allowlist change for the existing MCP client and a new user-consented OAuth request. It does not add portfolio:write. The access token keeps the read_only claim true, and ordinary RLS INSERT/UPDATE/DELETE remains denied. Website credentials claiming the sync scope are rejected.
 
-The SQL functions are security invoker and use existing RLS and account fences. Bounded transaction locks, a fresh snapshot comparison, validation and all checkpoint inserts happen atomically; any failure rolls back the batch. Replays validate exact immutable checkpoint payloads and return their original receipt without reapplying. Direct SQL/API callers are subject to the same ownership, value, duplicate and observation-date checks.
+Only the fixed confirmation dispatcher can enter a dedicated NOLOGIN/NOINHERIT/NOBYPASSRLS executor. It has owner-bound SELECT/INSERT policies and a trigger fence allowing only checkpoint inserts and exact preservation of an already-recorded legacy opening balance. General UPDATE/DELETE, trading, plans, settings and credentials remain inaccessible. All SECURITY DEFINER functions have an empty search path, explicit EXECUTE grants and live owner/session/grant checks; the role cannot create functions or be assumed by authenticated callers.
+
+### Exact persisted review and human interaction
+
+The private RLS-protected proposal table stores immutable expected fingerprint, rows, review, expiry, canonical owner, raw subject, session, client, OAuth approval and a SHA256 confirmation-secret hash. Read RPCs omit the hash and financial payload not needed for review. Each proposal expires after 15 minutes. Corrections atomically supersede a pending proposal; explicit cancellation persists. Even blocked/no-op corrections invalidate the prior card.
+
+The server returns only review data and proposal ID in content/structuredContent. A random 256-bit confirmation capability goes exclusively in result _meta, documented as hidden from the model and available to the embedded app. confirm_screenshot_sync and cancel_screenshot_sync use ui.visibility:[app] and accept only proposal ID plus that capability—no editable holdings, owner ID or invented confirmed boolean. The UI sends it only after an actual button click, never automatically, and does not put it in DOM, logs, storage, URLs or model context. Source===parent checks, request correlation and proposal generations prevent stale/foreign iframe replies from completing a different card.
+
+The trust boundary is a compliant MCP/ChatGPT host and the approved OAuth client. MCP annotations alone do not prove a human click and there is no server-verifiable human-click signature; the private capability and app-only tool keep the language model out of final execution. Do not claim synthetic-host tests establish actual ChatGPT behavior.
+
+### Atomicity, isolation and replay
+
+Confirm revalidates live signed scope, canonical identity, session, grant, client, connection cutoff and account fence, then locks the exact saved proposal. It applies only its stored rows after comparing the full current portfolio fingerprint. Bounded locks and checkpoint inserts share the transaction with the saved receipt/status; failures roll back everything. Wrong owner/session/grant/client, missing scope/secret, cancelled/superseded/expired drafts, stale snapshots and backdated observations fail closed. An exact retry of an already-applied proposal returns its stored receipt without reapplying, even if unrelated portfolio edits happened later.
+
+The legacy website screen remains a separate manual fallback protected by website-only writes; the ChatGPT path does not call it or reveal its encrypted review URL.
 
 ## Verification and release
 
-Run Vitest, TypeScript, ESLint, production build, and `python3 scripts/test-screenshot-sync-postgres.py`. The disposable PostgreSQL fixture applies all migrations and tests owner isolation, website-only writes, rollback, stale/backdated rejection, exact replay/tamper, explicit closure, consolidated ledgers, immutable checkpoints and byte-for-byte history preservation. Its identity helper is synthetic; this is not a live ChatGPT OAuth test.
+Run Vitest, TypeScript, ESLint, production build, the Scriptable suite, python3 scripts/test-screenshot-sync-postgres.py, and python3 scripts/test-better-auth-postgres.py. The SQL fixture applies all migrations and verifies persisted review, exact execution, private secret handling, cross-owner/session/grant denial, read-only denial, direct-write denial, supersession, cancel, expiry, revocation, stale/backdated rejection, receipt replay, rollback and preservation of historical lots. Its identity helper is synthetic. The separate Better Auth fixture uses the real provider SDK for explicit optional-scope registration, signed consent, access/refresh issuance, old read-only grants, and refresh escalation denial.
 
-Release requires deploying the reviewed migration and compatible readers/writers together, then refreshing existing App tools and publishing the updated OAuth skill through its established workflow. Preserve existing App/plugin IDs, sharing, OAuth scopes and icon assets. No production migration, plugin publication or real-user import is performed by this PR. An actual ChatGPT screenshot-to-website flow and physical-phone rendering remain release acceptance checks.
+Release the migrations and compatible readers/writers together. Explicitly review and apply the existing seeder with --enable-portfolio-sync to opt the client into the optional scope (see docs/CHATGPT_ACTIVATION.md); never widen existing grants or silently add general write. Refresh the existing App tools, publish the skill through its established process, and accept the optional scope through user consent. Preserve App/plugin/client IDs, callbacks, secrets, workspace sharing and approved icon assets. No production migration, OAuth allowlist change, plugin publication or real-user import is performed by this PR.
 
-## Recorded validation (2026-11-16)
+**Unverified:** actual ChatGPT rendering, metadata isolation and app-only tool confirmation after OAuth upgrade. Desktop/mobile browser tests use a synthetic MCP host and are not a physical-phone or live ChatGPT acceptance test.
 
-- Full Vitest: **955 passed, 3 existing native suites skipped**; skipped suites are not passes.
-- Disposable local PostgreSQL: passed full checkpoint, legacy baseline, canonical/consolidated ledger, immutable-history, merge ownership, subsequent real BUY/SELL, replay, tamper, stale/backdated rejection, rollback, owner isolation and frozen-account checks.
-- Scriptable: **223 assertions, 36 render scenarios** passed, including missing historical FX.
-- Browser: the actual production-built React page was rendered with a **synthetic account and intercepted fixture responses**, on desktop and 390px mobile. The fragment cleared, confirmation stayed disabled until acknowledgment, and explicit confirmation produced the saved state. Mobile document width stayed 390px with no page overflow. This is not proof of a live OAuth/screenshot flow.
-- TypeScript, ESLint and production build passed; browser-support dataset age notices are preexisting.
+## Recorded verification
 
-![Synthetic desktop reconciliation review](screenshots/screenshot-sync-desktop.png)
+Current test totals and native runs are recorded in the PR description. Synthetic browser checks cover no automatic writes, private secret absent DOM, exact button arguments, confirmed success/cancel and a 390px mobile layout without page overflow. Unit tests cover stale proposal reply isolation and actual/estimated date labels. No real screenshot or personal financial data appears in these artifacts.
 
-![Synthetic mobile reconciliation review](screenshots/screenshot-sync-mobile.png)
+![Synthetic inline desktop review](screenshots/chat-sync-desktop.png)
+
+![Synthetic inline mobile review](screenshots/chat-sync-mobile.png)
