@@ -1,4 +1,4 @@
-import { jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { jwtVerify, errors, type JWTVerifyGetKey } from 'jose';
 
 export type Auth0TokenKind = 'web' | 'mcp';
 
@@ -40,6 +40,11 @@ export class Auth0TokenVerificationError extends Error {
   }
 }
 
+/** Trusted key-service failures are availability failures, not evidence of invalid credentials. */
+export class Auth0TokenInfrastructureError extends Error {
+  constructor(cause: unknown) { super('Authentication key service is unavailable', { cause }); this.name = 'Auth0TokenInfrastructureError'; }
+}
+
 const READ_ONLY_CLAIM = 'https://livestocks.app/read_only';
 const VERIFIED_EMAIL_CLAIM = 'https://livestocks.app/email_verified';
 const EMAIL_CLAIM = 'https://livestocks.app/email';
@@ -56,6 +61,13 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
     throw new Error('Auth0 verifier requires explicit, distinct trusted website and MCP configuration');
   }
 
+  const resolveKey: JWTVerifyGetKey = async (...args) => {
+    try { return await jwks(...args); }
+    catch (error) {
+      if (error instanceof errors.JWKSNoMatchingKey || error instanceof errors.JWKSMultipleMatchingKeys || error instanceof errors.JOSENotSupported) throw error;
+      throw new Auth0TokenInfrastructureError(error);
+    }
+  };
   return async function verifyAuth0Token(token: string, kind: Auth0TokenKind): Promise<Auth0TokenIdentity> {
     try {
       if ((kind !== 'web' && kind !== 'mcp') || typeof token !== 'string' || !token) {
@@ -63,7 +75,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
       }
       const expectedAudience = kind === 'web' ? websiteAudience : mcpAudience;
       const expectedClient = kind === 'web' ? websiteClientId : mcpClientId;
-      const { payload } = await jwtVerify(token, jwks, {
+      const { payload } = await jwtVerify(token, resolveKey, {
         algorithms: ['RS256', 'ES256'], issuer, audience: expectedAudience, clockTolerance: 0,
         requiredClaims: ['iss', 'aud', 'sub', 'azp', 'scope', 'role', 'iat', 'exp', READ_ONLY_CLAIM, VERIFIED_EMAIL_CLAIM],
       });
@@ -106,7 +118,8 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         ...(typeof email === 'string' ? { verifiedEmail: email } : {}),
         ...(typeof grantId === 'string' ? { grantId } : {}),
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof Auth0TokenInfrastructureError) throw error;
       // Do not reveal tokens, untrusted claims, or JWKS/network error details.
       throw new Auth0TokenVerificationError();
     }
