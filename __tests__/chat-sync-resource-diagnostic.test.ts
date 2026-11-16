@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync, brotliCompressSync } from 'node:zlib';
 import { applyChatSyncResourceDiagnostic, overrideChatSyncResourceResponse, RESOURCE_DIAGNOSTIC_FLAG } from '@/scripts/lib/chat-sync-resource-diagnostic.mjs';
-const uri = 'ui://livestocks/screenshot-sync-v1.html';
+const uri = 'ui://livestocks/screenshot-sync-v2.html';
 const actual = '<!doctype html><html><body>Actual app<script>/* no fixture behavior */</script></body></html>';
 const metadata = { ui: { csp: { connectDomains: [] } }, 'openai/widgetDescription': 'Actual app' };
 const packet = () => ({ jsonrpc: '2.0', id: 'request-id', result: { contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: actual, _meta: metadata }] } });

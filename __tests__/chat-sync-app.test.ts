@@ -39,7 +39,7 @@ afterEach(() => { frame?.contentWindow?.close(); frame?.remove(); vi.clearAllTim
 
 describe('inline ChatGPT synchronization approval', () => {
   it('declares a standard self-contained MCP App without external scripts or fetch', () => {
-    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v1.html');
+    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v2.html');
     expect(CHAT_SYNC_RESOURCE_MIME).toBe('text/html;profile=mcp-app');
     expect(CHAT_SYNC_APP_HTML).not.toMatch(/<script[^>]+src=|fetch\(|localStorage|sessionStorage/);
   });
@@ -90,6 +90,42 @@ describe('inline ChatGPT synchronization approval', () => {
     await flush();
     expect(doc.getElementById('status')?.textContent).toContain('ההצעה בוטלה');
     expect(button('confirm').disabled).toBe(true);
+  });
+  it.each(['applied', 'cancelled'])('preserves %s after host globals replay the original pending review', async status => {
+    const original = prepared();
+    const callTool = vi.fn().mockResolvedValue({ structuredContent: { proposalId: 'proposal-one', status } });
+    boot({ toolResponseMetadata: { mcp_tool_result: original }, callTool });
+    button(status === 'applied' ? 'confirm' : 'cancel').click(); await flush();
+    const receipt = doc.getElementById('status')?.textContent;
+    app.dispatchEvent(new Event('openai:set_globals')); receive(original);
+    expect(doc.getElementById('status')?.textContent).toBe(receipt);
+    expect(receipt).toContain(status === 'applied' ? 'סונכרנו בהצלחה' : 'ההצעה בוטלה');
+    expect(button('confirm').disabled).toBe(true);
+    expect(button('cancel').disabled).toBe(true);
+    expect(callTool).toHaveBeenCalledTimes(1);
+    const next = prepared('next-secret'); next.structuredContent.proposalId = 'proposal-two'; receive(next);
+    expect(button('confirm').disabled).toBe(false);
+    expect(doc.getElementById('status')?.textContent).toBe('');
+  });
+  it('preserves an uncertain failure on pending replay and permits an explicit retry', async () => {
+    const callTool = vi.fn().mockRejectedValueOnce(new Error('uncertain transport'))
+      .mockResolvedValueOnce({ structuredContent: { proposalId: 'proposal-one', status: 'applied' } });
+    boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
+    button('confirm').click(); await flush();
+    app.dispatchEvent(new Event('openai:set_globals')); receive(prepared(''));
+    expect(doc.getElementById('error')?.textContent).toBe('uncertain transport');
+    expect(button('confirm').disabled).toBe(false);
+    button('confirm').click(); await flush();
+    expect(callTool).toHaveBeenCalledTimes(2);
+    expect(doc.getElementById('status')?.textContent).toContain('סונכרנו בהצלחה');
+  });
+  it('accepts private metadata arriving after an initial public pending review', async () => {
+    boot(); await initialize(); receive(prepared(''));
+    expect(button('confirm').disabled).toBe(true);
+    receive(prepared());
+    expect(button('confirm').disabled).toBe(false);
+    button('confirm').click();
+    expect(toolCalls()[0].params.arguments).toEqual({ proposalId: 'proposal-one', confirmationSecret: 'private-widget-secret' });
   });
   it('does not accept a model-visible secret or a message from a different window', async () => {
     boot(); await initialize();
