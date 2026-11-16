@@ -12,6 +12,7 @@ vi.mock('@/lib/auth/server', () => ({
   PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
 }));
 vi.mock('@/app/api/portfolio/ai/route', () => ({ GET: mocks.snapshot }));
+vi.mock('@/lib/screenshot-sync-server', () => ({ prepareScreenshotSync: vi.fn() }));
 vi.mock('@/app/api/quote/route', () => ({ GET: mocks.quote }));
 import { POST, GET } from '@/app/api/mcp/route';
 
@@ -69,14 +70,14 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
-  it('negotiates initialization, discovery and seven exclusively read-only tools', async () => {
+  it('negotiates initialization, discovery and eight exclusively read-only tools', async () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
     expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
       icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(7);
+    expect(listed.result.tools).toHaveLength(8);
     expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
     const discovery = (await (await POST(request('server/discover'))).json()).result;
     expect(discovery.supportedVersions).toContain('2026-07-28');

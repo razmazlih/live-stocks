@@ -390,3 +390,11 @@ curl --fail --header "Authorization: Bearer $LIVESTOCKS_OAUTH_ACCESS_TOKEN" http
 מחיר שוק חסר מוחזר כ-`null`; אין החלפה במחיר הכניסה. אם חסר מחיר להחזקה פתוחה, `summary` ואחוזי ההקצאה מוחזרים כ-`null`, כדי לא להציג תיק חלקי כתיק שלם. בהיעדר FX לא מוחזרים סכומי ILS. בהיעדר יעד אישי לא מומצא יעד ברירת מחדל. זמן יצירת התשובה אינו זמן עדכון מחיר השוק.
 
 התשובה כוללת מידע כספי מלא של המשתמש המאומת בלבד. מפתחות ספקים אינם כלולים בתשובה. לא נשמרים באפליקציה מזומן, התחייבויות, הפקדות/משיכות, דיבידנדים, אופק השקעה או סיבולת סיכון; אין להסיק שהם אפס.
+
+## Screenshot holding imports (PR implementation)
+
+ChatGPT reads a user's holdings screenshot and calls `prepare_screenshot_sync`. The tool returns a 15-minute encrypted, owner-bound review link; it never gains portfolio write access. The same user signs into `/positions/sync`, checks the extracted rows, and explicitly saves using existing website write permissions. No screenshot is uploaded to or retained by LiveStocks.
+
+This first stage imports **new positions** with confirmed USD fee-inclusive average cost and original acquisition date, and recognizes matching existing holdings. Differences against an existing FIFO ledger are blocked: holdings screenshots do not establish execution price, date, proceeds or taxes. Missing symbols never imply deletion. Multiple original executions require their actual history rather than a guessed single acquisition. Every row must be resolved before saving; imports are atomic, stale proposals are rejected and exact retries do not duplicate lots.
+
+Apply the new migration before deployment and refresh the existing App's tools and analyst skill through its established release process. This PR does not publish a plugin update or change OAuth scopes, identities or sharing. See [the implementation plan and acceptance checks](docs/SCREENSHOT_SYNC.md).

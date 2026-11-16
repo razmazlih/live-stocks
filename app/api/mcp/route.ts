@@ -1,4 +1,6 @@
 import { requireMcpPrincipal, authenticationResponse, AuthenticationError, authenticationConfiguration, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
+import { prepareScreenshotSync } from '@/lib/screenshot-sync-server';
+import { screenshotSyncInputSchema } from '@/lib/screenshot-sync';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { GET as portfolioSnapshot } from '@/app/api/portfolio/ai/route';
@@ -22,6 +24,7 @@ const versions = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26'];
 const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
 const securitySchemes = [{ type: 'oauth2', scopes: ['portfolio:read'] }];
 const tools = [
+  { name: 'prepare_screenshot_sync', description: 'Prepare an owner-bound review link from holdings read by ChatGPT from a user screenshot. Does not write portfolio data. Ask for brokerage account, observation date, exact ticker, quantity, USD fee-inclusive average cost and original acquisition date; use null when unknown. Never infer trades from holding differences. Existing mismatches are blocked; absent rows are never deleted. User must confirm on the authenticated website.', inputSchema: { type: 'object', properties: { location: { type: 'string', enum: ['bank_one', 'bank_two'] }, observedAt: { type: 'string', format: 'date' }, rows: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'object', properties: { symbol: { type: 'string' }, quantity: { type: 'number', exclusiveMinimum: 0 }, averageCostUsd: { type: ['number', 'null'] }, acquiredOn: { type: ['string', 'null'], format: 'date' } }, required: ['symbol', 'quantity', 'averageCostUsd', 'acquiredOn'], additionalProperties: false } } }, required: ['location', 'observedAt', 'rows'], additionalProperties: false }, annotations: { ...annotations, idempotentHint: false } },
   { name: 'get_profile', description: 'Read the stable identity of the authenticated LiveStocks account.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, outputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }, _meta: { 'openai/profile': true }, annotations },
   { name: 'get_research_brief', description: 'Read the binding investment research rules before analyzing LiveStocks: BUY new stocks only, SELL full holdings only, broad-market primary-source research and no execution.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations },
   { name: 'get_portfolio_snapshot', description: 'Read only the authenticated user’s LiveStocks portfolio, active holdings across their brokerage accounts, lots, plans, P/L, goals, quote timestamps and quality limitations. GeneratedAt is not market price time.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations },
@@ -52,6 +55,7 @@ async function withDeadline<T>(work: Promise<T>, milliseconds: number): Promise<
   } finally { if (timer) clearTimeout(timer); }
 }
 async function callTool(name: string, args: unknown, request: Request, principal: Principal) {
+  if (name === 'prepare_screenshot_sync') return prepareScreenshotSync(principal, screenshotSyncInputSchema.parse(args));
   if (name === 'get_profile') { empty.parse(args); return { id: principal.userId }; }
   if (name === 'get_research_brief') {
     empty.parse(args);
