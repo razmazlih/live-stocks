@@ -13,7 +13,7 @@ describe('isolated lost-confirmation response contract', () => {
   });
   it('cannot be used without explicit isolation or a valid request ID', () => {
     expect(() => makeLostConfirmationReply({ productionAccess: true, id: 'test' })).toThrow();
-    expect(() => makeLostConfirmationReply({ id: 'test' })).toThrow();
+    expect(() => makeLostConfirmationReply({ productionAccess: undefined, id: 'test' })).toThrow();
     expect(() => makeLostConfirmationReply({ productionAccess: false, id: Number.NaN })).toThrow();
   });
 });

@@ -256,6 +256,74 @@ try:
     assert json.loads(mcp(f"select public.read_chat_sync_proposal('{stale_id}')"))['status'] == 'pending'
     assert sql("select has_function_privilege('authenticated','public.apply_chat_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
     assert sql("select has_function_privilege('anon','public.confirm_chat_sync_proposal(uuid,text)','EXECUTE')") == 'f'
+    # A model can omit previousProposalId. Only one pending card may remain in
+    # the exact binding, while independent sessions/grants/accounts stay intact.
+    unchanged_financial = json.loads(mcp('select public.screenshot_sync_snapshot()'))
+    auto_a, auto_b = str(uuid.uuid4()), str(uuid.uuid4())
+    auto_target = dict(next_target, lotId=str(uuid.uuid4()))
+    auto_a_query = create_proposal(auto_a, unchanged_financial['fingerprint'], auto_target, secret)
+    foreign_id, other_session_id, other_grant_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+    another_grant = str(uuid.uuid4())
+    foreign_query = create_proposal(foreign_id, transferred['fingerprint'], auto_target, secret)
+    mcp(foreign_query, owner='fixture-b')
+    mcp(create_proposal(other_session_id, unchanged_financial['fingerprint'], auto_target, secret), session='isolated-session')
+    mcp(create_proposal(other_grant_id, unchanged_financial['fingerprint'], auto_target, secret), grant=another_grant)
+    mcp(auto_a_query)
+    auto_b_query = create_proposal(auto_b, unchanged_financial['fingerprint'], dict(auto_target, lotId=str(uuid.uuid4())), secret)
+    mcp(auto_b_query)  # no explicit previous ID
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_a}')"))['status'] == 'superseded'
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{auto_a}','{secret}')", sync=True)
+    assert json.loads(mcp(auto_a_query))['status'] == 'superseded'
+    assert json.loads(mcp(create))['status'] == 'applied'  # old saved receipt retry
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'
+    mcp_rejected(create_proposal(str(uuid.uuid4()), unchanged_financial['fingerprint'], auto_target, secret, misleading=True))
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'  # failed replacement rolls back retirement
+    mcp_rejected(create_proposal(str(uuid.uuid4()), unchanged_financial['fingerprint'], auto_target, secret, previous=foreign_id))
+    mcp_rejected("select public.supersede_pending_chat_sync_proposals()")  # requires sync scope
+    mcp_rejected(f"select public.supersede_pending_chat_sync_proposals('{foreign_id}')", sync=True)
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'
+    assert json.loads(mcp('select public.supersede_pending_chat_sync_proposals()', sync=True))['superseded'] == 1
+    assert json.loads(mcp('select public.supersede_pending_chat_sync_proposals()', sync=True))['superseded'] == 0
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{auto_b}','{secret}')", sync=True)
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{foreign_id}')", owner='fixture-b'))['status'] == 'pending'
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{other_session_id}')", session='isolated-session'))['status'] == 'pending'
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{other_grant_id}')", grant=another_grant))['status'] == 'pending'
+    assert json.loads(mcp('select public.screenshot_sync_snapshot()')) == unchanged_financial
+    assert sql("select has_function_privilege('authenticated','private.chat_sync_dispatch_saved(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 'f'
+    # Local catalog security checks supplement the runtime owner/RLS tests. CLI
+    # 2.54 has no advisors command and native Postgres has no plpgsql_check addon.
+    assert sql("select relrowsecurity from pg_class where oid='private.chat_sync_proposals'::regclass") == 't'
+    assert sql("select has_table_privilege('authenticated','private.chat_sync_proposals','SELECT')") == 'f'
+    assert sql("select has_function_privilege('anon','public.supersede_pending_chat_sync_proposals(uuid)','EXECUTE')") == 'f'
+    assert sql("select has_function_privilege('service_role','public.supersede_pending_chat_sync_proposals(uuid)','EXECUTE')") == 'f'
+    assert sql("select not prosecdef and proconfig @> array['search_path=\"\"'] from pg_proc where oid='public.supersede_pending_chat_sync_proposals(uuid)'::regprocedure") == 't'
+    assert sql("select prosecdef and pg_get_userbyid(proowner)='livestocks_sync_executor' and proconfig @> array['search_path=\"\"'] from pg_proc where oid='private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid)'::regprocedure") == 't'
+    assert sql("select indisunique and indpred is not null from pg_index where indexrelid='private.chat_sync_one_pending_binding_idx'::regclass") == 't'
+
+    # Hold a real transaction after replacement to force the old confirmation to
+    # wait on the same binding lock. It must wake to a superseded card, not apply.
+    race_old, race_new = str(uuid.uuid4()), str(uuid.uuid4())
+    race_target = dict(auto_target, quantity=15, lotId=str(uuid.uuid4()))
+    mcp(create_proposal(race_old, unchanged_financial['fingerprint'], race_target, secret))
+    new_query = create_proposal(race_new, unchanged_financial['fingerprint'], dict(race_target, quantity=16, lotId=str(uuid.uuid4())), secret)
+    claims = json.dumps({'sub': 'fixture-a', 'write': False, 'azp': 'fixture-mcp', 'sid': 'fixture-session',
+        'https://livestocks.app/grant_id': fixture_grant, 'https://livestocks.app/read_only': True,
+        'scope': 'portfolio:read portfolio:sync'})
+    held = subprocess.Popen(['psql', url, '-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'],
+        env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        held.stdin.write(f"begin;set local role authenticated;set local request.jwt.claims='{claims}';{new_query};select pg_sleep(0.5);commit;")
+        held.stdin.close();held.stdin = None
+        assert json.loads(held.stdout.readline())['id'] == race_new
+        mcp_rejected(f"select public.confirm_chat_sync_proposal('{race_old}','{secret}')", sync=True)
+        _, diagnostics = held.communicate(timeout=10)
+        assert held.returncode == 0, diagnostics
+    finally:
+        if held.poll() is None:
+            held.kill();held.communicate()
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{race_new}')"))['status'] == 'pending'
+    assert json.loads(mcp('select public.screenshot_sync_snapshot()')) == unchanged_financial
+    print('PASS automatic single pending card, omitted previous ID, terminal retry preservation, isolated binding invalidation, and real replacement-versus-confirm transaction serialization')
     print('PASS persisted inline chat reviews, exact display binding, scope-limited confirmation, session/grant isolation, hidden hash, retry receipt, supersession/cancellation, expiry, revocation and stale rejection; direct MCP writes remain denied')
     sql("update public.user_profiles set merge_state='frozen' where id='fixture-a'")
     rejected(apply(before['fingerprint'], [dict(new, symbol='LOCKED', lotId=str(uuid.uuid4()))]))
