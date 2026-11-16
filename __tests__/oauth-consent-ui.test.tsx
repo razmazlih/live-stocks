@@ -15,6 +15,13 @@ describe('reviewed OAuth consent', () => {
     expect(screen.getByText('chatgpt.com')).toBeVisible(); expect(screen.getByText(/קריאה בלבד/)).toBeVisible(); expect(fetch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText('English')); expect(screen.getByRole('heading', { name: 'Connect to your portfolio' })).toBeVisible();
   });
+  it('shows limited sync permission only when explicitly requested and never describes it as read-only', () => {
+    render(<OAuthConsent review={{ ...review, scopes: [...review.scopes, 'portfolio:sync'] }} initialLocale="en" />);
+    expect(screen.getByText(/Synchronize screenshot holding balances/)).toBeVisible();
+    expect(screen.getByText(/Limited permission to synchronize balances/)).toBeVisible();
+    expect(screen.queryByText(/Read-only access/)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it.each([true, false])('submits explicit choice %s with the bound review and follows only checked destinations', async accept => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ url: 'https://chatgpt.com/callback?' + (accept ? 'code=synthetic' : 'error=access_denied') }));
     render(<OAuthConsent review={review} initialLocale="en" />);

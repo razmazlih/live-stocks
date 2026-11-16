@@ -1,6 +1,6 @@
 import 'server-only';
 import { isPasswordAuthEnabled, isPasswordAuthPath } from './better-auth-config';
-import { betterAuthConfiguration, getBetterAuth } from './better-auth';
+import { betterAuthConfiguration, getBetterAuth, MCP_ALLOWED_SCOPES } from './better-auth';
 
 const OAUTH_SERVER_POSTS = new Set(['/oauth2/token', '/oauth2/introspect', '/oauth2/revoke']);
 const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' };
@@ -13,6 +13,12 @@ export function validateAuthRequest(request: Request, config: { origin: string; 
   if (path === '/oauth2/authorize') {
     if (request.method !== 'GET') return Response.json({ error: 'invalid_request' }, { status: 405, headers: PRIVATE });
     const resources = url.searchParams.getAll('resource');
+    // Never let omitted scopes fall back to all scopes permitted on the client.
+    const scopeValues = url.searchParams.getAll('scope');
+    const scopes = scopeValues[0]?.split(/\s+/).filter(Boolean) ?? [];
+    if (scopeValues.length !== 1 || !scopes.includes('portfolio:read') || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope))) {
+      return Response.json({ error: 'invalid_scope' }, { status: 400, headers: PRIVATE });
+    }
     if (url.searchParams.getAll('client_id').length !== 1 || url.searchParams.get('client_id') !== config.mcpClientId) {
       return Response.json({ error: 'invalid_client' }, { status: 400, headers: PRIVATE });
     }

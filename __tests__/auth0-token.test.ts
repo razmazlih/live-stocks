@@ -44,9 +44,17 @@ describe('Auth0 access-token trust boundaries', () => {
     for (const kind of ['web', 'mcp'] as const) {
       const payload = { ...claims(kind), email: 'unrelated@example.invalid', user_metadata: { user_id: 'attacker' } };
       await expect(verify(await sign(payload, algorithm), kind)).resolves.toEqual({
-        userId, clientId: kind === 'web' ? websiteClientId : mcpClientId, issuedAt: payload.iat, expiresAt: payload.exp, kind,
+        userId, scopes: (claims(kind).scope as string).split(' '), portfolioSync: false, clientId: kind === 'web' ? websiteClientId : mcpClientId, issuedAt: payload.iat, expiresAt: payload.exp, kind,
       });
     }
+  });
+  it('grants narrow synchronization only for an exact signed MCP scope', async () => {
+    const payload = { ...claims(), scope: 'openid portfolio:read portfolio:sync' };
+    await expect(verify(await sign(payload), 'mcp')).resolves.toMatchObject({ portfolioSync: true, scopes: ['openid', 'portfolio:read', 'portfolio:sync'] });
+    await expect(verify(await sign({ ...claims(), portfolioSync: true, 'https://livestocks.app/portfolio_sync': true }), 'mcp')).resolves.toMatchObject({ portfolioSync: false });
+    await expect(verify(await sign({ ...claims(), scope: 'portfolio:read portfolio:sync:all' }), 'mcp')).resolves.toMatchObject({ portfolioSync: false });
+    await expect(verify(await sign({ ...payload, scope: 'portfolio:read portfolio:sync portfolio:write' }), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+    await expect(verify(await sign({ ...claims('web'), scope: 'portfolio:read portfolio:write portfolio:sync' }), 'web')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
   });
   it('accepts the exact resource in a well-formed audience list', async () => {
     await expect(verify(await sign({ ...claims(), aud: [mcpAudience, `${issuer}userinfo`] }), 'mcp')).resolves.toMatchObject({ userId });

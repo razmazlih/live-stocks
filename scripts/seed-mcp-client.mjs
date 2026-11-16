@@ -41,18 +41,19 @@ export function validateBootstrap(config, callbacks, confirmation) {
 }
 
 async function main(argv) {
-  if (argv.includes('--help')) { console.log('Usage: node scripts/seed-mcp-client.mjs --config-file /private/config.json --cookie-file /private/session-cookie.txt --callbacks-file /private/callbacks.json --origin https://your-site --client-id exact-client --operator-id verified-user-id [--apply]\nDefault: validate and show the exact nonsecret target only. --apply verifies the operator session and creates the static MCP registration; existing differing registrations are refused.'); return; }
+  if (argv.includes('--help')) { console.log('Usage: node scripts/seed-mcp-client.mjs --config-file /private/config.json --cookie-file /private/session-cookie.txt --callbacks-file /private/callbacks.json --origin https://your-site --client-id exact-client --operator-id verified-user-id [--enable-portfolio-sync] [--apply]\nOptional sync scope requires this explicit flag and separate user OAuth consent. Default: validate and show the exact nonsecret target only. --apply verifies the operator session and creates the static MCP registration; existing differing registrations are refused.'); return; }
   const args = {};
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (key === '--apply') { args.apply = true; continue; }
+    if (key === '--enable-portfolio-sync') { args.enablePortfolioSync = true; continue; }
     if (!['--config-file', '--cookie-file', '--callbacks-file', '--origin', '--client-id', '--operator-id'].includes(key) || args[key] || !argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Invalid arguments; use --help');
     args[key] = argv[++i];
   }
   for (const key of ['--config-file', '--cookie-file', '--callbacks-file', '--origin', '--client-id', '--operator-id']) if (!args[key]) throw Error('Missing arguments; use --help');
   const config = JSON.parse(await readPrivateFile(args['--config-file']));
   const callbacks = JSON.parse(await readPrivateFile(args['--callbacks-file']));
-  const target = validateBootstrap(config, callbacks, { origin: args['--origin'], clientId: args['--client-id'], operatorId: args['--operator-id'] });
+  const target = { ...validateBootstrap(config, callbacks, { origin: args['--origin'], clientId: args['--client-id'], operatorId: args['--operator-id'] }), enablePortfolioSync: args.enablePortfolioSync === true };
   const cookie = (await readPrivateFile(args['--cookie-file'])).trim();
   if (!cookie || cookie.length > 16_384 || /[\r\n]/.test(cookie)) throw Error('Invalid private session cookie file');
   if (!args.apply) { console.log(JSON.stringify({ mode: 'review-only', ...target })); return; }
@@ -75,7 +76,7 @@ async function main(argv) {
       const headers = new Headers({ cookie, origin: target.origin });
       const session = await auth.getBetterAuthSession(headers);
       if (!session?.user.emailVerified || session.user.id !== target.operatorId) throw Error('Verified operator session does not match confirmation');
-      const result = await auth.seedMcpClient(headers, target.callbacks);
+      const result = await auth.seedMcpClient(headers, target.callbacks, { enablePortfolioSync: target.enablePortfolioSync });
       console.log(JSON.stringify({ ...target, created: result.created, clientId: result.clientId }));
     } finally { await auth.shutdownBetterAuth(); }
   } finally { await rm(directory, { recursive: true, force: true }); }

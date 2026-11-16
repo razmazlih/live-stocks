@@ -18,6 +18,9 @@ export interface Auth0TokenVerifierOptions {
 
 export interface Auth0TokenIdentity {
   readonly userId: string;
+  readonly scopes: readonly string[];
+  /** Narrow checkpoint synchronization only; never general portfolio write permission. */
+  readonly portfolioSync: boolean;
   /** Optional signed, provider-owned evidence. Missing origin must never fall back to iat. */
   readonly authSessionId?: string;
   readonly authSessionCreatedAt?: number;
@@ -78,6 +81,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         || payload[READ_ONLY_CLAIM] !== (kind === 'mcp') || payload[VERIFIED_EMAIL_CLAIM] !== true
         || !scopes.has('portfolio:read') || (kind === 'web' && !scopes.has('portfolio:write'))
         || (kind === 'mcp' && scopes.has('portfolio:write'))
+        || (kind === 'web' && scopes.has('portfolio:sync'))
         || typeof payload.iat !== 'number' || !Number.isSafeInteger(payload.iat) || payload.iat < 0 || payload.iat > now + 5
         || typeof payload.exp !== 'number' || !Number.isSafeInteger(payload.exp) || payload.exp <= payload.iat
       ) {
@@ -97,7 +101,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         || (kind === 'mcp' && (typeof grantId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(grantId))))) {
         throw new Auth0TokenVerificationError();
       }
-      return { userId: payload.sub, clientId: expectedClient, issuedAt: payload.iat, expiresAt: payload.exp, kind,
+      return { userId: payload.sub, scopes: [...scopes], portfolioSync: kind === 'mcp' && scopes.has('portfolio:sync'), clientId: expectedClient, issuedAt: payload.iat, expiresAt: payload.exp, kind,
         ...(hasOrigin ? { authSessionId: sessionId as string, authSessionCreatedAt: sessionCreatedAt as number } : {}),
         ...(typeof email === 'string' ? { verifiedEmail: email } : {}),
         ...(typeof grantId === 'string' ? { grantId } : {}),

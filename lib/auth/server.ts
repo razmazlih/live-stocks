@@ -13,7 +13,7 @@ export class AuthenticationError extends Error {
   constructor(public readonly status = 401, message = 'Authentication required') { super(message); }
 }
 export type Principal = {
-  userId: string; clientId: string; issuedAt: number; expiresAt: number;
+  userId: string; portfolioSync: boolean; scopes: readonly string[]; clientId: string; issuedAt: number; expiresAt: number;
   kind: 'web' | 'mcp'; accessToken: string; supabase: SupabaseClient;
   /** Provider identity is used for session checks; userId is the canonical portfolio owner. */
   rawSubject: string; issuer: string; identityVersion: number; authSessionCreatedAt?: number; authSessionId?: string;

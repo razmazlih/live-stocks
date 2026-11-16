@@ -2,7 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
-import { AUTH_SCOPES, betterAuthConfiguration, getBetterAuth } from './better-auth';
+import { MCP_ALLOWED_SCOPES, betterAuthConfiguration, getBetterAuth } from './better-auth';
 import { signedOAuthQuery, validConsentDestination } from './oauth-continuation';
 
 export type ConsentReview = {
@@ -31,7 +31,7 @@ async function verifiedContext(raw: string, headers: Headers) {
   if (params.get('client_id') !== config.mcpClientId || params.get('resource') !== config.mcpAudience
     || params.get('response_type') !== 'code' || params.get('code_challenge_method') !== 'S256'
     || params.has('claims') || !scopes.includes('portfolio:read')
-    || scopes.some(scope => !(AUTH_SCOPES as readonly string[]).includes(scope))) throw new ConsentError('INVALID_REQUEST');
+    || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope))) throw new ConsentError('INVALID_REQUEST');
   const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } });
   if (!session?.user.emailVerified || new Date(session.session.expiresAt).getTime() <= Date.now()) throw new ConsentError('SIGN_IN_REQUIRED');
   // Public metadata checks the current registration exists and is enabled. Never render its links or logo.

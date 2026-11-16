@@ -13,6 +13,9 @@ export { betterAuthConfiguration, getAuthPublicOptions };
 export const AUTH_SCHEMA = 'livestocks_auth';
 export const AUTH_BACKEND_ROLE = 'livestocks_auth_backend';
 export const AUTH_SCOPES = ['openid', 'email', 'profile', 'offline_access', 'portfolio:read'] as const;
+/** Supported is not granted: sync requires an explicit request and fresh consent. */
+export const MCP_SYNC_SCOPE = 'portfolio:sync' as const;
+export const MCP_ALLOWED_SCOPES = [...AUTH_SCOPES, MCP_SYNC_SCOPE] as const;
 const NAMESPACE = 'https://livestocks.app/';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -69,7 +72,7 @@ export async function checkOAuthApproval(pool: Pool, id: string, userId: string,
 function providerOptions(config: BetterAuthConfiguration, pool: Pool, bootstrapUserId?: string) {
   return {
     loginPage: '/sign-in', consentPage: '/oauth/consent',
-    scopes: [...AUTH_SCOPES], grantTypes: ['authorization_code', 'refresh_token'] as ('authorization_code' | 'refresh_token')[],
+    scopes: [...MCP_ALLOWED_SCOPES], clientRegistrationDefaultScopes: [...AUTH_SCOPES], clientRegistrationAllowedScopes: [MCP_SYNC_SCOPE], grantTypes: ['authorization_code', 'refresh_token'] as ('authorization_code' | 'refresh_token')[],
     accessTokenExpiresIn: 300, refreshTokenExpiresIn: 7 * 24 * 60 * 60, codeExpiresIn: 120, refreshTokenReuseInterval: 0,
     allowDynamicClientRegistration: false, allowUnauthenticatedClientRegistration: false,
     allowInsecureRedirectUri: (url: URL) => process.env.NODE_ENV !== 'production'
@@ -84,7 +87,7 @@ function providerOptions(config: BetterAuthConfiguration, pool: Pool, bootstrapU
       if (!secret || secret.length < 32) throw new Error('MCP client secret is not configured');
       return secret;
     } } : {}),
-    resources: [{ identifier: config.mcpAudience, allowedScopes: [...AUTH_SCOPES], accessTokenTtl: 300, signingAlgorithm: 'ES256' as const }],
+    resources: [{ identifier: config.mcpAudience, allowedScopes: [...MCP_ALLOWED_SCOPES], accessTokenTtl: 300, signingAlgorithm: 'ES256' as const }],
     postLogin: {
       page: '/oauth/consent', shouldRedirect: async () => false,
       consentReferenceId: async ({ user, session }: { user: { id: string; emailVerified: boolean }; session: { id: string } }) => {
@@ -131,7 +134,7 @@ export function createBetterAuth(config: BetterAuthConfiguration, pool: Pool, bo
         extensions: [{ claims: { accessToken: async ({ client, user, sessionId, referenceId, resources, scopes }) => {
           if (client.clientId !== config.mcpClientId || !user?.emailVerified || !sessionId || !referenceId
             || !resources?.includes(config.mcpAudience) || resources.some(value => value !== config.mcpAudience)
-            || scopes.includes('portfolio:write') || !scopes.includes('portfolio:read')) throw deniedGrant();
+            || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope)) || !scopes.includes('portfolio:read')) throw deniedGrant();
           const approval = await checkOAuthApproval(pool, referenceId, user.id, sessionId, client.clientId);
           return { azp: client.clientId, role: 'authenticated', [`${NAMESPACE}read_only`]: true, [`${NAMESPACE}email_verified`]: true,
             [`${NAMESPACE}auth_session_id`]: sessionId, [`${NAMESPACE}auth_session_created_at`]: approval.auth_session_created_at,
@@ -200,7 +203,7 @@ export function getAuthDatabasePool(): Pool {
 }
 
 /** Server/CLI setup only; no HTTP route exposes this function or its privileged instance. */
-export async function seedMcpClient(headers: Headers, redirectUris: string[]): Promise<{ clientId: string; created: boolean }> {
+export async function seedMcpClient(headers: Headers, redirectUris: string[], options: { enablePortfolioSync?: boolean } = {}): Promise<{ clientId: string; created: boolean }> {
   const config = betterAuthConfiguration();
   const session = await getBetterAuthSession(headers);
   if (!session?.user.emailVerified || !singleton || !process.env.BETTER_AUTH_MCP_CLIENT_SECRET
@@ -213,6 +216,7 @@ export async function seedMcpClient(headers: Headers, redirectUris: string[]): P
       throw new Error('Invalid MCP callback');
     }
   }
+  const registrationScopes = options.enablePortfolioSync === true ? MCP_ALLOWED_SCOPES : AUTH_SCOPES;
   const existing = await singleton.pool.query<{ redirectUris: string[]; requirePKCE: boolean; skipConsent: boolean; disabled: boolean; tokenEndpointAuthMethod: string; scopes: string[]; grantTypes: string[]; resources: string[] }>(
     `select c."redirectUris", c."requirePKCE", c."skipConsent", c.disabled, c."tokenEndpointAuthMethod", c.scopes, c."grantTypes",
       coalesce((select jsonb_agg(r."resourceId") from livestocks_auth."oauthClientResource" r where r."clientId"=c."clientId"),'[]'::jsonb) as resources
@@ -223,7 +227,7 @@ export async function seedMcpClient(headers: Headers, redirectUris: string[]): P
       && actual.every(value => typeof value === 'string')
       && JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
     if (row.requirePKCE !== true || row.skipConsent !== false || row.disabled !== false || row.tokenEndpointAuthMethod !== 'client_secret_post'
-      || !exactly(row.redirectUris, redirectUris) || !exactly(row.scopes, AUTH_SCOPES)
+      || !exactly(row.redirectUris, redirectUris) || (!exactly(row.scopes, AUTH_SCOPES) && !exactly(row.scopes, MCP_ALLOWED_SCOPES))
       || !exactly(row.grantTypes, ['authorization_code', 'refresh_token']) || !exactly(row.resources, [config.mcpAudience])) throw new Error('Existing MCP registration requires review');
     // Let the provider validate its own stored-secret format. A random nonexistent
     // token must be inactive; this neither issues nor revokes any real token.
@@ -234,13 +238,18 @@ export async function seedMcpClient(headers: Headers, redirectUris: string[]): P
     }));
     const introspection = await probe.json().catch(() => null);
     if (!probe.ok || introspection?.active !== false) throw new Error('Configured MCP client secret requires review');
+    if (options.enablePortfolioSync === true && !exactly(row.scopes, MCP_ALLOWED_SCOPES)) {
+      const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);
+      const updated = await bootstrap.api.adminUpdateOAuthClient({ headers, body: { client_id: config.mcpClientId, update: { scope: MCP_ALLOWED_SCOPES.join(' ') } } });
+      if (updated.client_id !== config.mcpClientId || typeof updated.scope !== 'string' || !exactly(updated.scope.split(' ').filter(Boolean), MCP_ALLOWED_SCOPES)) throw new Error('MCP sync scope update was not confirmed');
+    }
     return { clientId: config.mcpClientId, created: false };
   }
   const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);
   const created = await bootstrap.api.adminCreateOAuthClient({ headers, body: {
     client_name: 'LiveStocks ChatGPT', redirect_uris: redirectUris, application_type: 'web',
     token_endpoint_auth_method: 'client_secret_post', grant_types: ['authorization_code', 'refresh_token'],
-    scope: AUTH_SCOPES.join(' '), resources: [config.mcpAudience], require_pkce: true, skip_consent: false,
+    scope: registrationScopes.join(' '), resources: [config.mcpAudience], require_pkce: true, skip_consent: false,
   } });
   if (created.client_id !== config.mcpClientId) throw new Error('MCP client registration did not match configuration');
   return { clientId: created.client_id, created: true };

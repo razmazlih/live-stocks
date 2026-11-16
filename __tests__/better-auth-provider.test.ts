@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 import nodemailer from 'nodemailer';
 import { betterAuthConfiguration, getAuthPublicOptions } from '@/lib/auth/better-auth-config';
-import { createAuthPool } from '@/lib/auth/better-auth';
+import { AUTH_SCOPES, MCP_ALLOWED_SCOPES, createAuthPool } from '@/lib/auth/better-auth';
 import { validateAuthRequest } from '@/lib/auth/better-auth-handler';
 import { AuthEmailUnavailable, sendAuthEmail } from '@/lib/auth/auth-email';
 
@@ -44,7 +44,7 @@ describe('own-origin auth configuration', () => {
 });
 
 describe('MCP authorization boundary', () => {
-  function authorize(parameters: string) { return new Request(`${config.issuer}/oauth2/authorize?client_id=${config.mcpClientId}&${parameters}`); }
+  function authorize(parameters: string) { return new Request(`${config.issuer}/oauth2/authorize?client_id=${config.mcpClientId}&scope=portfolio%3Aread&${parameters}`); }
   it('allows only the one canonical resource', () => { expect(validateAuthRequest(authorize(`resource=${encodeURIComponent(config.mcpAudience)}`), config)).toBeNull(); });
   it.each(['', 'resource=https://evil.example/mcp', `resource=${encodeURIComponent(config.mcpAudience)}&resource=${encodeURIComponent(config.mcpAudience)}`, `resource=${encodeURIComponent(config.mcpAudience)}&audience=https://evil.example`])('rejects absent, foreign or duplicate resource %s', parameters => {
     expect(validateAuthRequest(authorize(parameters), config)?.status).toBe(400);
@@ -52,6 +52,16 @@ describe('MCP authorization boundary', () => {
   it('rejects duplicate or unknown clients before redirects', () => {
     expect(validateAuthRequest(authorize(`resource=${config.mcpAudience}&client_id=other`), config)?.status).toBe(400);
     expect(validateAuthRequest(new Request(`${config.issuer}/oauth2/authorize?client_id=other&resource=${config.mcpAudience}`), config)?.status).toBe(400);
+  });
+  it('keeps synchronization optional and requires explicit requested scopes', () => {
+    expect(AUTH_SCOPES).not.toContain('portfolio:sync');
+    expect(MCP_ALLOWED_SCOPES).toContain('portfolio:sync');
+    expect(MCP_ALLOWED_SCOPES).not.toContain('portfolio:write');
+    const base = `${config.issuer}/oauth2/authorize?client_id=${config.mcpClientId}&resource=${encodeURIComponent(config.mcpAudience)}`;
+    expect(validateAuthRequest(new Request(base), config)?.status).toBe(400);
+    expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read%20portfolio:sync`), config)).toBeNull();
+    expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read%20portfolio:write`), config)?.status).toBe(400);
+    expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read&scope=portfolio:sync`), config)?.status).toBe(400);
   });
   it('requires an exact origin for browser mutations including first login', () => {
     for (const headers of [{}, { origin: 'https://evil.example' }, { origin, 'sec-fetch-site': 'cross-site' }] as Record<string, string>[]) {

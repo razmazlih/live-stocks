@@ -69,9 +69,9 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       mcpClientId: state.mcpClientId, jwks: keys, requireLiveSessionEvidence: true, companionAudience: issuer + '/oauth2/userinfo' });
     expect((await verify(web.token, 'web')).userId).toBe(a.id);
     await expect(verify(web.token, 'mcp')).rejects.toThrow();
-    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false) {
+    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false, scope = 'openid email profile offline_access portfolio:read') {
       const verifier = randomBytes(32).toString('base64url');
-      const params = new URLSearchParams({ client_id: state.mcpClientId, response_type: 'code', redirect_uri: callback, scope: 'openid email profile offline_access portfolio:read',
+      const params = new URLSearchParams({ client_id: state.mcpClientId, response_type: 'code', redirect_uri: callback, scope,
         prompt: 'consent', state: randomBytes(20).toString('hex'), nonce: randomBytes(20).toString('hex'), code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url') });
       if (target !== null) params.set('resource', target);
       const start = await request('/oauth2/authorize?' + params, undefined, cookie);
@@ -124,8 +124,8 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(loginContinuation.data.redirect).toBe(true);
     expect(new URL(loginContinuation.data.url, origin).pathname).toBe('/oauth/consent');
     const token = (body: Record<string, unknown>) => request('/oauth2/token', { client_id: state.mcpClientId, client_secret: env.BETTER_AUTH_MCP_CLIENT_SECRET, ...body }, '', true);
-    async function exchange(cookie = a.cookie, target: string | null = resource) {
-      const code = await authorize(cookie); expect(code.code).toBeTruthy();
+    async function exchange(cookie = a.cookie, target: string | null = resource, scope = 'openid email profile offline_access portfolio:read') {
+      const code = await authorize(cookie, resource, false, scope); expect(code.code).toBeTruthy();
       return token({ grant_type: 'authorization_code', code: code.code, code_verifier: code.verifier, redirect_uri: callback, ...(target === null ? {} : { resource: target }) });
     }
     expect((await authorize(a.cookie, null)).status).toBe(400);
@@ -133,6 +133,28 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     const wrong = await exchange(a.cookie, 'https://evil.invalid'); expect(wrong.data.access_token).toBeUndefined(); expect(wrong.data.error).toBe('invalid_target');
     const positive = await exchange(); expect(positive.response.status).toBe(200);
     const claims = await verify(positive.data.access_token, 'mcp'); expect(claims.userId).toBe(a.id); expect(claims.grantId).toBeTruthy();
+    expect(claims.portfolioSync).toBe(false);
+    // Expanding the client's allowed scope is an explicit operator step. It does
+    // not upgrade any existing consent, token, or read-only refresh grant.
+    await seedMcpClient(headers, [callback], { enablePortfolioSync: true });
+    expect((await verify(positive.data.access_token, 'mcp')).portfolioSync).toBe(false);
+    expect((await verify((await exchange()).data.access_token, 'mcp')).portfolioSync).toBe(false);
+    const syncScope = 'openid email profile offline_access portfolio:read portfolio:sync';
+    const syncReviewStart = await authorize(a.cookie, resource, true, syncScope);
+    const syncReview = await getConsentReview(new URL(syncReviewStart.location!, origin).search.slice(1), headers);
+    expect(syncReview.scopes).toContain('portfolio:sync');
+    const syncIssued = await exchange(a.cookie, resource, syncScope);
+    expect(syncIssued.response.status).toBe(200);
+    const syncIdentity = await verify(syncIssued.data.access_token, 'mcp');
+    expect(syncIdentity.portfolioSync).toBe(true);
+    expect(syncIdentity.scopes).toContain('portfolio:sync');
+    expect(syncIdentity.scopes).not.toContain('portfolio:write');
+    const syncRefresh = await token({ grant_type: 'refresh_token', refresh_token: syncIssued.data.refresh_token, resource });
+    expect((await verify(syncRefresh.data.access_token, 'mcp')).portfolioSync).toBe(true);
+    const readForEscalation = await exchange();
+    const escalated = await token({ grant_type: 'refresh_token', refresh_token: readForEscalation.data.refresh_token, resource, scope: syncScope });
+    expect(escalated.data.access_token).toBeUndefined();
+    expect(escalated.data.error).toBe('invalid_scope');
     expect((await verify((await exchange(b.cookie)).data.access_token, 'mcp')).userId).toBe(b.id);
     const omitted = await exchange(a.cookie, null); expect((await verify(omitted.data.access_token, 'mcp')).userId).toBe(a.id);
     const pkce = await authorize(); const invalid = await token({ grant_type: 'authorization_code', code: pkce.code, code_verifier: randomBytes(32).toString('base64url'), redirect_uri: callback, resource });
