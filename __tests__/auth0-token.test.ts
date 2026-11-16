@@ -40,6 +40,17 @@ beforeAll(async () => {
 });
 
 describe('Auth0 access-token trust boundaries', () => {
+  it('classifies a signed expired token without exposing its claims or credential', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = await sign({ ...claims(), iat: now - 600, exp: now - 300 });
+    const failure = await verify(token, 'mcp').catch(error => error);
+    expect(failure).toBeInstanceOf(Auth0TokenVerificationError);
+    expect(failure.reason).toBe('token_expired');
+    expect(JSON.stringify(failure)).not.toContain(token);
+    expect(failure.message).not.toContain(userId);
+    const malformed = await verify('synthetic-invalid-token', 'mcp').catch(error => error);
+    expect(malformed.reason).toBe('invalid_token');
+  });
   it.each<Algorithm>(['RS256', 'ES256'])('verifies real %s signatures for both independent clients', async algorithm => {
     for (const kind of ['web', 'mcp'] as const) {
       const payload = { ...claims(kind), email: 'unrelated@example.invalid', user_metadata: { user_id: 'attacker' } };

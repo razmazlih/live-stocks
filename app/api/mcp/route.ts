@@ -52,7 +52,7 @@ const empty = z.object({}).strict();
 const closeProposalArgs = z.object({ maxLosers: z.union([z.literal(1), z.literal(3)]).default(3) }).strict();
 const quoteArgs = z.object({ symbols: z.array(z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9.^=:-]+$/)).min(1).max(8) }).strict();
 
-function json(data: unknown, status = 200) { return Response.json(data, { status, headers }); }
+function json(data: unknown, status = 200, extraHeaders?: Record<string, string>) { return Response.json(data, { status, headers: { ...headers, ...extraHeaders } }); }
 function error(id: string | number | null, code: number, message: string, status = 200) { return json({ jsonrpc: '2.0', id, error: { code, message } }, status); }
 async function loadSnapshot(request: Request) {
   const response = await portfolioSnapshot(new Request(new URL('/api/portfolio/ai', request.url), { headers: request.headers }));
@@ -125,14 +125,14 @@ async function callTool(name: string, args: unknown, request: Request, principal
   return { retrievedAt: new Date().toISOString(), quotes, limitation: 'Last available observations; retrieval time is not market time. USD stock quotes only; verify currency, exchange, corporate actions and ticker identity externally.' };
 }
 
-function authFailure(failure: unknown): Response | null {
+function authFailure(failure: unknown, request?: Request): Response | null {
   const response = authenticationResponse(failure);
   if (response?.status === 401) {
     let mcpAudience: string;
     try { ({ mcpAudience } = authenticationConfiguration()); }
     catch (configurationError) { return authenticationResponse(configurationError) ?? json({ error: 'Authentication is unavailable' }, 503); }
     const metadata = new URL('/.well-known/oauth-protected-resource', mcpAudience).href;
-    response.headers.set('WWW-Authenticate', `Bearer resource_metadata="${metadata}", scope="portfolio:read"`);
+    response.headers.set('WWW-Authenticate', `Bearer resource_metadata="${metadata}"${request?.headers.has('authorization') ? ', error="invalid_token"' : ''}`);
   }
   return response;
 }
@@ -140,7 +140,7 @@ function authFailure(failure: unknown): Response | null {
 export async function POST(request: Request) {
   let principal: Principal;
   try { principal = await requireMcpPrincipal(request); }
-  catch (failure) { return authFailure(failure) ?? json({ error: 'Authentication is unavailable' }, 503); }
+  catch (failure) { return authFailure(failure, request) ?? json({ error: 'Authentication is unavailable' }, 503); }
   // Remote clients normally omit Origin. Browsers must use the app or supported chat host.
   const origin = request.headers.get('origin');
   const allowedOrigins = [new URL(request.url).origin, 'https://chatgpt.com', 'https://chat.openai.com'];
@@ -167,8 +167,8 @@ export async function POST(request: Request) {
   const requestedVersion = protocol ?? (typeof envelopeVersion === 'string' ? envelopeVersion : undefined)
     ?? (rpc.method === 'initialize' && typeof rpc.params?.protocolVersion === 'string' ? rpc.params.protocolVersion : versions[0]);
   const modern = requestedVersion === '2026-07-28';
-  const result = (value: object) => json({ jsonrpc: '2.0', id: rpc.id,
-    result: modern ? { ...value, resultType: 'complete', ...(cacheableMethods.has(rpc.method) ? { ttlMs: 0, cacheScope: 'private' } : {}) } : value });
+  const result = (value: object, extraHeaders?: Record<string, string>, status = 200) => json({ jsonrpc: '2.0', id: rpc.id,
+    result: modern ? { ...value, resultType: 'complete', ...(cacheableMethods.has(rpc.method) ? { ttlMs: 0, cacheScope: 'private' } : {}) } : value }, status, extraHeaders);
   if (rpc.method === 'initialize') {
     const requested = rpc.params?.protocolVersion;
     return result({ protocolVersion: typeof requested === 'string' && versions.includes(requested) ? requested : versions[0], capabilities: { tools: {}, resources: {} }, serverInfo: serverInfo(), instructions: INVESTMENT_POLICY });
@@ -199,11 +199,14 @@ export async function POST(request: Request) {
     if (failure instanceof SyncScopeRequiredError) {
       const audience = authenticationConfiguration().mcpAudience;
       const metadata = new URL('/.well-known/oauth-protected-resource', audience).href;
+      const challenge = `Bearer resource_metadata="${metadata}", error="insufficient_scope", scope="portfolio:read portfolio:sync"`;
+      // Apps hosts consume the tool-result hint; HTTP clients can inspect the same
+      // challenge without misclassifying a valid read token as expired.
       return result({ isError: true, content: [{ type: 'text', text: failure.message }],
-        _meta: { 'mcp/www_authenticate': [`Bearer resource_metadata="${metadata}", error="insufficient_scope", scope="portfolio:read portfolio:sync"`] } });
+        _meta: { 'mcp/www_authenticate': [challenge] } }, { 'WWW-Authenticate': challenge }, modern ? 403 : 200);
     }
     if (failure instanceof ChatSyncUnavailableError) return result({ isError: true, content: [{ type: 'text', text: failure.message }] });
-    const authResponse = authFailure(failure);
+    const authResponse = authFailure(failure, request);
     if (authResponse) return authResponse;
     const message = failure instanceof z.ZodError ? 'Invalid tool input or incompatible portfolio data; no recommendation has been validated.' : 'LiveStocks data is temporarily unavailable; retry later. No values have been inferred.';
     return result({ content: [{ type: 'text', text: message }], isError: true });
@@ -213,6 +216,6 @@ export async function POST(request: Request) {
 /** Stateless transport: this server does not offer a persistent SSE stream. */
 export async function GET(request: Request) {
   try { await requireMcpPrincipal(request); }
-  catch (failure) { return authFailure(failure) ?? json({ error: 'Authentication is unavailable' }, 503); }
+  catch (failure) { return authFailure(failure, request) ?? json({ error: 'Authentication is unavailable' }, 503); }
   return new Response(null, { status: 405, headers: { ...headers, Allow: 'POST' } });
 }
