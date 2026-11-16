@@ -17,6 +17,7 @@ class SyntheticClient extends EventEmitter {
   connect(callback: (error?: Error) => void) { queueMicrotask(() => callback()); }
   end(callback?: () => void) { this.ended = true; this._ending = true; callback?.(); }
   ref() {}
+  unref() {}
   query(_text: unknown, _values: unknown, callback: (error: Error | null, result?: object) => void) {
     const error = SyntheticClient.queryFailure; SyntheticClient.queryFailure = null;
     queueMicrotask(() => callback(error, error ? undefined : { rows: [{ ok: true }] }));

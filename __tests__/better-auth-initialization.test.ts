@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
+vi.mock('@vercel/functions', () => ({ attachDatabasePool: vi.fn() }));
 const mocks = vi.hoisted(() => ({ factory: vi.fn(), pools: [] as { on: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> }[], config: {
   origin: 'https://example.test', issuer: 'https://example.test/api/auth', websiteAudience: 'https://example.test/api/web', mcpAudience: 'https://example.test/api/mcp',
   websiteClientId: 'test-website', mcpClientId: 'test-mcp-client', secret: 'synthetic-test-secret-at-least-thirty-two-characters',

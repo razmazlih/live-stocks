@@ -68,7 +68,7 @@ async function main(argv) {
     const result = await build({ stdin: { contents: 'export {getBetterAuthSession,seedMcpClient,shutdownBetterAuth} from "./lib/auth/better-auth.ts";', resolveDir: root, loader: 'ts' },
       bundle: true, platform: 'node', format: 'esm', packages: 'external', write: false,
       plugins: [{ name: 'cli-server-only', setup(builder) { builder.onResolve({ filter: /^server-only$/ }, () => ({ path: 'server-only', namespace: 'empty' })); builder.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: '' }));
-        builder.onResolve({ filter: /^(better-auth|@better-auth\/|pg$|jose$|nodemailer$)/ }, async ({ path }) => ({ path: fileURLToPath(import.meta.resolve(path)), external: true })); } }],
+        builder.onResolve({ filter: /^(better-auth|@better-auth\/|pg$|jose$|nodemailer$|@vercel\/functions$)/ }, async ({ path }) => ({ path: fileURLToPath(import.meta.resolve(path)), external: true })); } }],
     });
     await writeFile(outfile, result.outputFiles[0].text, { mode: 0o600 });
     const auth = await import(pathToFileURL(outfile).href);
