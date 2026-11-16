@@ -1,0 +1,45 @@
+{
+  "recordedAt": "2026-11-16T17:17:23.199213+00:00",
+  "deploymentId": "dpl_4RhhXNxz2pBVA1gszDdLZ1Ken9dd",
+  "productionUrl": "https://razmaz-live-stocks.vercel.app",
+  "productionBaseCommit": "5c791d0086fdac542b5246ca1ad6712356b41a45",
+  "releaseCommit": "302a43a",
+  "workingImplementationCommit": "fe83cc4",
+  "state": "READY",
+  "promoted": true,
+  "stagedAndLiveProbes": {
+    "protectedResourceMetadata": 200,
+    "authorizationServerMetadata": 200,
+    "advertisesSync": true,
+    "advertisesOfflineAccessAndRefresh": true,
+    "missingCredentialStatus": 401,
+    "missingCredentialChallengeError": null,
+    "syntheticInvalidBearerStatus": 401,
+    "syntheticInvalidBearerChallengeError": "invalid_token",
+    "invalidBearerSafeCode": "invalid_token",
+    "unauthorizedChallengeNarrowsToRead": false
+  },
+  "validation": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "vitestPassed": 1067,
+    "vitestOptInSkipped": 3,
+    "nativeProvider": "PASS",
+    "nativeScreenshotSyncSql": "PASS",
+    "isolatedReleaseTargetedTestsPassed": 133,
+    "cloudBuild": "PASS"
+  },
+  "financialDataAccessed": false,
+  "realPortfolioMutated": false,
+  "oauthConfigurationChanged": false,
+  "secretsChanged": false,
+  "hostAuthenticatedStepUpVerified": false,
+  "gitMergedOrPushed": false,
+  "postDeployErrorScan": {
+    "window": "15m",
+    "querySucceeded": true,
+    "entries": 0,
+    "rawMessagesDisclosed": false
+  }
+}
