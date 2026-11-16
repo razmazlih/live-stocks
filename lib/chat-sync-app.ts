@@ -5,7 +5,7 @@
  * Result _meta is widget-only. Never copy confirmationSecret into model context,
  * DOM attributes, localStorage, follow-up messages or diagnostic logs.
  */
-export const CHAT_SYNC_RESOURCE_URI = 'ui://livestocks/screenshot-sync-v3.html';
+export const CHAT_SYNC_RESOURCE_URI = 'ui://livestocks/screenshot-sync-v4.html';
 export const CHAT_SYNC_RESOURCE_MIME = 'text/html;profile=mcp-app';
 export const CHAT_SYNC_APP_HTML = String.raw`<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>סקירת סנכרון LiveStocks</title>
@@ -50,11 +50,11 @@ function accept(result){
   if(!value||typeof value!=='object')return;
   if(value.applied===true||value.status==='applied'){
     if(typeof value.proposalId!=='string'||(data&&value.proposalId!==data.proposalId))return;
-    completed=true;confirmationSecret='';text('status','ההחזקות סונכרנו בהצלחה. היסטוריית העסקאות נשמרה.');el('status').className='success';controls();size();return;
+    completed=true;confirmationSecret='';text('error','');text('confirm','סונכרן');text('status','ההחזקות סונכרנו בהצלחה. היסטוריית העסקאות נשמרה.');el('status').className='success';controls();size();return;
   }
   if(value.status==='cancelled'){
     if(typeof value.proposalId!=='string'||(data&&value.proposalId!==data.proposalId))return;
-    completed=true;confirmationSecret='';text('status','ההצעה בוטלה. לא נשמר שינוי.');controls();size();return;
+    completed=true;confirmationSecret='';text('error','');text('status','ההצעה בוטלה. לא נשמר שינוי.');controls();size();return;
   }
   if(value.status==='unchanged'||value.status==='needs_details'){
     generation+=1;data=null;confirmationSecret='';busy=false;completed=true;el('review').hidden=true;
@@ -70,7 +70,7 @@ function accept(result){
   data=value;completed=false;
   // Only the hidden result metadata supplies the mutation capability.
   confirmationSecret=result._meta&&typeof result._meta.confirmationSecret==='string'?result._meta.confirmationSecret:'';
-  el('review').hidden=false;el('rows').replaceChildren();text('error','');text('status','');el('status').className='';
+  el('review').hidden=false;el('rows').replaceChildren();text('error','');text('status','');el('status').className='';text('confirm','אישור וסנכרון');
   var location=value.plan.location==='bank_two'?'בנק 2':'בנק 1';
   var observedDate=String(value.plan.observedAt||'').split('-');
   text('description',location+' · נכון ל־'+(observedDate.length===3?observedDate.reverse().join('.'):String(value.plan.observedAt||'')));
@@ -116,7 +116,7 @@ async function action(name){
   try{
     var result=await call(name,{proposalId:proposalId,confirmationSecret:secret});
     if(data&&data.proposalId===proposalId&&generation===actionGeneration){accept(result);if(!completed)throw new Error('לא התקבל אישור שמירה. נסו שוב או בקשו לבדוק את מצב ההצעה.');}
-  }catch(error){if(data&&data.proposalId===proposalId&&generation===actionGeneration){text('status','');text('error',error&&error.message?error.message:'הבקשה לא הושלמה.');}}
+  }catch{if(data&&data.proposalId===proposalId&&generation===actionGeneration){text('status','');text('error',name==='confirm_screenshot_sync'?'לא התקבל אישור שמירה. אפשר לנסות שוב בבטחה; לא ייווצר עדכון כפול.':'לא התקבל אישור ביטול. אפשר לנסות לבטל שוב או לבדוק את מצב ההצעה בצ׳אט.');if(name==='confirm_screenshot_sync')text('confirm','ניסיון חוזר');}}
   finally{if(generation===actionGeneration){busy=false;controls();size();}}
 }
 el('confirm').addEventListener('click',function(){void action('confirm_screenshot_sync');});
