@@ -1,3 +1,15 @@
+# Current public preparation — 2026-11-16
+
+Live Plugin Creator readback confirms the existing plugin is WORKSPACE / LISTED in RABEN, version **1.1.3**, release `pluginrel_6afad5c0a2c081919623d0a838fec5ff`. This is not global public publication. The owner now requests public publication; earlier RABEN-only scope is superseded.
+
+The 1.2.0 public manifest draft now describes optional screenshot reconciliation and separate consent accurately, adds a sixth positive review case for human confirmation/cancellation, and narrows the unsupported-write negative case to arbitrary transaction editing. No public upload or submission was made. The installed package still has historical read-only presentation; this draft does not change it.
+
+The sections below are historical preparation evidence. Their 1.1.0 source, seven-tools-only and no-portfolio-write statements are superseded by the current source and screenshot-sync documentation. Screenshot preparation stores a draft, confirmation modifies exact recorded holdings and cancellation changes proposal status; their annotations must not be represented as universally read-only. See [current source](../livestocks-oauth/README.md) and [screenshot-sync evidence](../../docs/SCREENSHOT_SYNC.md).
+
+Still needed: the owner's intended verified publisher, explicit countries and commerce decision; secure dedicated reviewer access and fixtures; a real hosted demo including screenshot confirmation/cancellation; policy coverage for this behavior; and tests/scans/attestations on the exact saved portal version. Current web-tool rechecks of the three public pages returned access errors, so the older successful URL checks below are not a fresh verification. Do not claim a submission-ready ZIP. Final packaging must use the authoritative current skill, exclude private bindings and preserve the existing installed plugin.
+
+---
+
 # LiveStocks public-release preparation
 
 **Preparation only: no public ZIP, upload, submission or publication.** Public candidate **1.2.0** is based on the active private **LiveStocks (OAuth) 1.1.0**, not the retired unauthenticated App. The public listing retains the approved LiveStocks brand; no private presentation or binding was changed by this draft.

@@ -1,3 +1,13 @@
+# Public preparation update — 2026-11-16
+
+**Incomplete, not an uploadable bundle.** Cloud readback confirms the active source is workspace release **1.1.3** (`pluginrel_6afad5c0a2c081919623d0a838fec5ff`). The public candidate remains 1.2.0. Its draft now includes optional human-confirmed screenshot reconciliation, six positive cases and three negative cases. These public submission cases remain unrun. The owner has requested global public publication; RABEN listing alone does not satisfy that request.
+
+Pending publisher/country/commerce answers, secure reviewer accounts, hosted real demo, current policy verification and saved-submission checks. Do not describe this version as universally read-only. Use the current cloud skill during final assembly; retain private bindings only in the original installed package. No cloud mutation, public upload or submission occurred in this update.
+
+The older preparation record follows for context; its source version and case count are superseded above.
+
+---
+
 # Incomplete public-submission draft
 
 **Not an uploadable package or submission-ready ZIP.** This separate draft now targets the active private **LiveStocks (OAuth)** source: App `asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`, plugin `plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`, private package **1.1.0**. The public candidate remains **1.2.0**. Its public display-name draft preserves the approved **LiveStocks** brand. The legacy private plugin was uninstalled with user approval; its owned cloud artifact and source were not permanently deleted.
