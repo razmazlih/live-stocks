@@ -220,6 +220,30 @@ export function getAuthDatabasePool(): Pool {
   return singleton.pool;
 }
 
+/** Explicit operator opt-in repairs both capability ceilings, never user grants.
+ * The provider seeds resources insert-only: changing config cannot upgrade an
+ * existing resource row, and issuance silently intersects scopes with that row.
+ */
+async function enableMcpResourceSync(bootstrap: ReturnType<typeof createBetterAuth>, headers: Headers, identifier: string): Promise<void> {
+  const resource = await bootstrap.api.adminGetOAuthResource({ headers, params: { identifier } });
+  const exactly = (actual: unknown, expected: readonly string[]) => Array.isArray(actual)
+    && actual.every(value => typeof value === 'string')
+    && JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
+  if (resource.identifier !== identifier || resource.disabled !== false || resource.accessTokenTtl !== 300
+    || resource.signingAlgorithm !== 'ES256' || resource.refreshTokenTtl != null || resource.signingKeyId != null
+    || resource.customClaims != null || resource.dpopBoundAccessTokensRequired !== false
+    || (!exactly(resource.allowedScopes, AUTH_SCOPES) && !exactly(resource.allowedScopes, MCP_ALLOWED_SCOPES))) {
+    throw new Error('Existing MCP resource policy requires review');
+  }
+  if (exactly(resource.allowedScopes, MCP_ALLOWED_SCOPES)) return;
+  const invariant = (value: object) => JSON.stringify(Object.entries(value)
+    .filter(([key]) => !['allowedScopes', 'updatedAt'].includes(key)).sort(([a], [b]) => a.localeCompare(b)));
+  const updated = await bootstrap.api.adminUpdateOAuthResource({ headers, params: { identifier }, body: { allowedScopes: [...MCP_ALLOWED_SCOPES] } });
+  if (!exactly(updated.allowedScopes, MCP_ALLOWED_SCOPES) || invariant(updated) !== invariant(resource)) {
+    throw new Error('MCP resource sync scope update was not confirmed');
+  }
+}
+
 /** Server/CLI setup only; no HTTP route exposes this function or its privileged instance. */
 export async function seedMcpClient(headers: Headers, redirectUris: string[], options: { enablePortfolioSync?: boolean } = {}): Promise<{ clientId: string; created: boolean }> {
   const config = betterAuthConfiguration();
@@ -256,14 +280,18 @@ export async function seedMcpClient(headers: Headers, redirectUris: string[], op
     }));
     const introspection = await probe.json().catch(() => null);
     if (!probe.ok || introspection?.active !== false) throw new Error('Configured MCP client secret requires review');
-    if (options.enablePortfolioSync === true && !exactly(row.scopes, MCP_ALLOWED_SCOPES)) {
+    if (options.enablePortfolioSync === true) {
       const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);
-      const updated = await bootstrap.api.adminUpdateOAuthClient({ headers, body: { client_id: config.mcpClientId, update: { scope: MCP_ALLOWED_SCOPES.join(' ') } } });
-      if (updated.client_id !== config.mcpClientId || typeof updated.scope !== 'string' || !exactly(updated.scope.split(' ').filter(Boolean), MCP_ALLOWED_SCOPES)) throw new Error('MCP sync scope update was not confirmed');
+      await enableMcpResourceSync(bootstrap, headers, config.mcpAudience);
+      if (!exactly(row.scopes, MCP_ALLOWED_SCOPES)) {
+        const updated = await bootstrap.api.adminUpdateOAuthClient({ headers, body: { client_id: config.mcpClientId, update: { scope: MCP_ALLOWED_SCOPES.join(' ') } } });
+        if (updated.client_id !== config.mcpClientId || typeof updated.scope !== 'string' || !exactly(updated.scope.split(' ').filter(Boolean), MCP_ALLOWED_SCOPES)) throw new Error('MCP sync scope update was not confirmed');
+      }
     }
     return { clientId: config.mcpClientId, created: false };
   }
   const bootstrap = createBetterAuth(config, singleton.pool, session.user.id);
+  if (options.enablePortfolioSync === true) await enableMcpResourceSync(bootstrap, headers, config.mcpAudience);
   const created = await bootstrap.api.adminCreateOAuthClient({ headers, body: {
     client_name: 'LiveStocks ChatGPT', redirect_uris: redirectUris, application_type: 'web',
     token_endpoint_auth_method: 'client_secret_post', grant_types: ['authorization_code', 'refresh_token'],

@@ -30,6 +30,15 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       BETTER_AUTH_WEBSITE_CLIENT_ID: state.websiteClientId, BETTER_AUTH_MCP_CLIENT_ID: state.mcpClientId, BETTER_AUTH_MCP_CLIENT_SECRET: randomBytes(48).toString('hex'),
       GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' };
     Object.entries(env).forEach(([key, value]) => vi.stubEnv(key, value as string));
+    // Model an existing deployment: the provider seeds resources insert-only.
+    // A later code release advertising sync must not mask the old DB policy.
+    const resourceAdmin = new Pool({ connectionString: state.adminDatabaseUrl });
+    try {
+      await resourceAdmin.query(`insert into livestocks_auth."oauthResource"
+        (id,identifier,name,"accessTokenTtl","signingAlgorithm","allowedScopes",disabled,"dpopBoundAccessTokensRequired","policyVersion","createdAt","updatedAt")
+        values($1,$2,$2,300,'ES256',$3::jsonb,false,false,1,now(),now())`,
+      [randomBytes(16).toString('hex'), state.origin + '/api/mcp', JSON.stringify(['openid', 'email', 'profile', 'offline_access', 'portfolio:read'])]);
+    } finally { await resourceAdmin.end(); }
     const debugAuth = getBetterAuth(); expect(debugAuth).not.toBeNull(); await debugAuth!.$context;
     const origin = state.origin, issuer = origin + '/api/auth', resource = origin + '/api/mcp', callback = 'http://localhost:3110/callback';
     const metadataResponse = await authorizationMetadata(new Request(origin + '/.well-known/oauth-authorization-server/api/auth'));
@@ -39,9 +48,9 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(metadata.scopes_supported).toEqual(expect.arrayContaining(['portfolio:read', 'portfolio:sync', 'offline_access']));
     expect(metadata.grant_types_supported).toEqual(expect.arrayContaining(['authorization_code', 'refresh_token']));
     expect(metadata.token_endpoint).toBe(issuer + '/oauth2/token');
-    async function request(path: string, body?: Record<string, unknown>, cookie = '', form = false) {
+    async function request(path: string, body?: Record<string, unknown>, cookie = '', form = false, browser = false) {
       const response = await handleBetterAuthRequest(new Request(path.startsWith('http') ? path : issuer + path, {
-        method: body ? 'POST' : 'GET', headers: { origin, ...(path.includes('/oauth2/authorize?') ? { 'sec-fetch-mode': 'cors' } : {}), ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' } : {}) },
+        method: body ? 'POST' : 'GET', headers: { origin, ...(path.includes('/oauth2/authorize?') ? { 'sec-fetch-mode': browser ? 'navigate' : 'cors', ...(browser ? { accept: 'text/html' } : {}) } : {}), ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' } : {}) },
         body: body ? (form ? new URLSearchParams(body as Record<string, string>).toString() : JSON.stringify(body)) : undefined,
       }));
       const data = await response.clone().json().catch(() => ({}));
@@ -77,12 +86,13 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       mcpClientId: state.mcpClientId, jwks: keys, requireLiveSessionEvidence: true, companionAudience: issuer + '/oauth2/userinfo' });
     expect((await verify(web.token, 'web')).userId).toBe(a.id);
     await expect(verify(web.token, 'mcp')).rejects.toThrow();
-    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false, scope = 'openid email profile offline_access portfolio:read') {
+    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false, scope = 'openid email profile offline_access portfolio:read', options: { prompt?: string; browser?: boolean } = {}) {
       const verifier = randomBytes(32).toString('base64url');
       const params = new URLSearchParams({ client_id: state.mcpClientId, response_type: 'code', redirect_uri: callback, scope,
-        prompt: 'consent', state: randomBytes(20).toString('hex'), nonce: randomBytes(20).toString('hex'), code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url') });
+        state: randomBytes(20).toString('hex'), nonce: randomBytes(20).toString('hex'), code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url') });
+      if (options.prompt !== '') params.set('prompt', options.prompt ?? 'consent');
       if (target !== null) params.set('resource', target);
-      const start = await request('/oauth2/authorize?' + params, undefined, cookie);
+      const start = await request('/oauth2/authorize?' + params, undefined, cookie, false, options.browser);
       let location = start.response.headers.get('location');
       if (start.data.redirect === true) { expect(start.response.status).toBe(200); expect(location).toBeNull(); expect(typeof start.data.url).toBe('string'); location = start.data.url; }
       if (reviewOnly) return { verifier, location, code: null, status: start.response.status };
@@ -144,14 +154,63 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(claims.portfolioSync).toBe(false);
     // Expanding the client's allowed scope is an explicit operator step. It does
     // not upgrade any existing consent, token, or read-only refresh grant.
-    await seedMcpClient(headers, [callback], { enablePortfolioSync: true });
+    const resourcePolicy = new Pool({ connectionString: state.adminDatabaseUrl });
+    try {
+      const policy = async () => (await resourcePolicy.query(`select to_jsonb(r)-'allowedScopes'-'updatedAt' as invariant,
+        "allowedScopes" as scopes from livestocks_auth."oauthResource" r where identifier=$1`, [resource])).rows[0];
+      const beforePolicy = await policy();
+      expect(beforePolicy.scopes).not.toContain('portfolio:sync');
+      await seedMcpClient(headers, [callback], { enablePortfolioSync: true });
+      expect((await policy()).scopes).toContain('portfolio:sync');
+      expect((await policy()).invariant).toEqual(beforePolicy.invariant);
+      // Production already had the expanded client. Repair the resource even
+      // when no client-scope update remains necessary, then rerun idempotently.
+      await resourcePolicy.query(`update livestocks_auth."oauthResource" set "allowedScopes"=$2::jsonb where identifier=$1`,
+        [resource, JSON.stringify(beforePolicy.scopes)]);
+      await seedMcpClient(headers, [callback], { enablePortfolioSync: true });
+      const repaired = await policy();
+      expect(repaired.scopes).toContain('portfolio:sync');
+      expect(repaired.invariant).toEqual(beforePolicy.invariant);
+      await seedMcpClient(headers, [callback], { enablePortfolioSync: true });
+      expect(await policy()).toEqual(repaired);
+      // Never override a disabled resource or an unreviewed scope ceiling.
+      await resourcePolicy.query(`update livestocks_auth."oauthResource" set disabled=true where identifier=$1`, [resource]);
+      await expect(seedMcpClient(headers, [callback], { enablePortfolioSync: true })).rejects.toThrow('resource policy requires review');
+      await resourcePolicy.query(`update livestocks_auth."oauthResource" set disabled=false,"allowedScopes"=$2::jsonb where identifier=$1`,
+        [resource, JSON.stringify([...repaired.scopes, 'portfolio:write'])]);
+      await expect(seedMcpClient(headers, [callback], { enablePortfolioSync: true })).rejects.toThrow('resource policy requires review');
+      await resourcePolicy.query(`update livestocks_auth."oauthResource" set "allowedScopes"=$2::jsonb where identifier=$1`, [resource, JSON.stringify(repaired.scopes)]);
+    } finally { await resourcePolicy.end(); }
     expect((await verify(positive.data.access_token, 'mcp')).portfolioSync).toBe(false);
     expect((await verify((await exchange()).data.access_token, 'mcp')).portfolioSync).toBe(false);
     const syncScope = 'openid email profile offline_access portfolio:read portfolio:sync';
-    const syncReviewStart = await authorize(a.cookie, resource, true, syncScope);
+    // Exercise the actual navigation/302 branch without forcing prompt=consent.
+    // The exact operation challenge does not request offline access; that must
+    // be preserved by the client's scope union, not silently added by the server.
+    const browserOptions = { prompt: '', browser: true };
+    const exactChallengeScopes = 'portfolio:read portfolio:sync';
+    const syncReviewStart = await authorize(a.cookie, resource, true, exactChallengeScopes, browserOptions);
+    expect(syncReviewStart.status).toBe(302);
+    expect(new URL(syncReviewStart.location!, origin).pathname).toBe('/oauth/consent');
     const syncReview = await getConsentReview(new URL(syncReviewStart.location!, origin).search.slice(1), headers);
-    expect(syncReview.scopes).toContain('portfolio:sync');
-    const syncIssued = await exchange(a.cookie, resource, syncScope);
+    expect(syncReview.scopes).toEqual(['portfolio:read', 'portfolio:sync']);
+    const exactCallback = new URL(await decideConsent({ query: syncReview.query, receipt: syncReview.receipt, accept: true }, headers));
+    const exactIssued = await token({ grant_type: 'authorization_code', code: exactCallback.searchParams.get('code'),
+      code_verifier: syncReviewStart.verifier, redirect_uri: callback, resource });
+    expect(exactIssued.response.status).toBe(200);
+    expect((await verify(exactIssued.data.access_token, 'mcp')).portfolioSync).toBe(true);
+    expect(exactIssued.data.refresh_token).toBeUndefined();
+    // A conforming step-up client preserves its earlier offline/identity scopes.
+    const unionCode = await authorize(a.cookie, resource, false, syncScope, browserOptions);
+    const syncIssued = await token({ grant_type: 'authorization_code', code: unionCode.code,
+      code_verifier: unionCode.verifier, redirect_uri: callback, resource });
+    expect(typeof syncIssued.data.refresh_token).toBe('string');
+    // Existing consent is sufficient on the next browser authorization: callback
+    // immediately contains a code, with no additional consent page or login.
+    const repeated = await authorize(a.cookie, resource, true, syncScope, browserOptions);
+    expect(repeated.status).toBe(302);
+    expect(new URL(repeated.location!, origin).origin).toBe(new URL(callback).origin);
+    expect(new URL(repeated.location!, origin).searchParams.get('code')).toBeTruthy();
     expect(syncIssued.response.status).toBe(200);
     const syncIdentity = await verify(syncIssued.data.access_token, 'mcp');
     expect(syncIdentity.portfolioSync).toBe(true);
