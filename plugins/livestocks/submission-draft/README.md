@@ -1,3 +1,7 @@
+## Confirmed publication choices — 2026-11-16
+
+The owner explicitly selected **all available countries** and **free use**. The public manifest encodes unrestricted country targeting as `publication.countries: []`; this is intentional, not an unknown value. Free use must be reflected truthfully in the portal commerce declaration once its exact field format is verified. Publisher identity remains unanswered. Older pending-country and pending-pricing statements below are superseded by this confirmation. No submission or public publication has occurred.
+
 # Public preparation update — 2026-11-16
 
 **Incomplete, not an uploadable bundle.** Cloud readback confirms the active source is workspace release **1.1.3** (`pluginrel_6afad5c0a2c081919623d0a838fec5ff`). The public candidate remains 1.2.0. Its draft now includes optional human-confirmed screenshot reconciliation, six positive cases and three negative cases. These public submission cases remain unrun. The owner has requested global public publication; RABEN listing alone does not satisfy that request.

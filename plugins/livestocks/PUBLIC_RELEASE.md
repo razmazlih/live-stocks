@@ -1,3 +1,7 @@
+## Confirmed publication choices — 2026-11-16
+
+The owner explicitly selected **all available countries** and **free use**. The public manifest encodes unrestricted country targeting as `publication.countries: []`; this is intentional, not an unknown value. Free use must be reflected truthfully in the portal commerce declaration once its exact field format is verified. Publisher identity remains unanswered. Older pending-country and pending-pricing statements below are superseded by this confirmation. No submission or public publication has occurred.
+
 # Current public preparation — 2026-11-16
 
 Live Plugin Creator readback confirms the existing plugin is WORKSPACE / LISTED in RABEN, version **1.1.3**, release `pluginrel_6afad5c0a2c081919623d0a838fec5ff`. This is not global public publication. The owner now requests public publication; earlier RABEN-only scope is superseded.
