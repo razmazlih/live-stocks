@@ -167,7 +167,7 @@ async function serve(state) {
       let resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
       const responseChunks = []; for await (const chunk of upstream) responseChunks.push(chunk);
       let responseBody = Buffer.concat(responseChunks);
-      const trace = authTrace({ productionAccess: state.productionAccess, requestUrl: request.url, rpc, protocol: request.headers['mcp-protocol-version'], status: upstream.statusCode, headers: resultHeaders, body: responseBody });
+      const trace = authTrace({ productionAccess: state.productionAccess, requestUrl: request.url, rpc, protocol: request.headers['mcp-protocol-version'], status: upstream.statusCode, headers: resultHeaders, body: responseBody, requestBody: body });
       if (trace) await appendFile(join(state.runtime, 'auth-trace.jsonl'), JSON.stringify(trace) + '\n', { mode: 0o600 });
       const diagnostic = await applyChatSyncResourceDiagnostic({ runtime: state.runtime, productionAccess: state.productionAccess, rpc, statusCode: upstream.statusCode, headers: resultHeaders, body: responseBody });
       resultHeaders = diagnostic.headers; responseBody = diagnostic.body;
