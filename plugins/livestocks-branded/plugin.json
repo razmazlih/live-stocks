@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "רז מצליח"
+  },
+  "description": "התיק שלך, מסודר בשיחה: ניתוח השקעות, עדכון מצילום מסך ורישום קניות ומכירות שכבר ביצעת, עם אישור שלך לפני השמירה. בלי פקודות מסחר.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "developerName": "רז מצליח",
+        "displayName": "LiveStocks",
+        "longDescription": "התיק שלך, מסודר בשיחה: ניתוח השקעות, עדכון מצילום מסך ורישום קניות ומכירות שכבר ביצעת, עם אישור שלך לפני השמירה. בלי פקודות מסחר.",
+        "shortDescription": "התיק שלך, מסודר בשיחה",
+        "composerIcon": "./assets/livestocks-composer.png",
+        "logo": "./assets/livestocks-logo.png"
+      }
+    }
+  },
+  "name": "livestocks-branded",
+  "version": "1.2.0"
+}

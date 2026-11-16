@@ -38,3 +38,10 @@ The user explicitly approved pushing to `razmazlih/live-stocks`. The feature bra
 The previously stalled legacy administration page was successfully loaded through the native Chrome UI. Searching LiveStocks → Drafts → the exact original App opened `/admin/apps/asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`. It reports the correct URL and all 16 tools. Its About → Edit control edits only Description. The draft's menu offers only View details and Delete; no logo control is exposed. Nothing was enabled, published, deleted or otherwise changed in this view.
 
 The new Admin Console was then opened for the same workspace/plugin. Its detail page showed version 1.2.0; clicking Configure once again ended with “Plugins unavailable — You don’t have access to plugins in this workspace.” This is the concrete remaining blocker to the owning App configuration. The existing correctly packaged PNGs and card icon are preserved. No unsupported endpoint, access-control change, replacement App or repeated archive upload was attempted. The registered detail-page icon remains unresolved; the support draft below now includes this exact reproduction.
+
+
+## Authorized replacement preparation
+
+The user explicitly authorized a new LiveStocks connection, provided the original stays active until the replacement is verified. The private [candidate package](../plugins/livestocks-branded/README.md) was created once, carrying the exact original cloud 1.2.0 skill and production endpoint. Actual ChatGPT inspection showed a desktop-only entry point and a generic icon, so it is **not** a verified replacement. The original App and grant remain unchanged.
+
+The ChatGPT Add custom MCP server form does expose icon upload. A new form was prepared with the original endpoint, current Hebrew description, discovered read/sync/transaction scopes and `client_secret_post`. File upload requires Chrome extension file-URL access; confirmation was requested before enabling it. User-defined OAuth client credentials must be entered directly in the form. No replacement App or new grant has been finalized. No support contact was made.
