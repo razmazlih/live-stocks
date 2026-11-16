@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildCloseProposalSnapshot } from '@/lib/close-proposal-snapshot';
 import type { Position, PositionMetrics } from '@/types';
@@ -75,6 +76,32 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
+  it.each(['http_header', 'request_metadata'])('satisfies the 2026 per-request resource contract with private immediately-stale cache hints (%s)', async transport => {
+    const resourceUri = 'ui://livestocks/screenshot-sync-v1.html';
+    const raw = await POST(request('resources/read', { uri: resourceUri, ...(transport === 'request_metadata' ? { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } : {}) }, transport === 'http_header' ? { 'mcp-protocol-version': '2026-07-28' } : undefined));
+    const envelope = await raw.json();
+    const hostReadContract = z.object({ resultType: z.literal('complete'), ttlMs: z.number().int().nonnegative(), cacheScope: z.enum(['private', 'public']), contents: z.array(z.object({ uri: z.string(), mimeType: z.string(), text: z.string() })) });
+    expect(hostReadContract.safeParse(envelope.result).success).toBe(true);
+    expect(envelope.result).toMatchObject({ resultType: 'complete', ttlMs: 0, cacheScope: 'private' });
+    expect(raw.headers.get('cache-control')).toContain('private, no-store');
+    expect(envelope.result.contents[0].uri).toBe(resourceUri);
+    expect(envelope.result.contents[0].text).not.toContain('private-app-capability');
+  });
+  it.each(['tools/list', 'resources/list', 'resources/templates/list', 'server/discover'])('emits the required 2026 caching envelope for %s', async method => {
+    const modern = (await (await POST(request(method, { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }))).json()).result;
+    expect(modern).toMatchObject({ resultType: 'complete', ttlMs: 0, cacheScope: 'private' });
+    const legacy = (await (await POST(request(method, undefined, { 'mcp-protocol-version': '2025-11-25' }))).json()).result;
+    expect(legacy).not.toHaveProperty('ttlMs');
+    expect(legacy).not.toHaveProperty('cacheScope');
+    expect(legacy).not.toHaveProperty('resultType');
+  });
+  it('supports per-request legacy metadata and never puts cache hints on tool invocation results', async () => {
+    const legacy = (await (await POST(request('resources/read', { uri: 'ui://livestocks/screenshot-sync-v1.html', _meta: { 'io.modelcontextprotocol/protocolVersion': '2025-11-25' } }))).json()).result;
+    expect(legacy).not.toHaveProperty('ttlMs'); expect(legacy).not.toHaveProperty('resultType');
+    const modernTool = await call('get_profile');
+    expect(modernTool.resultType).toBe('complete');
+    expect(modernTool).not.toHaveProperty('ttlMs'); expect(modernTool).not.toHaveProperty('cacheScope');
+  });
   it('keeps the final capability out of model-visible content and serves an inline resource', async () => {
     mocks.prepare.mockResolvedValueOnce({ value: { proposalId: 'review-id', status: 'pending', plan: { canApply: true } }, meta: { confirmationSecret: 'private-app-capability' } });
     const prepared = await call('prepare_screenshot_sync', {});
