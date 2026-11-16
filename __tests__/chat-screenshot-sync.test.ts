@@ -33,12 +33,26 @@ describe('ChatGPT-scoped screenshot proposals', () => {
   it('does not persist blocked or unchanged drafts or issue a confirmation capability', async () => {
     const result = await prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] });
     expect(result.value.status).toBe('needs_details'); expect(result.meta).toBeUndefined();
-    expect(rpc).toHaveBeenCalledExactlyOnceWith('screenshot_sync_snapshot', {});
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot', 'supersede_pending_chat_sync_proposals']);
+    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: null });
   });
   it('invalidates a previous pending card even if the correction is incomplete', async () => {
     await prepareChatScreenshotSync(principal, { ...input, previousProposalId: id, rows: [{ ...input.rows[0], averageCostUsd: null }] });
-    expect(rpc).toHaveBeenLastCalledWith('supersede_chat_sync_proposal', { p_id: id });
+    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: id });
     expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
+  });
+  it('invalidates pending cards for an unchanged correction without a model-supplied previous ID', async () => {
+    const result = await prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], quantity: 0, averageCostUsd: null }] });
+    expect(result.value.status).toBe('unchanged');
+    expect(result.meta).toBeUndefined();
+    expect(rpc).toHaveBeenLastCalledWith('supersede_pending_chat_sync_proposals', { p_previous_id: null });
+    expect(rpc.mock.calls.some(call => call[0] === 'create_chat_sync_proposal')).toBe(false);
+  });
+  it('does not report a corrected draft successfully if invalidating older cards fails', async () => {
+    rpc.mockImplementation(async name => name === 'screenshot_sync_snapshot'
+      ? { data: { positions: [], lots: [], sources, fingerprint: 'a'.repeat(32) }, error: null }
+      : { data: null, error: { message: 'private detail' } });
+    await expect(prepareChatScreenshotSync(principal, { ...input, rows: [{ ...input.rows[0], averageCostUsd: null }] })).rejects.toThrow('ההצעה אינה זמינה');
   });
   it('passes previous proposal for atomic supersession, never appends an editable confirm payload', async () => {
     await prepareChatScreenshotSync(principal, { ...input, previousProposalId: id });

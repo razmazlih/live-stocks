@@ -292,5 +292,6 @@
     "A successful tool preparation and HTTP200 resource read do not prove a user can open the app or confirm.",
     "All holdings in this artifact are generated test fixtures, not the real owner portfolio.",
     "Exact before/after equality establishes no synthetic financial change during preparation; it does not prove successful inline confirmation."
-  ]
+  ],
+  "resolvedBy": "chat-sync-chatgpt-acceptance-2026-11-16.json"
 }

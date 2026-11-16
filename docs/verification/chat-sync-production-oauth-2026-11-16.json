@@ -1,0 +1,62 @@
+{
+  "createdAt": "2026-11-16T10:05:32.784Z",
+  "operation": "existing_client_optional_sync_only",
+  "financialDataAccessed": false,
+  "newSessionCreated": false,
+  "newUserGrantCreated": false,
+  "exactPriorVerifiedSessionValid": true,
+  "before": {
+    "clientInvariantDigest": "d145738b0070b7080327498e5a717b583cf0848191cff465a9fdafc44961daeb",
+    "scopes": [
+      "openid",
+      "email",
+      "profile",
+      "offline_access",
+      "portfolio:read"
+    ],
+    "grants": {
+      "oauthAccessToken": {
+        "count": 0,
+        "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "oauthRefreshToken": {
+        "count": 57,
+        "digest": "95e571b4d270d12e83ee6406cd0bfcf37857516e7950af18fc9545159d59fe7e"
+      },
+      "oauthConsent": {
+        "count": 2,
+        "digest": "fdcd216c26f97b08829eaadbfe41a87d2facd51641ffc3d03d9a6b079a1dfab6"
+      }
+    }
+  },
+  "reviewPassed": true,
+  "after": {
+    "clientInvariantDigest": "d145738b0070b7080327498e5a717b583cf0848191cff465a9fdafc44961daeb",
+    "scopes": [
+      "openid",
+      "email",
+      "profile",
+      "offline_access",
+      "portfolio:read",
+      "portfolio:sync"
+    ],
+    "grants": {
+      "oauthAccessToken": {
+        "count": 0,
+        "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "oauthRefreshToken": {
+        "count": 57,
+        "digest": "95e571b4d270d12e83ee6406cd0bfcf37857516e7950af18fc9545159d59fe7e"
+      },
+      "oauthConsent": {
+        "count": 2,
+        "digest": "fdcd216c26f97b08829eaadbfe41a87d2facd51641ffc3d03d9a6b079a1dfab6"
+      }
+    }
+  },
+  "clientInvariantUnchanged": true,
+  "existingGrantsExactlyUnchanged": true,
+  "status": "PASS_EXISTING_CLIENT_SYNC_OPT_IN",
+  "temporaryCredentialsRemoved": true
+}

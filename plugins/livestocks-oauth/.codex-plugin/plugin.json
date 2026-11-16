@@ -1,9 +1,5 @@
 {
   "apps": "./.app.json",
-  "author": {
-    "name": "App developer"
-  },
-  "description": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
   "interface": {
     "capabilities": [],
     "category": "Other",
@@ -16,7 +12,11 @@
     "logo": "./assets/livestocks-logo.png"
   },
   "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
-  "version": "1.1.2",
-  "skills": "./skills",
-  "keywords": []
+  "version": "1.1.3",
+  "description": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
+  "author": {
+    "name": "App developer"
+  },
+  "keywords": [],
+  "skills": "./skills"
 }

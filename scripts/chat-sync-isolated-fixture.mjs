@@ -3,7 +3,7 @@
  * Never loads .env, existing databases, cloud projects, production keys or portfolios.
  * The public HTTPS tunnel must forward to loopback port 3137. All data is synthetic.
  */
-import { readFile, writeFile, mkdtemp, mkdir, symlink, readdir, rm, realpath, chmod, open } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, mkdir, symlink, readdir, rm, realpath, chmod, open, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -13,8 +13,13 @@ import { createServer as createNetServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import { Pool } from 'pg';
+import { Pool, types as pgTypes } from 'pg';
+// Real PostgREST emits DATE as a calendar string; do not shift it via local TZ.
+pgTypes.setTypeParser(1082, value => value);
 import { SignJWT } from 'jose';
+import { applyChatSyncResourceDiagnostic } from './lib/chat-sync-resource-diagnostic.mjs';
+import { makeLostConfirmationReply } from './lib/chat-sync-fixture-fault.mjs';
+import { gunzipSync, brotliDecompressSync, inflateSync } from 'node:zlib';
 const execute = promisify(execFile);
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GATEWAY_PORT = 3137, NEXT_PORT = 3140;
@@ -126,7 +131,9 @@ async function snapshot(state) {
       const originals = await pool.query("select count(*)::int as count,encode(sha256(convert_to(coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]'::jsonb)::text,'UTF8')),'hex')as digest from public.position_lots t where user_id=$1 and side<>'RECONCILE'", [user.profileId]);
       const positions = await pool.query('select * from public.positions where user_id=$1 order by id', [user.profileId]);
       const lots = await pool.query('select * from public.position_lots where user_id=$1 order by executed_at,created_at,id', [user.profileId]);
-      const holdings = positions.rows.map(position => sdk.mapPositionRow({ ...position, position_lots: lots.rows.filter(lot => lot.position_id === position.id) }));
+      // Match the real PostgREST JSON date representation, not pg's Date objects.
+      const restPositions = JSON.parse(JSON.stringify(positions.rows)), restLots = JSON.parse(JSON.stringify(lots.rows));
+      const holdings = restPositions.map(position => sdk.mapPositionRow({ ...position, position_lots: restLots.filter(lot => lot.position_id === position.id) }));
       accounts.push({ account: index + 1, tables, originalTradeLots: originals.rows[0], holdings: holdings.map(position => ({ symbol: position.symbol, quantity: position.quantity, averageCostUsd: position.entryPrice, recordedRealizedProfitUsd: sdk.computeRealizedSales(position).reduce((sum,sale) => sum + sale.profitUsd,0) })) });
     }
     return { productionAccess: false, sourceCommit: state.sourceCommit, accounts };
@@ -144,8 +151,8 @@ async function serve(state) {
     try {
       const chunks = []; for await (const chunk of request) chunks.push(chunk);
       const body = Buffer.concat(chunks);
-      let loseConfirm = false;
-      try { const rpc = JSON.parse(body.toString('utf8')); loseConfirm = path === '/api/mcp' && rpc.method === 'tools/call' && rpc.params?.name === 'confirm_screenshot_sync' && existsSync(join(state.runtime, 'lose-next-confirm.flag')); } catch {}
+      let loseConfirm = false, rpc = null;
+      try { rpc = JSON.parse(body.toString('utf8')); loseConfirm = path === '/api/mcp' && rpc.method === 'tools/call' && rpc.params?.name === 'confirm_screenshot_sync' && existsSync(join(state.runtime, 'lose-next-confirm.flag')); } catch {}
       // Raw HTTP preserves navigation Sec-Fetch headers and compressed bytes.
       // Undici fetch overwrites sec-fetch-mode to cors, changing the real OAuth
       // provider's browser redirect into a JSON transport response.
@@ -153,15 +160,23 @@ async function serve(state) {
         const proxy = httpRequest(target, { method: request.method, headers }, yes);
         proxy.once('error', no); proxy.end(['GET', 'HEAD'].includes(request.method) ? undefined : body);
       });
-      const resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
+      let resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
       const responseChunks = []; for await (const chunk of upstream) responseChunks.push(chunk);
-      const responseBody = Buffer.concat(responseChunks);
+      let responseBody = Buffer.concat(responseChunks);
+      const diagnostic = await applyChatSyncResourceDiagnostic({ runtime: state.runtime, productionAccess: state.productionAccess, rpc, statusCode: upstream.statusCode, headers: resultHeaders, body: responseBody });
+      resultHeaders = diagnostic.headers; responseBody = diagnostic.body;
+      if (diagnostic.observation.applied) await appendFile(join(state.runtime, 'resource-diagnostic-observations.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...diagnostic.observation }) + '\n', { mode: 0o600 });
       if (loseConfirm) {
         try {
-          const receipt = JSON.parse(responseBody.toString('utf8'));
+          let decoded = responseBody; const encoding = String(resultHeaders['content-encoding'] || '').toLowerCase();
+          if (encoding === 'gzip') decoded = gunzipSync(decoded); else if (encoding === 'br') decoded = brotliDecompressSync(decoded); else if (encoding === 'deflate') decoded = inflateSync(decoded);
+          const receipt = JSON.parse(decoded.toString('utf8'));
           if (receipt.result?.structuredContent?.applied === true) {
             await rm(join(state.runtime, 'lose-next-confirm.flag'), { force: true });
-            const payload = JSON.parse(body.toString('utf8')); response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); response.end(JSON.stringify({ jsonrpc: '2.0', id: payload.id, result: { isError: true, content: [{ type: 'text', text: 'Synthetic test: confirmation response was lost after execution. Retry the same proposal.' }] } })); return;
+            const payload = JSON.parse(body.toString('utf8'));
+            const protocolVersion = request.headers['mcp-protocol-version'] ?? payload.params?._meta?.['io.modelcontextprotocol/protocolVersion'] ?? '2026-07-28';
+            response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+            response.end(JSON.stringify(makeLostConfirmationReply({ productionAccess: state.productionAccess, id: payload.id, protocolVersion }))); return;
           }
         } catch {}
       }

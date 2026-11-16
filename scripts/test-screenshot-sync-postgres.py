@@ -11,6 +11,7 @@ import os
 import pathlib
 import shutil
 import socket
+import re
 import subprocess
 import tempfile
 import uuid
@@ -18,9 +19,17 @@ import uuid
 if len(__import__('sys').argv) != 1:
     raise ValueError('Local-only runner accepts no arguments')
 root = pathlib.Path(__file__).resolve().parent.parent
+binding_migration = root / 'supabase/migrations/20261116092048_one_pending_chat_sync_review.sql'
+# The release migration may retire pending reviews and change function ACLs,
+# but must contain no direct financial INSERT, UPDATE or DELETE statement.
+assert not re.search(r'\b(?:insert\s+into|update|delete\s+from)\s+(?:public\.)?(?:positions|position_lots|position_plans|settings|watchlist_groups|watchlist_tickers|investment_sources)\b', binding_migration.read_text(), re.I)
 runtime = pathlib.Path(tempfile.mkdtemp(prefix='livestocks-screenshot-native-'))
 runtime.chmod(0o700)
-env = {'PATH': os.environ['PATH'], 'LC_ALL': 'C'}
+# Prefer the installed PG17 runtime to exercise managed PostgreSQL's explicit
+# SET/INHERIT membership semantics rather than silently testing PG14 behavior.
+pg17_bin = pathlib.Path('/opt/homebrew/opt/postgresql@17/bin')
+runtime_path = str(pg17_bin) + os.pathsep + os.environ['PATH'] if (pg17_bin / 'initdb').is_file() else os.environ['PATH']
+env = {'PATH': runtime_path, 'LC_ALL': 'C'}
 started = False
 
 
@@ -98,11 +107,33 @@ try:
         "create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;"
         "grant usage on schema auth,public to anon,authenticated,service_role")
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
-        sql(path=migration)
+        if migration != binding_migration:
+            sql(path=migration)
     sql("insert into public.user_profiles(id) values('fixture-a'),('fixture-b');"
         "insert into private.auth_config(singleton,issuer,website_client_id,mcp_client_id,website_audience,mcp_audience,auth_provider) values(true,'https://fixture.invalid/auth','fixture-web','fixture-mcp','https://fixture.invalid/web','https://fixture.invalid/mcp','better_auth');"
         "create or replace function private.authorized_subject(require_write boolean default false) returns text language sql stable security definer set search_path='' as $$"
         "select case when (not require_write or auth.jwt()->>'write'='true') and auth.jwt()->>'live' is distinct from 'false' and auth.jwt()->>'sub' in ('fixture-a','fixture-b') then auth.jwt()->>'sub' end$$")
+    # Reproduce managed Supabase ownership: the migration runner can SET the
+    # restricted executor role but does not inherit its function ownership.
+    # Seed the real observed legacy PUBLIC grants so the fix must remove them.
+    sql("create role fixture_migrator login noinherit nosuperuser nobypassrls createrole;"
+        "grant livestocks_sync_executor to fixture_migrator with admin true,inherit false,set true;"
+        "grant usage,create on schema private,public to fixture_migrator;"
+        "alter schema private owner to fixture_migrator;"
+        "alter table private.chat_sync_proposals owner to fixture_migrator;"
+        "grant execute on function private.apply_chat_screenshot_sync(text,jsonb),private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid) to public;")
+    for signature in ['create_chat_sync_proposal(uuid,text,jsonb,jsonb,text,uuid)', 'read_chat_sync_proposal(uuid)',
+                      'cancel_chat_sync_proposal(uuid,text)', 'confirm_chat_sync_proposal(uuid,text)', 'supersede_chat_sync_proposal(uuid)']:
+        sql(f'alter function public.{signature} owner to fixture_migrator')
+    assert sql("select not rolsuper and not rolinherit from pg_roles where rolname='fixture_migrator'") == 't'
+    assert sql("select pg_has_role('fixture_migrator','livestocks_sync_executor','MEMBER') and not pg_has_role('fixture_migrator','livestocks_sync_executor','USAGE')") == 't'
+    sql('set session authorization fixture_migrator;\n' + binding_migration.read_text())
+    for role in ['anon', 'authenticated', 'service_role', 'livestocks_auth_backend']:
+        assert sql(f"select has_function_privilege('{role}','private.apply_chat_screenshot_sync(text,jsonb)','EXECUTE') or has_function_privilege('{role}','private.chat_sync_dispatch_saved(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 'f'
+    assert sql("select has_function_privilege('authenticated','private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 't'
+    assert sql("select has_function_privilege('anon','private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 'f'
+    assert sql("select has_schema_privilege('livestocks_sync_executor','private','CREATE')") == 'f'
+    print('PASS managed non-superuser SET-only ownership migration, legacy PUBLIC privilege cleanup, exact executor ACLs and zero financial DML source guard')
     source_one = json.loads(as_user('select public.screenshot_sync_snapshot()'))['sources'][0]['id']
     source_two = json.loads(as_user("insert into public.investment_sources(name) values('מקור נוסף') returning to_jsonb(investment_sources)"))['id']
     snapshot = json.loads(as_user('select public.screenshot_sync_snapshot()'))
@@ -259,6 +290,74 @@ try:
     assert json.loads(mcp(f"select public.read_chat_sync_proposal('{stale_id}')"))['status'] == 'pending'
     assert sql("select has_function_privilege('authenticated','public.apply_chat_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
     assert sql("select has_function_privilege('anon','public.confirm_chat_sync_proposal(uuid,text)','EXECUTE')") == 'f'
+    # A model can omit previousProposalId. Only one pending card may remain in
+    # the exact binding, while independent sessions/grants/accounts stay intact.
+    unchanged_financial = json.loads(mcp('select public.screenshot_sync_snapshot()'))
+    auto_a, auto_b = str(uuid.uuid4()), str(uuid.uuid4())
+    auto_target = dict(next_target, lotId=str(uuid.uuid4()))
+    auto_a_query = create_proposal(auto_a, unchanged_financial['fingerprint'], auto_target, secret)
+    foreign_id, other_session_id, other_grant_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+    another_grant = str(uuid.uuid4())
+    foreign_query = create_proposal(foreign_id, transferred['fingerprint'], auto_target, secret)
+    mcp(foreign_query, owner='fixture-b')
+    mcp(create_proposal(other_session_id, unchanged_financial['fingerprint'], auto_target, secret), session='isolated-session')
+    mcp(create_proposal(other_grant_id, unchanged_financial['fingerprint'], auto_target, secret), grant=another_grant)
+    mcp(auto_a_query)
+    auto_b_query = create_proposal(auto_b, unchanged_financial['fingerprint'], dict(auto_target, lotId=str(uuid.uuid4())), secret)
+    mcp(auto_b_query)  # no explicit previous ID
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_a}')"))['status'] == 'superseded'
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{auto_a}','{secret}')", sync=True)
+    assert json.loads(mcp(auto_a_query))['status'] == 'superseded'
+    assert json.loads(mcp(create))['status'] == 'applied'  # old saved receipt retry
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'
+    mcp_rejected(create_proposal(str(uuid.uuid4()), unchanged_financial['fingerprint'], auto_target, secret, misleading=True))
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'  # failed replacement rolls back retirement
+    mcp_rejected(create_proposal(str(uuid.uuid4()), unchanged_financial['fingerprint'], auto_target, secret, previous=foreign_id))
+    mcp_rejected("select public.supersede_pending_chat_sync_proposals()")  # requires sync scope
+    mcp_rejected(f"select public.supersede_pending_chat_sync_proposals('{foreign_id}')", sync=True)
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{auto_b}')"))['status'] == 'pending'
+    assert json.loads(mcp('select public.supersede_pending_chat_sync_proposals()', sync=True))['superseded'] == 1
+    assert json.loads(mcp('select public.supersede_pending_chat_sync_proposals()', sync=True))['superseded'] == 0
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{auto_b}','{secret}')", sync=True)
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{foreign_id}')", owner='fixture-b'))['status'] == 'pending'
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{other_session_id}')", session='isolated-session'))['status'] == 'pending'
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{other_grant_id}')", grant=another_grant))['status'] == 'pending'
+    assert json.loads(mcp('select public.screenshot_sync_snapshot()')) == unchanged_financial
+    assert sql("select has_function_privilege('authenticated','private.chat_sync_dispatch_saved(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 'f'
+    # Local catalog security checks supplement the runtime owner/RLS tests. CLI
+    # 2.54 has no advisors command and native Postgres has no plpgsql_check addon.
+    assert sql("select relrowsecurity from pg_class where oid='private.chat_sync_proposals'::regclass") == 't'
+    assert sql("select has_table_privilege('authenticated','private.chat_sync_proposals','SELECT')") == 'f'
+    assert sql("select has_function_privilege('anon','public.supersede_pending_chat_sync_proposals(uuid)','EXECUTE')") == 'f'
+    assert sql("select has_function_privilege('service_role','public.supersede_pending_chat_sync_proposals(uuid)','EXECUTE')") == 'f'
+    assert sql("select not prosecdef and proconfig @> array['search_path=\"\"'] from pg_proc where oid='public.supersede_pending_chat_sync_proposals(uuid)'::regprocedure") == 't'
+    assert sql("select prosecdef and pg_get_userbyid(proowner)='livestocks_sync_executor' and proconfig @> array['search_path=\"\"'] from pg_proc where oid='private.chat_sync_dispatch(text,uuid,text,jsonb,jsonb,text,text,uuid)'::regprocedure") == 't'
+    assert sql("select indisunique and indpred is not null from pg_index where indexrelid='private.chat_sync_one_pending_binding_idx'::regclass") == 't'
+
+    # Hold a real transaction after replacement to force the old confirmation to
+    # wait on the same binding lock. It must wake to a superseded card, not apply.
+    race_old, race_new = str(uuid.uuid4()), str(uuid.uuid4())
+    race_target = dict(auto_target, quantity=15, lotId=str(uuid.uuid4()))
+    mcp(create_proposal(race_old, unchanged_financial['fingerprint'], race_target, secret))
+    new_query = create_proposal(race_new, unchanged_financial['fingerprint'], dict(race_target, quantity=16, lotId=str(uuid.uuid4())), secret)
+    claims = json.dumps({'sub': 'fixture-a', 'write': False, 'azp': 'fixture-mcp', 'sid': 'fixture-session',
+        'https://livestocks.app/grant_id': fixture_grant, 'https://livestocks.app/read_only': True,
+        'scope': 'portfolio:read portfolio:sync'})
+    held = subprocess.Popen(['psql', url, '-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'],
+        env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        held.stdin.write(f"begin;set local role authenticated;set local request.jwt.claims='{claims}';{new_query};select pg_sleep(0.5);commit;")
+        held.stdin.close();held.stdin = None
+        assert json.loads(held.stdout.readline())['id'] == race_new
+        mcp_rejected(f"select public.confirm_chat_sync_proposal('{race_old}','{secret}')", sync=True)
+        _, diagnostics = held.communicate(timeout=10)
+        assert held.returncode == 0, diagnostics
+    finally:
+        if held.poll() is None:
+            held.kill();held.communicate()
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{race_new}')"))['status'] == 'pending'
+    assert json.loads(mcp('select public.screenshot_sync_snapshot()')) == unchanged_financial
+    print('PASS automatic single pending card, omitted previous ID, terminal retry preservation, isolated binding invalidation, and real replacement-versus-confirm transaction serialization')
     print('PASS persisted inline chat reviews, exact display binding, scope-limited confirmation, session/grant isolation, hidden hash, retry receipt, supersession/cancellation, expiry, revocation and stale rejection; direct MCP writes remain denied')
     sql("update public.user_profiles set merge_state='frozen' where id='fixture-a'")
     rejected(apply(before['fingerprint'], [dict(new, symbol='LOCKED', lotId=str(uuid.uuid4()))]))

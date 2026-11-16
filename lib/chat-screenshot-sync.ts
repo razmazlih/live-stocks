@@ -53,7 +53,7 @@ export async function prepareChatScreenshotSync(principal: Principal, raw: unkno
     mapPositionRow({ ...row, position_lots: snapshot.lots.filter((lot: { position_id: string }) => lot.position_id === row.id) }));
   const source = activeSourceForSync(snapshot.sources, input.location);
   const plan = { ...buildScreenshotSyncPlan(input, positions), sourceName: source.name };
-  if (!plan.canApply && previousProposalId) await rpc(principal, 'supersede_chat_sync_proposal', { p_id: previousProposalId });
+  if (!plan.canApply) await rpc(principal, 'supersede_pending_chat_sync_proposals', { p_previous_id: previousProposalId ?? null });
   if (!plan.canApply) return { value: { input, plan, status: plan.blocked.length ? 'needs_details' : 'unchanged', instructions: plan.blocked.length ? 'יש להשלים רק את הפרטים החסרים. תאריך רכישה אינו חובה.' : 'היתרות כבר תואמות; לא נדרש שינוי.' } };
   const proposalId = randomUUID(), confirmationSecret = randomBytes(32).toString('base64url');
   const symbols = new Set(plan.changes.map(row => row.symbol));
@@ -64,7 +64,7 @@ export async function prepareChatScreenshotSync(principal: Principal, raw: unkno
     p_id: proposalId, p_expected: snapshot.fingerprint, p_rows: rows, p_review: { input, plan },
     p_confirmation_hash: createHash('sha256').update(confirmationSecret).digest('hex'), p_previous_id: previousProposalId ?? null,
   });
-  return { value: { ...publicChatReview(data), instructions: 'בדקו את השינויים ולחצו ״אישור סנכרון״ בכרטיס כאן בצ׳אט. אין צורך לפתוח אתר. תאריך חסר אינו מעכב.' },
+  return { value: { ...publicChatReview(data), instructions: 'הסקירה החדשה מחליפה אוטומטית סקירות קודמות שממתינות לאישור בחיבור הזה. בדקו את השינויים ולחצו ״אישור סנכרון״ בכרטיס כאן בצ׳אט. אין צורך לפתוח אתר. תאריך חסר אינו מעכב.' },
     meta: { confirmationSecret } };
 }
 export async function reviewChatScreenshotSync(principal: Principal, raw: unknown) {

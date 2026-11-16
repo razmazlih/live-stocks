@@ -5,18 +5,21 @@
  * Result _meta is widget-only. Never copy confirmationSecret into model context,
  * DOM attributes, localStorage, follow-up messages or diagnostic logs.
  */
-export const CHAT_SYNC_RESOURCE_URI = 'ui://livestocks/screenshot-sync-v1.html';
+export const CHAT_SYNC_RESOURCE_URI = 'ui://livestocks/screenshot-sync-v4.html';
 export const CHAT_SYNC_RESOURCE_MIME = 'text/html;profile=mcp-app';
 export const CHAT_SYNC_APP_HTML = String.raw`<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>סקירת סנכרון LiveStocks</title>
 <style>
-:root{color-scheme:light dark;font:15px/1.5 system-ui,sans-serif;color:var(--color-text-primary,#172033);background:var(--color-background-primary,Canvas)}*{box-sizing:border-box}body{margin:0;padding:16px}main{max-width:760px;margin:auto}h1{font-size:19px;margin:0 0 6px}p{margin:8px 0}.muted,small{color:var(--color-text-secondary,#64748b)}.table-wrap{overflow:auto;max-height:340px;border:1px solid var(--color-border-primary,#cbd5e1);border-radius:12px;margin:12px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px;text-align:right;border-bottom:1px solid var(--color-border-primary,#e2e8f0)}th{position:sticky;top:0;font-weight:600;background:var(--color-background-secondary,#f1f5f9)}tr:last-child td{border:0}.numbers{white-space:nowrap;direction:ltr;display:inline-block}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{font:inherit;border-radius:10px;min-height:44px;padding:9px 18px;cursor:pointer;border:1px solid var(--color-border-primary,#94a3b8);background:var(--color-background-primary,Canvas);color:inherit}button.primary{background:var(--color-background-inverse,#172033);color:var(--color-text-inverse,#fff);border-color:transparent}button:disabled{opacity:.45;cursor:default}button:focus-visible,summary:focus-visible{outline:3px solid #60a5fa;outline-offset:3px}details{font-size:13px;margin-top:12px}summary{cursor:pointer}#error{color:var(--color-text-danger,#b91c1c)}[hidden]{display:none!important}#status{min-height:24px}.success{font-weight:600;color:var(--color-text-success,#15803d)}@media(max-width:420px){body{padding:12px}th,td{padding:8px 6px;font-size:12px}.actions button{flex:1}}
+:root{color-scheme:light dark;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--color-text-primary,CanvasText);background:var(--color-background-primary,Canvas);--line:var(--color-border-primary,color-mix(in srgb,CanvasText 11%,transparent));--muted:var(--color-text-secondary,color-mix(in srgb,CanvasText 56%,transparent));--soft:var(--color-background-secondary,color-mix(in srgb,CanvasText 4%,Canvas))}
+*{box-sizing:border-box}body{margin:0;padding:20px}main{max-width:760px;margin:auto}p{margin:0}.card-header{display:flex;gap:10px;align-items:center;margin-bottom:18px}.sync-icon{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:10px;background:var(--soft);color:var(--muted)}.sync-icon svg{width:18px;height:18px}h1{font-size:17px;line-height:1.4;font-weight:650;letter-spacing:-.3px;margin:0}.muted,small{color:var(--muted)}#description{margin-top:2px;font-size:12px;line-height:1.6}.table-wrap{max-height:350px;overflow:auto;overscroll-behavior:contain;border-radius:16px}table{display:block;width:100%;border-spacing:0}.sr-only,caption{position:absolute!important;overflow:hidden;width:1px;height:1px;clip-path:inset(50%);white-space:nowrap}tbody{display:grid;gap:10px}.holding-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 26px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--color-background-primary,Canvas)}.holding-identity{grid-column:1/-1;padding:0;display:flex;align-items:center;gap:10px;min-width:0}.ticker-avatar{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:12px;background:var(--soft);font-size:12px;letter-spacing:-.2px;font-weight:650}.ticker-info{min-width:0;flex:1}.ticker-symbol{display:block;width:fit-content;font-size:15px;font-weight:650;letter-spacing:.15px}.acquisition-date{display:block;margin-top:1px;font-size:10px;font-weight:400}.holding-kind{flex:none;padding:3px 8px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:10px;font-weight:450;white-space:nowrap}.holding-stat{display:block;min-width:0;padding:0}.stat-label{display:block;color:var(--muted);font-size:11px;font-weight:450;margin-bottom:8px}.comparison{display:grid;grid-template-columns:minmax(0,1fr) 12px minmax(0,1.1fr);align-items:end;gap:8px}.comparison-value{min-width:0}.comparison-value small{display:block;font-size:10px;line-height:1.5;margin-bottom:3px;white-space:nowrap}.comparison-value bdi{display:block;direction:ltr;width:fit-content;max-width:100%;font-variant-numeric:tabular-nums;line-height:1.2;overflow-wrap:anywhere}.before bdi{font-size:16px;color:var(--muted);font-weight:450}.after bdi{font-size:24px;font-weight:650;letter-spacing:-.6px}.change-arrow{align-self:end;margin-bottom:4px;color:var(--muted);font-size:15px;line-height:1}.review-help{display:flex;justify-content:space-between;align-items:baseline;gap:5px 14px;flex-wrap:wrap;margin-top:12px}.date-note{font-size:11px;line-height:1.7}#unchanged,#blocked{font-size:12px;margin-top:10px}#blocked,#error{color:var(--color-text-danger,light-dark(#b42318,#ffb4ab))}details{font-size:11px;color:var(--muted)}summary{cursor:pointer;list-style:none;width:fit-content;display:flex;align-items:center;gap:5px;border-radius:5px;padding:2px 0}summary::-webkit-details-marker{display:none}summary svg{width:12px;height:12px;transition:transform .15s ease}details[open] summary svg{transform:rotate(180deg)}details p{font-size:12px;line-height:1.7;margin-top:6px;max-width:620px}.actions{display:flex;gap:8px;align-items:center;margin-top:18px}button{font:inherit;font-size:13px;line-height:1.4;font-weight:550;border-radius:999px;min-height:42px;padding:10px 20px;cursor:pointer;border:1px solid transparent;background:transparent;color:inherit;transition:background .15s ease,opacity .15s ease}button.primary{background:var(--color-background-inverse,light-dark(#212121,#ececec));color:var(--color-text-inverse,light-dark(#fff,#171717));min-width:160px}button.primary:hover:not(:disabled){opacity:.86}#cancel{color:var(--muted)}#cancel:hover:not(:disabled){background:var(--soft);color:var(--color-text-primary,CanvasText)}button:disabled{opacity:.4;cursor:default}button:focus-visible,summary:focus-visible{outline:2px solid var(--color-text-primary,CanvasText);outline-offset:3px}#status,#error{font-size:12px;line-height:1.7;margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--soft)}#error{background:color-mix(in srgb,currentColor 7%,Canvas)}#status.success{font-weight:550;color:var(--color-text-success,light-dark(#18794e,#8dd7ad))}#privacy{display:block;font-size:10px;line-height:1.7;margin-top:11px}#unchanged:empty,#blocked:empty,#status:empty,#error:empty{display:none}[hidden]{display:none!important}
+@media(max-width:420px){body{padding:15px}h1{font-size:16px}.card-header{margin-bottom:15px}.holding-card{padding:14px;gap:16px 18px}.holding-kind{font-size:9px;padding:3px 7px}.comparison{gap:5px;grid-template-columns:minmax(0,1fr) 10px minmax(0,1.1fr)}.comparison-value small{font-size:9px}.before bdi{font-size:14px}.after bdi{font-size:21px}.change-arrow{font-size:13px}.stat-label{font-size:10px}.review-help{gap:4px}.date-note,details{font-size:10px}.actions{margin-top:16px}button.primary{flex:1;min-width:0}#cancel{min-width:72px;padding-left:15px;padding-right:15px}#privacy{font-size:10px}}
+@media(prefers-reduced-motion:reduce){button,summary svg{transition:none}}
 </style></head><body><main aria-label="סקירת סנכרון">
-<h1>סנכרון ההחזקות</h1><p id="description" class="muted">טוען את ההצעה…</p>
-<div id="review" hidden><div class="table-wrap"><table><caption class="muted">השינויים המוצעים</caption><thead><tr><th scope="col">מניה</th><th scope="col">כמות לפני ← אחרי</th><th scope="col">עלות USD לפני ← אחרי</th></tr></thead><tbody id="rows"></tbody></table></div><p id="unchanged" class="muted"></p><p id="blocked" role="alert"></p><small>תאריך חסר? אפשר להשלים בצ׳אט — לא חובה.</small><details><summary>מה נשמר בחישובי הרווח?</summary><p>ההתאמה מעדכנת את היתרה ובסיס העלות בלבד. עסקאות העבר נשמרות. רווח ומס היסטוריים חסרים לא ינוחשו, ותאריך משוער לא יהפוך לתאריך רכישה מאומת.</p></details></div>
+<header class="card-header"><span class="sync-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17"/></svg></span><div><h1>עדכון ההחזקות</h1><p id="description" class="muted">טוען את ההצעה…</p></div></header>
+<div id="review" hidden><div class="table-wrap"><table role="table"><caption>השינויים המוצעים</caption><thead class="sr-only" role="rowgroup"><tr role="row"><th role="columnheader" scope="col">מניה</th><th role="columnheader" scope="col">כמות מניות לפני ואחרי</th><th role="columnheader" scope="col">עלות למניה בדולר לפני ואחרי</th></tr></thead><tbody id="rows" role="rowgroup"></tbody></table></div><p id="unchanged" class="muted"></p><p id="blocked" role="alert"></p><div class="review-help"><small class="date-note">אפשר להשלים תאריך רכישה בצ׳אט.</small><details><summary>היסטוריה וחישובי רווח<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></summary><p>היתרה ובסיס העלות מתעדכנים; עסקאות העבר נשמרות. רווח ומס חסרים לא ינוחשו, ותאריך משוער נשאר מסומן כמשוער.</p></details></div></div>
 <p id="status" role="status" aria-live="polite"></p><p id="error" role="alert"></p>
 <div class="actions"><button id="confirm" class="primary" disabled>אישור וסנכרון</button><button id="cancel" disabled>ביטול</button></div>
-<small id="privacy" class="muted">רק היתרות המוצגות יעודכנו. מניות שאינן מופיעות בצילום לא יימחקו.</small>
+<small id="privacy" class="muted">רק ההחזקות שבסקירה יעודכנו. מניות שלא מופיעות בצילום נשארות ללא שינוי.</small>
 </main><script>
 (function(){
 'use strict';
@@ -47,11 +50,11 @@ function accept(result){
   if(!value||typeof value!=='object')return;
   if(value.applied===true||value.status==='applied'){
     if(typeof value.proposalId!=='string'||(data&&value.proposalId!==data.proposalId))return;
-    completed=true;confirmationSecret='';text('status','ההחזקות סונכרנו בהצלחה. היסטוריית העסקאות נשמרה.');el('status').className='success';controls();size();return;
+    completed=true;confirmationSecret='';text('error','');text('confirm','סונכרן');text('status','ההחזקות סונכרנו בהצלחה. היסטוריית העסקאות נשמרה.');el('status').className='success';controls();size();return;
   }
   if(value.status==='cancelled'){
     if(typeof value.proposalId!=='string'||(data&&value.proposalId!==data.proposalId))return;
-    completed=true;confirmationSecret='';text('status','ההצעה בוטלה. לא נשמר שינוי.');controls();size();return;
+    completed=true;confirmationSecret='';text('error','');text('status','ההצעה בוטלה. לא נשמר שינוי.');controls();size();return;
   }
   if(value.status==='unchanged'||value.status==='needs_details'){
     generation+=1;data=null;confirmationSecret='';busy=false;completed=true;el('review').hidden=true;
@@ -59,18 +62,35 @@ function accept(result){
     text('status',value.status==='unchanged'?'לא נדרש שינוי.':((value.plan&&Array.isArray(value.plan.blocked))?value.plan.blocked.map(function(row){return row.symbol;}).join(', '):''));controls();size();return;
   }
   if(!value.plan||typeof value.proposalId!=='string')return;
-  if(!data||data.proposalId!==value.proposalId){generation+=1;busy=false;}else if(busy)return;
+  // Host globals can replay the original prepare after an action. An immutable
+  // pending review must not erase its receipt/error or restore its capability.
+  var sameProposal=data&&data.proposalId===value.proposalId;
+  if(sameProposal&&value.status==='pending'&&(completed||busy||(data.status==='pending'&&confirmationSecret)))return;
+  if(!sameProposal){generation+=1;busy=false;}else if(busy)return;
   data=value;completed=false;
   // Only the hidden result metadata supplies the mutation capability.
   confirmationSecret=result._meta&&typeof result._meta.confirmationSecret==='string'?result._meta.confirmationSecret:'';
-  el('review').hidden=false;el('rows').replaceChildren();text('error','');text('status','');
+  el('review').hidden=false;el('rows').replaceChildren();text('error','');text('status','');el('status').className='';text('confirm','אישור וסנכרון');
   var location=typeof value.plan.sourceName==='string'?value.plan.sourceName:'';
-  text('description',location+' · מצב ההחזקות נכון ל־'+(value.plan.observedAt||''));
+  var observedDate=String(value.plan.observedAt||'').split('-');
+  text('description',location+' · נכון ל־'+(observedDate.length===3?observedDate.reverse().join('.'):String(value.plan.observedAt||'')));
   (Array.isArray(value.plan.changes)?value.plan.changes:[]).forEach(function(row){
-    var tr=document.createElement('tr');
-    [row.symbol,number(row.previousQuantity)+' → '+number(row.quantity),number(row.previousAverageCostUsd)+' → '+(row.quantity===0?'—':number(row.averageCostUsd))].forEach(function(value,index){
-      var td=document.createElement('td'),span=document.createElement('bdi');span.textContent=String(value);if(index>0)span.className='numbers';td.appendChild(span);if(index===0&&(row.acquiredOn||row.estimatedAcquiredOn)){var date=document.createElement('small');date.style.display='block';date.textContent=row.acquiredOn?'נרכש: '+row.acquiredOn:'משוער: '+row.estimatedAcquiredOn;td.appendChild(date);}tr.appendChild(td);
-    });el('rows').appendChild(tr);
+    var tr=document.createElement('tr');tr.className='holding-card';tr.setAttribute('role','row');
+    var identity=document.createElement('td');identity.className='holding-identity';identity.setAttribute('role','cell');
+    var avatar=document.createElement('span');avatar.className='ticker-avatar';avatar.setAttribute('aria-hidden','true');avatar.textContent=String(row.symbol).slice(0,2);identity.appendChild(avatar);
+    var info=document.createElement('span');info.className='ticker-info';var symbol=document.createElement('bdi');symbol.className='ticker-symbol';symbol.textContent=String(row.symbol);info.appendChild(symbol);
+    if(row.acquiredOn||row.estimatedAcquiredOn){var date=document.createElement('small');date.className='acquisition-date';date.textContent=row.acquiredOn?'נרכש: '+row.acquiredOn:'משוער: '+row.estimatedAcquiredOn;info.appendChild(date);}identity.appendChild(info);
+    var kind=document.createElement('span');kind.className='holding-kind';kind.textContent='עדכון החזקה';identity.appendChild(kind);tr.appendChild(identity);
+    function stat(label,before,after){
+      var cell=document.createElement('td');cell.className='holding-stat';cell.setAttribute('role','cell');var title=document.createElement('span');title.className='stat-label';title.textContent=label;cell.appendChild(title);
+      var comparison=document.createElement('span');comparison.className='comparison';
+      [['before','קיים',before],['after','אחרי הסנכרון',after]].forEach(function(item,index){
+        if(index){var arrow=document.createElement('span');arrow.className='change-arrow';arrow.setAttribute('aria-hidden','true');arrow.textContent='←';comparison.appendChild(arrow);}
+        var part=document.createElement('span');part.className='comparison-value '+item[0];var hint=document.createElement('small');hint.textContent=item[1];var amount=document.createElement('bdi');amount.textContent=item[2];part.appendChild(hint);part.appendChild(amount);comparison.appendChild(part);
+      });cell.appendChild(comparison);return cell;
+    }
+    tr.appendChild(stat('כמות מניות',number(row.previousQuantity),number(row.quantity)));
+    tr.appendChild(stat('עלות למניה · USD',number(row.previousAverageCostUsd),row.quantity===0?'—':number(row.averageCostUsd)));el('rows').appendChild(tr);
   });
   var unchanged=Array.isArray(value.plan.unchanged)?value.plan.unchanged.length:0;
   text('unchanged',unchanged?unchanged+' החזקות תואמות ללא שינוי.':'');
@@ -96,7 +116,7 @@ async function action(name){
   try{
     var result=await call(name,{proposalId:proposalId,confirmationSecret:secret});
     if(data&&data.proposalId===proposalId&&generation===actionGeneration){accept(result);if(!completed)throw new Error('לא התקבל אישור שמירה. נסו שוב או בקשו לבדוק את מצב ההצעה.');}
-  }catch(error){if(data&&data.proposalId===proposalId&&generation===actionGeneration){text('status','');text('error',error&&error.message?error.message:'הבקשה לא הושלמה.');}}
+  }catch{if(data&&data.proposalId===proposalId&&generation===actionGeneration){text('status','');text('error',name==='confirm_screenshot_sync'?'לא התקבל אישור שמירה. אפשר לנסות שוב בבטחה; לא ייווצר עדכון כפול.':'לא התקבל אישור ביטול. אפשר לנסות לבטל שוב או לבדוק את מצב ההצעה בצ׳אט.');if(name==='confirm_screenshot_sync')text('confirm','ניסיון חוזר');}}
   finally{if(generation===actionGeneration){busy=false;controls();size();}}
 }
 el('confirm').addEventListener('click',function(){void action('confirm_screenshot_sync');});

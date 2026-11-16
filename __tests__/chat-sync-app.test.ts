@@ -39,7 +39,7 @@ afterEach(() => { frame?.contentWindow?.close(); frame?.remove(); vi.clearAllTim
 
 describe('inline ChatGPT synchronization approval', () => {
   it('declares a standard self-contained MCP App without external scripts or fetch', () => {
-    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v1.html');
+    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v4.html');
     expect(CHAT_SYNC_RESOURCE_MIME).toBe('text/html;profile=mcp-app');
     expect(CHAT_SYNC_APP_HTML).not.toMatch(/<script[^>]+src=|fetch\(|localStorage|sessionStorage/);
   });
@@ -51,6 +51,18 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(button('confirm').disabled).toBe(false);
     expect(toolCalls()).toHaveLength(0);
     expect(doc.querySelector('details')?.open).toBe(false);
+  });
+  it('keeps existing and updated values explicitly labelled in the responsive holding card', async () => {
+    boot(); await initialize(); receive();
+    const card = doc.querySelector('.holding-card')!;
+    expect(card.getAttribute('role')).toBe('row');
+    expect(card.querySelector('.ticker-symbol')?.textContent).toBe('AAPL');
+    const stats = [...card.querySelectorAll('.holding-stat')];
+    expect(stats.map(stat => stat.querySelector('.before bdi')?.textContent)).toEqual(['8', '100']);
+    expect(stats.map(stat => stat.querySelector('.after bdi')?.textContent)).toEqual(['5', '110']);
+    expect(stats.every(stat => stat.querySelector('.before small')?.textContent === 'קיים')).toBe(true);
+    expect(stats.every(stat => stat.querySelector('.after small')?.textContent === 'אחרי הסנכרון')).toBe(true);
+    expect(toolCalls()).toHaveLength(0);
   });
   it('shows confirmed and estimated purchase dates as distinct parts of the review', async () => {
     boot(); await initialize();
@@ -92,6 +104,66 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.getElementById('status')?.textContent).toContain('ההצעה בוטלה');
     expect(button('confirm').disabled).toBe(true);
   });
+  it.each(['applied', 'cancelled'])('preserves %s after host globals replay the original pending review', async status => {
+    const original = prepared();
+    const callTool = vi.fn().mockResolvedValue({ structuredContent: { proposalId: 'proposal-one', status } });
+    boot({ toolResponseMetadata: { mcp_tool_result: original }, callTool });
+    button(status === 'applied' ? 'confirm' : 'cancel').click(); await flush();
+    const receipt = doc.getElementById('status')?.textContent;
+    app.dispatchEvent(new Event('openai:set_globals')); receive(original);
+    expect(doc.getElementById('status')?.textContent).toBe(receipt);
+    expect(receipt).toContain(status === 'applied' ? 'סונכרנו בהצלחה' : 'ההצעה בוטלה');
+    expect(button('confirm').disabled).toBe(true);
+    expect(button('cancel').disabled).toBe(true);
+    expect(callTool).toHaveBeenCalledTimes(1);
+    const next = prepared('next-secret'); next.structuredContent.proposalId = 'proposal-two'; receive(next);
+    expect(button('confirm').disabled).toBe(false);
+    expect(doc.getElementById('status')?.textContent).toBe('');
+  });
+  it('preserves an uncertain failure on pending replay and permits an explicit retry', async () => {
+    const callTool = vi.fn().mockRejectedValueOnce(new Error(JSON.stringify({ detail: 'INVALID_ARGUMENT private-widget-secret confirmationSecret RuntimeException' })))
+      .mockResolvedValueOnce({ structuredContent: { proposalId: 'proposal-one', status: 'applied' } });
+    boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
+    button('confirm').click(); await flush();
+    app.dispatchEvent(new Event('openai:set_globals')); receive(prepared(''));
+    expect(doc.getElementById('error')?.textContent).toBe('לא התקבל אישור שמירה. אפשר לנסות שוב בבטחה; לא ייווצר עדכון כפול.');
+    expect(doc.body.textContent).not.toMatch(/private-widget-secret|confirmationSecret|INVALID_ARGUMENT|RuntimeException/);
+    expect(button('confirm').textContent).toBe('ניסיון חוזר');
+    expect(button('confirm').disabled).toBe(false);
+    button('confirm').click(); await flush();
+    expect(callTool).toHaveBeenCalledTimes(2);
+    expect(button('confirm').textContent).toBe('סונכרן');
+    expect(button('confirm').disabled).toBe(true);
+    expect(doc.getElementById('status')?.textContent).toContain('סונכרנו בהצלחה');
+    const next = prepared('next-secret'); next.structuredContent.proposalId = 'proposal-two'; receive(next);
+    expect(button('confirm').textContent).toBe('אישור וסנכרון');
+  });
+  it.each(['applied', 'cancelled'])('clears an earlier uncertain error when a late %s receipt arrives', async status => {
+    const callTool = vi.fn().mockRejectedValue(new Error('lost reply'));
+    boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
+    button('confirm').click(); await flush();
+    expect(doc.getElementById('error')?.textContent).toContain('אפשר לנסות שוב');
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { proposalId: 'proposal-one', status } } });
+    expect(doc.getElementById('error')?.textContent).toBe('');
+    expect(doc.getElementById('status')?.textContent).toContain(status === 'applied' ? 'סונכרנו בהצלחה' : 'ההצעה בוטלה');
+    expect(button('confirm').disabled).toBe(true);
+  });
+  it('accepts private metadata arriving after an initial public pending review', async () => {
+    boot(); await initialize(); receive(prepared(''));
+    expect(button('confirm').disabled).toBe(true);
+    receive(prepared());
+    expect(button('confirm').disabled).toBe(false);
+    button('confirm').click();
+    expect(toolCalls()[0].params.arguments).toEqual({ proposalId: 'proposal-one', confirmationSecret: 'private-widget-secret' });
+  });
+  it('shows a fixed cancellation error without exposing host diagnostics', async () => {
+    const callTool = vi.fn().mockRejectedValue(new Error('confirmationSecret=private-widget-secret'));
+    boot({ toolResponseMetadata: { mcp_tool_result: prepared() }, callTool });
+    button('cancel').click(); await flush();
+    expect(doc.getElementById('error')?.textContent).toBe('לא התקבל אישור ביטול. אפשר לנסות לבטל שוב או לבדוק את מצב ההצעה בצ׳אט.');
+    expect(doc.body.textContent).not.toContain('private-widget-secret');
+    expect(button('cancel').disabled).toBe(false);
+  });
   it('does not accept a model-visible secret or a message from a different window', async () => {
     boot(); await initialize();
     message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: prepared() }, app);
@@ -117,7 +189,8 @@ describe('inline ChatGPT synchronization approval', () => {
     boot(); await initialize(); receive(); button('confirm').click();
     message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { isError: true, content: [{ type: 'text', text: 'ההצעה התיישנה' }] } });
     await flush();
-    expect(doc.getElementById('error')?.textContent).toBe('ההצעה התיישנה');
+    expect(doc.getElementById('error')?.textContent).toContain('אפשר לנסות שוב בבטחה');
+    expect(doc.body.textContent).not.toContain('ההצעה התיישנה');
     expect(doc.getElementById('status')?.textContent).not.toContain('בהצלחה');
     expect(button('confirm').disabled).toBe(false);
   });
