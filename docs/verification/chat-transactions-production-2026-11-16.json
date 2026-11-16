@@ -1,6 +1,6 @@
 {
   "date": "2026-11-16",
-  "status": "TRANSACTION_RELEASE_PUBLISHED_ICON_STILL_GENERIC_GIT_PUSH_BLOCKED",
+  "status": "TRANSACTION_RELEASE_PUBLISHED_ICON_STILL_GENERIC_GIT_PUSH_CONFIRMED",
   "sourceCommit": "c541bf7ceeb29f3b304df452786e9bca607da749",
   "deploymentId": "dpl_3FJff5RdRpGHTxdZcLffmRBEyjF5",
   "domain": "https://razmaz-live-stocks.vercel.app",
@@ -60,6 +60,11 @@
     "realChatGPTTransactionCardWrite": false,
     "newTransactionConsentInPersonalConnection": false,
     "displayedPluginIconFixed": false,
-    "githubPush": "AUTO_REVIEW_REJECTED_PUBLIC_DESTINATION_APPROVAL_REQUIRED"
+    "githubPush": "PASS_USER_EXPLICITLY_APPROVED"
+  },
+  "github": {
+    "repository": "https://github.com/razmazlih/live-stocks",
+    "branch": "codex/chatgpt-friendly-transactions",
+    "verifiedRemoteCommit": "dc054df3841a3daa1cff24642ea4221864ccd669"
   }
 }

@@ -29,3 +29,12 @@ The complete six-file update (both unchanged icon PNGs, both manifests, App bind
 **The visible icon still remained generic in the final desktop screenshot.** The complete package upload and tool refresh therefore did not fix the displayed avatar. No logo editing control was observed in the existing App settings. Admin Console → plugin → Configure returned “You don’t have access to plugins in this workspace”; the supported Legacy apps route did not finish loading under the available browser connection. No access controls, App identity, sharing or workspace billing were changed to work around those limits. This task does not claim the requested rendered-icon change is complete.
 
 The icon is correct inside the new in-chat card because the exact website PNG is embedded in its self-contained UI. The independently registered ChatGPT App/detail-page avatar remains the outstanding issue. A [support draft](livestocks-icon-support-draft.txt) records the verified identity and reproduction without credentials or personal portfolio data. It has not been sent.
+
+
+## Follow-up after explicit GitHub approval
+
+The user explicitly approved pushing to `razmazlih/live-stocks`. The feature branch `codex/chatgpt-friendly-transactions` was pushed and its remote head read back as `dc054df3841a3daa1cff24642ea4221864ccd669` before this follow-up documentation commit.
+
+The previously stalled legacy administration page was successfully loaded through the native Chrome UI. Searching LiveStocks → Drafts → the exact original App opened `/admin/apps/asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b`. It reports the correct URL and all 16 tools. Its About → Edit control edits only Description. The draft's menu offers only View details and Delete; no logo control is exposed. Nothing was enabled, published, deleted or otherwise changed in this view.
+
+The new Admin Console was then opened for the same workspace/plugin. Its detail page showed version 1.2.0; clicking Configure once again ended with “Plugins unavailable — You don’t have access to plugins in this workspace.” This is the concrete remaining blocker to the owning App configuration. The existing correctly packaged PNGs and card icon are preserved. No unsupported endpoint, access-control change, replacement App or repeated archive upload was attempted. The registered detail-page icon remains unresolved; the support draft below now includes this exact reproduction.
