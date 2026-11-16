@@ -3,7 +3,7 @@
  * Never loads .env, existing databases, cloud projects, production keys or portfolios.
  * The public HTTPS tunnel must forward to loopback port 3137. All data is synthetic.
  */
-import { readFile, writeFile, mkdtemp, mkdir, symlink, readdir, rm, realpath, chmod, open } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, mkdir, symlink, readdir, rm, realpath, chmod, open, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Pool } from 'pg';
 import { SignJWT } from 'jose';
+import { applyChatSyncResourceDiagnostic } from './lib/chat-sync-resource-diagnostic.mjs';
 const execute = promisify(execFile);
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GATEWAY_PORT = 3137, NEXT_PORT = 3140;
@@ -144,8 +145,8 @@ async function serve(state) {
     try {
       const chunks = []; for await (const chunk of request) chunks.push(chunk);
       const body = Buffer.concat(chunks);
-      let loseConfirm = false;
-      try { const rpc = JSON.parse(body.toString('utf8')); loseConfirm = path === '/api/mcp' && rpc.method === 'tools/call' && rpc.params?.name === 'confirm_screenshot_sync' && existsSync(join(state.runtime, 'lose-next-confirm.flag')); } catch {}
+      let loseConfirm = false, rpc = null;
+      try { rpc = JSON.parse(body.toString('utf8')); loseConfirm = path === '/api/mcp' && rpc.method === 'tools/call' && rpc.params?.name === 'confirm_screenshot_sync' && existsSync(join(state.runtime, 'lose-next-confirm.flag')); } catch {}
       // Raw HTTP preserves navigation Sec-Fetch headers and compressed bytes.
       // Undici fetch overwrites sec-fetch-mode to cors, changing the real OAuth
       // provider's browser redirect into a JSON transport response.
@@ -153,9 +154,12 @@ async function serve(state) {
         const proxy = httpRequest(target, { method: request.method, headers }, yes);
         proxy.once('error', no); proxy.end(['GET', 'HEAD'].includes(request.method) ? undefined : body);
       });
-      const resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
+      let resultHeaders = Object.fromEntries(Object.entries(upstream.headers).filter(([key]) => !['connection', 'keep-alive', 'transfer-encoding'].includes(key)));
       const responseChunks = []; for await (const chunk of upstream) responseChunks.push(chunk);
-      const responseBody = Buffer.concat(responseChunks);
+      let responseBody = Buffer.concat(responseChunks);
+      const diagnostic = await applyChatSyncResourceDiagnostic({ runtime: state.runtime, productionAccess: state.productionAccess, rpc, statusCode: upstream.statusCode, headers: resultHeaders, body: responseBody });
+      resultHeaders = diagnostic.headers; responseBody = diagnostic.body;
+      if (diagnostic.observation.applied) await appendFile(join(state.runtime, 'resource-diagnostic-observations.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...diagnostic.observation }) + '\n', { mode: 0o600 });
       if (loseConfirm) {
         try {
           const receipt = JSON.parse(responseBody.toString('utf8'));
