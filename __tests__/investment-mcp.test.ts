@@ -3,6 +3,7 @@ import { buildCloseProposalSnapshot } from '@/lib/close-proposal-snapshot';
 import type { Position, PositionMetrics } from '@/types';
 import { validateActionPlan, actionPlanSchema } from '@/lib/investment-actions';
 
+vi.mock('@/lib/purchase-date-candidates', () => ({ findPurchaseDateCandidates: async () => ({ status: 'no_match', estimated: true, canVerifyAcquisition: false }), purchaseDateCandidatesInputSchema: { parse: (args: unknown) => args } }));
 const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), quote: vi.fn() }));
 vi.mock('@/lib/auth/server', () => ({
   requireMcpPrincipal: async () => ({ userId: 'auth0|test-user', kind: 'mcp' }),
@@ -70,14 +71,14 @@ describe('investment action constraints', () => {
 });
 
 describe('read-only MCP transport and tools', () => {
-  it('negotiates initialization, discovery and eight exclusively read-only tools', async () => {
+  it('negotiates initialization, discovery and nine exclusively read-only tools', async () => {
     const init = await (await POST(request('initialize', { protocolVersion: '2025-11-25' }))).json();
     expect(init.result.protocolVersion).toBe('2025-11-25');
     expect(init.result.instructions).toContain('SELL 100%');
     expect(init.result.serverInfo).toMatchObject({ name: 'livestocks-analyst', title: 'LiveStocks',
       icons: [{ src: 'https://example.com/brand/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180'] }] });
     const listed = await (await POST(request('tools/list'))).json();
-    expect(listed.result.tools).toHaveLength(8);
+    expect(listed.result.tools).toHaveLength(9);
     expect(listed.result.tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
     const discovery = (await (await POST(request('server/discover'))).json()).result;
     expect(discovery.supportedVersions).toContain('2026-07-28');

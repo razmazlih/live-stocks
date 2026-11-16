@@ -40,7 +40,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
 
   const isClosed = position.quantity <= 0;
   const sparklineEvents: SparklineEvent[] = useMemo(() => {
-    const lots = position.lots ?? [];
+    const lots = (position.lots ?? []).filter(lot => lot.type !== 'RECONCILE');
 
     if (!lots.length) {
       return [];

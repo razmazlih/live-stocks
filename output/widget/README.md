@@ -30,3 +30,6 @@ node widget-v7-preview.cjs
 ```
 
 The v7 filenames are retained for the display regression harness and preview generator; both read the current v8 source.
+
+
+Broker-balance reconciliation keeps current USD holdings/value and open profit available, while incomplete lifetime profit and target gaps remain unavailable. The API includes `dataQuality.completeTransactionHistory` and `reconciledSymbols`; historical trades are retained. Missing ILS open P/L is never reconstructed by converting USD P/L at today's FX, because an unknown acquisition date leaves the historic currency basis unknown. Scriptable normalization verifies that missing values stay missing.

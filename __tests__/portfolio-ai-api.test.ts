@@ -45,6 +45,21 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.quotes.ABC.marketTimestamp).toBeTruthy();
     expect(JSON.stringify(data)).not.toContain('secret-do-not-export');
   });
+  it('exports reconciled current holdings while disclosing incomplete lifetime accounting', async () => {
+    rows.position_lots.push({ id: 'checkpoint', position_id: 'p1', side: 'RECONCILE', price: 90, quantity: 3, executed_at: '2026-11-01', basis_acquired_on: null, has_commission: false, commission_amount: 0 });
+    const data = await (await readSnapshot()).json();
+    expect(data.holdings[0].position.quantity).toBe(3);
+    expect(data.holdings[0].unrealizedPnlUsd).toBe(90);
+    expect(data.holdings[0].unrealizedPnlIls).toBeNull();
+    expect(data.dataQuality).toMatchObject({ completeMarketValuation: true, completeTransactionHistory: false, reconciledSymbols: ['ABC'], realizedProfitScope: 'recorded_executions_only' });
+    expect(data.summary.totalCurrentPnLUsd).toBeNull();
+    expect(data.summary.totalNetPnLUsd).toBeNull();
+    expect(data.summary.totalTaxesPaidUsd).toBeNull();
+    expect(data.realized.estimatedTaxUsd).toBeNull();
+    expect(data.realized.totals.profitUsd).toBe(0);
+    expect(data.realized.recordedSalesEstimatedTaxUsd).toBe(0);
+    expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'reconciliation_history_incomplete' });
+  });
   it('offers escaped HTML for browsing tools with the same complete snapshot', async () => {
     rows.positions[0] = { ...(rows.positions[0] as object), display: '<script>alert("x")</script>' };
     const response = await GET(new Request('https://example.com/api/portfolio/ai?format=html'));

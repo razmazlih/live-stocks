@@ -1,3 +1,4 @@
+import { reconciliationQuality } from '@/lib/reconciliation-quality';
 import type { PositionMetrics } from '@/types';
 
 /** A privacy-limited view of the signed-in user's portfolio, one record per ticker. */
@@ -28,5 +29,5 @@ export function buildAiSnapshot(metrics: PositionMetrics[], selected: string[] |
       allocationOfOpenPortfolioPercent: totalValue > 0 ? round(value / totalValue * 100) : null,
     };
   });
-  return { schemaVersion: 1, updatedAt: updatedAt?.toISOString() ?? null, freshness: stale ? 'stale' : updatedAt ? 'last_successful_load' : 'unavailable', priceCurrency: 'USD', allocationBasis: 'all_open_holdings', stocks };
+  return { schemaVersion: 1, dataQuality: reconciliationQuality(metrics.filter(metric => selected === null || selected.includes(metric.position.symbol.trim().toUpperCase())).map(metric => metric.position)), updatedAt: updatedAt?.toISOString() ?? null, freshness: stale ? 'stale' : updatedAt ? 'last_successful_load' : 'unavailable', priceCurrency: 'USD', allocationBasis: 'all_open_holdings', stocks };
 }

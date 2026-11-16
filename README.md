@@ -391,10 +391,16 @@ curl --fail --header "Authorization: Bearer $LIVESTOCKS_OAUTH_ACCESS_TOKEN" http
 
 התשובה כוללת מידע כספי מלא של המשתמש המאומת בלבד. מפתחות ספקים אינם כלולים בתשובה. לא נשמרים באפליקציה מזומן, התחייבויות, הפקדות/משיכות, דיבידנדים, אופק השקעה או סיבולת סיכון; אין להסיק שהם אפס.
 
-## Screenshot holding imports (PR implementation)
+## Screenshot portfolio reconciliation
 
-ChatGPT reads a user's holdings screenshot and calls `prepare_screenshot_sync`. The tool returns a 15-minute encrypted, owner-bound review link; it never gains portfolio write access. The same user signs into `/positions/sync`, checks the extracted rows, and explicitly saves using existing website write permissions. No screenshot is uploaded to or retained by LiveStocks.
+ChatGPT reads a user's holdings screenshot and calls `prepare_screenshot_sync`. The tool compares new and existing positions and returns a 15-minute encrypted owner-bound review link. The same user signs into `/positions/sync`, checks the before/after quantities and USD average costs, acknowledges accounting limitations, and explicitly saves using existing website permissions. No screenshot is uploaded to or retained by LiveStocks, and MCP OAuth remains read-only.
 
-This first stage imports **new positions** with confirmed USD fee-inclusive average cost and original acquisition date, and recognizes matching existing holdings. Differences against an existing FIFO ledger are blocked: holdings screenshots do not establish execution price, date, proceeds or taxes. Missing symbols never imply deletion. Multiple original executions require their actual history rather than a guessed single acquisition. Every row must be resolved before saving; imports are atomic, stale proposals are rejected and exact retries do not duplicate lots.
+Existing quantity and cost changes are recorded as immutable **RECONCILE checkpoints**, never fabricated BUY/SELL trades. All prior trades and recorded realized sales remain intact; open holdings and future FIFO calculations use the confirmed balance and cost. Explicit zero rows can clear a holding without inventing sale proceeds; omitted rows are untouched. Missing positive cost, older observations and changed portfolio snapshots block the batch. Original acquisition dates may remain unknown. Optional date completion accepts a known date, a transaction screenshot in chat, or a clearly labeled historical price-match estimate; it never blocks the fast photo → review → confirm path. Repeated confirmations cannot duplicate updates.
 
-Apply the new migration before deployment and refresh the existing App's tools and analyst skill through its established release process. This PR does not publish a plugin update or change OAuth scopes, identities or sharing. See [the implementation plan and acceptance checks](docs/SCREENSHOT_SYNC.md).
+Screenshots cannot reconstruct missing executions: incomplete lifetime return, tax and cumulative history remain unavailable, while current USD value and open gain use the confirmed basis. The website, AI snapshots, close-proposal screening and widget expose that limitation. See [the accounting model, examples and release checks](docs/SCREENSHOT_SYNC.md).
+
+Apply the migration before deployment and refresh the existing App's tools and analyst skill through its established release process. This PR does not deploy, publish a plugin update, or change OAuth scopes, identities or sharing.
+
+Screenshot review with synthetic data (mobile browser emulation):
+
+<img src="docs/screenshots/screenshot-sync-mobile.png" alt="Screenshot reconciliation before-and-after review with synthetic holdings" width="300" />

@@ -1,3 +1,4 @@
+import { hasReconciliationHistory } from '@/lib/reconciliation-quality';
 import { calculateRequiredExitPrice, calculateSymbolExceptionAssessment } from '@/lib/calculations';
 import { computeOpenLots, computeRealizedSales } from '@/lib/positions';
 import type { HistoricalPoint, Position, PositionLot } from '@/types';
@@ -33,7 +34,8 @@ function dailyHoldingStates(positions: Position[], points: HistoricalPoint[], th
       const eligible: PositionLot[] = lots.filter((entry) => entry.timestamp <= cutoff).map((entry) => entry.lot);
       const undated = lots.filter((entry) => !Number.isFinite(entry.timestamp)).map((entry) => entry.lot);
       if (!eligible.length && (entryTimestamp > cutoff || (lots.length > 0 && !undated.length))) return [];
-      return [{ ...position, lots: [...eligible, ...undated] }];
+      const currentLots = [...eligible, ...undated];
+      return [{ ...position, lots: currentLots, accountingIncomplete: currentLots.some(lot => lot.type === 'RECONCILE') }];
     });
     // A known realized gain can make the required sale price uncomputable
     // (negative), without invalidating any of the transaction history.
@@ -43,7 +45,8 @@ function dailyHoldingStates(positions: Position[], points: HistoricalPoint[], th
     const valid = assessment?.status === 'open' || assessment?.status === 'closed'
       || (assessment?.status === 'invalid' && assessment.invalidReason === 'uncomputable_required_exit_price'
         && assessment.openQuantity > 0);
-    return { point, cutoff, asOf, asOfPositions, valid };
+    const historyIncomplete = asOfPositions.some(position => hasReconciliationHistory(position, cutoff));
+    return { point, cutoff, asOf, asOfPositions, valid, historyIncomplete };
   });
 }
 
@@ -60,13 +63,13 @@ export function buildHoldingChartReferences(
   points: HistoricalPoint[],
   annualGrowthRate: number,
 ): HoldingChartReference[] {
-  return dailyHoldingStates(positions, points).map(({ point: { timestamp }, asOf, asOfPositions, valid }) => {
+  return dailyHoldingStates(positions, points).map(({ point: { timestamp }, asOf, asOfPositions, valid, historyIncomplete }) => {
     const unavailable: HoldingChartReference = { timestamp, baseline: null, target: null };
-    if (!valid) return unavailable;
+    if (!valid && !historyIncomplete) return unavailable;
     const openLots = asOfPositions.flatMap((position) => computeOpenLots(position.lots ?? []));
     const quantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0);
     const baseline = openLots.reduce((sum, lot) => sum + lot.totalCost, 0) / quantity;
-    const target = Number.isFinite(annualGrowthRate)
+    const target = !historyIncomplete && Number.isFinite(annualGrowthRate)
       ? calculateRequiredExitPrice(asOfPositions, annualGrowthRate, asOf) ?? null
       : null;
     return Number.isFinite(baseline) && quantity > 0 ? { timestamp, baseline, target } : unavailable;
@@ -100,8 +103,8 @@ export function buildHoldingPerformanceHistory(
   const expectedProfit = (cost: number, boughtAt: number, through: number) =>
     cost * (Math.pow(1 + annualGrowthRate, Math.max((through - boughtAt) / MS_PER_YEAR, 0)) - 1);
 
-  return dailyHoldingStates(positions, points, asOf).map(({ point: { timestamp, close }, cutoff, asOfPositions, valid }) => {
-    if (!valid) return { timestamp, actual: null, target: null };
+  return dailyHoldingStates(positions, points, asOf).map(({ point: { timestamp, close }, cutoff, asOfPositions, valid, historyIncomplete }) => {
+    if (!valid || historyIncomplete) return { timestamp, actual: null, target: null };
     const openLots = asOfPositions.flatMap((position) => computeOpenLots(position.lots ?? []));
     const realized = asOfPositions.flatMap(computeRealizedSales);
     const actual = realized.reduce((sum, sale) => sum + sale.profitUsd, 0)

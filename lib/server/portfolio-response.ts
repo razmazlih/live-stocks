@@ -1,3 +1,4 @@
+import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, positionFxTimestamps } from '@/lib/reconciliation-quality';
 import 'server-only';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -117,6 +118,7 @@ export async function buildPortfolioResponse(
 
     const rawPositions = Array.isArray(positionsData) ? positionsData : [];
     const mappedPositions: Position[] = rawPositions.map(mapPositionRow);
+    const historyQuality = reconciliationQuality(mappedPositions);
     const activationPositions = mappedPositions.flatMap((position) =>
       expandPositionActivations(position),
     );
@@ -135,11 +137,7 @@ export async function buildPortfolioResponse(
       : DEFAULT_GROWTH_RATE;
 
 
-    const allTimestamps = mappedPositions.flatMap((position) =>
-      (position.lots ?? [])
-        .map((lot) => new Date(lot.executedAt).getTime())
-        .filter((timestamp) => Number.isFinite(timestamp)),
-    );
+    const allTimestamps = mappedPositions.flatMap(positionFxTimestamps);
     const nowSeconds = Math.floor(Date.now() / 1000);
     const minFxTimestamp = allTimestamps.reduce<number | null>(
       (min, value) => (min === null ? value : Math.min(min, value)),
@@ -206,8 +204,8 @@ export async function buildPortfolioResponse(
       totalCombinedIls: toFixedNumber(enrichedSummary.totalCombinedIls),
       totalRealizedProfitUsd: toFixedNumber(enrichedSummary.totalRealizedProfitUsd),
       totalRealizedProfitIls: toFixedNumber(enrichedSummary.totalRealizedProfitIls),
-      totalTaxesPaidUsd: toFixedNumber(enrichedSummary.totalTaxesPaidUsd),
-      totalTaxesPaidIls: toFixedNumber(enrichedSummary.totalTaxesPaidIls),
+      totalTaxesPaidUsd: historyQuality.completeTransactionHistory ? toFixedNumber(enrichedSummary.totalTaxesPaidUsd) : null,
+      totalTaxesPaidIls: historyQuality.completeTransactionHistory ? toFixedNumber(enrichedSummary.totalTaxesPaidIls) : null,
       totalNetPnLUsd: toFixedNumber(enrichedSummary.totalNetPnLUsd),
       totalNetPnLIls: toFixedNumber(enrichedSummary.totalNetPnLIls),
       totalForecastGapUsd: toFixedNumber(totalForecastGapUsd),
@@ -282,6 +280,7 @@ export async function buildPortfolioResponse(
       usdToIlsRate,
       targetCurrency,
       summary,
+      dataQuality: { ...historyQuality, warnings: historyQuality.completeTransactionHistory ? [] : [RECONCILIATION_HISTORY_WARNING] },
       stocks: mappedStocks,
       topStocks,
       realizedSalesCount: realizedSales.length,

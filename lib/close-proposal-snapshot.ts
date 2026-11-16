@@ -1,3 +1,4 @@
+import { hasReconciliationHistory } from '@/lib/reconciliation-quality';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { buildClosePairProposals, buildCloseProposalLegs, DEFAULT_CLOSE_PAIR_POLICY, getCloseProposalLegs, isEligibleCloseProposalLoser } from '@/lib/close-pair-proposals';
@@ -23,17 +24,19 @@ export function buildCloseProposalSnapshot(input: {
   }).map(position => symbolKey(position.symbol)))].sort();
   const validLegs = annualGrowthRate === null ? [] : buildCloseProposalLegs(metrics, positions, asOf, annualGrowthRate);
   const validSymbols = new Set(validLegs.map(leg => symbolKey(leg.position.symbol)));
+  const reconciledSymbols = new Set(positions.filter(position => hasReconciliationHistory(position, asOf)).map(position => symbolKey(position.symbol)));
   const invalidHistorySymbols = annualGrowthRate === null ? [] : openSymbols.filter(symbol => !validSymbols.has(symbol)).sort();
   const exclusions = [
     ...missingQuoteSymbols.map(symbol => ({ symbol, reason: 'missing_or_invalid_quote' })),
-    ...invalidHistorySymbols.map(symbol => ({ symbol, reason: 'invalid_or_inconsistent_source_history' })),
+    ...invalidHistorySymbols.filter(symbol => !reconciledSymbols.has(symbol)).map(symbol => ({ symbol, reason: 'invalid_or_inconsistent_source_history' })),
+    ...[...reconciledSymbols].map(symbol => ({ symbol, reason: 'reconciliation_history_incomplete' })),
   ];
   // Re-read and recompute on every call. Clock milliseconds are not source-data
   // changes; using the UTC day keeps review IDs usable without caching personal data.
   // ownerId binds identical source records to their authenticated account.
   const calculationDay = Math.floor(asOf / 86_400_000);
   const snapshotId = fingerprint({ ownerId: input.ownerId ?? null, calculationDay, annualGrowthRate, positions, quotes, policy });
-  const proposals = annualGrowthRate === null ? [] : buildClosePairProposals(metrics, 3, asOf, annualGrowthRate, positions, policy);
+  const proposals = annualGrowthRate === null ? [] : buildClosePairProposals(metrics.filter(metric => !reconciledSymbols.has(symbolKey(metric.position.symbol))), 3, asOf, annualGrowthRate, positions.filter(position => !reconciledSymbols.has(symbolKey(position.symbol))), policy);
   const searchTruncated = validLegs.filter(leg => isEligibleCloseProposalLoser(leg, policy)).length > DEFAULT_CLOSE_PAIR_POLICY.maxCandidateLosers;
   const policyFilteredLossSymbols = validLegs.filter(leg => (leg.unrealizedPnlUsd ?? 0) < 0 && !isEligibleCloseProposalLoser(leg, policy)).map(leg => symbolKey(leg.position.symbol));
   return {

@@ -1,3 +1,4 @@
+import { reconciliationQuality, positionFxTimestamps } from '@/lib/reconciliation-quality';
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -67,11 +68,7 @@ export async function GET(request: NextRequest) {
 
     const finnhubToken = await readFinnhubCredential(principal.userId);
 
-    const lotTimestamps = mappedPositions.flatMap((position) =>
-      (Array.isArray(position.lots) ? position.lots : [])
-        .map((lot) => new Date(lot.executedAt).getTime())
-        .filter((timestamp) => Number.isFinite(timestamp)),
-    );
+    const lotTimestamps = mappedPositions.flatMap(positionFxTimestamps);
     const earliestLotTimestamp = lotTimestamps.length
       ? Math.min(...lotTimestamps)
       : Date.now() - 365 * 24 * 60 * 60 * 1000;
@@ -134,6 +131,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         timestamp: new Date().toISOString(),
+        dataQuality: reconciliationQuality(mappedPositions),
         usdToIlsRate,
         netPnL: {
           usd: toFixedNumber(enrichedSummary.totalNetPnLUsd),

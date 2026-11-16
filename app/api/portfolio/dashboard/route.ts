@@ -1,3 +1,4 @@
+import { positionFxTimestamps } from '@/lib/reconciliation-quality';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { mapCandleDataToPoints } from '@/lib/calculations';
@@ -134,11 +135,7 @@ export async function GET(request: NextRequest) {
     const usdToIlsPromise = getUsdToIlsRate({ allowFallback: false });
 
     const fxHistoryPromise = (async (): Promise<HistoricalPoint[]> => {
-      const allTimestamps = mappedPositions.flatMap((position) =>
-        (position.lots ?? [])
-          .map((lot) => new Date(lot.executedAt).getTime())
-          .filter((timestamp) => Number.isFinite(timestamp)),
-      );
+      const allTimestamps = mappedPositions.flatMap(positionFxTimestamps);
       const activationBoundaries = activationPositions
         .flatMap((position) => [
           position.activationStart ? new Date(position.activationStart).getTime() : Number.NaN,

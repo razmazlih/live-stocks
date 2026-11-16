@@ -51,6 +51,7 @@ async function regressionTests(){
   exact.summary[`totalForecastGap${key}`]='12.5';out=await run(exact,{currency});check(out.model.forecastGap,12.5);check(out.api.gapLabel(12.5),'מעל התחזית');
   delete exact.usdToIlsRate;out=await run(fixture,{currency});check(out.model.forecastGap,base);
  }
+ const noBasisDate=structuredClone(fixture);noBasisDate.stocks[0].currentPnLIls=null;check((await run(noBasisDate)).model.stocks[0].pnl,null);
  const noIls={summary:{totalNetPnLUsd:100,totalProjectedPnLUsd:40,totalForecastGapUsd:60},stocks:[],usdToIlsRate:3.7};
  check((await run(noIls)).model.forecastGap,null);check((await run(noIls)).model.pnl,null);
  const noFx=structuredClone(fixture);delete noFx.usdToIlsRate;check((await run(noFx)).model.forecastGap,187);check((await run(noFx)).model.pnl,321);

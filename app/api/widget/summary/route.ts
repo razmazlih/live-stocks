@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       currentPnLUsd: stock.currentPnLUsd, currentPnLIls: stock.currentPnLIls, dailyChange: stock.dailyChange,
     })) : [];
     return Response.json({ timestamp: payload.timestamp, usdToIlsRate: payload.usdToIlsRate,
-      summary: payload.summary, stocks, widgetTokenExpiresAt: data.expires_at }, { headers: PRIVATE_HEADERS });
+      summary: payload.summary, dataQuality: payload.dataQuality, stocks, widgetTokenExpiresAt: data.expires_at }, { headers: PRIVATE_HEADERS });
   } catch {
     return Response.json({ error: 'Widget data is temporarily unavailable' }, { status: 503, headers: PRIVATE_HEADERS });
   }

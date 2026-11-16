@@ -1,3 +1,4 @@
+import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING } from '@/lib/reconciliation-quality';
 import { NextResponse } from 'next/server';
 import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
 import { readFinnhubCredential } from '@/lib/auth/credentials';
@@ -41,6 +42,8 @@ async function buildSnapshot(principal: Principal) {
     ? configuredRate : null;
   if (annualGrowthRate === null) warnings.push('Annual return target is unavailable; target calculations are omitted.');
   const positions = positionRows.map(row => mapPositionRow({ ...row, position_lots: lotRows.filter(lot => lot.position_id === row.id) }));
+  const historyQuality = reconciliationQuality(positions);
+  if (!historyQuality.completeTransactionHistory) warnings.push(RECONCILIATION_HISTORY_WARNING);
   const activations = positions.flatMap(expandPositionActivations);
   const symbols = [...new Set([...positions.map(p => p.symbol), ...planRows.map(p => p.symbol)].map(s => s.trim().toUpperCase()))].filter(Boolean).sort();
   const token = await readFinnhubCredential(principal.userId);
@@ -51,7 +54,7 @@ async function buildSnapshot(principal: Principal) {
   const quotes = new Map(quoteEntries);
   if (fxResult === null) warnings.push('Current USD/ILS rate unavailable; ILS values are omitted.');
   let fxHistory: HistoricalPoint[] = [];
-  const timestamps = lotRows.map(lot => new Date(lot.executed_at).getTime()).filter(Number.isFinite);
+  const timestamps = lotRows.flatMap(lot => [lot.executed_at, lot.basis_acquired_on].filter((value): value is string => Boolean(value)).map(value => new Date(value).getTime())).filter(Number.isFinite);
   if (timestamps.length) {
     try {
       fxHistory = mapCandleDataToPoints(await fetchYahooCandlesData('ILS=X', Math.floor(normalizeToUtcDay(Math.min(...timestamps)) / 1000) - 10 * 86400, Math.floor(Date.now() / 1000), 'D'));
@@ -105,13 +108,14 @@ async function buildSnapshot(principal: Principal) {
     schemaVersion: 1, startedAt, generatedAt: new Date().toISOString(),
     scope: 'all recorded positions and plans belonging to the authenticated user',
     currencies: { prices: 'USD', base: 'USD', display: settings?.currency ?? 'USD', usdToIls: fxResult, fxSource: fxResult === null ? 'unavailable' : 'open.er-api.com', historicalFxPointCount: fxHistory.length },
-    dataQuality: { completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
+    dataQuality: { ...historyQuality, completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
     goals: { annualGrowthRate, annualGrowthRatePercent: annualGrowthRate === null ? null : annualGrowthRate * 100, meaning: 'User annual compound return target, evaluated as of today; not a price forecast or guaranteed return. currentGapUsd is positive for a shortfall and negative for a surplus.', symbolTargets: targets },
-    summary: summary ? { ...summary, ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
+    summary: summary ? { ...summary, ...(!historyQuality.completeTransactionHistory ? { totalTaxesPaidUsd: null, totalTaxesPaidIls: null } : {}), ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
     closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
-    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: tax.taxUsd, estimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
+    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: historyQuality.completeTransactionHistory ? tax.taxUsd : null, estimatedTaxIls: historyQuality.completeTransactionHistory && fxResult !== null ? tax.taxIls : null, recordedSalesEstimatedTaxUsd: tax.taxUsd, recordedSalesEstimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
     quotes: quoteObservations,
     limitations: [
+      ...(!historyQuality.completeTransactionHistory ? [RECONCILIATION_HISTORY_WARNING] : []),
       'Read-only snapshot; reading this API does not execute or update pending plans.',
       'Database tables are read separately, not as an atomic transaction.',
       'Quotes are last available market observations, possibly delayed or from a prior trading session; generatedAt is not a market timestamp.',

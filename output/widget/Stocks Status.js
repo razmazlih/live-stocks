@@ -86,7 +86,7 @@ function normalize(payload) {
     if (!symbol || q !== null && q <= 0) return;
     const daily = n(raw.dailyChange), usdValue = n(raw.totalValueUsd);
     const item = { symbol, value: OPTIONS.currency === "ILS" ? n(raw.totalValueIls) ?? convert(usdValue) : usdValue,
-      pnl: OPTIONS.currency === "ILS" ? n(raw.currentPnLIls) ?? convert(n(raw.currentPnLUsd)) : n(raw.currentPnLUsd),
+      pnl: OPTIONS.currency === "ILS" ? n(raw.currentPnLIls) : n(raw.currentPnLUsd),
       daily: daily !== null && q !== null ? convert(daily * q) : null,
       // Base value includes entry price for new positions, matching API semantics.
       base: daily !== null && q !== null && n(raw.currentPrice) !== null ? convert((n(raw.currentPrice) - daily) * q) : null };

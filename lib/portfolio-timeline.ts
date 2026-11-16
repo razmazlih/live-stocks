@@ -1,5 +1,6 @@
 import type { HistoricalPoint, PortfolioTimelinePoint, Position, PositionLot } from '@/types';
 import { calculateCommissionTotals, computeOpenLots, computeRealizedSalesWithFx } from '@/lib/positions';
+import { hasReconciliationHistory } from '@/lib/reconciliation-quality';
 import { calculateRealizedPortfolioTotals } from '@/lib/calculations';
 
 const DAY_MS = 86_400_000;
@@ -20,7 +21,7 @@ export function buildPositionTimeline(
   const prices = points.filter(p => Number.isFinite(p.timestamp) && Number.isFinite(p.close) && p.close > 0).slice().sort((a, b) => a.timestamp - b.timestamp);
   const spy = spyPoints.filter(p => Number.isFinite(p.timestamp) && p.close > 0).slice().sort((a, b) => a.timestamp - b.timestamp);
   const lots: PositionLot[] = (position.lots?.length ? position.lots : position.quantity > 0 ? [{ type: 'BUY' as const, price: position.entryPrice, quantity: position.quantity, executedAt: position.entryDate, hasCommission: false, commissionAmount: 0 }] : [])
-    .filter(lot => lot.quantity > 0 && Number.isFinite(Date.parse(lot.executedAt)))
+    .filter(lot => (lot.quantity > 0 || lot.type === 'RECONCILE') && Number.isFinite(Date.parse(lot.executedAt)))
     .slice().sort((a, b) => Date.parse(a.executedAt) - Date.parse(b.executedAt));
   if (!lots.length) return [];
   const first = dayStart(Date.parse(lots[0].executedAt));
@@ -39,6 +40,14 @@ export function buildPositionTimeline(
     const timestamp = Math.min(day + DAY_MS - 1, asOf);
     const activeLots = lots.filter(lot => Date.parse(lot.executedAt) <= timestamp);
     const snapshot = { ...position, lots: activeLots };
+    if (hasReconciliationHistory(snapshot, timestamp)) {
+      // A checkpoint is not a sale or a purchase. Never draw a fabricated
+      // lifetime-return/benchmark bridge over unrecorded executions.
+      timeline.push({ ...calculateCommissionTotals(activeLots, getFxRateAt, timestamp), timestamp,
+        totalPnLUsd: Number.NaN, totalPnLIls: Number.NaN, netPnLUsd: Number.NaN, netPnLIls: Number.NaN,
+        expectedNetPnLUsd: Number.NaN, expectedNetPnLIls: Number.NaN, spyNetPnLUsd: Number.NaN, spyNetPnLIls: Number.NaN });
+      continue;
+    }
     const open = computeOpenLots(activeLots);
     const realized = calculateRealizedPortfolioTotals(computeRealizedSalesWithFx(snapshot, getFxRateAt), annualGrowthRate, getFxRateAt(timestamp), getFxRateAt);
     const close = priceAt(prices, timestamp);

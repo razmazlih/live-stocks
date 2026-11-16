@@ -160,10 +160,12 @@ export type Database = {
         Row: {
           id: string;
           position_id: string;
-          side: 'BUY' | 'SELL';
+          side: 'BUY' | 'SELL' | 'RECONCILE';
           price: number;
           quantity: number;
           executed_at: string;
+          basis_acquired_on?: string | null;
+          basis_date_estimate?: string | null;
           has_commission: boolean;
           commission_amount: number;
           created_at: string;
@@ -172,10 +174,12 @@ export type Database = {
         Insert: {
           id?: string;
           position_id: string;
-          side: 'BUY' | 'SELL';
+          side: 'BUY' | 'SELL' | 'RECONCILE';
           price: number;
           quantity: number;
           executed_at: string;
+          basis_acquired_on?: string | null;
+          basis_date_estimate?: string | null;
           has_commission?: boolean;
           commission_amount?: number;
           created_at?: string;
@@ -184,10 +188,12 @@ export type Database = {
         Update: {
           id?: string;
           position_id?: string;
-          side?: 'BUY' | 'SELL';
+          side?: 'BUY' | 'SELL' | 'RECONCILE';
           price?: number;
           quantity?: number;
           executed_at?: string;
+          basis_acquired_on?: string | null;
+          basis_date_estimate?: string | null;
           has_commission?: boolean;
           commission_amount?: number;
           created_at?: string;

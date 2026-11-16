@@ -488,6 +488,7 @@ export default function PositionsPage() {
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
+    if (lot.type === "RECONCILE") return;
     setHistoryDialogOpen(false);
     setTransactionTarget(position);
     setTransactionForm({
@@ -778,6 +779,7 @@ export default function PositionsPage() {
   }
 
   async function handleDeleteTransaction(lot: PositionLot) {
+    if (lot.type === "RECONCILE") return;
     if (!lot.id) {
       toast.error(t.common.error);
       return;
@@ -805,6 +807,7 @@ export default function PositionsPage() {
   }
 
   async function handleDelete(id: string) {
+    if (positions.some(position => position.id === id && position.lots?.some(lot => lot.type === "RECONCILE"))) return;
     if (
       !confirm(
         locale === "he" ? "האם למחוק פוזיציה זו?" : "Delete this position?",
@@ -1334,9 +1337,9 @@ export default function PositionsPage() {
                     })
                     .map((lot) => {
                       const typeLabel =
-                        lot.type === "BUY" ? t.positions.buy : t.positions.sell;
+                        lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY" ? t.positions.buy : t.positions.sell;
                       const badgeTone =
-                        lot.type === "BUY"
+                        lot.type === "RECONCILE" ? "bg-blue-100 text-blue-700" : lot.type === "BUY"
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-rose-100 text-rose-700";
                       const commissionApplied =
@@ -1373,6 +1376,7 @@ export default function PositionsPage() {
                                 openEditTransactionDialog(historyTarget, lot)
                               }
                               aria-label={t.positions.editTransaction}
+                              disabled={lot.type === "RECONCILE"}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1382,6 +1386,7 @@ export default function PositionsPage() {
                               className="h-10 flex-1 border border-slate-200 bg-white sm:w-10 sm:flex-none"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
+                              disabled={lot.type === "RECONCILE"}
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
@@ -1657,12 +1662,12 @@ export default function PositionsPage() {
                                               key={`${lot.id}-${lot.executedAt}`}
                                               className={cn(
                                                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                                lot.type === "BUY"
+                                                lot.type === "RECONCILE" ? "bg-blue-50 text-blue-700" : lot.type === "BUY"
                                                   ? "bg-emerald-50 text-emerald-700"
                                                   : "bg-rose-50 text-rose-700",
                                               )}
                                             >
-                                              {lot.type === "BUY"
+                                              {lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY"
                                                 ? t.positions.buy
                                                 : t.positions.sell}{" "}
                                               · {formatDate(lot.executedAt, locale)}
@@ -1720,7 +1725,8 @@ export default function PositionsPage() {
                                           position.id && handleDelete(position.id)
                                         }
                                         aria-label={t.positions.delete}
-                                        disabled={!position.id}
+                                        disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
+                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
                                         className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1834,12 +1840,12 @@ export default function PositionsPage() {
                                           key={`${lot.id}-${lot.executedAt}`}
                                           className={cn(
                                             "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                            lot.type === "BUY"
+                                            lot.type === "RECONCILE" ? "bg-blue-50 text-blue-700" : lot.type === "BUY"
                                               ? "bg-emerald-50 text-emerald-700"
                                               : "bg-rose-50 text-rose-700",
                                           )}
                                         >
-                                          {lot.type === "BUY"
+                                          {lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY"
                                             ? t.positions.buy
                                             : t.positions.sell}{" "}
                                           · {formatDate(lot.executedAt, locale)}
@@ -1882,7 +1888,8 @@ export default function PositionsPage() {
                                         position.id && handleDelete(position.id)
                                       }
                                       aria-label={t.positions.delete}
-                                      disabled={!position.id}
+                                      disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
+                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
                                       className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                     >
                                       <Trash2 className="h-4 w-4" />
