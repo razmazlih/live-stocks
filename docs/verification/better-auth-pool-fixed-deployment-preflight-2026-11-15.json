@@ -1,0 +1,50 @@
+{
+  "status": "PASS_CREDENTIAL_FREE_DEPLOYMENT_PREFLIGHT",
+  "supabaseAccess": false,
+  "startedAt": "2026-11-15T12:19:26.704Z",
+  "cleanup": {
+    "vercel": {
+      "ok": true,
+      "runId": "72255bb6-1e56-47a0-835f-99f3b8a1a708",
+      "deploymentsRemoved": 1,
+      "environmentRemoved": 2,
+      "errors": [],
+      "credentialFreeAliasRestored": true
+    },
+    "leaseReleased": true
+  },
+  "gateRunId": "cded2718-d85d-490f-a74e-7349ab692806",
+  "sourceHashes": {
+    "lib/auth/better-auth-config.ts": "108d147a536063bbc18ce88a556d35ec2300412e038402169dceb7587652eed5",
+    "lib/auth/auth-email.ts": "d04b695608f68fa32c4fb46ae552a5a1dd7b3ed544ae1525d59137d7894f1ef5",
+    "lib/auth/sign-in-method-guard.ts": "de45dab1eab977753bd5cfd52af57ada255ee9587fded84e9cfe784a2ecd38bf",
+    "lib/auth/better-auth.ts": "4bcb8e555b2f754d0cd36ffb4ccf1a4c6264688bd5d5568b7351fb55493fe880",
+    "lib/auth/better-auth-handler.ts": "2069b28b0213b29be6975ad8bce5d32101a998728cd4bf0fe82189d2846d0116",
+    "scripts/lib/better-auth-gate-health.mjs": "91dc928bd8869fea8be12693e7c55f1e6946e4a435850a585d99f1e4248bc491"
+  },
+  "cloudRunId": "72255bb6-1e56-47a0-835f-99f3b8a1a708",
+  "deployment": {
+    "url": "https://livestocks-auth-gate-3mk40ndu1-razs-projects-0212f70e.vercel.app",
+    "id": "dpl_DoJKJiDQNP3eSCsX23fArtRvQqSw",
+    "readyState": "READY",
+    "aliasMatches": true
+  },
+  "publicSourceMatches": true,
+  "unguardedProbeDenied": true,
+  "readiness": {
+    "status": 503,
+    "category": "CONFIGURATION_INVALID",
+    "environmentRunIdMatches": true,
+    "allAuthConfigurationAbsent": true,
+    "requestId": "5731d067-2b0f-4011-98d7-ef8a418fbdcd"
+  },
+  "discovery": {
+    "status": 503,
+    "code": "AUTH_UNAVAILABLE"
+  },
+  "completedAt": "2026-11-15T12:20:45.491Z",
+  "scope": "Credential-free pool-fixed synthetic service preflight; not hosted JWT/RLS acceptance",
+  "nativeFullProviderGate": "PASS",
+  "nativeIdleAndActiveConnectionFaultGate": "PASS",
+  "productionMutations": false
+}

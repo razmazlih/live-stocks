@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-16",
+  "browser": "Google Chrome",
+  "environment": "Disposable local PostgreSQL and PostgREST, synthetic user and holdings only",
+  "surface": "Production InvestmentSourcesProvider and InvestmentSourceSettings component bundled with esbuild and repository Tailwind CSS",
+  "checks": {
+    "onePrimarySourceOnBootstrap": true,
+    "threePersonalSourcesWithHebrewNames": true,
+    "renamePersistedAfterReload": true,
+    "archiveAndRestore": true,
+    "duplicateNameRejected": true,
+    "activeHoldingArchiveRejected": true,
+    "desktopVisualInspection": true,
+    "mobile390x844VisualInspection": true
+  },
+  "finalSources": [
+    { "name": "מקור ראשי", "archived": false },
+    { "name": "בית השקעות אישי", "archived": false },
+    { "name": "חשבון מסחר נוסף", "archived": true }
+  ],
+  "screenshots": [
+    "docs/screenshots/investment-sources-desktop.png",
+    "docs/screenshots/investment-sources-mobile.png"
+  ],
+  "limitations": [
+    "The surrounding settings page shell is a temporary preview; complete authenticated Next.js navigation was not exercised in this browser check.",
+    "Mobile viewport emulation, not a physical phone.",
+    "No production data or deployment was used."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "startedAt": "2026-11-14T14:02:50.550Z",
+  "completedAt": "2026-11-14T14:02:53.053Z",
+  "status": "FAIL",
+  "limits": [
+    "Synthetic database accounts only; does not prove Google owner login, ChatGPT host compatibility, or hosted Supabase third-party integration.",
+    "This case requires the requested OIDC scopes and an ID token to pass. ACCESS_GRANTED_OIDC_NOT_GRANTED fails that stricter OIDC-issuance expectation without implying that OAuth access was rejected or that OpenAI linking fails. OpenAI-host compatibility is untested. ID-token presence alone does not validate the ID token."
+  ],
+  "cases": [
+    {
+      "name": "mcp_advertised_oidc_scopes",
+      "status": "FAIL",
+      "requestedScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access",
+        "portfolio:read"
+      ],
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "idTokenPresent": false,
+      "refreshTokenPresent": true,
+      "oidcScopesGranted": false,
+      "grantedRequestedScopes": [
+        "offline_access",
+        "portfolio:read"
+      ],
+      "authorizationResult": "ACCESS_GRANTED_OIDC_NOT_GRANTED",
+      "roleAuthenticated": true,
+      "readOnly": true,
+      "emailVerified": true
+    }
+  ],
+  "interpretation": {
+    "oauthMcpAccess": "PASS",
+    "requestedOidcIssuance": "FAIL",
+    "chatgptHostCompatibility": "NOT_TESTED",
+    "providerConfigurationChanged": false,
+    "realOwnerUsed": false,
+    "primaryGateReportOverwritten": false
+  }
+}

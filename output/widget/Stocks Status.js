@@ -2,26 +2,34 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-green; icon-glyph: chart-line;
 
-/** LiveStocks • Portfolio glance, v7.0
+/** LiveStocks • Personal portfolio glance, v8.0
  * Native small / medium / large / extraLarge layouts for Scriptable.
  * Parameters: currency=ILS|USD; mode=value|pnl; baseurl=https://your-host
+ * Run in Scriptable to store a personal read-only token in native Keychain.
+ * Never put a token in script source, widget parameters, or iCloud files.
  * Daily change is the latest quoted holding movement, not a live account return.
  * Daily change follows the API: prior close, or entry for positions opened today.
  * ILS daily movement converts USD movement at current FX; excludes FX movement.
  * Response update time is not the exchange quote time. No invented chart/history.
  */
-const SETTINGS = { baseUrl: "https://razmaz-live-stocks.vercel.app", refresh: 15, timeout: 15 };
+const SETTINGS = { offlineMaxAge: 60 * 60 * 1000, baseUrl: "https://razmaz-live-stocks.vercel.app", refresh: 15, timeout: 15 };
 const FAMILY = ["small", "medium", "large", "extraLarge"].includes(config.widgetFamily) ? config.widgetFamily : "medium";
 const LARGE = FAMILY === "large" || FAMILY === "extraLarge";
 const XL = FAMILY === "extraLarge";
 const SMALL = FAMILY === "small";
+function httpsOrigin(value) {
+  // Scriptable does not guarantee the browser URL API. Accept an HTTPS origin only.
+  const match = /^https:\/\/([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)(?::([0-9]{1,5}))?\/?$/i.exec(String(value || ""));
+  if (!match || match[2] && (+match[2] < 1 || +match[2] > 65535)) return null;
+  return `https://${match[1].toLowerCase()}${match[2] && +match[2] !== 443 ? ":" + Number(match[2]) : ""}`;
+}
 function options(raw) {
-  const out = { baseUrl: SETTINGS.baseUrl, currency: "ILS", mode: "value" };
+  const out = { baseUrl: httpsOrigin(args.queryParameters && args.queryParameters.baseurl || SETTINGS.baseUrl), currency: "ILS", mode: "value" };
   String(raw || "").split(/[;\n]/).forEach(part => {
     const i = part.indexOf("=");
     if (i < 1) return;
     const k = part.slice(0, i).trim().toLowerCase(), v = part.slice(i + 1).trim();
-    if (["baseurl", "host", "url"].includes(k) && /^https:\/\//i.test(v)) out.baseUrl = v.replace(/\/+$/, "");
+    if (["baseurl", "host", "url"].includes(k)) out.baseUrl = httpsOrigin(v);
     if (k === "currency" && /^(ILS|USD)$/i.test(v)) out.currency = v.toUpperCase();
     if (k === "mode" && /^(pnl|value)$/i.test(v)) out.mode = v.toLowerCase();
   });
@@ -78,7 +86,7 @@ function normalize(payload) {
     if (!symbol || q !== null && q <= 0) return;
     const daily = n(raw.dailyChange), usdValue = n(raw.totalValueUsd);
     const item = { symbol, value: OPTIONS.currency === "ILS" ? n(raw.totalValueIls) ?? convert(usdValue) : usdValue,
-      pnl: OPTIONS.currency === "ILS" ? n(raw.currentPnLIls) ?? convert(n(raw.currentPnLUsd)) : n(raw.currentPnLUsd),
+      pnl: OPTIONS.currency === "ILS" ? n(raw.currentPnLIls) : n(raw.currentPnLUsd),
       daily: daily !== null && q !== null ? convert(daily * q) : null,
       // Base value includes entry price for new positions, matching API semantics.
       base: daily !== null && q !== null && n(raw.currentPrice) !== null ? convert((n(raw.currentPrice) - daily) * q) : null };
@@ -111,32 +119,114 @@ function normalize(payload) {
     concentration: full && stocks.every(r => r.value !== null && r.value >= 0) && largest && largest.value !== null && value > 0 ? largest.value / value * 100 : null,
     winners: known.filter(r => r.daily > 0).length, losers: known.filter(r => r.daily < 0).length };
 }
-function cacheLocation() {
+function fingerprint(value) {
+  // Non-secret cache identity only; authorization always uses the full opaque token.
+  let a = 2166136261, b = 3335557771;
+  for (const char of value) {
+    a = Math.imul(a ^ char.charCodeAt(0), 16777619) >>> 0;
+    b = Math.imul(b ^ char.charCodeAt(0), 2246822519) >>> 0;
+  }
+  return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0");
+}
+function credentialKey() { return `livestocks.widget.v1:${OPTIONS.baseUrl}`; }
+function readCredential() {
+  try {
+    if (!OPTIONS.baseUrl || !Keychain.contains(credentialKey())) return null;
+    const token = Keychain.get(credentialKey());
+    return /^lst_widget_[A-Za-z0-9_-]{43}$/.test(token) ? token : null;
+  } catch (_) { return null; }
+}
+function readCredentialMetadata() {
+  try { return JSON.parse(Keychain.get(credentialKey() + ":metadata")); } catch (_) { return null; }
+}
+function cacheLocation(token) {
   const fm = FileManager.local();
-  // Namespace the cache by full origin, so custom API hosts never share holdings.
-  let hash = 2166136261;
-  for (const char of OPTIONS.baseUrl) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
-  const key = hash.toString(16);
-  return { fm, path: fm.joinPath(fm.documentsDirectory(), `stocks-glance-v3-${key}.json`) };
+  const identity = fingerprint(token);
+  return { fm, identity, path: fm.joinPath(fm.documentsDirectory(), `stocks-glance-v4-${fingerprint(OPTIONS.baseUrl)}-${identity}.json`) };
+}
+function clearCaches(legacyOnly = false) {
+  try {
+    const fm = FileManager.local(), directory = fm.documentsDirectory();
+    const currentPrefix = OPTIONS.baseUrl ? `stocks-glance-v4-${fingerprint(OPTIONS.baseUrl)}-` : null;
+    for (const name of fm.listContents(directory)) {
+      if (/^stocks-glance-v3-[a-f0-9]+\.json$/.test(name) || !legacyOnly && currentPrefix && name.startsWith(currentPrefix) && /^[a-f0-9]+\.json$/.test(name.slice(currentPrefix.length))) {
+        fm.remove(fm.joinPath(directory, name));
+      }
+    }
+  } catch (_) {}
+}
+function disconnect() {
+  clearCaches();
+  try {
+    for (const key of [credentialKey(), credentialKey() + ":metadata"]) if (Keychain.contains(key)) Keychain.remove(key);
+  } catch (_) {}
+}
+async function setupCredential() {
+  if (!OPTIONS.baseUrl) return;
+  if (readCredential()) {
+    const menu = new Alert(); menu.title = "החשבון האישי בווידג׳ט";
+    menu.message = OPTIONS.baseUrl;
+    menu.addAction("הצגת הווידג׳ט"); menu.addAction("החלפת טוקן"); menu.addDestructiveAction("ניתוק במכשיר זה"); menu.addCancelAction("ביטול");
+    const choice = await menu.presentSheet();
+    if (choice === 2) { disconnect(); return; }
+    if (choice !== 1) return;
+  }
+  const prompt = new Alert(); prompt.title = "חיבור LiveStocks";
+  prompt.message = `יש ליצור טוקן אישי בהגדרות החשבון ולהדביק כאן. הטוקן יישמר ב־Keychain רק עבור ${OPTIONS.baseUrl}`;
+  prompt.addSecureTextField("טוקן אישי לווידג׳ט"); prompt.addAction("שמירה"); prompt.addCancelAction("ביטול");
+  if (await prompt.presentAlert() !== 0) return;
+  const token = prompt.textFieldValue(0).trim();
+  if (!/^lst_widget_[A-Za-z0-9_-]{43}$/.test(token)) {
+    const error = new Alert(); error.title = "הטוקן אינו תקין"; error.message = "יש להעתיק את הטוקן המלא ממסך ההגדרות."; error.addAction("אישור"); await error.presentAlert(); return;
+  }
+  disconnect();
+  Keychain.set(credentialKey(), token);
 }
 function valid(p) { return p && !p.error && p.summary && typeof p.summary === "object" && Array.isArray(p.stocks); }
+function reconnect() { clearCaches(); return { payload: null, stale: false, reconnect: true }; }
 async function load() {
-  const cache = cacheLocation();
+  clearCaches(true);
+  if (!OPTIONS.baseUrl) return reconnect();
+  const token = readCredential();
+  if (!token) return reconnect();
+  const cache = cacheLocation(token), metadata = readCredentialMetadata();
+  if (metadata && metadata.identity === cache.identity && new Date(metadata.expiresAt).getTime() <= Date.now()) {
+    disconnect(); return reconnect();
+  }
+  let req;
   try {
-    const req = new Request(`${OPTIONS.baseUrl}/api/portfolio`);
+    req = new Request(`${OPTIONS.baseUrl}/api/widget/summary`);
     req.method = "POST"; req.timeoutInterval = SETTINGS.timeout;
-    req.headers = { "Content-Type": "application/json", Accept: "application/json" };
-    req.body = JSON.stringify({ includeWeightedPrice: true, targetCurrency: "ILS" });
+    req.allowInsecureRequest = false;
+    // Never forward a personal credential to a redirected host or path.
+    req.onRedirect = () => null;
+    req.headers = { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` };
+    req.body = JSON.stringify({ targetCurrency: OPTIONS.currency });
     const payload = await req.loadJSON();
-    if (req.response && req.response.statusCode >= 400 || !valid(payload)) throw new Error("Portfolio unavailable");
-    const state = { origin: OPTIONS.baseUrl, payload, savedAt: new Date().toISOString(), stale: false };
+    const status = req.response && req.response.statusCode;
+    if (status === 401 || status === 403) { disconnect(); return reconnect(); }
+    if (status && status >= 300 || !valid(payload)) throw new Error("Portfolio unavailable");
+    if (readCredential() !== token) return reconnect();
+    const expiresAt = payload.widgetTokenExpiresAt;
+    const expiry = new Date(expiresAt).getTime();
+    if (!Number.isFinite(expiry) || expiry <= Date.now()) { disconnect(); return reconnect(); }
+    const state = { origin: OPTIONS.baseUrl, identity: cache.identity, payload, expiresAt, savedAt: new Date().toISOString(), stale: false };
+    Keychain.set(credentialKey() + ":metadata", JSON.stringify({ identity: cache.identity, expiresAt }));
     try { cache.fm.writeString(cache.path, JSON.stringify(state)); } catch (_) {}
     return state;
   } catch (_) {
+    const status = req && req.response && req.response.statusCode;
+    if (status === 401 || status === 403) { disconnect(); return reconnect(); }
+    if (readCredential() !== token) return reconnect();
+    // Offline/server failure only. Invalid requests, redirects and denied access cannot use cache.
+    if (status && status < 500) return { payload: null, stale: false };
     try {
       if (cache.fm.fileExists(cache.path)) {
         const state = JSON.parse(cache.fm.readString(cache.path));
-        if (state.origin === OPTIONS.baseUrl && valid(state.payload) && Number.isFinite(new Date(state.savedAt).getTime())) return { ...state, stale: true };
+        const savedAt = new Date(state.savedAt).getTime(), expiresAt = new Date(state.expiresAt).getTime();
+        if (state.origin === OPTIONS.baseUrl && state.identity === cache.identity && Number.isFinite(expiresAt) && expiresAt <= Date.now()) { disconnect(); return reconnect(); }
+        if (state.origin === OPTIONS.baseUrl && state.identity === cache.identity && valid(state.payload) && Number.isFinite(savedAt) && savedAt <= Date.now() && Date.now() - savedAt <= SETTINGS.offlineMaxAge && expiresAt > Date.now()) return { ...state, stale: true };
+        cache.fm.remove(cache.path);
       }
     } catch (_) {}
     return { payload: null, stale: false };
@@ -331,15 +421,16 @@ function renderXL(w, m, state) {
   footer(w, m, state);
 }
 async function main() {
+  if (!config.runsInWidget) await setupCredential();
   const state = await load(), w = new ListWidget();
   w.backgroundColor = C.bg;
   const gradient = new LinearGradient(); gradient.colors = [Color.dynamic(new Color("E2ECFF"), new Color("20365A")), C.bg, C.bg]; gradient.locations = [0, 0.65, 1]; gradient.startPoint = new Point(0, 0); gradient.endPoint = new Point(1, 1); w.backgroundGradient = gradient;
-  w.url = `${OPTIONS.baseUrl}/`; const pad = SMALL ? 11 : XL ? 18 : 13; w.setPadding(pad, pad, pad, pad);
+  w.url = state.reconnect ? "scriptable:///run?scriptName=" + encodeURIComponent(Script.name()) + (OPTIONS.baseUrl ? "&baseurl=" + encodeURIComponent(OPTIONS.baseUrl) : "") : `${OPTIONS.baseUrl}/`; const pad = SMALL ? 11 : XL ? 18 : 13; w.setPadding(pad, pad, pad, pad);
   w.refreshAfterDate = new Date(Date.now() + (state.stale || !state.payload ? 7 : SETTINGS.refresh) * 60000);
   if (!state.payload) {
     w.addSpacer(); icon(w, "wifi.exclamationmark", C.warning, 24); w.addSpacer(10);
-    text(w, "לא ניתן לטעון את התיק", SMALL ? 13 : 18, C.ink, "bold"); w.addSpacer(8);
-    text(w, "הקש לפתיחת LiveStocks ↗", 11, C.accent); w.addSpacer();
+    text(w, state.reconnect ? "נדרש חיבור אישי" : "לא ניתן לטעון את התיק", SMALL ? 13 : 18, C.ink, "bold"); w.addSpacer(8);
+    text(w, state.reconnect ? "הקש להגדרת טוקן ב־Scriptable ↗" : "הקש לפתיחת LiveStocks ↗", 11, C.accent); w.addSpacer();
   } else {
     const m = normalize(state.payload); header(w, state);
     if (SMALL) renderSmall(w, m); else if (FAMILY === "medium") renderMedium(w, m, state); else if (XL) renderXL(w, m, state); else renderLarge(w, m, state);

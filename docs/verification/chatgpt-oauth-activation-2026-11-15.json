@@ -1,0 +1,77 @@
+{
+  "status": "PASS_PRIVATE_OAUTH_HOST_LIFECYCLE",
+  "observedDate": "2026-11-15",
+  "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "appVersionId": "asdk_app_v_6af9b5f79ff0819181b5178cd77e7c2c",
+  "visibility": "USER_PRIVATE",
+  "creationExplicitlyApproved": true,
+  "humanConsentObserved": true,
+  "clientId": "livestocks-mcp-chatgpt",
+  "tokenEndpointAuthMethod": "client_secret_post",
+  "callbackUrl": "https://chatgpt.com/connector_platform_oauth_redirect",
+  "issuer": "https://razmaz-live-stocks.vercel.app/api/auth",
+  "resource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+  "scopes": [
+    "openid",
+    "email",
+    "profile",
+    "offline_access",
+    "portfolio:read"
+  ],
+  "package": {
+    "version": "1.1.0",
+    "releaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "appBindingPreserved": true,
+    "sourceReadbackMatch": true,
+    "analystSkillSha256": "62ca2dc0943d8debda91fa810daa965b8304f0a579b4ec59d33801808cf011fd"
+  },
+  "hostChecks": {
+    "sevenToolsAvailable": true,
+    "getProfileSuccess": true,
+    "getPortfolioSnapshotSuccess": true,
+    "readsAfterInitialFiveMinuteLifetimeWithoutReconsent": true,
+    "privateProfileMatch": true,
+    "refreshRotation": {
+      "status": "PASS",
+      "initialRefreshCreatedAt": "2026-11-15T13:40:37Z",
+      "latestObservedRotationAt": "2026-11-15T13:53:59Z",
+      "evidence": "Read-only production refresh-family metadata plus successful connected tools after five-minute access lifetime, without reconsent",
+      "rawTokenValuesRecorded": false
+    },
+    "disconnect": {
+      "status": "PASS_NO_PROFILE_RETURNED_REAUTH_REQUIRED",
+      "websiteDisconnectAt": "2026-11-15T13:56:48.380Z",
+      "websiteStatus": 200,
+      "connectedToolIsError": true,
+      "connectedToolReturnedProfile": false,
+      "hostResult": "Authentication requested and accepted; retry required",
+      "limit": "Host handled the authentication challenge; raw HTTP401 or rejected old JWT was not exposed to the agent."
+    },
+    "reconnect": {
+      "status": "PASS_SAME_CANONICAL_PROFILE",
+      "websitePrepareAt": "2026-11-15T14:04:03Z",
+      "websiteStatus": 200,
+      "connectedToolIsError": false,
+      "sameCanonicalProfile": true,
+      "newApprovalMetadata": {
+        "status": "PASS",
+        "createdAt": "2026-11-15T14:06:41.411104Z",
+        "createdAfterReconnectPreparation": true,
+        "initialApprovalRevoked": true,
+        "evidence": "Read-only production approval metadata; website reconnect preparation creates no approval"
+      }
+    },
+    "getProfileAfterLegacyUninstall": true
+  },
+  "publicEvidenceContainsOwnerIdentityOrPortfolioValues": false,
+  "publicEvidenceContainsCredentials": false,
+  "oldPlugin": {
+    "retainedDuringActivation": true,
+    "subsequentUninstallExplicitlyApproved": true,
+    "uninstalled": true,
+    "ownedCloudArtifactPermanentlyDeleted": false,
+    "repositorySourceRetained": true
+  },
+  "soleInstalledLiveStocksConnection": "LiveStocks (OAuth)"
+}

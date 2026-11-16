@@ -1,0 +1,20 @@
+{
+  "scope": "LOCAL_ISOLATED_PRODUCTION_BUILD",
+  "verifiedAt": "2026-11-14T15:34:24.906826+00:00",
+  "status": "PASS",
+  "command": "npm run build",
+  "resolvedBuildCommand": "next build --webpack",
+  "exitCode": 0,
+  "durationSeconds": 25.2,
+  "sourceSha256": "2316544ffe7167c2634043d633fe09dcbbb729fcafebdf3dfa824e76342824ec",
+  "applicationAndConfigurationMatchedCurrentSource": true,
+  "envFilesLoaded": false,
+  "realCredentialsUsed": false,
+  "temporaryCopyCleanup": "COMPLETE",
+  "typescriptAndRouteGeneration": "PASS",
+  "metadataRouteExportWarningResolved": true,
+  "productionDeploymentPerformed": false,
+  "remainingWarnings": [
+    "Browserslist and baseline browser reference data are outdated."
+  ]
+}

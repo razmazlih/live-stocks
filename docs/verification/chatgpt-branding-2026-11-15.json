@@ -1,0 +1,185 @@
+{
+  "status": "PASS_WEBSITE_ICON_CONFIRMED_BY_USER",
+  "observedDate": "2026-11-15",
+  "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+  "displayName": "LiveStocks",
+  "displayNameVerifiedInOwningUI": true,
+  "localManifestsMatchCloudPresentation": true,
+  "requestedIcon": "https://razmaz-live-stocks.vercel.app/brand/apple-touch-icon.png",
+  "iconAsset": {
+    "status": 200,
+    "mimeType": "image/png",
+    "dimensions": "180x180",
+    "existingWebsiteAssetReused": true
+  },
+  "serverMetadata": {
+    "title": "LiveStocks",
+    "initializeIconsAdvertised": true,
+    "serverDiscoverMetadataIconsAdvertised": true,
+    "iconOriginUsesTrustedConfiguration": true
+  },
+  "deployment": {
+    "id": "dpl_3okGaXimbjkVwvqBkXcFawWJstLx",
+    "url": "https://live-stocks-eqhriuzzu-razs-projects-0212f70e.vercel.app",
+    "promoted": true,
+    "runtimeDigest": "dbbc4134614bb1e5a1dbad4a26140dcfc9b91dfc923a48ce57edf4c583475ae7",
+    "sourceOnlyUpload": true
+  },
+  "checks": {
+    "focusedMcpTestsPassed": 17,
+    "typecheckPassed": true,
+    "targetedLintPassed": true,
+    "productionBuildPassed": true,
+    "canonicalDiscoveryStatus": 200,
+    "anonymousMcpStatus": 401,
+    "anonymousPortfolioStatus": 401,
+    "connectedProfileReadPassed": true
+  },
+  "host": {
+    "refreshToolsAttempts": 1,
+    "refreshControlReturnedEnabled": true,
+    "browserReloadPerformed": true,
+    "websiteIconDisplayed": true,
+    "observedAvatar": "Website icon confirmed by user after workspace version1.1.1 upload",
+    "iconEditorObserved": false,
+    "oauthRemainedConnected": true,
+    "skillRemainedEnabled": true,
+    "appAndPluginIdentityPreserved": true,
+    "earlierRefreshOnlyAttemptDidNotChangeIcon": true
+  },
+  "cloudPackageContentUpdated": true,
+  "newAppCreated": false,
+  "permissionsChanged": true,
+  "financialDataChanged": false,
+  "references": [
+    "https://github.com/openai/mcp-extensions/blob/main/docs/spec.md",
+    "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/basic/index.mdx",
+    "https://developers.openai.com/plugins/deploy/connect-chatgpt"
+  ],
+  "directPresentationUpdate": {
+    "attempts": 1,
+    "explicitUserIconChangeAuthorization": true,
+    "expectedReleaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "candidateVersion": "1.1.1",
+    "candidateArchiveSha256": "14aace6694272579bb774aae1a8fb6b05cb35d331e137f471604394ceacfaad3",
+    "changes": [
+      "existing approved 180px composer PNG",
+      "existing approved 512px listing PNG",
+      "icon references and patch version only"
+    ],
+    "httpStatus": 400,
+    "errorCode": "INVALID_ARGUMENT",
+    "retryable": false,
+    "message": "App-backed plugin updates may change skills and their metadata, but must preserve the app's configuration, bindings, and presentation. Update the app to change those.",
+    "accepted": false,
+    "readbackReleaseUnchanged": true,
+    "readbackVersion": "1.1.0",
+    "newAssetsPresent": false,
+    "newIconReferencesPresent": false
+  },
+  "workspacePublicationInspection": {
+    "requestedWorkspace": "RABEN",
+    "performedMutations": false,
+    "repeatedPublish": false,
+    "legacyAppsPage": "List loading spinner; no publication result or error",
+    "supportedAdminConsoleWorkspaceCatalog": "No plugins found",
+    "appReviewStatusAfterReload": "DEVELOPMENT",
+    "pluginScope": "USER",
+    "pluginVisibility": "PRIVATE",
+    "publicationConfirmed": false,
+    "workspaceOutOfCreditsBannerObserved": true,
+    "creditsAsCauseEstablished": false,
+    "billingChanged": false
+  },
+  "workspacePublicationRetry": {
+    "actionTimeUserApprovalReceived": true,
+    "publishClicks": 1,
+    "beforeClick": {
+      "dialog": "Publish LiveStocks to RABEN",
+      "bothRiskSectionsReviewed": true,
+      "bothConfirmationCheckboxesChecked": true,
+      "publishEnabled": true,
+      "spinnerVisible": false
+    },
+    "afterClick": {
+      "spinnerVisible": true,
+      "publishDisabled": true,
+      "cancelDisabled": true,
+      "successMessageObserved": false,
+      "errorMessageObserved": false,
+      "finalObservedState": "Pending dialog unchanged during bounded observation"
+    },
+    "pluginMetadataReadback": {
+      "version": "1.1.0",
+      "releaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+      "scope": "USER",
+      "discoverability": "PRIVATE"
+    },
+    "pluginVisibilityDoesNotProveOwningAppPublicationStatus": true,
+    "publicationConfirmed": false,
+    "billingChanged": false,
+    "duplicateClickPerformed": false,
+    "dialogLeftOpen": true
+  },
+  "workspacePublicationResolved": {
+    "status": "PASS",
+    "actionTimeUserApprovalReceived": true,
+    "route": "Existing plugin detail > More actions > Share > Link access > Visible in RABEN directory > Save",
+    "saveClicks": 1,
+    "workspaceName": "RABEN",
+    "workspaceId": "c1a4e8b0-a065-4007-96b1-a7716d7ba9d8",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "samePluginId": true,
+    "sameAppId": true,
+    "sameReleaseId": "pluginrel_6af9b6cc71008191a30dc689a0af9a58",
+    "version": "1.1.0",
+    "sharingAndMetadataReadbackVerified": true,
+    "ownerPrincipalCount": 1,
+    "additionalInvitedPrincipals": 0,
+    "connectedProfileReadPassed": true,
+    "newPluginCreated": false,
+    "globalPublicSubmissionPerformed": false,
+    "billingChanged": false,
+    "catalogVisualReadback": "Not completed: user selected another Safari tab after Save; stopped UI and verified authoritative connectors instead",
+    "priorPublicationObservationsRetainedAsHistory": true
+  },
+  "workspaceBrandingUpdate": {
+    "status": "PASS",
+    "explicitFullArchiveUploadApproval": true,
+    "uiRoute": "RABEN Admin Console > exact existing plugin > Plugin actions > Upload new version",
+    "candidateSha256": "4a6bb07a564f610eafe97cda8694e3331ca72463e5074fb478cb28cbd59fcc90",
+    "fileCount": 6,
+    "version": "1.1.1",
+    "releaseId": "pluginrel_6af9cef9c9d4819186ac76a2a7a20eb4",
+    "newReleaseAccepted": true,
+    "samePluginId": true,
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "appBindingByteIdentical": true,
+    "analystSkillByteIdentical": true,
+    "composerIcon": "./assets/livestocks-composer.png",
+    "logo": "./assets/livestocks-logo.png",
+    "bothAssetsInCloudReadback": true,
+    "connectedGetProfilePassed": true,
+    "visualReadbackPending": false,
+    "newAppCreated": false,
+    "newPluginCreated": false,
+    "reviewAppApprovalChanged": false,
+    "visualVerification": {
+      "method": "explicit user confirmation",
+      "confirmation": "\u05d0\u05e0\u05d9 \u05db\u05d1\u05e8 \u05e8\u05d5\u05d0\u05d4 \u05d0\u05ea \u05d0\u05d9\u05d9\u05e7\u05d5\u05df \u05d4\u05d0\u05ea\u05e8",
+      "assistantScreenshotAfterUpload": false
+    }
+  },
+  "workspaceAvailabilityInspection": {
+    "catalogEntryVisuallyPresent": true,
+    "installationPolicy": "Unavailable",
+    "availability": "disabled",
+    "appReviewRequired": true,
+    "reviewPrompt": "Review the tools and role access to approve this app.",
+    "accessApprovalPerformed": false,
+    "note": "Directory listing is distinct from administrator approval for other workspace members."
+  }
+}

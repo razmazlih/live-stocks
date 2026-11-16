@@ -1,0 +1,141 @@
+{
+  "generatedAt": "2026-11-14T12:34:12.674Z",
+  "environment": "LOCAL_REST_WITH_REAL_AUTH0",
+  "status": "PASS_LOCAL_REST_WITH_REAL_AUTH0",
+  "hostedSupabaseGatewayVerified": false,
+  "providerWrites": false,
+  "hostedDatabaseWrites": false,
+  "limitations": [
+    "Does not prove hosted Supabase third-party gateway acceptance.",
+    "Consumes existing signed Auth0 tokens; does not test login, consent, refresh or real ChatGPT host authorization.",
+    "Reconnect cutoff is tested with the existing token; issuance of a newer token is a separate provider test."
+  ],
+  "cases": [
+    {
+      "name": "actual_auth0_signatures_and_exact_application_claims",
+      "result": "PASS",
+      "distinctUsers": true,
+      "matchedMcpOwner": true,
+      "mcpTokenVerified": true,
+      "literalAuthenticatedRole": true
+    },
+    {
+      "name": "web_a_direct_rest_signature_and_role",
+      "result": "PASS",
+      "databaseRole": "authenticated"
+    },
+    {
+      "name": "web_b_direct_rest_signature_and_role",
+      "result": "PASS",
+      "databaseRole": "authenticated"
+    },
+    {
+      "name": "mcp_a_direct_rest_signature_and_role",
+      "result": "PASS",
+      "databaseRole": "authenticated"
+    },
+    {
+      "name": "website_two_user_creation_and_idempotent_purchase",
+      "result": "PASS",
+      "tables": 6,
+      "separateInstrumentIdentity": true
+    },
+    {
+      "name": "positions_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "position_lots_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "position_plans_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "settings_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "watchlist_groups_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "watchlist_tickers_web_isolation_and_write",
+      "result": "PASS",
+      "bothUsers": true,
+      "anonymousDenied": true
+    },
+    {
+      "name": "cross_owner_parent_reference_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "positions_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "position_lots_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "position_plans_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "settings_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "watchlist_groups_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "watchlist_tickers_mcp_owner_read_write_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "mcp_write_rpc_and_private_service_rpc_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "mcp_disconnect_sticky_and_reconnect_cutoff",
+      "result": "PASS",
+      "tables": 6,
+      "websiteUnaffected": true
+    },
+    {
+      "name": "direct_rest_rejects_forged_signature",
+      "result": "PASS"
+    },
+    {
+      "name": "website_owner_delete_all_six_tables",
+      "result": "PASS",
+      "otherUserPreserved": true
+    }
+  ],
+  "auth0": {
+    "issuer": "https://dev-c8o5jwbmbzkzac2s.us.auth0.com/",
+    "websiteClientId": "9vewdcZ61UrAkJIMxNgOTmxum8vUqJaF",
+    "mcpClientId": "tpc_eXUjcY5VeP2v9mYUhj1Lgc",
+    "websiteAudience": "https://razmaz-live-stocks.vercel.app/api/web",
+    "mcpAudience": "https://razmaz-live-stocks.vercel.app/api/mcp"
+  },
+  "postgrest": {
+    "version": "16.5",
+    "archiveSha256": "d8095cb439de0a3151036df542139e7afca5cebb109ce7f1bae52b3a97e9846a",
+    "binarySha256": "5658eb9d0b17f0c6733b13f644a7e36024617177b2503aeeb37b40bb129eb174"
+  },
+  "postgresClient": "PostgreSQL 14.20 (Homebrew)",
+  "cleanup": "COMPLETE"
+}

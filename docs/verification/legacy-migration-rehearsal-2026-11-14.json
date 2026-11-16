@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "kind": "DISPOSABLE_LOCAL_RESTORE",
+  "startedAt": "2026-11-14T13:16:52.014Z",
+  "completedAt": "2026-11-14T13:16:53.547Z",
+  "sourceServerVersion": 170006,
+  "localPostgres": "postgres (PostgreSQL) 17.12 (Homebrew)",
+  "pgRestore": "pg_restore (PostgreSQL) 18.7",
+  "archiveAuthenticated": true,
+  "productionWrites": false,
+  "digestTimeZone": "UTC",
+  "restoreTested": true,
+  "cleanup": "COMPLETE",
+  "migration": {
+    "file": "20261114114916_auth0_user_isolation.sql",
+    "sha256": "92f2a3c6bd5255029232576c2c147ced84dbc0fa3c527c6c4df6703e5f32dffc",
+    "rollbackVerified": true,
+    "financialDataPreserved": true,
+    "ownerVerified": true,
+    "encryptedCredentialVerified": true
+  },
+  "counts": {
+    "positions": 17,
+    "position_lots": 55,
+    "position_plans": 0,
+    "settings": 1,
+    "watchlist_groups": 1,
+    "watchlist_tickers": 4
+  },
+  "limitations": [
+    "A snapshot and disposable local rehearsal; production remains unmigrated.",
+    "Recheck a final frozen source and fresh verified owner token before cutover.",
+    "Raw rows, identity, credentials, credential hashes and encryption keys are intentionally absent."
+  ]
+}

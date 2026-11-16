@@ -1,3 +1,4 @@
+import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS } from '@/lib/auth/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
@@ -7,16 +8,16 @@ import {
 } from '@/lib/services/finnhub-cache';
 import { StockQuote } from '@/types';
 
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
+const NO_STORE_HEADERS = PRIVATE_HEADERS;
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    const principal = await requireApiPrincipal(request);
     const { searchParams } = new URL(request.url);
     const symbolsParam = searchParams.get('symbols');
-    const tokenParam = searchParams.get('token');
     const forceRefresh = searchParams.get('forceRefresh') === '1';
 
     if (!symbolsParam) {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = await resolveFinnhubToken(tokenParam);
+    const token = await resolveFinnhubToken(principal.userId);
 
     const quotePairs = await Promise.all(
       symbols.map(async (symbol) => {
@@ -65,6 +66,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ quotes }, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    const authResponse = authenticationResponse(error);
+    if (authResponse) return authResponse;
     if (error instanceof FinnhubConfigError) {
       return NextResponse.json(
         { error: error.message },

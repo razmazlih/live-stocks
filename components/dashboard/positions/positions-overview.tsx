@@ -136,7 +136,7 @@ function PositionMetricRow({
     typeof metrics.dailyChangePercent === 'number' && Number.isFinite(metrics.dailyChangePercent)
       ? formatPercent(metrics.dailyChangePercent, locale)
       : null;
-  const bank = metrics.position.location === 'bank_two' ? 'bank_two' : 'bank_one';
+  const bank = metrics.position.location;
 
   return (
     <Link
@@ -277,7 +277,7 @@ export function PositionsOverview({
     filteredClosedMetrics.forEach((metrics) => {
       const position = metrics.position;
       const symbolKey = position.symbol.trim().toUpperCase();
-      const locationKey = position.location ?? 'bank_one';
+      const locationKey = position.location;
       const groupId = `${symbolKey}::${locationKey}`;
       const sparklineKey = position.activationId ?? position.id ?? position.symbol;
       const optionId = position.activationId ?? position.id ?? `${groupId}-${position.entryDate}`;

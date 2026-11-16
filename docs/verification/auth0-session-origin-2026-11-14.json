@@ -1,0 +1,115 @@
+{
+  "issuer": "https://dev-c8o5jwbmbzkzac2s.us.auth0.com/",
+  "startedAt": "2026-11-14T14:48:18.946Z",
+  "status": "PASS_SESSION_ORIGIN",
+  "cases": [
+    {
+      "name": "web_session_initial",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "web_session_refresh_1",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "initialIdPresent": true,
+      "refreshedIdPresent": true,
+      "initialCreatedPresent": true,
+      "refreshedCreatedPresent": true,
+      "idStable": true,
+      "createdStable": true,
+      "refreshTokenRotated": true
+    },
+    {
+      "name": "web_session_refresh_2",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "initialIdPresent": true,
+      "refreshedIdPresent": true,
+      "initialCreatedPresent": true,
+      "refreshedCreatedPresent": true,
+      "idStable": true,
+      "createdStable": true,
+      "refreshTokenRotated": true
+    },
+    {
+      "name": "web_independent_new_login",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "web_old_refresh_after_new_login",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "independentOrigins": true,
+      "oldOriginPreserved": true,
+      "cutoffRejectsOldGrant": true,
+      "refreshedIatAtLeastNewOrigin": true
+    },
+    {
+      "name": "mcp_session_initial",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "mcp_session_refresh_1",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "initialIdPresent": true,
+      "refreshedIdPresent": true,
+      "initialCreatedPresent": true,
+      "refreshedCreatedPresent": true,
+      "idStable": true,
+      "createdStable": true,
+      "refreshTokenRotated": true
+    },
+    {
+      "name": "mcp_session_refresh_2",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "initialIdPresent": true,
+      "refreshedIdPresent": true,
+      "initialCreatedPresent": true,
+      "refreshedCreatedPresent": true,
+      "idStable": true,
+      "createdStable": true,
+      "refreshTokenRotated": true
+    },
+    {
+      "name": "mcp_independent_new_login",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "mcp_old_refresh_after_new_login",
+      "status": "PASS",
+      "tokenAccepted": true,
+      "independentOrigins": true,
+      "oldOriginPreserved": true,
+      "cutoffRejectsOldGrant": true,
+      "refreshedIatAtLeastNewOrigin": true
+    }
+  ],
+  "limits": [
+    "Synthetic database accounts only; does not prove Google owner login, ChatGPT host compatibility, or hosted Supabase third-party integration.",
+    "No production database merge or RLS cutoff implemented by this probe. Cutoff case compares verified signed claims only.",
+    "Session creation is not necessarily the most recent reauthentication time. A post-merge login must establish a new eligible origin; never admit an old session ID globally.",
+    "Field references and Auth0 blog mark session and refresh metadata Enterprise features. Actual availability was verified on this development tenant without changing plan or entitlements; continued availability must not be assumed. Missing evidence must fail closed.",
+    "Initial immediate run after deploy observed preceding Action behavior; this passing run occurred after deployed code and bound version were confirmed."
+  ],
+  "completedAt": "2026-11-14T14:48:29.579Z",
+  "method": "Optional signed access-token origin claims; session.id/created_at captured at authorization, persisted in this refresh grant metadata, read unchanged on refresh.",
+  "sources": [
+    "https://auth0.com/docs/actions/reference/post-login/post-login-event-object",
+    "https://auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-metadata",
+    "https://auth0.com/blog/auth0-session-refresh-token-metadata-guide/"
+  ]
+}

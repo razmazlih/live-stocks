@@ -1,3 +1,4 @@
+import { positionFxTimestamps } from '@/lib/reconciliation-quality';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { mapCandleDataToPoints } from '@/lib/calculations';
@@ -10,10 +11,10 @@ import {
   resolveFinnhubToken,
 } from '@/lib/services/finnhub-cache';
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
-import { getSupabaseClient } from '@/lib/supabase';
+import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS } from '@/lib/auth/server';
 import { HistoricalPoint, Position } from '@/types';
 
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' } as const;
+const NO_STORE_HEADERS = PRIVATE_HEADERS;
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -98,28 +99,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const forceQuoteRefresh = searchParams.get('forceQuoteRefresh') === '1';
 
-    let supabase;
-    try {
-      supabase = getSupabaseClient();
-    } catch (error) {
-      console.error('Supabase client initialization failed:', error);
-      return NextResponse.json(
-        { error: 'Supabase client is not configured.' },
-        { status: 500, headers: NO_STORE_HEADERS },
-      );
-    }
+    const principal = await requireApiPrincipal(request);
+    const supabase = principal.supabase;
 
-    const [positionsResult, settingsResult] = await Promise.all([
+    const positionsResult = await (
       supabase
         .from('positions')
         .select('*, position_lots(*)')
-        .order('symbol'),
-      supabase
-        .from('settings')
-        .select('finnhub_token')
-        .limit(1)
-        .maybeSingle(),
-    ]);
+        .eq('user_id', principal.userId)
+        .order('symbol')
+    );
 
     if (positionsResult.error) {
       console.error('Failed to load positions:', positionsResult.error);
@@ -127,10 +116,6 @@ export async function GET(request: NextRequest) {
         { error: 'Failed to load positions' },
         { status: 500, headers: NO_STORE_HEADERS },
       );
-    }
-
-    if (settingsResult.error && settingsResult.error.code !== 'PGRST116') {
-      console.error('Failed to load settings:', settingsResult.error);
     }
 
     const mappedPositions: Position[] = (positionsResult.data ?? []).map(mapPositionRow);
@@ -150,11 +135,7 @@ export async function GET(request: NextRequest) {
     const usdToIlsPromise = getUsdToIlsRate({ allowFallback: false });
 
     const fxHistoryPromise = (async (): Promise<HistoricalPoint[]> => {
-      const allTimestamps = mappedPositions.flatMap((position) =>
-        (position.lots ?? [])
-          .map((lot) => new Date(lot.executedAt).getTime())
-          .filter((timestamp) => Number.isFinite(timestamp)),
-      );
+      const allTimestamps = mappedPositions.flatMap(positionFxTimestamps);
       const activationBoundaries = activationPositions
         .flatMap((position) => [
           position.activationStart ? new Date(position.activationStart).getTime() : Number.NaN,
@@ -191,7 +172,7 @@ export async function GET(request: NextRequest) {
 
       let token: string;
       try {
-        token = await resolveFinnhubToken(settingsResult.data?.finnhub_token);
+        token = await resolveFinnhubToken(principal.userId);
       } catch (error) {
         if (error instanceof FinnhubConfigError) {
           console.warn('Finnhub token is not configured; skipping quote fetch.');
@@ -292,6 +273,8 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {
+    const authResponse = authenticationResponse(error);
+    if (authResponse) return authResponse;
     console.error('Portfolio dashboard API error:', error);
     return NextResponse.json(
       { error: 'Failed to load portfolio dashboard data' },

@@ -5,12 +5,13 @@ class Node{constructor(type='stack'){this.type=type;this.children=[];this.dir='r
 class Size{constructor(width,height){this.width=width;this.height=height}}
 const fonts=new Proxy({},{get:(_,k)=>size=>({size,weight:/bold/i.test(k)?700:/medium/i.test(k)?500:400})});
 async function widget(family,dark,scenario){let result; class Color{constructor(hex,alpha=1){this.hex=hex;this.alpha=alpha}static dynamic(a,b){return dark?b:a}}
-const fixture={summary:{totalValue:24000/3.6,totalNetPnLIls:3650,totalNetPnLUsd:3650/3.6,totalProjectedPnLIls:4800,totalProjectedPnLUsd:4800/3.6},usdToIlsRate:3.6,stocks:[['NVDA',12000,62],['MSFT',7500,-38],['AAPL',4500,18]].map(([symbol,value,daily])=>({symbol,quantity:10,currentPrice:value/36,totalValueUsd:value/3.6,totalValueIls:value,dailyChange:daily/36}))};
+const fixture={widgetTokenExpiresAt:new Date(Date.now()+86400000).toISOString(),summary:{totalValue:24000/3.6,totalNetPnLIls:3650,totalNetPnLUsd:3650/3.6,totalProjectedPnLIls:4800,totalProjectedPnLUsd:4800/3.6},usdToIlsRate:3.6,stocks:[['NVDA',12000,62],['MSFT',7500,-38],['AAPL',4500,18]].map(([symbol,value,daily])=>({symbol,quantity:10,currentPrice:value/36,totalValueUsd:value/3.6,totalValueIls:value,dailyChange:daily/36}))};
 if(scenario==='missing'){fixture.summary.totalProjectedPnLIls=null;fixture.summary.totalProjectedPnLUsd=null}
 if(scenario==='above'){fixture.summary.totalNetPnLIls=6200;fixture.summary.totalNetPnLUsd=6200/3.6}
 class ListWidget extends Node{constructor(){super('widget');this.dir='column'}}
 class Drawing{setStrokeColor(){}setLineWidth(){}strokeEllipse(){}addPath(){}strokePath(){}setFillColor(){}fillEllipse(){}getImage(){return {ring:true}}}
-const ctx={config:{widgetFamily:family,runsInWidget:true},args:{widgetParameter:''},Color,Font:fonts,Size,Point:class{},Rect:class{},Path:class{move(){}addLine(){}},DrawContext:Drawing,LinearGradient:class{},SFSymbol:{named:n=>({image:{symbol:n}})},ListWidget,Request:class{async loadJSON(){return fixture}},FileManager:{local:()=>({documentsDirectory:()=>'',joinPath:()=>'',writeString(){},fileExists:()=>false})},Script:{setWidget(w){result=w},complete(){}}};
+const token='lst_widget_'+'a'.repeat(43);const secrets=new Map([['livestocks.widget.v1:https://razmaz-live-stocks.vercel.app',token]]);
+const ctx={Keychain:{contains:k=>secrets.has(k),get:k=>secrets.get(k),set:(k,v)=>secrets.set(k,v)},config:{widgetFamily:family,runsInWidget:true},args:{widgetParameter:''},Color,Font:fonts,Size,Point:class{},Rect:class{},Path:class{move(){}addLine(){}},DrawContext:Drawing,LinearGradient:class{},SFSymbol:{named:n=>({image:{symbol:n}})},ListWidget,Request:class{async loadJSON(){return fixture}},FileManager:{local:()=>({documentsDirectory:()=>'',joinPath:()=>'',writeString(){},fileExists:()=>false})},Script:{setWidget(w){result=w},complete(){}}};
 await vm.runInNewContext('(async()=>{'+source+'})()',ctx);return result;}
 const col=c=>c?'#'+c.hex+(c.alpha<1?Math.round(c.alpha*255).toString(16).padStart(2,'0'):''):'inherit';
 function render(n,axis='column'){

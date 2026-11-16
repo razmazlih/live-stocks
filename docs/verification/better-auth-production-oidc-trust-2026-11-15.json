@@ -1,0 +1,37 @@
+{
+  "status": "PASS_PRODUCTION_OIDC_TRUST_CONFIGURED",
+  "scope": "PRODUCTION_CUSTOM_OIDC_TRUST_METADATA_ONLY",
+  "projectRef": "osvwctooasdxsztatirz",
+  "issuer": "https://razmaz-live-stocks.vercel.app/api/auth",
+  "startedAt": "2026-11-15T12:46:56.865Z",
+  "financialSqlOrDataMutation": false,
+  "tokenMinted": false,
+  "otherProviderMutation": false,
+  "publicPreconditions": {
+    "anonymous": true,
+    "discoveryStatus": 200,
+    "issuer": "https://razmaz-live-stocks.vercel.app/api/auth",
+    "jwksUri": "https://razmaz-live-stocks.vercel.app/api/auth/jwks",
+    "jwksStatus": 200,
+    "asymmetricPublicKeys": true,
+    "keyCount": 1,
+    "jwksSha256": "4b9c3bb15eed46a521acd5e25cc9ecff097ecbbc762cf1531a4edca47b7906dc",
+    "portfolioStatus": 503,
+    "portfolioCode": "MAINTENANCE"
+  },
+  "beforeCount": 0,
+  "existingExactIssuer": false,
+  "createAttempted": true,
+  "createAcknowledged": true,
+  "exactIssuerReadback": true,
+  "otherProvidersPreserved": true,
+  "afterCount": 1,
+  "created": true,
+  "completedAt": "2026-11-15T12:47:04.584Z",
+  "verificationLimits": {
+    "configurationReadbackOnly": true,
+    "productionTokenDataApiAcceptanceTested": false,
+    "financialMigrationPerformedByThisAction": false,
+    "realChatGptHostTested": false
+  }
+}

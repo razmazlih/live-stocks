@@ -1,0 +1,245 @@
+{
+  "generatedAt": "2026-11-14T12:08:28.448Z",
+  "status": "FAIL",
+  "environment": "isolated-local-GoTrue",
+  "signatureAlgorithm": "HS256 (isolated test only)",
+  "runtimeEvidence": {
+    "version": "v2.197.0",
+    "binarySha256": "54a5afe7997bd16ab5244ab12c02905048b270a8f76eebf95739a6d364ffe01f",
+    "archiveSha256": null,
+    "source": "Runner-supplied evidence; probe does not independently identify the running binary"
+  },
+  "resource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+  "limitations": [
+    "Not a production ES256/JWKS test",
+    "Not a real ChatGPT host test",
+    "Does not verify database RLS or revoked-token REST denial"
+  ],
+  "cases": [
+    {
+      "name": "positive_control",
+      "authorizationResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "exchangeResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "PASS"
+    },
+    {
+      "name": "deny_consent",
+      "status": 200,
+      "stage": "authorized",
+      "result": "PASS"
+    },
+    {
+      "name": "second_user_binding",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "PASS"
+    },
+    {
+      "name": "wrong_resource",
+      "authorizationResource": "https://unrelated.example.invalid/mcp",
+      "exchangeResource": "https://unrelated.example.invalid/mcp",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "name": "missing_resource",
+      "authorizationResource": null,
+      "exchangeResource": null,
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "name": "exchange_resource_mismatch",
+      "authorizationResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "exchangeResource": "https://unrelated.example.invalid/mcp",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "name": "authorization_resource_mismatch",
+      "authorizationResource": "https://unrelated.example.invalid/mcp",
+      "exchangeResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "name": "valid_refresh",
+      "authorizationResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "refreshResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "stage": "refresh",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "PASS"
+    },
+    {
+      "name": "wrong_resource_refresh",
+      "authorizationResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "refreshResource": "https://unrelated.example.invalid/mcp",
+      "stage": "refresh",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "name": "omitted_resource_refresh_retains_binding",
+      "authorizationResource": "https://razmaz-live-stocks.vercel.app/api/mcp",
+      "refreshResource": null,
+      "stage": "refresh",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "accepted": true,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": true,
+        "approvedClient": true,
+        "subject": true,
+        "session": true,
+        "readOnly": true
+      },
+      "result": "PASS"
+    },
+    {
+      "name": "unapproved_client",
+      "stage": "token",
+      "status": 200,
+      "tokenIssued": true,
+      "oauthError": null,
+      "errorMentionsResource": false,
+      "resourceVisibleInDetails": false,
+      "accepted": false,
+      "flags": {
+        "signatureAndLifetime": true,
+        "issuer": true,
+        "audience": false,
+        "approvedClient": false,
+        "subject": true,
+        "session": true,
+        "readOnly": false
+      },
+      "result": "PASS"
+    }
+  ],
+  "skippedGates": [
+    "Production ES256/JWKS discovery",
+    "Real ChatGPT authorization",
+    "Database RLS isolation and write denial",
+    "Immediate revoked-access-token REST denial"
+  ]
+}

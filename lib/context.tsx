@@ -12,6 +12,7 @@ import { Locale, Settings } from '@/types';
 import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
+import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
 
 interface AppContextType {
   locale: Locale;
@@ -31,7 +32,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     annualGrowthRate: parseFloat(process.env.DEFAULT_GROWTH_RATE || '0.05'),
     currency: 'USD',
     refreshInterval: 15,
-    finnhubToken: '',
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [settingsReady, setSettingsReady] = useState(false);
@@ -45,20 +45,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLocale(savedLocale);
       }
 
-      const savedSettings = localStorage.getItem('settings');
-      if (savedSettings) {
-        try {
-          setSettings(JSON.parse(savedSettings));
-        } catch (e) {
-          console.error('Failed to parse saved settings:', e);
-        }
-      }
+      // Delete the legacy shared credential cache; personal settings are database-owned.
+      localStorage.removeItem('settings');
 
       try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('settings')
-          .select('*')
+          .select('annual_growth_rate,currency,refresh_interval')
+          .eq('is_active', true)
           .maybeSingle();
 
         if (error) throw error;
@@ -68,7 +63,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             annualGrowthRate: parseFloat(data.annual_growth_rate.toString()),
             currency: data.currency,
             refreshInterval: data.refresh_interval,
-            finnhubToken: data.finnhub_token || '',
           });
         }
       } catch (error) {
@@ -94,10 +88,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
   }, [locale]);
-
-  useEffect(() => {
-    localStorage.setItem('settings', JSON.stringify(settings));
-  }, [settings]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
@@ -139,7 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         triggerRefresh,
       }}
     >
-      <PortfolioDataProvider>{children}</PortfolioDataProvider>
+      <InvestmentSourcesProvider><PortfolioDataProvider>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
     </AppContext.Provider>
   );
 }

@@ -1,0 +1,115 @@
+{
+  "issuer": "https://dev-c8o5jwbmbzkzac2s.us.auth0.com/",
+  "startedAt": "2026-11-14T12:37:49.368Z",
+  "status": "FAIL",
+  "cases": [
+    {
+      "name": "web_account_a",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "web_account_b",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "mcp_account_a",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "refreshTokenPresent": true
+    },
+    {
+      "name": "same_account_across_clients_and_two_account_separation",
+      "status": "PASS"
+    },
+    {
+      "name": "authorize_wrong_resource",
+      "status": "PASS",
+      "httpStatus": 0,
+      "tokenAccepted": false,
+      "tokenIssued": false,
+      "oauthError": "authorization_page_rejected"
+    },
+    {
+      "name": "authorize_missing_resource",
+      "status": "PASS",
+      "httpStatus": 0,
+      "tokenAccepted": false,
+      "tokenIssued": false,
+      "oauthError": "authorization_page_rejected"
+    },
+    {
+      "name": "authorize_contradictory_audience_resource",
+      "status": "PASS",
+      "httpStatus": 0,
+      "tokenAccepted": false,
+      "tokenIssued": false,
+      "oauthError": "authorization_page_rejected"
+    },
+    {
+      "name": "exchange_wrong_pkce",
+      "status": "PASS",
+      "httpStatus": 400,
+      "tokenAccepted": false,
+      "tokenIssued": false,
+      "oauthError": "invalid_grant"
+    },
+    {
+      "name": "exchange_wrong_resource",
+      "status": "FAIL",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "tokenIssued": true
+    },
+    {
+      "name": "exchange_missing_resource",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "tokenIssued": true,
+      "expected": "Omitted token-request resource must preserve the originally authorized canonical grant target."
+    },
+    {
+      "name": "refresh_positive",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true
+    },
+    {
+      "name": "refresh_wrong_resource",
+      "status": "PASS",
+      "httpStatus": 500,
+      "tokenAccepted": false,
+      "actionDeniedResource": true,
+      "oauthError": "access_denied"
+    },
+    {
+      "name": "refresh_missing_resource",
+      "status": "PASS",
+      "httpStatus": 200,
+      "tokenAccepted": true,
+      "expected": "Omitted refresh resource preserves the original canonical grant target."
+    },
+    {
+      "name": "grant_manager_exact_scopes",
+      "status": "PASS"
+    },
+    {
+      "name": "grant_deletion_revokes_refresh",
+      "status": "PASS",
+      "httpStatus": 400,
+      "tokenIssued": false,
+      "oauthError": "invalid_grant"
+    }
+  ],
+  "limits": [
+    "Synthetic database accounts only; does not prove Google owner login, ChatGPT host compatibility, or hosted Supabase third-party integration."
+  ],
+  "completedAt": "2026-11-14T12:38:07.707Z"
+}

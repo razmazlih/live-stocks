@@ -1,0 +1,182 @@
+{
+  "status": "PASS_LOCAL_NEXT_AUTH0_RLS",
+  "environment": "LOCAL_NEXT_BROWSER_AUTH0_POSTGREST",
+  "startedAt": "2026-11-14T13:57:34.565Z",
+  "syntheticDataOnly": true,
+  "hostedDatabaseWrites": false,
+  "tenantConfigurationWrites": false,
+  "hostedGatewayVerified": false,
+  "limitations": [
+    "Does not prove hosted Supabase gateway, production deployment, Google login, mobile devices, or ChatGPT host authorization.",
+    "Market-price keys are absent; unavailable quotes are expected."
+  ],
+  "cases": [
+    {
+      "name": "isolated_next_and_pinned_local_rest_ready",
+      "result": "PASS",
+      "noEnvFiles": true,
+      "noProductionDatabase": true
+    },
+    {
+      "name": "anonymous_session_token_json_html_denied",
+      "result": "PASS"
+    },
+    {
+      "name": "account_a_real_login_session_token_empty_bootstrap",
+      "result": "PASS"
+    },
+    {
+      "name": "account_b_real_login_session_token_empty_bootstrap",
+      "result": "PASS"
+    },
+    {
+      "name": "positions_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "position_lots_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "position_plans_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "settings_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "watchlist_groups_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "watchlist_tickers_browser_sdk_isolation_and_writes",
+      "result": "PASS"
+    },
+    {
+      "name": "account_a_next_json_html_snapshot_isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "account_b_next_json_html_snapshot_isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "account_switch_aborts_inflight_request_and_replaces_identity",
+      "result": "PASS"
+    }
+  ],
+  "postgrest": {
+    "version": "16.5",
+    "archiveSha256": "d8095cb439de0a3151036df542139e7afca5cebb109ce7f1bae52b3a97e9846a"
+  },
+  "browserDiagnostics": [
+    {
+      "sessionStatuses": [
+        200,
+        200,
+        200
+      ],
+      "databaseStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        201,
+        200,
+        201,
+        201,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "corsErrors": 0,
+      "corsReasons": [],
+      "pageErrors": [],
+      "failedScripts": 0
+    },
+    {
+      "sessionStatuses": [
+        200,
+        200
+      ],
+      "databaseStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        201,
+        200,
+        201,
+        201,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "corsErrors": 0,
+      "corsReasons": [],
+      "pageErrors": [],
+      "failedScripts": 0
+    }
+  ],
+  "cleanup": "COMPLETE",
+  "completedAt": "2026-11-14T13:58:03.889Z"
+}

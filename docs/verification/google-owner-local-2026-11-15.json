@@ -1,0 +1,20 @@
+{
+  "status": "PASS_LOCAL_GOOGLE_OWNER_CONFIRMATION",
+  "observedBy": "user report, read-only Safari review, signed final-store receipt export",
+  "confirmedAt": "2026-11-15T12:04:33.202Z",
+  "origin": "http://localhost:3109",
+  "googleHumanLogin": true,
+  "approvedOwnerEmailMatched": true,
+  "ownerChoiceSavedByUser": true,
+  "receiptSignatureAndFinalStoreVerified": true,
+  "finalAuthStoreProject": "osvwctooasdxsztatirz",
+  "financialWrites": false,
+  "financialOwnershipTransferred": true,
+  "localServerStoppedWithoutSignout": true,
+  "canonicalProductionGoogleLoginTested": false,
+  "freshProofRequiredAtCutover": true,
+  "privateIdentityOrTokensIncluded": false,
+  "freshCutoverConfirmationVerifiedAt": "2026-11-15T13:16:46Z",
+  "stableGoogleUserIdAcrossRepeatedLogins": true,
+  "financialOwnershipVerifiedAt": "2026-11-15T13:20:38.822Z"
+}

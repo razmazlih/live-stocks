@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "scope": "LOCAL_SYNTHETIC_POSTGRESQL_ONLY",
+  "verifiedAt": "2026-11-15T14:09:18.114289+00:00",
+  "command": "PATH=/opt/homebrew/opt/postgresql@17/bin:$PATH python3 scripts/test-account-linking.py",
+  "productionAccess": false,
+  "featureEnabledInProduction": false,
+  "cleanup": "COMPLETE",
+  "checks": {
+    "actualSdkSignedSessionCookies": true,
+    "limitedAuthenticationRole": true,
+    "twoExactFreshSubjects": true,
+    "opaqueDiscoveryBeforeProofs": true,
+    "changedReviewRejected": true,
+    "transactionFailureRollsBackAllFinancialChanges": true,
+    "frozenFenceSurvivesFailure": true,
+    "lostCreationAcknowledgementRecovered": true,
+    "lostPreparationAcknowledgementRecovered": true,
+    "restartedWorkerIdempotent": true,
+    "sixFinancialRowSetsPreserved": true,
+    "originalIdsTimestampsAndParentIdsPreserved": true,
+    "fixedTimeFifoAndPortfolioTotalsPreserved": true,
+    "originalCredentialsArchivedAndCanonicalAadReencrypted": true,
+    "approvalsAndRefreshTokensRevoked": true,
+    "expiredUnconfirmedJobReleasesParticipants": true,
+    "cancelThenImmediateRestart": true,
+    "expiredAbsentCreationCannotResurrect": true,
+    "advisoryLockWaitUsesPostWaitDatabaseClock": true,
+    "guardedLookupBindsExactParticipants": true,
+    "oneConnectionAuthPoolDoesNotDeadlock": true,
+    "allPublicSecurityDefinerOverloadsScanned": true,
+    "hardeningUnderNonsuperuserSetOnlyMembership": true,
+    "finalMigrationOrderMatchesRemoteHistory": true
+  },
+  "limitations": [
+    "Imported case-variant synthetic identities; not a real two-Google-identity browser ceremony.",
+    "No production general merge, migration apply, scheduler configuration or feature enablement performed by this proof."
+  ],
+  "sourceSha256": {
+    "lib/account-linking/service.ts": "0d95e17df1a289cf80d2e109467eed79373c18940a6fb3c54493ce5b859faf33",
+    "lib/account-linking/store.ts": "3ff22a27f9164cfd3d21b604b2b29f3308cc08abd869c8a705962312d6e1a47a",
+    "lib/account-linking/runtime.ts": "5126fe252fd21d9c638a23e3388a1711b48688a0ff5e9e692f00e4b8fd61e237",
+    "lib/account-linking/http.ts": "c864f44833ddff93c97ac17ce2bbe8cf742cbd42a2992698a364729b96baf696",
+    "scripts/test-account-linking.py": "1db46ae955fd4e2ff00b473657a89046c940ef09b3a2b6cc970fe3122376d65d",
+    "__tests__/account-linking-postgres.test.ts": "13341fa66419920300cc0360262bcee3c84c783d07fdd8b5293277d609dbcd42",
+    "supabase/migrations/20261115140805_guarded_account_merge_creation.sql": "f5ffd7b2c9312e418e754fcc9a89dfb42fcd3e542964584d5db102ee3554600e",
+    "supabase/migrations/20261115140458_harden_account_merge_function_access.sql": "d396fdc8338c3fb24cbde69d7c657863dc4798d0a2b8161be441327021c767dd"
+  }
+}

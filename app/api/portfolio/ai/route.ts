@@ -1,6 +1,9 @@
+import { readSourceCatalog } from '@/lib/server/investment-source-catalog';
+import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING } from '@/lib/reconciliation-quality';
 import { NextResponse } from 'next/server';
-import { cachePortfolioAiSnapshot } from '@/lib/services/portfolio-ai-cache';
-import { getSupabaseClient, type Database } from '@/lib/supabase';
+import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
+import { readFinnhubCredential } from '@/lib/auth/credentials';
+import { type Database } from '@/lib/supabase';
 import { mapPositionRow, mapPositionPlanRow, expandPositionActivations, computeRealizedSalesWithFx } from '@/lib/positions';
 import { calculatePositionMetrics, calculatePortfolioSummary, calculateSymbolExceptionAssessment, calculateRealizedPortfolioTotals, calculateRealizedTaxLiability, enrichPortfolioSummaryWithRealized, mapCandleDataToPoints } from '@/lib/calculations';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
@@ -11,27 +14,28 @@ import type { HistoricalPoint } from '@/types';
 import { buildCloseProposalSnapshot } from '@/lib/close-proposal-snapshot';
 
 export const revalidate = 0;
-const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
+const headers = PRIVATE_HEADERS;
 
 // Read every page: Supabase's default response limit must not silently truncate a portfolio.
 type Tables = Database['public']['Tables'];
-async function loadRows<T extends keyof Tables>(table: T, columns: string, order: string): Promise<Tables[T]['Row'][]> {
+async function loadRows<T extends keyof Tables>(principal: Principal, table: T, columns: string, order: string): Promise<Tables[T]['Row'][]> {
   const rows: Tables[T]['Row'][] = [];
   for (let offset = 0; ; offset += 500) {
-    const result = await getSupabaseClient().from(table).select(columns).order(order).range(offset, offset + 499);
+    const result = await principal.supabase.from(table).select(columns).eq('user_id', principal.userId).order(order).range(offset, offset + 499);
     if (result.error) throw new Error(`Failed to load ${table}`);
     rows.push(...((result.data ?? []) as unknown as Tables[T]['Row'][]));
     if ((result.data ?? []).length < 500) return rows;
   }
 }
 
-async function buildSnapshot() {
+async function buildSnapshot(principal: Principal) {
   const startedAt = new Date().toISOString();
-  const [positionRows, lotRows, planRows, settingsRows] = await Promise.all([
-    loadRows('positions', '*', 'id'),
-    loadRows('position_lots', '*', 'id'),
-    loadRows('position_plans', '*', 'id'),
-    loadRows('settings', 'annual_growth_rate,currency,finnhub_token,updated_at', 'id'),
+  const [positionRows, lotRows, planRows, settingsRows, sources] = await Promise.all([
+    loadRows(principal, 'positions', '*', 'id'),
+    loadRows(principal, 'position_lots', '*', 'id'),
+    loadRows(principal, 'position_plans', '*', 'id'),
+    loadRows(principal, 'settings', 'annual_growth_rate,currency,updated_at', 'id'),
+    readSourceCatalog(principal.supabase, principal.userId),
   ]);
   const settings = settingsRows[0];
   const warnings: string[] = [];
@@ -40,9 +44,11 @@ async function buildSnapshot() {
     ? configuredRate : null;
   if (annualGrowthRate === null) warnings.push('Annual return target is unavailable; target calculations are omitted.');
   const positions = positionRows.map(row => mapPositionRow({ ...row, position_lots: lotRows.filter(lot => lot.position_id === row.id) }));
+  const historyQuality = reconciliationQuality(positions);
+  if (!historyQuality.completeTransactionHistory) warnings.push(RECONCILIATION_HISTORY_WARNING);
   const activations = positions.flatMap(expandPositionActivations);
   const symbols = [...new Set([...positions.map(p => p.symbol), ...planRows.map(p => p.symbol)].map(s => s.trim().toUpperCase()))].filter(Boolean).sort();
-  const token = settings?.finnhub_token || process.env.FINNHUB_TOKEN;
+  const token = await readFinnhubCredential(principal.userId);
   const [quoteEntries, fxResult] = await Promise.all([
     Promise.all(symbols.map(async symbol => [symbol, await fetchFinnhubQuote(symbol, { token, init: { cache: 'no-store', signal: AbortSignal.timeout(10000) } })] as const)),
     fetchExchangeRateResponse({ init: { cache: 'no-store', signal: AbortSignal.timeout(10000) }, retries: 1 }).then(data => extractExchangeRate(data, 'ILS')).catch(() => null),
@@ -50,7 +56,7 @@ async function buildSnapshot() {
   const quotes = new Map(quoteEntries);
   if (fxResult === null) warnings.push('Current USD/ILS rate unavailable; ILS values are omitted.');
   let fxHistory: HistoricalPoint[] = [];
-  const timestamps = lotRows.map(lot => new Date(lot.executed_at).getTime()).filter(Number.isFinite);
+  const timestamps = lotRows.flatMap(lot => [lot.executed_at, lot.basis_acquired_on].filter((value): value is string => Boolean(value)).map(value => new Date(value).getTime())).filter(Number.isFinite);
   if (timestamps.length) {
     try {
       fxHistory = mapCandleDataToPoints(await fetchYahooCandlesData('ILS=X', Math.floor(normalizeToUtcDay(Math.min(...timestamps)) / 1000) - 10 * 86400, Math.floor(Date.now() / 1000), 'D'));
@@ -97,20 +103,21 @@ async function buildSnapshot() {
   }).filter(t => t !== null);
   const calculationAsOf = Date.now();
   const quoteObservations = Object.fromEntries(quoteEntries.map(([symbol, quote]) => [symbol, { priceUsd: quote?.price ?? null, dailyChangePerShareUsd: quote?.dailyChange ?? null, marketTimestamp: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null, source: 'Finnhub', status: quote ? 'last_available' : 'unavailable' }]));
-  const closePairProposals = buildCloseProposalSnapshot({ positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
-  const closePairOnlyProposals = buildCloseProposalSnapshot({ positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
+  const closePairProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations });
+  const closePairOnlyProposals = buildCloseProposalSnapshot({ ownerId: principal.userId, sources, positions, metrics: pricedMetrics, annualGrowthRate, asOf: calculationAsOf, quotes: quoteObservations, maxLosers: 1 });
   // Never expose settings tokens. Convert non-finite/missing values to explicit nulls.
   const payload = {
     schemaVersion: 1, startedAt, generatedAt: new Date().toISOString(),
-    scope: 'all recorded positions and plans in the configured shared portfolio',
+    scope: 'all recorded positions and plans belonging to the authenticated user',
     currencies: { prices: 'USD', base: 'USD', display: settings?.currency ?? 'USD', usdToIls: fxResult, fxSource: fxResult === null ? 'unavailable' : 'open.er-api.com', historicalFxPointCount: fxHistory.length },
-    dataQuality: { completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
+    dataQuality: { ...historyQuality, completeMarketValuation: missingSymbols.length === 0, missingQuoteSymbols: missingSymbols, warnings },
     goals: { annualGrowthRate, annualGrowthRatePercent: annualGrowthRate === null ? null : annualGrowthRate * 100, meaning: 'User annual compound return target, evaluated as of today; not a price forecast or guaranteed return. currentGapUsd is positive for a shortfall and negative for a surplus.', symbolTargets: targets },
-    summary: summary ? { ...summary, ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
-    closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
-    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: tax.taxUsd, estimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
+    summary: summary ? { ...summary, ...(!historyQuality.completeTransactionHistory ? { totalTaxesPaidUsd: null, totalTaxesPaidIls: null } : {}), ...(annualGrowthRate === null ? { totalProjectedPnLUsd: null, totalProjectedPnLIls: null, totalCombinedUsd: null, totalCombinedIls: null } : {}) } : null,
+    sources, closePairProposals, closePairOnlyProposals, holdings, positions, plans: planRows.map(mapPositionPlanRow), realizedSales,
+    realized: { totals: { ...realizedTotals, expectedProfitUsd: annualGrowthRate === null ? null : realizedTotals.expectedProfitUsd, expectedProfitIls: annualGrowthRate === null ? null : realizedTotals.expectedProfitIls }, estimatedTaxUsd: historyQuality.completeTransactionHistory ? tax.taxUsd : null, estimatedTaxIls: historyQuality.completeTransactionHistory && fxResult !== null ? tax.taxIls : null, recordedSalesEstimatedTaxUsd: tax.taxUsd, recordedSalesEstimatedTaxIls: fxResult === null ? null : tax.taxIls, assumedTaxRate: 0.25 },
     quotes: quoteObservations,
     limitations: [
+      ...(!historyQuality.completeTransactionHistory ? [RECONCILIATION_HISTORY_WARNING] : []),
       'Read-only snapshot; reading this API does not execute or update pending plans.',
       'Database tables are read separately, not as an atomic transaction.',
       'Quotes are last available market observations, possibly delayed or from a prior trading session; generatedAt is not a market timestamp.',
@@ -127,20 +134,22 @@ async function buildSnapshot() {
   }));
 }
 
-const getSnapshot = cachePortfolioAiSnapshot(buildSnapshot);
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   try {
-    const snapshot = await getSnapshot();
-    if (request && new URL(request.url).searchParams.get('format') === 'html') {
+    const principal = await requireApiPrincipal(request);
+    const snapshot = await buildSnapshot(principal);
+    if (new URL(request.url).searchParams.get('format') === 'html') {
       const json = JSON.stringify(snapshot, null, 2)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portfolio snapshot for AI analysis</title></head><body><h1>Portfolio snapshot for AI analysis</h1><p>Read-only portfolio data. All amounts, timestamps, sources and limitations are included in the JSON below. This snapshot uses the same five-minute server cache as the JSON API.</p><pre>${json}</pre></body></html>`, {
+      return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portfolio snapshot for AI analysis</title></head><body><h1>Portfolio snapshot for AI analysis</h1><p>Read-only portfolio data. All amounts, timestamps, sources and limitations are included in the JSON below. This snapshot is generated for the authenticated account without a shared personal-data cache.</p><pre>${json}</pre></body></html>`, {
         headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", 'X-Content-Type-Options': 'nosniff' },
       });
     }
     return NextResponse.json(snapshot, { headers });
-  } catch {
+  } catch (error) {
+    const authResponse = authenticationResponse(error);
+    if (authResponse) return authResponse;
     return NextResponse.json({ error: 'Failed to load complete portfolio snapshot' }, { status: 500, headers: { ...headers, 'Retry-After': '30' } });
   }
 }

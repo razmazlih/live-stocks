@@ -1,0 +1,152 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "HOSTED_PROVIDER_AND_ISOLATED_FIXTURE_RLS",
+  "fullHostedFinancialMigration": false,
+  "startedAt": "2026-11-15T11:12:40.238Z",
+  "projectRef": "qdcvlhghabchxstoedzq",
+  "issuer": "https://livestocks-auth-gate.vercel.app/api/auth",
+  "productionMutations": false,
+  "cases": [
+    {
+      "name": "cleaner_paused",
+      "status": "PASS",
+      "at": "2026-11-15T11:14:41.515Z"
+    },
+    {
+      "name": "test_restored",
+      "status": "PASS",
+      "at": "2026-11-15T11:18:17.903Z"
+    }
+  ],
+  "cleanup": {
+    "integrationCreated": false,
+    "fixtureRemoved": false,
+    "testPaused": false,
+    "cleanerHealthy": false,
+    "vercel": {
+      "ok": true,
+      "runId": "f3c5bc80-e1ab-4d48-9d60-c16f3f8f299b",
+      "deploymentsRemoved": 0,
+      "environmentRemoved": 9,
+      "errors": []
+    },
+    "leaseReleased": true
+  },
+  "prestate": {
+    "test": "INACTIVE",
+    "cleaner": "ACTIVE_HEALTHY"
+  },
+  "gateRunId": "071f8c57-ebd2-464f-a6cf-9c089f2b86ad",
+  "sourceHashes": {
+    "lib/auth/better-auth-config.ts": "108d147a536063bbc18ce88a556d35ec2300412e038402169dceb7587652eed5",
+    "lib/auth/auth-email.ts": "d04b695608f68fa32c4fb46ae552a5a1dd7b3ed544ae1525d59137d7894f1ef5",
+    "lib/auth/sign-in-method-guard.ts": "de45dab1eab977753bd5cfd52af57ada255ee9587fded84e9cfe784a2ecd38bf",
+    "lib/auth/better-auth.ts": "2f9cb6945ff94fe0734ede3d5ba0c14033d430867a9cd184cc85bf13f45967f1",
+    "lib/auth/better-auth-handler.ts": "2069b28b0213b29be6975ad8bce5d32101a998728cd4bf0fe82189d2846d0116",
+    "scripts/lib/better-auth-gate-health.mjs": "91dc928bd8869fea8be12693e7c55f1e6946e4a435850a585d99f1e4248bc491"
+  },
+  "migrationHashes": {
+    "20241003120000_create_positions_and_settings.sql": "15d93eaf90c9047c66526297187e004ca8eaf7c0662e1dbcddf60700be069edd",
+    "20241015100000_add_position_lots.sql": "520510bb0c6d58f9bb1536a80280c21366bdf5e8af9a0b45bc9e47d55939a491",
+    "20241020110000_create_watchlist_tables.sql": "b36004ec943f5c6a907e2e76e1475086816d65dda0dbf9dc407416c1fae86d97",
+    "20241028103000_create_position_plans.sql": "0d9ab14aae9820dd15f3a5baac65709be8792ade3cb7feab24bb02acabffc2c7",
+    "20241030120000_add_side_to_position_plans.sql": "59f9bed455b81af88b1c35c2e2a26c5a54742efb742500d3c2e0ef41ec299704",
+    "20241101090000_add_commission_to_position_lots.sql": "e3a2ec22dfccdecd41a405164ee153d5034be34494e1ba6322b8403861e7163d",
+    "20241102120000_add_commission_to_position_plans.sql": "c162629348f903fe5b9efa26d79e744797845b6d36101da24e6c3bb6359bfcb8",
+    "20241105100000_add_location_to_positions.sql": "2b489fb80ce736011dd84677b6f918c1155259121e5b6a8a22ea7a32d4b271d5",
+    "20261110130000_reuse_position_identity.sql": "a9fb54cf522cec51ba0fa8bd8e883baacfded58cc923235d988aecc10de7eac6",
+    "20261114114916_auth0_user_isolation.sql": "92f2a3c6bd5255029232576c2c147ced84dbc0fa3c527c6c4df6703e5f32dffc",
+    "20261114145729_canonical_profiles_and_lossless_merge.sql": "057446814d430582fefea215129d27b28efa88531c2b0648f86723bf0837c501",
+    "20261114151506_better_auth_private_sessions.sql": "bec5796f998d5ba541ce6333319bb0b2544975bc3eb66115d652b8487cf6935e",
+    "20261115094000_sign_in_method_operations.sql": "9242a3e784b92146b3ac737d6bfe2ecbf707bcb52cba6d7fbbdc4669f4c14a11"
+  },
+  "databaseCaSha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+  "approvedRestoreBy": "2026-11-15T11:52:12.000Z",
+  "activeDeadline": "2026-11-15T11:32:43.295Z",
+  "activeBudgetMinutes": 20,
+  "fixtureRunId": "e8399b17-28ab-4e43-9c57-7433c2ffb65f",
+  "cloudRunId": "f3c5bc80-e1ab-4d48-9d60-c16f3f8f299b",
+  "pauseRequestedAt": "2026-11-15T11:13:13.084Z",
+  "originalPublicTables": [
+    "position_lots",
+    "position_plans",
+    "positions",
+    "settings",
+    "watchlist_groups",
+    "watchlist_tickers"
+  ],
+  "preflightCounts": {
+    "positions": 5,
+    "position_lots": 11,
+    "position_plans": 1,
+    "settings": 1,
+    "watchlist_groups": 2,
+    "watchlist_tickers": 3
+  },
+  "failedPhase": "isolated_fixture",
+  "reason": "Management request failed at isolated_fixture HTTP 400",
+  "cleanupFailed": true,
+  "completedAt": "2026-11-15T11:18:56.840Z",
+  "followupRestoration": {
+    "startedAt": "2026-11-15T11:20:47.526Z",
+    "testPaused": true,
+    "cleanerHealthy": true,
+    "steps": [
+      {
+        "at": "2026-11-15T11:20:47.959Z",
+        "stage": "confirmed_prestate",
+        "test": "ACTIVE_HEALTHY",
+        "cleaner": "INACTIVE"
+      },
+      {
+        "at": "2026-11-15T11:20:57.140Z",
+        "stage": "test_pause_requested",
+        "http": 200
+      },
+      {
+        "at": "2026-11-15T11:22:25.731Z",
+        "stage": "test_paused"
+      },
+      {
+        "at": "2026-11-15T11:22:28.321Z",
+        "stage": "cleaner_restore_requested",
+        "http": 200
+      },
+      {
+        "at": "2026-11-15T11:26:12.755Z",
+        "stage": "cleaner_restored_and_select1_verified"
+      }
+    ],
+    "status": "PASS_RESTORATION",
+    "completedAt": "2026-11-15T11:26:12.756Z"
+  },
+  "finalOutcome": {
+    "hostedAcceptance": "INCOMPLETE",
+    "testPaused": true,
+    "cleanerHealthyAndSelect1": true,
+    "restoredAt": "2026-11-15T11:26:12.756Z",
+    "fixtureOutcome": "PRIOR_DDL_COMMIT_PROVEN_BY_MATCHING_MARKER; OWNED_FIXTURE_REMOVED_2026-11-15T11:50:46.848Z",
+    "issuerCreated": false,
+    "configuredDeploymentCreated": false,
+    "runEnvironmentRemoved": true,
+    "noFurtherHostedRetry": true
+  },
+  "diagnosis": {
+    "initialHttpStatus": 400,
+    "initialPhase": "isolated_fixture",
+    "originalErrorArtifactLost": true,
+    "exactFixtureNativeNonSuperuserGate": "PASS",
+    "postgresLogsHaveDefinitiveSqlError": false,
+    "cause": "UNKNOWN",
+    "priorDdlCommitLaterProven": true,
+    "originalFailingSubstage": "UNKNOWN; original phase covered DDL, config insertion and backend credential"
+  },
+  "laterOwnedFixtureRecovery": {
+    "status": "PASS_PRIOR_OWNED_FIXTURE_RECOVERY",
+    "priorFixtureRunId": "e8399b17-28ab-4e43-9c57-7433c2ffb65f",
+    "cleanupHttpStatus": 201,
+    "ownedSchemasRoleFixtureAbsent": true,
+    "originalPublicInventoryAndSixCountsPreserved": true,
+    "at": "2026-11-15T11:50:46.848Z"
+  }
+}

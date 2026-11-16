@@ -1,0 +1,43 @@
+{
+  "status": "INCOMPLETE",
+  "startedAt": "2026-11-15T09:43:26.528Z",
+  "projectRef": "qdcvlhghabchxstoedzq",
+  "issuer": "https://livestocks-auth-gate.vercel.app/api/auth",
+  "productionMutations": false,
+  "cases": [
+    {
+      "name": "cleaner_paused",
+      "status": "PASS"
+    },
+    {
+      "name": "test_restored",
+      "status": "PASS"
+    }
+  ],
+  "cleanup": {
+    "integrationRemoved": false,
+    "backendDisabled": false,
+    "testPaused": true,
+    "cleanerHealthy": true
+  },
+  "prestate": {
+    "test": "INACTIVE",
+    "cleaner": "ACTIVE_HEALTHY"
+  },
+  "failedPhase": "schema_preflight",
+  "reason": "Existing test financial rows require separate review",
+  "completedAt": "2026-11-15T09:53:47.318Z",
+  "cleanupInterpretation": {
+    "integrationCreated": false,
+    "backendCredentialCreated": false,
+    "schemaMigrationsApplied": false,
+    "existingFinancialRowsModified": false,
+    "isolatedVercelEnvironmentRemoved": true,
+    "cleanerSelectOnePassed": true
+  },
+  "limits": [
+    "No hosted Better Auth or JWT gateway acceptance was reached.",
+    "Existing TEST financial rows were counted only and left unchanged.",
+    "Production database, provider configuration and Vercel project were unchanged."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "coreSha256": "4bcb8e555b2f754d0cd36ffb4ccf1a4c6264688bd5d5568b7351fb55493fe880",
+  "changedFiles": [
+    "components/auth/auth-provider.tsx"
+  ],
+  "focusProviderSha256": "e144f68d8d40f86fef6b6681960a66ccd4ca5ae53c0cd6a600ea51f8bff4fbdb",
+  "inputFiles": 214,
+  "sourceFingerprint": "85594f58319bf624196fd77edb4dbd1ee335eeed3791f9f16c8fa5ba0853624a",
+  "commit": "d116dd0",
+  "secretsIncluded": false,
+  "status": "DEPLOYED",
+  "canonicalOrigin": "https://razmaz-live-stocks.vercel.app",
+  "deploymentId": "dpl_HafBisvHThqtWsQXVg5ZTyKoZrjA",
+  "targetedRegressionTestsPassed": 21,
+  "typecheck": "PASS",
+  "lint": "PASS",
+  "productionBuild": "PASS",
+  "candidatePortfolioUnauthenticatedStatus": 401,
+  "candidateDiscoveryIssuerUnchanged": true,
+  "liveHumanFocusCycleVerified": false,
+  "behavior": [
+    "Same-user focus check preserves provider, Supabase client, DOM and drafts",
+    "Network and temporary server failures preserve the signed-in view",
+    "Verified logout, account changes and cross-tab invalidation clear private state",
+    "Overlapping requests and stale responses cannot restore a prior account"
+  ]
+}

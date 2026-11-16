@@ -1,11 +1,19 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({ from: vi.fn(), quote: vi.fn(), fx: vi.fn() }));
-vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: mocks.from }) }));
+vi.mock('@/lib/auth/server', () => ({
+  requireApiPrincipal: async () => ({ userId: 'auth0|test-user', supabase: { from: mocks.from } }),
+  authenticationResponse: () => null,
+  PRIVATE_HEADERS: { 'Cache-Control': 'private, no-store, max-age=0' },
+}));
+vi.mock('@/lib/auth/credentials', () => ({ readFinnhubCredential: async () => 'secret-do-not-export' }));
 vi.mock('@/lib/services/finnhub', () => ({ fetchFinnhubQuote: mocks.quote }));
 vi.mock('@/lib/services/exchange-rate', () => ({ fetchExchangeRateResponse: mocks.fx, extractExchangeRate: (data: { rates: { ILS: number } }) => data.rates.ILS }));
 vi.mock('@/lib/services/yahoo-candles', () => ({ fetchYahooCandlesData: vi.fn().mockResolvedValue({ c: [], t: [], s: 'ok' }) }));
 vi.mock('next/cache', () => ({ unstable_cache: (load: () => Promise<unknown>) => load }));
 let GET: typeof import('@/app/api/portfolio/ai/route').GET;
+const readSnapshot = () => GET(new Request('https://example.com/api/portfolio/ai'));
 
 const rows: Record<string, unknown[]> = {};
 beforeEach(async () => {
@@ -15,21 +23,23 @@ beforeEach(async () => {
   rows.positions = [{ id: 'p1', symbol: 'ABC', display: 'ABC', quantity: 2, entry_price: 100, entry_date: '2025-01-01', location: 'bank_one' }];
   rows.position_lots = [{ id: 'l1', position_id: 'p1', side: 'BUY', price: 100, quantity: 2, executed_at: '2025-01-01', has_commission: false, commission_amount: 0 }];
   rows.position_plans = [{ id: 'plan1', position_id: null, symbol: 'XYZ', side: 'buy', target_price: 50, target_quantity: 3, target_date: '2027-01-01', status: 'pending' }];
+  rows.investment_sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
   rows.settings = [{ annual_growth_rate: 0.1, currency: 'ILS', finnhub_token: 'secret-do-not-export' }];
-  mocks.from.mockImplementation((table: string) => ({ select: () => ({ order: () => ({ range: async (start: number, end: number) => ({ data: rows[table].slice(start, end + 1), error: null }) }) }) }));
+  mocks.from.mockImplementation((table: string) => ({ select: () => ({ eq: () => ({ order: () => ({ range: async (start: number, end: number) => ({ data: rows[table].slice(start, end + 1), error: null }) }) }) }) }));
   mocks.quote.mockResolvedValue({ price: 120, dailyChange: 2, timestamp: 1793000000 });
   mocks.fx.mockResolvedValue({ rates: { ILS: 3.5 } });
 });
 
 describe('GET portfolio AI snapshot', () => {
   it('exports holdings, goals, standalone plans, provenance and no token', async () => {
-    const response = await GET();
+    const response = await readSnapshot();
     const data = await response.json();
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(data.holdings[0]).toMatchObject({ currentPriceUsd: 120, marketValueUsd: 240, allocationPercent: 100 });
     expect(data.goals.annualGrowthRatePercent).toBe(10);
     expect(data.goals.symbolTargets[0].requiredExitPrice).toBeGreaterThan(100);
+    expect(data.sources[0]).toMatchObject({ name: 'בית השקעות אישי' });
     expect(data.plans[0]).toMatchObject({ symbol: 'XYZ', targetQuantity: 3, status: 'pending' });
     expect(data.positions[0].lots).toHaveLength(1);
     expect(data.closePairProposals.policy.maxLosers).toBe(3);
@@ -38,6 +48,21 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.closePairProposals.availability).toBe('complete');
     expect(data.quotes.ABC.marketTimestamp).toBeTruthy();
     expect(JSON.stringify(data)).not.toContain('secret-do-not-export');
+  });
+  it('exports reconciled current holdings while disclosing incomplete lifetime accounting', async () => {
+    rows.position_lots.push({ id: 'checkpoint', position_id: 'p1', side: 'RECONCILE', price: 90, quantity: 3, executed_at: '2026-11-01', basis_acquired_on: null, has_commission: false, commission_amount: 0 });
+    const data = await (await readSnapshot()).json();
+    expect(data.holdings[0].position.quantity).toBe(3);
+    expect(data.holdings[0].unrealizedPnlUsd).toBe(90);
+    expect(data.holdings[0].unrealizedPnlIls).toBeNull();
+    expect(data.dataQuality).toMatchObject({ completeMarketValuation: true, completeTransactionHistory: false, reconciledSymbols: ['ABC'], realizedProfitScope: 'recorded_executions_only' });
+    expect(data.summary.totalCurrentPnLUsd).toBeNull();
+    expect(data.summary.totalNetPnLUsd).toBeNull();
+    expect(data.summary.totalTaxesPaidUsd).toBeNull();
+    expect(data.realized.estimatedTaxUsd).toBeNull();
+    expect(data.realized.totals.profitUsd).toBe(0);
+    expect(data.realized.recordedSalesEstimatedTaxUsd).toBe(0);
+    expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'reconciliation_history_incomplete' });
   });
   it('offers escaped HTML for browsing tools with the same complete snapshot', async () => {
     rows.positions[0] = { ...(rows.positions[0] as object), display: '<script>alert("x")</script>' };
@@ -55,7 +80,7 @@ describe('GET portfolio AI snapshot', () => {
   it('does not fabricate prices, full valuations or FX', async () => {
     mocks.quote.mockResolvedValue(null);
     mocks.fx.mockRejectedValue(new Error('offline'));
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.summary).toBeNull();
     expect(data.holdings[0].currentPriceUsd).toBeNull();
     expect(data.holdings[0].allocationPercent).toBeNull();
@@ -66,7 +91,7 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'missing_or_invalid_quote' });
   });
   it('keeps USD valuation but omits historical ILS calculations when FX history is missing', async () => {
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.holdings[0].marketValueUsd).toBe(240);
     expect(data.holdings[0].unrealizedPnlUsd).toBe(40);
     expect(data.holdings[0].unrealizedPnlIls).toBeNull();
@@ -75,26 +100,36 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.dataQuality.warnings.join(' ')).toContain('affected ILS calculations are omitted');
   });
   it('fails explicitly when a required table cannot be read', async () => {
-    mocks.from.mockImplementation(() => ({ select: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'denied' } }) }) }) }));
-    const response = await GET();
+    mocks.from.mockImplementation(() => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'denied' } }) }) }) }) }));
+    const response = await readSnapshot();
     expect(response.status).toBe(500);
     expect(response.headers.get('retry-after')).toBe('30');
-    await GET();
-    expect(mocks.from).toHaveBeenCalledTimes(4);
+    await readSnapshot();
+    expect(mocks.from).toHaveBeenCalledTimes(10);
   });
   it('reads beyond the first page and deduplicates market requests', async () => {
     rows.positions = Array.from({ length: 501 }, (_, i) => ({ ...(rows.positions[0] as object), id: `p${i}` }));
-    const data = await (await GET()).json();
+    const data = await (await readSnapshot()).json();
     expect(data.positions).toHaveLength(501);
     expect(mocks.quote).toHaveBeenCalledTimes(2);
   });
   it('does not replace a missing user target with an invented goal', async () => {
-    rows.settings = [];
-    const data = await (await GET()).json();
+    rows.investment_sources = [{ id: '10000000-0000-4000-8000-000000000001', name: 'בית השקעות אישי', archived_at: null, created_at: '2026-01-01', legacy_location: null }];
+  rows.settings = [];
+    const data = await (await readSnapshot()).json();
     expect(data.goals.annualGrowthRate).toBeNull();
     expect(data.closePairProposals.availability).toBe('unavailable');
     expect(data.goals.symbolTargets).toBeNull();
     expect(data.summary.totalProjectedPnLUsd).toBeNull();
     expect(data.realized.totals.expectedProfitUsd).toBeNull();
   });
+  it('exports the source catalog even when no positions exist', async () => {
+    rows.positions = []; rows.position_lots = []; rows.position_plans = [];
+    const response = await readSnapshot();
+    const data = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.holdings).toEqual([]);
+    expect(data.sources).toEqual(rows.investment_sources);
+  });
+
 });

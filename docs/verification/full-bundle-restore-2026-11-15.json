@@ -1,0 +1,105 @@
+{
+  "scope": "ACTUAL_ENCRYPTED_BACKUP_DISPOSABLE_LOCAL_FULL_BUNDLE_REHEARSAL",
+  "status": "PASS",
+  "completedAt": "2026-11-15T13:13:48.887Z",
+  "sourceServerVersion": 170006,
+  "localPostgres": "postgres (PostgreSQL) 17.12 (Homebrew)",
+  "archiveAuthenticated": true,
+  "restoreTested": true,
+  "financialRows": {
+    "positions": 17,
+    "position_lots": 55,
+    "position_plans": 0,
+    "settings": 1,
+    "watchlist_groups": 1,
+    "watchlist_tickers": 4
+  },
+  "migrations": {
+    "files": [
+      {
+        "name": "20261114114916_auth0_user_isolation.sql",
+        "sha256": "92f2a3c6bd5255029232576c2c147ced84dbc0fa3c527c6c4df6703e5f32dffc"
+      },
+      {
+        "name": "20261114145729_canonical_profiles_and_lossless_merge.sql",
+        "sha256": "057446814d430582fefea215129d27b28efa88531c2b0648f86723bf0837c501"
+      },
+      {
+        "name": "20261114151506_better_auth_private_sessions.sql",
+        "sha256": "bec5796f998d5ba541ce6333319bb0b2544975bc3eb66115d652b8487cf6935e"
+      },
+      {
+        "name": "20261115094000_sign_in_method_operations.sql",
+        "sha256": "9242a3e784b92146b3ac737d6bfe2ecbf707bcb52cba6d7fbbdc4669f4c14a11"
+      }
+    ],
+    "bundleSha256": "312efd7dc697e86fcd8d6be06e83138121beb4552ae30c8a39db7257c3575b2f",
+    "rollbackVerified": true,
+    "bindingScope": "SYNTHETIC_LOCAL_ONLY",
+    "realBetterAuthOwnerProved": false,
+    "explicitAliasVerified": true,
+    "liveAliasRlsVerified": true,
+    "financialDataPreserved": true,
+    "ownerVerified": true,
+    "encryptedCredentialVerified": true,
+    "nonSuperuserOwnershipFailureVerified": true,
+    "historyRollbackVerified": true,
+    "nonSuperuserOwnershipTransferVerified": true,
+    "creatorSettingResetVerified": true
+  },
+  "tooling": {
+    "cutoverGeneratorSha256": "d3ea817da6f417f6ea9c07b4a849663cd9e1bf066e47f9062836b3035376b6a7",
+    "ownerStoreToolSha256": "3ce548f1a1b73b065891e1c1036e1eafbe9e1f79909023ec4e1ddc13c98ea4b5",
+    "restoreToolSha256": "2cc105f6fd1293ae5e103b9dec9c9fed0abf0c7a09447b0e8f2f811edf64056f"
+  },
+  "cutover": {
+    "freezeCommitted": true,
+    "priorApiBackendDrained": true,
+    "staleBaselineDenied": true,
+    "snapshotDriftDenied": true,
+    "snapshotDigestDriftDenied": true,
+    "rollbackKeptFreeze": true,
+    "historyRecordedAtomically": true,
+    "serviceFinancialAccessReadOnly": true
+  },
+  "ownerStore": {
+    "preprovisioned": true,
+    "restoredExistingStore": false,
+    "legacyAclReconstructedLocally": true,
+    "financialDataUntouched": true,
+    "exactAdoptionVerified": true,
+    "receiptSignatureVerified": true,
+    "realGoogleOwnerProved": false,
+    "structureDriftDenied": true,
+    "aclDriftDenied": true,
+    "markerDriftDenied": true,
+    "receiptDriftDenied": true,
+    "deletedSessionDenied": true,
+    "authRowsPreserved": true,
+    "rollbackKeptPreprovisionedStore": true,
+    "managedPostgresAdminMembership": true,
+    "unsafeMembershipsDenied": true,
+    "unsafeRoleAttributesDenied": true,
+    "exactMembershipOptionsVerified": true,
+    "unsafeMembershipOptionsDenied": true,
+    "finalStoreEncryptedArchiveRestoreVerified": true,
+    "managedMembershipArchiveRoundtripVerified": true
+  },
+  "legacyCredentialVerified": true,
+  "cleanup": "COMPLETE",
+  "productionWrites": false,
+  "productionReady": false,
+  "requiredRemainingGates": [
+    "Hosted issuer/JWKS/role/RLS/session-revocation acceptance",
+    "Reviewed final-store preprovision and real Google owner confirmation",
+    "Old deployment and shared-cache closure",
+    "Fresh post-freeze four-schema encrypted backup and matching complete restore rehearsal"
+  ],
+  "migrationOperator": {
+    "role": "postgres",
+    "super": false,
+    "selfGrant": "",
+    "createRole": true
+  },
+  "authStoreDigestOrder": "id COLLATE C"
+}

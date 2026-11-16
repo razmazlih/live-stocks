@@ -156,7 +156,7 @@ function buildLocationBreakdowns(positions: Position[]): LocationBreakdown[] {
       if (a.location === b.location) {
         return 0;
       }
-      return a.location === 'bank_one' ? -1 : 1;
+      return a.location.localeCompare(b.location);
     });
 }
 
@@ -308,13 +308,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return;
         }
 
-        const trimmedToken = settings.finnhubToken?.trim();
-        const quoteParams = trimmedToken
-          ? new URLSearchParams({
-              symbol: normalizedSymbol,
-              token: trimmedToken,
-            })
-          : null;
+        const quoteParams = new URLSearchParams({ symbol: normalizedSymbol });
         if (quoteParams && reloadKey > 0) {
           quoteParams.set('forceRefresh', '1');
         }
@@ -401,21 +395,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate, settings.finnhubToken]);
+  }, [locale, normalizedSymbol, reloadKey, settings.annualGrowthRate]);
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate: string | undefined, signal: AbortSignal) => {
       const now = Math.floor(Date.now() / 1000);
       const { from, resolution } = getRangeParams(selectedRange, entryDate);
       const params = new URLSearchParams({ symbol: normalizedSymbol, resolution, from: String(from), to: String(now) });
-      if (settings.finnhubToken) params.set('token', settings.finnhubToken);
       const response = await fetch(`/api/candles?${params}`, { signal });
       if (!response.ok) throw new Error(`Candles request failed: ${response.status}`);
       const data = await response.json() as CandleResponse;
       if (data.error) throw new Error(data.error);
       return mapCandleDataToPoints(data);
     },
-    [normalizedSymbol, settings.finnhubToken]
+    [normalizedSymbol]
   );
 
   const historicalEntryDate = holdingCycles.length > 0 ? new Date(holdingCycles[0].start).toISOString() : position?.entryDate;
@@ -478,6 +471,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
     return transactions
       .reduce<SparklineEvent[]>((events, lot) => {
+        if (lot.type === 'RECONCILE') return events;
         const timestamp = new Date(lot.executedAt).getTime();
         if (Number.isNaN(timestamp)) {
           return events;
@@ -587,8 +581,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             <details className={styles.record}>
               <summary><span className="flex items-center gap-2"><span className={styles.recordIcon}><ArrowLeftRight aria-hidden className="h-4 w-4" /></span><span>{locale === 'he' ? 'היסטוריית פעולות' : 'Transaction history'}</span></span><span className="flex items-center gap-2 text-xs text-slate-500">{transactions.length} {locale === 'he' ? 'פעולות' : 'trades'}<ChevronDown aria-hidden className={styles.chevron} /></span></summary>
               <div className={styles.recordBody}>
+                {transactions.some(lot => lot.type === 'RECONCILE') && <p className="mb-3 text-xs text-slate-500">{locale === 'he' ? 'התאמות יתרה מעדכנות את ההחזקה בלי להמציא מכירות או למחוק עסקאות. הרווח המצטבר אינו ידוע עד להשלמת העסקאות החסרות.' : 'Balance checkpoints update holdings without inventing sales or deleting trades. Lifetime profit remains unknown until missing executions are supplied.'}</p>}
                 {transactions.length ? <ol className={styles.trades}>{transactions.map((lot, index) => <li key={lot.id ?? `${lot.executedAt}-${index}`}>
-                  <span className={cn(styles.side, lot.type === 'BUY' ? styles.buy : styles.sell)}>{lot.type === 'BUY' ? t.positions.buy : t.positions.sell}</span>
+                  <span className={cn(styles.side, lot.type === 'RECONCILE' ? 'bg-blue-50 text-blue-700' : lot.type === 'BUY' ? styles.buy : styles.sell)}>{lot.type === 'RECONCILE' ? (locale === 'he' ? 'התאמת יתרה' : 'Balance reconciliation') : lot.type === 'BUY' ? t.positions.buy : t.positions.sell}</span>
                   <span className="min-w-0"><span className="block text-xs font-medium text-slate-800"><bdi>{formatNumber(lot.quantity, locale)}</bdi> × <bdi>{money(lot.price)}</bdi></span><span className="mt-1 block text-[10px] text-slate-400">{lot.hasCommission && lot.commissionAmount > 0 ? `${locale === 'he' ? 'עמלה' : 'Fee'} ${money(lot.commissionAmount)}` : locale === 'he' ? 'ללא עמלה' : 'No fee'}</span></span>
                   <time dateTime={lot.executedAt} className="text-end text-[11px] text-slate-500">{formatDate(lot.executedAt, locale)}</time>
                 </li>)}</ol> : <p className="py-2 text-xs text-slate-500">{t.positions.noTransactions}</p>}

@@ -1,0 +1,25 @@
+{
+  "status": "PASS_LOCAL_FOUNDATION_ONLY",
+  "date": "2026-11-14",
+  "unitSuite": {
+    "passed": 711,
+    "skipped": 1,
+    "filesPassed": 67,
+    "skipReason": "Opt-in actual PostgreSQL provider test runs separately"
+  },
+  "nativeSqlStages": 11,
+  "actualPostgreSqlProvider": "PASS with restricted role and synthetic in-memory mailbox",
+  "lint": "PASS",
+  "typecheck": "PASS",
+  "build": "PASS clean source, npm run build using Webpack",
+  "cleanInstall": "PASS",
+  "browserForms": "Hebrew/English, light/dark, desktop/mobile; synthetic public config and signed-out-session fixture",
+  "productionCutoverPerformed": false,
+  "productionAccountMergePerformed": false,
+  "realEmailVerified": false,
+  "newGoogleFlowVerified": false,
+  "hostedCustomOidcVerified": false,
+  "chatGptOAuthVerified": false,
+  "physicalIphoneVerified": false,
+  "mergePublicApiEnabled": false
+}

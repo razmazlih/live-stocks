@@ -26,8 +26,10 @@ export async function fetchFinnhubQuote(
   }
 
   try {
-    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
-    const response = await fetchWithRetry(url, init);
+    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}`;
+    const headers = new Headers(init.headers);
+    headers.set('X-Finnhub-Token', token);
+    const response = await fetchWithRetry(url, { ...init, headers });
     const data = await response.json() as StockQuote;
 
     if (!isFiniteNumber(data.c) || data.c <= 0) {
@@ -46,7 +48,7 @@ export async function fetchFinnhubQuote(
 
     return quote;
   } catch (error) {
-    console.error(`Failed to fetch quote for ${symbol}:`, error);
+    console.error(`Failed to fetch quote for ${symbol}:`, error instanceof Error ? error.name : 'Provider error');
     return null;
   }
 }

@@ -1,45 +1,44 @@
+import { reconciliationQuality, positionFxTimestamps } from '@/lib/reconciliation-quality';
+import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  mapCandleDataToPoints,
   calculatePortfolioSummary,
   calculatePositionMetrics,
   calculateRealizedPortfolioTotals,
   calculateRealizedTaxLiability,
   enrichPortfolioSummaryWithRealized,
 } from '@/lib/calculations';
-import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints, normalizeToUtcDay } from '@/lib/services/historical-fx';
+import { buildUsdIlsRateResolver, normalizeToUtcDay } from '@/lib/services/historical-fx';
 import { computeRealizedSalesWithFx, mapPositionRow } from '@/lib/positions';
 import { fetchFinnhubQuote } from '@/lib/services/finnhub';
 import { getUsdToIlsRate } from '@/lib/services/exchange-rate';
-import { getSupabaseClient } from '@/lib/supabase';
+import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS } from '@/lib/auth/server';
+import { readFinnhubCredential } from '@/lib/auth/credentials';
 import { isFiniteNumber, toFixedNumber } from '@/lib/utils/numbers';
 import { Position } from '@/types';
 
 const DEFAULT_GROWTH_RATE = Number.parseFloat(process.env.DEFAULT_GROWTH_RATE ?? '0.05');
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' } as const;
+const NO_STORE_HEADERS = PRIVATE_HEADERS;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
-    let supabase;
-    try {
-      supabase = getSupabaseClient();
-    } catch (error) {
-      console.error('Supabase client initialization failed:', error);
-      return NextResponse.json(
-        { error: 'Supabase client is not configured.' },
-        { status: 500, headers: NO_STORE_HEADERS },
-      );
-    }
+    const principal = await requireApiPrincipal(request);
+    const supabase = principal.supabase;
 
     const [positionsResult, settingsResult] = await Promise.all([
       supabase
         .from('positions')
         .select('*, position_lots(*)')
+        .eq('user_id', principal.userId)
         .order('symbol'),
       supabase
         .from('settings')
         .select('*')
+        .eq('user_id', principal.userId)
+        .eq('is_active', true)
         .limit(1)
         .maybeSingle(),
     ]);
@@ -67,21 +66,18 @@ export async function GET(request: NextRequest) {
       ? settingsResult.data.annual_growth_rate
       : DEFAULT_GROWTH_RATE;
 
-    const finnhubToken = settingsResult.data?.finnhub_token || process.env.FINNHUB_TOKEN;
+    const finnhubToken = await readFinnhubCredential(principal.userId);
 
-    const lotTimestamps = mappedPositions.flatMap((position) =>
-      (Array.isArray(position.lots) ? position.lots : [])
-        .map((lot) => new Date(lot.executedAt).getTime())
-        .filter((timestamp) => Number.isFinite(timestamp)),
-    );
+    const lotTimestamps = mappedPositions.flatMap(positionFxTimestamps);
     const earliestLotTimestamp = lotTimestamps.length
       ? Math.min(...lotTimestamps)
       : Date.now() - 365 * 24 * 60 * 60 * 1000;
-    const fxPoints = await fetchUsdIlsHistoricalPoints(
+    const fxPoints = await fetchYahooCandlesData(
+      'ILS=X',
       Math.max(0, Math.floor(normalizeToUtcDay(earliestLotTimestamp) / 1000) - 10 * 86400),
       Math.floor(Date.now() / 1000),
-      { baseUrl: request.nextUrl.origin },
-    );
+      'D',
+    ).then(mapCandleDataToPoints).catch(() => []);
     const getFxRateAt = buildUsdIlsRateResolver(fxPoints, usdToIlsRate, { allowFallback: false });
 
     const metrics = await Promise.all(
@@ -135,6 +131,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         timestamp: new Date().toISOString(),
+        dataQuality: reconciliationQuality(mappedPositions),
         usdToIlsRate,
         netPnL: {
           usd: toFixedNumber(enrichedSummary.totalNetPnLUsd),
@@ -148,6 +145,8 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {
+    const authResponse = authenticationResponse(error);
+    if (authResponse) return authResponse;
     console.error('Net PnL API error:', error);
     return NextResponse.json(
       { error: 'Failed to calculate net PnL' },

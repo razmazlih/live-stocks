@@ -1,3 +1,4 @@
+import { hasReconciliationHistory } from '@/lib/reconciliation-quality';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { buildClosePairProposals, buildCloseProposalLegs, DEFAULT_CLOSE_PAIR_POLICY, getCloseProposalLegs, isEligibleCloseProposalLoser } from '@/lib/close-pair-proposals';
@@ -12,7 +13,7 @@ const symbolKey = (symbol: string) => symbol.trim().toUpperCase();
 /** Compact server-computed proposals; no lot/account records are duplicated in the response. */
 export function buildCloseProposalSnapshot(input: {
   positions: Position[]; metrics: PositionMetrics[]; annualGrowthRate: number | null;
-  asOf: number; quotes: Record<string, QuoteObservation>; maxLosers?: 1 | 3;
+  ownerId?: string; sources?: { id: string; name: string }[]; asOf: number; quotes: Record<string, QuoteObservation>; maxLosers?: 1 | 3;
 }) {
   const { positions, metrics, annualGrowthRate, asOf, quotes } = input;
   const policy = { ...DEFAULT_CLOSE_PAIR_POLICY, maxLosers: input.maxLosers ?? 3 };
@@ -23,13 +24,19 @@ export function buildCloseProposalSnapshot(input: {
   }).map(position => symbolKey(position.symbol)))].sort();
   const validLegs = annualGrowthRate === null ? [] : buildCloseProposalLegs(metrics, positions, asOf, annualGrowthRate);
   const validSymbols = new Set(validLegs.map(leg => symbolKey(leg.position.symbol)));
+  const reconciledSymbols = new Set(positions.filter(position => hasReconciliationHistory(position, asOf)).map(position => symbolKey(position.symbol)));
   const invalidHistorySymbols = annualGrowthRate === null ? [] : openSymbols.filter(symbol => !validSymbols.has(symbol)).sort();
   const exclusions = [
     ...missingQuoteSymbols.map(symbol => ({ symbol, reason: 'missing_or_invalid_quote' })),
-    ...invalidHistorySymbols.map(symbol => ({ symbol, reason: 'invalid_or_inconsistent_source_history' })),
+    ...invalidHistorySymbols.filter(symbol => !reconciledSymbols.has(symbol)).map(symbol => ({ symbol, reason: 'invalid_or_inconsistent_source_history' })),
+    ...[...reconciledSymbols].map(symbol => ({ symbol, reason: 'reconciliation_history_incomplete' })),
   ];
-  const snapshotId = fingerprint({ asOf, annualGrowthRate, positions, quotes, policy });
-  const proposals = annualGrowthRate === null ? [] : buildClosePairProposals(metrics, 3, asOf, annualGrowthRate, positions, policy);
+  // Re-read and recompute on every call. Clock milliseconds are not source-data
+  // changes; using the UTC day keeps review IDs usable without caching personal data.
+  // ownerId binds identical source records to their authenticated account.
+  const calculationDay = Math.floor(asOf / 86_400_000);
+  const snapshotId = fingerprint({ ownerId: input.ownerId ?? null, calculationDay, annualGrowthRate, positions, quotes, policy });
+  const proposals = annualGrowthRate === null ? [] : buildClosePairProposals(metrics.filter(metric => !reconciledSymbols.has(symbolKey(metric.position.symbol))), 3, asOf, annualGrowthRate, positions.filter(position => !reconciledSymbols.has(symbolKey(position.symbol))), policy);
   const searchTruncated = validLegs.filter(leg => isEligibleCloseProposalLoser(leg, policy)).length > DEFAULT_CLOSE_PAIR_POLICY.maxCandidateLosers;
   const policyFilteredLossSymbols = validLegs.filter(leg => (leg.unrealizedPnlUsd ?? 0) < 0 && !isEligibleCloseProposalLoser(leg, policy)).map(leg => symbolKey(leg.position.symbol));
   return {
@@ -51,10 +58,11 @@ export function buildCloseProposalSnapshot(input: {
         cumulativeProfitUsd: leg.pnlUsd, personalTargetProfitUsd: leg.targetProfitUsd,
         surplusAboveTargetUsd: leg.surplusUsd, weightedHoldingDays: leg.weightedHoldingDays ?? null, openLossPercent: leg.lossPercent ?? null,
         accounts: (leg.historicalPositions ?? [leg.position]).map(position => ({ location: position.location,
+          sourceName: input.sources?.find(source => source.id === position.location)?.name ?? null,
           quantity: position.lots?.length ? computeOpenLots(position.lots).reduce((sum, lot) => sum + lot.quantity, 0) : position.quantity,
         })).filter(account => account.quantity > 1e-8),
       }));
-      return { proposalId: fingerprint({ snapshotId, symbols: legs.map(leg => leg.symbol) }), legs,
+      return { proposalId: fingerprint({ snapshotId, legs: legs.map(leg => ({ symbol: leg.symbol, quantity: leg.quantity })) }), legs,
         combinedCumulativeProfitUsd: proposal.netProfitUsd,
         combinedPriorRealizedProfitUsd: legs.reduce((sum, leg) => sum + leg.priorRealizedProfitUsd, 0),
         combinedUnrealizedProfitUsd: legs.reduce((sum, leg) => sum + leg.unrealizedProfitUsd, 0),
@@ -64,7 +72,7 @@ export function buildCloseProposalSnapshot(input: {
     limitations: ['Only recorded data and last available quotes are used; this is not investment approval or an order.',
       'Prior realized profit is historical, not money earned by selling now. Gross sale proceeds contain returned capital and are not profit.',
       'Recorded commissions are included; future sale fees, slippage and tax are excluded. No tax offset or saving is established.',
-      'Calculated time is not market time. The shared snapshot cache may be five minutes old or older during revalidation/outages.',
+      'Calculated time is not market time. Quotes are last available provider observations and may be delayed or from an earlier market session.',
       'No proposal means no qualifying group was selected under this policy and available coverage; incomplete coverage cannot establish that none exists.'],
   };
 }
@@ -72,13 +80,13 @@ export function buildCloseProposalSnapshot(input: {
 export const closeProposalValidationSchema = z.object({ snapshotId: z.string().regex(/^[a-f0-9]{64}$/), proposalId: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export type CloseProposalSnapshot = ReturnType<typeof buildCloseProposalSnapshot>;
 
-/** Recheck the complete server-owned group against the latest available cached snapshot. */
+/** Recheck the complete server-owned group against the freshly calculated account snapshot. */
 export function validateCloseProposal(snapshot: InvestmentSnapshot, input: z.infer<typeof closeProposalValidationSchema>, now = Date.now()) {
   const available = [snapshot.closePairProposals, snapshot.closePairOnlyProposals].filter(Boolean) as CloseProposalSnapshot[];
   const current = available.find(item => item.snapshotId === input.snapshotId) ?? available[0];
   const errors: string[] = [];
   if (!current || current.availability === 'unavailable') errors.push('Close proposals are unavailable; reload and review current data.');
-  if (current && input.snapshotId !== current.snapshotId) errors.push('Snapshot changed; prices, holdings, history, targets or calculation time may differ. Read and review the current proposal again.');
+  if (current && input.snapshotId !== current.snapshotId) errors.push('Snapshot changed; prices, holdings, history, targets, account or calculation day may differ. Read and review the current proposal again.');
   const proposal = current?.proposals.find(item => item.proposalId === input.proposalId);
   if (!proposal) errors.push('Proposal is absent from the current selected qualifying groups.');
   if (proposal) {
@@ -89,6 +97,6 @@ export function validateCloseProposal(snapshot: InvestmentSnapshot, input: z.inf
   }
   return { valid: errors.length === 0, errors, snapshotGeneratedAt: snapshot.generatedAt,
     snapshotId: current?.snapshotId ?? null, proposal: errors.length ? null : proposal,
-    scope: 'Whole-group arithmetic, full recorded quantities and qualification in the latest available cached snapshot only. No budget is needed for a sell-only group.',
-    limitations: ['This read does not bypass the shared five-minute cache or guarantee current holdings or executable prices.', 'Verify quote market sessions and actual broker holdings before deciding. No orders are placed; grouping a recommendation does not make market execution atomic.', 'A valid result is not research approval, investor suitability or a guarantee after fees, tax or slippage.'] };
+    scope: 'Whole-group arithmetic, full recorded quantities and qualification in the freshly calculated account snapshot only. No budget is needed for a sell-only group.',
+    limitations: ['This read reloads account records and recalculates qualification, but does not guarantee executable prices or holdings outside the application.', 'Verify quote market sessions and actual broker holdings before deciding. No orders are placed; grouping a recommendation does not make market execution atomic.', 'A valid result is not research approval, investor suitability or a guarantee after fees, tax or slippage.'] };
 }

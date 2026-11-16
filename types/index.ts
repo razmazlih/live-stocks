@@ -1,10 +1,24 @@
-export type PositionLotType = 'BUY' | 'SELL';
-export type PositionLocation = 'bank_one' | 'bank_two';
+export type PositionLotType = 'BUY' | 'SELL' | 'RECONCILE';
+/** Immutable ID of an owner-scoped investment source. */
+export type PositionLocation = string;
+
+export interface InvestmentSource {
+  id: string;
+  name: string;
+  archivedAt: string | null;
+  createdAt: string;
+  legacyLocation?: string | null;
+}
 
 export interface PositionLot {
   id?: string;
   positionId?: string;
   type: PositionLotType;
+  /** Observation checkpoints carry cost basis, never execution proceeds. */
+  basisAcquiredOn?: string | null;
+  /** Price-history hint, never a verified acquisition date or FX date. */
+  basisDateEstimate?: string | null;
+  createdAt?: string;
   price: number;
   quantity: number;
   executedAt: string;
@@ -37,6 +51,8 @@ export interface PositionPlan {
 }
 
 export interface Position {
+  /** A broker snapshot cannot establish missing executions or complete lifetime profit. */
+  accountingIncomplete?: boolean;
   id?: string;
   symbol: string;
   display: string;
@@ -62,6 +78,8 @@ export interface Position {
 }
 
 export interface RealizedSale {
+  /** Average broker checkpoint basis cannot recover the original tax-lot FIFO. */
+  basisSource?: 'recorded_lots' | 'reconciled_average';
   id?: string;
   positionId?: string;
   symbol: string;
@@ -175,6 +193,7 @@ export interface SymbolExceptionAssessment {
 }
 
 export interface PortfolioSummary {
+  accountingIncomplete?: boolean;
   /** Cumulative transaction commissions, already deducted from P/L. */
   totalCommissionsUsd?: number;
   totalCommissionsIls?: number;
@@ -214,7 +233,6 @@ export interface Settings {
   annualGrowthRate: number;
   currency: 'USD' | 'ILS';
   refreshInterval: number;
-  finnhubToken: string;
 }
 
 export interface CandleData {

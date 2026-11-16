@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { reconciliationQuality } from '@/lib/reconciliation-quality';
 import { useMemo } from 'react';
 import { CircleDollarSign, ChevronDown } from 'lucide-react';
 import { useApp } from '@/lib/context';
@@ -14,10 +15,11 @@ import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context'
 export function RealizedPanel() {
   const { locale } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, realizedSales: realizedSalesWithFx, summary, usdToIls } =
+  const { loading, positions, realizedSales: realizedSalesWithFx, summary, usdToIls } =
     usePortfolioData();
 
 
+  const historyIncomplete = !reconciliationQuality(positions).completeTransactionHistory;
   const rate = summary?.usdToIlsRate ?? usdToIls;
 
   const realizedSales = useMemo(
@@ -124,16 +126,20 @@ export function RealizedPanel() {
 
   const isHebrew = locale === 'he';
   if (loading) return <DashboardSurface><p className="py-12 text-center text-slate-500">{t.common.loading}</p></DashboardSurface>;
-  if (!hasSales) return <DashboardSurface><div className="flex flex-col items-center gap-3 py-14 text-center"><CircleDollarSign aria-hidden="true" className="h-7 w-7 text-blue-600" /><h2 className="text-lg font-semibold">{t.realized.emptyTitle}</h2><p className="text-sm text-slate-500">{t.realized.emptyDescription}</p></div></DashboardSurface>;
+  if (!hasSales) return <DashboardSurface><div className="flex flex-col items-center gap-3 py-14 text-center"><CircleDollarSign aria-hidden="true" className="h-7 w-7 text-blue-600" /><h2 className="text-lg font-semibold">{t.realized.emptyTitle}</h2><p className="text-sm text-slate-500">{historyIncomplete ? (locale === "he" ? "אין מכירות מתועדות. התאמת היתרה אינה מוכיחה שלא היו מכירות, ולכן הרווח הממומש הכולל אינו ידוע." : "No sales are recorded. A balance checkpoint does not establish that no sales occurred; complete realized profit is unknown.") : t.realized.emptyDescription}</p></div></DashboardSurface>;
 
   return <div className="space-y-6">
+    {historyIncomplete && <DashboardSurface><p role="status" className="text-sm">{locale === 'he'
+      ? 'הסכומים כאן הם סכומי ביניים של המכירות המתועדות בלבד. התאמת יתרה אינה מכירה ואינה ממציאה רווח. עסקאות חסרות עשויות לשנות את הרווח הכולל ואת אומדן המס.'
+      : 'These are subtotals of recorded sales only. A balance reconciliation is not a sale and creates no realized profit. Missing executions can change lifetime profit and tax.'}</p></DashboardSurface>}
+
     <DashboardSurface>
       <h2 className="mb-5 text-xl font-semibold">{t.realized.summaryTitle}</h2>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-5 xl:grid-cols-4">
         {[
           { label: t.realized.totalProceeds, usd: totals.proceedsUsd, ils: totals.proceedsIls },
-          { label: t.realized.totalProfit, usd: totals.profitUsd, ils: totals.profitIls },
-          { label: isHebrew ? 'אומדן מס' : 'Estimated tax', usd: taxSummary.taxUsd, ils: taxSummary.taxIls },
+          { label: historyIncomplete ? (isHebrew ? 'רווח ממומש מתועד בלבד' : 'Recorded realized profit only') : t.realized.totalProfit, usd: totals.profitUsd, ils: totals.profitIls },
+          { label: historyIncomplete ? (isHebrew ? 'אומדן מס למכירות מתועדות בלבד' : 'Recorded-sales tax subtotal') : (isHebrew ? 'אומדן מס' : 'Estimated tax'), usd: taxSummary.taxUsd, ils: taxSummary.taxIls },
           { label: t.realized.netProfitAfterTax, usd: netProfitUsd, ils: netProfitIls },
         ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className="mt-2 text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl"><bdi>{formatSignedCurrency(item.usd, 'USD', locale)}</bdi></dd><dd className="mt-1 text-xs tabular-nums text-slate-500"><bdi>{formatSignedCurrency(item.ils, 'ILS', locale)}</bdi></dd></div>)}
       </dl>
@@ -160,7 +166,7 @@ export function RealizedPanel() {
           const date = Number.isFinite(sellDate.getTime()) ? sellDate.toLocaleDateString(isHebrew ? 'he-IL' : 'en-US') : '—';
           return <details key={`${sale.id ?? sale.symbol}-${sale.sellDate}-${index}`} className="summary-details group py-2">
             <summary id={`realized-summary-sale-${index}`} className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm">
-              <span className="min-w-0"><span className="block truncate font-semibold"><bdi>{sale.symbol}</bdi> · {sale.display}</span><span className="mt-1 block text-xs text-slate-500">{date} · {t.realized.quantity}: <bdi>{sale.quantity.toLocaleString(locale)}</bdi></span></span>
+              <span className="min-w-0"><span className="block truncate font-semibold"><bdi>{sale.symbol}</bdi> · {sale.display}</span><span className="mt-1 block text-xs text-slate-500">{date} · {t.realized.quantity}: <bdi>{sale.quantity.toLocaleString(locale)}</bdi></span>{sale.basisSource === 'reconciled_average' && <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">{isHebrew ? 'רווח לפי עלות ממוצעת מותאמת · לא אימות FIFO של הברוקר' : 'Gain uses reconciled average basis · broker FIFO unverified'}</span>}</span>
               <span className="flex shrink-0 items-center gap-3"><span className={`font-semibold tabular-nums ${getTrendTone(sale.profitUsd).text}`}><bdi>{formatSignedCurrency(sale.profitUsd, 'USD', locale)}</bdi></span><ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 text-slate-400" /></span>
             </summary>
             <div className="summary-details-content grid grid-cols-2 gap-4 pb-4 pt-3 text-sm sm:grid-cols-4">

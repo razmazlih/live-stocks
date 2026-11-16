@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
+import { reconciliationQuality } from '@/lib/reconciliation-quality';
 import { ChevronDown, LineChart } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
@@ -36,6 +37,7 @@ export default function PortfolioPage() {
   const [view, patchUrl] = useUrlState(parsePerformanceView);
   useReturnContext(!loading);
   const isHebrew = locale === 'he';
+  const historyIncomplete = !reconciliationQuality(positions).completeTransactionHistory;
   const openMetrics = useMemo(() => metrics.filter((metric) => metric.position.quantity > 0), [metrics]);
   const quickActions = useMemo(() => createCommonQuickActions(t, { overrides: { reload: { onClick: reload, disabled: loading || refreshing, iconClassName: loading || refreshing ? 'animate-spin' : undefined } } }), [t, reload, loading, refreshing]);
   const currency = settings.currency;
@@ -50,6 +52,9 @@ export default function PortfolioPage() {
     <DashboardContainer>
       <PageHeader title={isHebrew ? 'ביצועים' : 'Performance'} subtitle={isHebrew ? 'התפתחות התיק, היעד האישי והרווחים שמומשו.' : 'Portfolio history, your personal target and realized returns.'} icon={LineChart} quickActionsTitle={t.dashboard.quickActions} quickActions={quickActions} actions={<ResearchExportButton />} metaBadges={[{ key: 'updated', label: `${t.app.updated} ${formatLastUpdatedTime(lastUpdate, locale) ?? '—'}` }]} />
       <DashboardMain>
+        {historyIncomplete && <DashboardSurface><p role="status" className="text-sm">{isHebrew
+          ? 'יתרות ההחזקות עודכנו בהתאמה לברוקר. העסקאות והרווחים הממומשים המתועדים נשמרו, אך חסרים פרטי עסקאות להסבר ההפרש. לכן רווח מצטבר, אומדן מס מלא והשוואה ליעד אינם מוצגים כמלאים. הרווח הפתוח בדולרים מחושב מהעלות שאושרה.'
+          : 'Holdings include a broker balance reconciliation. Recorded trades and realized results are preserved, but missing executions prevent complete lifetime profit, tax and target comparisons. Open USD profit uses the confirmed cost basis.'}</p></DashboardSurface>}
         <Tabs value={view} onValueChange={(value) => patchUrl({ view: value })} dir={isHebrew ? 'rtl' : 'ltr'}>
           <TabsList aria-label={isHebrew ? 'תצוגת ביצועים' : 'Performance view'} className="mb-5 grid h-auto w-full grid-cols-3 rounded-xl border border-slate-200 bg-white p-1 sm:inline-flex sm:w-auto">
             <TabsTrigger value="history" className="min-h-11 px-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 sm:px-6">{isHebrew ? 'לאורך זמן' : 'History'}</TabsTrigger>
@@ -73,11 +78,11 @@ export default function PortfolioPage() {
                 <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold"><span>{isHebrew ? 'פירוט מטבעות ואומדן מס' : 'Currency and estimated tax details'}</span><ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 text-slate-400" /></summary>
                 <dl className="grid grid-cols-2 gap-5 border-t border-slate-100 p-5 sm:grid-cols-3">
                   {[
-                    { label: isHebrew ? 'אומדן מס' : 'Estimated tax', value: formatCurrency(currency === 'ILS' ? summary.totalTaxesPaidIls : summary.totalTaxesPaidUsd, currency, locale) },
+                    { label: isHebrew ? 'אומדן מס מלא' : 'Complete tax estimate', value: historyIncomplete ? '—' : formatCurrency(currency === 'ILS' ? summary.totalTaxesPaidIls : summary.totalTaxesPaidUsd, currency, locale) },
                     { label: isHebrew ? 'רווח לאחר אומדן מס' : 'Profit after estimated tax', value: money(currency === 'ILS' ? summary.totalNetPnLIls : summary.totalNetPnLUsd) },
                     { label: isHebrew ? 'שער דולר נוכחי' : 'Current USD rate', value: `1 USD ≈ ${formatCurrency(summary.usdToIlsRate, 'ILS', locale)}` },
                     { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS', locale) },
-                    { label: isHebrew ? 'רווח ממומש בשערים היסטוריים' : 'Realized profit at historical FX', value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale) },
+                    { label: isHebrew ? 'רווח ממומש מתועד בשערים היסטוריים' : 'Recorded realized profit at historical FX', value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale) },
                   ].map((item) => <div key={item.label}><dt className="text-xs text-slate-500">{item.label}</dt><dd className="mt-1 text-sm font-semibold tabular-nums"><bdi>{item.value}</bdi></dd></div>)}
                 </dl>
               </details>

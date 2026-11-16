@@ -1,0 +1,71 @@
+{
+  "deployment": "dpl_8CNNUTCnTPBWkCErsWU8rX2Ndzmr",
+  "commit": "d7829dff101f7d4f5c400b1197832fbb2a02aca4",
+  "status": "PASS_STAGED_ANONYMOUS_BOUNDARIES",
+  "productionDomainsChanged": false,
+  "databaseWrites": false,
+  "cases": [
+    {
+      "path": "/about",
+      "expectedStatus": 200,
+      "httpStatus": 200,
+      "passed": true,
+      "approvedPublisherPresent": true
+    },
+    {
+      "path": "/privacy?lang=en",
+      "expectedStatus": 200,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "path": "/terms",
+      "expectedStatus": 200,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "expectedStatus": 307,
+      "httpStatus": 307,
+      "passed": true
+    },
+    {
+      "path": "/api/account/session",
+      "expectedStatus": 401,
+      "httpStatus": 401,
+      "passed": true,
+      "privateNoStore": true
+    },
+    {
+      "path": "/api/portfolio/ai",
+      "expectedStatus": 401,
+      "httpStatus": 401,
+      "passed": true,
+      "privateNoStore": true
+    },
+    {
+      "path": "/api/portfolio/ai?format=html",
+      "expectedStatus": 401,
+      "httpStatus": 401,
+      "passed": true,
+      "privateNoStore": true
+    },
+    {
+      "path": "/api/mcp",
+      "expectedStatus": 401,
+      "httpStatus": 401,
+      "passed": true,
+      "privateNoStore": true,
+      "canonicalAuthChallenge": true
+    },
+    {
+      "path": "/.well-known/oauth-protected-resource",
+      "expectedStatus": 200,
+      "httpStatus": 200,
+      "passed": true,
+      "canonicalResource": true,
+      "readOnlyScopes": true
+    }
+  ]
+}

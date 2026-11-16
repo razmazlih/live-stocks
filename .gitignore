@@ -10,6 +10,8 @@
 /.playwright-cli/
 /.playwright-mcp/
 /output/playwright/
+/output/oauth-gate/
+/output/auth0-rest/
 
 # next.js
 /.next/
@@ -49,3 +51,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 supabase.txt
+__pycache__/
+*.pyc

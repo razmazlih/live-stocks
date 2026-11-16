@@ -95,7 +95,7 @@ export function calculateClosePairLegTargetProfitUsd(
 
 /** Validate each original account independently before any aggregation. */
 function normalizeSource(position: Position, asOf: number): Position | undefined {
-  if (!position.symbol.trim() || (position.location !== 'bank_one' && position.location !== 'bank_two')) return;
+  if (!position.symbol.trim() || !position.location?.trim()) return;
   if (!position.lots?.length) {
     if (!Number.isFinite(position.quantity) || position.quantity <= 0 ||
         !Number.isFinite(position.entryPrice) || position.entryPrice <= 0 ||

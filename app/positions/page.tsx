@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useInvestmentSources } from "@/hooks/use-investment-sources";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -187,6 +188,9 @@ function parseActivityState(params: URLSearchParams) {
 export default function PositionsPage() {
   const { locale, triggerRefresh, refreshTrigger } = useApp();
   const { t } = useTranslation(locale);
+  const { sources, activeSources, loading: sourcesLoading, error: sourcesError, createSource, sourceName, resolveLocation } = useInvestmentSources();
+  const [newSourceName, setNewSourceName] = useState('');
+  const [addingSource, setAddingSource] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -203,7 +207,7 @@ export default function PositionsPage() {
     symbol: "",
     display: "",
     imageUrl: "",
-    location: "bank_one",
+    location: "",
     initialPrice: 0,
     initialQuantity: 0,
     initialDate: getTodayIsoDate(),
@@ -219,7 +223,18 @@ export default function PositionsPage() {
   );
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
-  const [{ searchTerm, locationFilter, sortOption, pageSize, currentPage, add }, patchUrl, sourceUrl] = useUrlState(parseActivityState);
+  const [{ searchTerm, locationFilter: rawLocationFilter, sortOption, pageSize, currentPage, add }, patchUrl, sourceUrl] = useUrlState(parseActivityState);
+  const locationFilter = resolveLocation(rawLocationFilter);
+  const defaultSourceId = activeSources[0]?.id ?? "";
+  useEffect(() => {
+    if (!editingPosition) setFormData(previous => previous.location && activeSources.some(source => source.id === previous.location) ? previous : { ...previous, location: defaultSourceId });
+  }, [activeSources, defaultSourceId, editingPosition]);
+  async function addInlineSource() {
+    setAddingSource(true);
+    try { const source = await createSource(newSourceName); setFormData(previous => ({ ...previous, location: source.id })); setNewSourceName(''); }
+    catch { toast.error(locale === 'he' ? 'לא ניתן להוסיף מקור. יש לבחור שם ייחודי באורך עד 80 תווים.' : 'Unable to add source. Choose a unique name of up to 80 characters.'); }
+    finally { setAddingSource(false); }
+  }
   const setSearchTerm = (value: string) => patchUrl({ q: value, page: null });
   const setLocationFilter = (value: PositionLocationFilter) => patchUrl({ account: value === "all" ? null : value, page: null });
   const setSortOption = (value: PositionSortOption) => patchUrl({ sort: value, page: null });
@@ -420,7 +435,7 @@ export default function PositionsPage() {
       symbol: "",
       display: "",
       imageUrl: "",
-      location: "bank_one",
+      location: defaultSourceId,
       initialPrice: 0,
       initialQuantity: 0,
       initialDate: getTodayIsoDate(),
@@ -429,7 +444,7 @@ export default function PositionsPage() {
     });
     lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
-  }, []);
+  }, [defaultSourceId]);
 
   const openTransactionChooser = useCallback(() => {
     if (document.activeElement instanceof HTMLElement && !document.activeElement.closest('[role="dialog"]')) entryTriggerRef.current = document.activeElement;
@@ -488,6 +503,7 @@ export default function PositionsPage() {
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
+    if (lot.type === "RECONCILE") return;
     setHistoryDialogOpen(false);
     setTransactionTarget(position);
     setTransactionForm({
@@ -612,6 +628,11 @@ export default function PositionsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (positionSaveLock.current) return;
+
+    if (sourcesLoading || sourcesError || !sources.some(source => source.id === formData.location && (!source.archivedAt || source.id === editingPosition?.location))) {
+      toast.error(t.positions.locationValidationError);
+      return;
+    }
 
     if (!formData.symbol || !formData.display) {
       toast.error(
@@ -778,6 +799,7 @@ export default function PositionsPage() {
   }
 
   async function handleDeleteTransaction(lot: PositionLot) {
+    if (lot.type === "RECONCILE") return;
     if (!lot.id) {
       toast.error(t.common.error);
       return;
@@ -805,6 +827,7 @@ export default function PositionsPage() {
   }
 
   async function handleDelete(id: string) {
+    if (positions.some(position => position.id === id && position.lots?.some(lot => lot.type === "RECONCILE"))) return;
     if (
       !confirm(
         locale === "he" ? "האם למחוק פוזיציה זו?" : "Delete this position?",
@@ -859,7 +882,7 @@ export default function PositionsPage() {
                   <button
                     key={position.id}
                     type="button"
-                    aria-label={`${locale === 'he' ? 'בחירת' : 'Select'} ${position.symbol} · ${position.display} · ${position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}`}
+                    aria-label={`${locale === 'he' ? 'בחירת' : 'Select'} ${position.symbol} · ${position.display} · ${sourceName(position.location, locale)}`}
                     onClick={() => { entryTransitionRef.current = true; setChooserOpen(false); openTransactionDialog(position); setEntryFromChooser(true); }}
                     className="group flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:gap-4"
                   >
@@ -873,7 +896,7 @@ export default function PositionsPage() {
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1.5">
                       <span className="flex items-baseline gap-1 text-sm font-semibold tabular-nums text-slate-800"><bdi>{formatNumber(position.quantity, locale)}</bdi><span className="text-[11px] font-normal text-slate-500">{locale === 'he' ? 'מניות' : 'shares'}</span></span>
-                      <span dir="ltr" className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide", position.location === 'bank_one' ? 'bg-slate-100 text-slate-600' : 'bg-pink-50 text-pink-700')}>{position.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</span>
+                      <span dir="ltr" className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide", 'bg-slate-100 text-slate-600')}>{sourceName(position.location, locale)}</span>
                     </span>
                     <ChevronLeft aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-600 ltr:rotate-180" />
                   </button>
@@ -919,53 +942,15 @@ export default function PositionsPage() {
                   <Label>{t.positions.locationLabel}</Label>
                   <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "בחר את החשבון שבו מוחזק הנכס." : "Choose the account that holds this asset."}</p>
                 </div>
-                <RadioGroup
-                  value={formData.location}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      location: value as PositionLocation,
-                    })
-                  }
-                  className="grid gap-3 sm:grid-cols-2"
-                >
-                  <label className={cn(
-                    "flex min-h-28 cursor-pointer flex-col justify-between rounded-xl border-2 p-4 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring",
-                    formData.location === "bank_one" ? "border-primary bg-primary/5 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300",
-                  )} onClick={() => setFormData((previous) => ({ ...previous, location: "bank_one" }))}>
-                    <RadioGroupItem
-                      value="bank_one"
-                      id="position-location-one"
-                      className="sr-only min-h-0 min-w-0"
-                    />
-                    <BankBadge
-                      bank="bank_one"
-                      locale={locale}
-                      className="self-start"
-                    />
-                    <span className="text-xs leading-5 text-slate-500">
-                      {t.positions.bankOneHelper}
-                    </span>
-                  </label>
-                  <label className={cn(
-                    "flex min-h-28 cursor-pointer flex-col justify-between rounded-xl border-2 p-4 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring",
-                    formData.location === "bank_two" ? "border-primary bg-primary/5 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300",
-                  )} onClick={() => setFormData((previous) => ({ ...previous, location: "bank_two" }))}>
-                    <RadioGroupItem
-                      value="bank_two"
-                      id="position-location-two"
-                      className="sr-only min-h-0 min-w-0"
-                    />
-                    <BankBadge
-                      bank="bank_two"
-                      locale={locale}
-                      className="self-start"
-                    />
-                    <span className="text-xs leading-5 text-slate-500">
-                      {t.positions.bankTwoHelper}
-                    </span>
-                  </label>
-                </RadioGroup>
+                <Select value={formData.location} onValueChange={location => setFormData(previous => ({ ...previous, location }))} disabled={sourcesLoading || Boolean(sourcesError)}>
+                  <SelectTrigger aria-label={t.positions.locationLabel}><SelectValue placeholder={locale === 'he' ? 'בחירת מקור השקעה' : 'Choose investment source'} /></SelectTrigger>
+                  <SelectContent>{sources.filter(source => !source.archivedAt || source.id === editingPosition?.location).map(source => <SelectItem key={source.id} value={source.id}>{source.name}{source.archivedAt ? locale === 'he' ? ' (בארכיון)' : ' (archived)' : ''}</SelectItem>)}</SelectContent>
+                </Select>
+                {sourcesError ? <p role="alert" className="mt-2 text-sm text-red-700">{locale === 'he' ? 'לא ניתן לטעון מקורות השקעה. יש לנסות שוב לפני שמירה.' : 'Investment sources could not be loaded. Please retry before saving.'}</p> : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Input aria-label={locale === 'he' ? 'שם מקור חדש' : 'New source name'} placeholder={locale === 'he' ? 'הוספת בנק, בית השקעות או מקור אחר' : 'Add a bank, brokerage, or other source'} value={newSourceName} onChange={event => setNewSourceName(event.target.value)} maxLength={80} disabled={addingSource || sourcesLoading || Boolean(sourcesError)} className="min-w-0 flex-1 basis-44" />
+                  <Button type="button" variant="outline" disabled={addingSource || sourcesLoading || Boolean(sourcesError) || !newSourceName.trim()} onClick={() => void addInlineSource()}>{locale === 'he' ? 'הוספת מקור' : 'Add source'}</Button>
+                </div>
               </div>
               {isEditing && editingPosition ? (
                 <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
@@ -1138,7 +1123,7 @@ export default function PositionsPage() {
                   ? t.positions.editTransaction
                   : t.positions.addTransaction}
               </DialogTitle>
-              {transactionTarget ? <p className="mt-2 text-sm text-slate-500"><bdi className="font-semibold text-slate-800">{transactionTarget.symbol}</bdi> · {transactionTarget.display} · {transactionTarget.location === 'bank_one' ? 'ONE ZERO' : 'Pepper'}</p> : null}
+              {transactionTarget ? <p className="mt-2 text-sm text-slate-500"><bdi className="font-semibold text-slate-800">{transactionTarget.symbol}</bdi> · {transactionTarget.display} · {sourceName(transactionTarget.location, locale)}</p> : null}
             </DialogHeader>
             <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 [&_input]:h-11 sm:px-7 [&_input]:sm:h-10">
@@ -1334,9 +1319,9 @@ export default function PositionsPage() {
                     })
                     .map((lot) => {
                       const typeLabel =
-                        lot.type === "BUY" ? t.positions.buy : t.positions.sell;
+                        lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY" ? t.positions.buy : t.positions.sell;
                       const badgeTone =
-                        lot.type === "BUY"
+                        lot.type === "RECONCILE" ? "bg-blue-100 text-blue-700" : lot.type === "BUY"
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-rose-100 text-rose-700";
                       const commissionApplied =
@@ -1373,6 +1358,7 @@ export default function PositionsPage() {
                                 openEditTransactionDialog(historyTarget, lot)
                               }
                               aria-label={t.positions.editTransaction}
+                              disabled={lot.type === "RECONCILE"}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1382,6 +1368,7 @@ export default function PositionsPage() {
                               className="h-10 flex-1 border border-slate-200 bg-white sm:w-10 sm:flex-none"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
+                              disabled={lot.type === "RECONCILE"}
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
@@ -1472,12 +1459,7 @@ export default function PositionsPage() {
                               <SelectItem value="all">
                                 {t.positions.filterAllBanks}
                               </SelectItem>
-                              <SelectItem value="bank_one">
-                                {t.positions.filterBankOne}
-                              </SelectItem>
-                              <SelectItem value="bank_two">
-                                {t.positions.filterBankTwo}
-                              </SelectItem>
+                              {sources.map(source => <SelectItem key={source.id} value={source.id}>{source.name}{source.archivedAt ? locale === 'he' ? ' (בארכיון)' : ' (archived)' : ''}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1621,11 +1603,7 @@ export default function PositionsPage() {
                                             {position.symbol}
                                           </Badge>
                                           <BankBadge
-                                            bank={
-                                              position.location === "bank_two"
-                                                ? "bank_two"
-                                                : "bank_one"
-                                            }
+                                            bank={position.location}
                                             locale={locale}
                                             size="sm"
                                           />
@@ -1657,12 +1635,12 @@ export default function PositionsPage() {
                                               key={`${lot.id}-${lot.executedAt}`}
                                               className={cn(
                                                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                                lot.type === "BUY"
+                                                lot.type === "RECONCILE" ? "bg-blue-50 text-blue-700" : lot.type === "BUY"
                                                   ? "bg-emerald-50 text-emerald-700"
                                                   : "bg-rose-50 text-rose-700",
                                               )}
                                             >
-                                              {lot.type === "BUY"
+                                              {lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY"
                                                 ? t.positions.buy
                                                 : t.positions.sell}{" "}
                                               · {formatDate(lot.executedAt, locale)}
@@ -1720,7 +1698,8 @@ export default function PositionsPage() {
                                           position.id && handleDelete(position.id)
                                         }
                                         aria-label={t.positions.delete}
-                                        disabled={!position.id}
+                                        disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
+                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
                                         className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1765,11 +1744,7 @@ export default function PositionsPage() {
                                           {position.symbol}
                                         </Badge>
                                         <BankBadge
-                                          bank={
-                                            position.location === "bank_two"
-                                              ? "bank_two"
-                                              : "bank_one"
-                                          }
+                                          bank={position.location}
                                           locale={locale}
                                           size="sm"
                                         />
@@ -1834,12 +1809,12 @@ export default function PositionsPage() {
                                           key={`${lot.id}-${lot.executedAt}`}
                                           className={cn(
                                             "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                            lot.type === "BUY"
+                                            lot.type === "RECONCILE" ? "bg-blue-50 text-blue-700" : lot.type === "BUY"
                                               ? "bg-emerald-50 text-emerald-700"
                                               : "bg-rose-50 text-rose-700",
                                           )}
                                         >
-                                          {lot.type === "BUY"
+                                          {lot.type === "RECONCILE" ? (locale === "he" ? "התאמת יתרה" : "Balance reconciliation") : lot.type === "BUY"
                                             ? t.positions.buy
                                             : t.positions.sell}{" "}
                                           · {formatDate(lot.executedAt, locale)}
@@ -1882,7 +1857,8 @@ export default function PositionsPage() {
                                         position.id && handleDelete(position.id)
                                       }
                                       aria-label={t.positions.delete}
-                                      disabled={!position.id}
+                                      disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
+                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
                                       className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                     >
                                       <Trash2 className="h-4 w-4" />

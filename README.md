@@ -1,10 +1,72 @@
 # LiveStocks
 
+**חשבונות אישיים פעילים בייצור, עם כניסה ב־Google בתוך זרימת האתר.** [פתיחת האתר](https://razmaz-live-stocks.vercel.app) · [LiveStocks (OAuth) ב־ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b).
+
+התיק הקיים הועבר לחשבון שאושר במפורש, אחרי גיבוי מוצפן ובדיקת שחזור. ההשוואה לאחר ההעברה אימתה שימור של 17 פוזיציות, 55 עסקאות, כל המזהים, חותמות הזמן, ההגדרות ורשימת המעקב. כל משתמש ניגש לנתונים שלו בלבד; מפתחות Finnhub מוצפנים בשרת ואינם מוחזרים לממשק.
+
+כניסות חוזרות באותה זהות Google חוזרות לאותו חשבון. האיחוד הכללי פעיל לאחר אישור הפעלה מפורש: התאמת אימייל מציעה מועמד בלבד, ושני חשבונות קיימים מחייבים אימות טרי של שניהם, סקירה ואישור לפני שינוי בעלות. משימת התאוששות מאומתת מוגדרת פעם ביום ב־04:00 UTC; האישור מנסה להשלים מיד, וקישור התאוששות מאפשר להמשיך גם אחרי ניתוק sessions.
+
+הפלאגין החדש הוא היחיד המותקן. קריאת התיק האישי, חידוש הרשאה, ביטול וחיבור מחדש נבדקו בפועל. הפלאגין הישן הוסר מההתקנות. API הווידג׳ט עבר 25 בדיקות ייצור עם מפתח תקין, מבוטל ופג; בדיקת iPhone פיזי עדיין לא בוצעה.
+
+הבדיקה המלאה האחרונה: **994 עברו ו־3 בדיקות native אופציונליות דולגו בחבילה הרגילה**; בדיקות הספק והאיחוד המקומיות הורצו בנפרד ועברו. lint, טיפוסים, build מקומי ו־Vercel עברו. [הוכחת הפריסה](docs/verification/personal-accounts-production-release-2026-11-15.json) · [שימור הנתונים](docs/verification/production-personal-account-cutover-2026-11-15.json) · [אימות הפלאגין](docs/verification/chatgpt-oauth-activation-2026-11-15.json) · [מסמך המסירה](docs/ACCOUNTS_HANDOFF.md).
+
+[מפתח Finnhub הוחלף ואומת](docs/verification/finnhub-key-rotation-2026-11-15.json): המפתח החדש עובד ונשמר מוצפן; המפתח הישן נדחה בידי הספק.
+
+ההשקה היא Google בלבד. אימייל/סיסמה ומשלוח דוא״ל כבויים (`PASSWORD_AUTH_ENABLED=false`), והפעלתם בעתיד דורשת תשתית נפרדת. תיעוד וצילומי טפסי הסיסמה להלן מתארים אפשרות שאינה מופעלת בהשקה.
+
+מסך ההשקה המקומי במצב Google בלבד (תצורה סינתטית, ללא כניסה אמיתית):
+
+| עברית · מחשב | English · mobile dark |
+| --- | --- |
+| ![כניסה עם Google בלבד בעברית](docs/screenshots/google-only-he-desktop.png) | ![Google-only sign-in in English dark mode](docs/screenshots/google-only-en-mobile-dark.png) |
+
 <img src="public/brand/livestocks.svg" alt="LiveStocks" width="80" height="80" />
 
 אייקון המותג האחיד הוא גרף עולה בגוון כחול בתוך ריבוע מעוגל. מקור העיצוב הוא `public/brand/livestocks.svg`, המשמש בסרגל הצד, בכותרת בנייד ובדפדפן. קובצי PNG בגודל 32 ו־180 פיקסלים באותה תיקייה הם גרסאות של אותו סמל לדפדפנים ולמסך הבית ב־Apple; יש לייצר אותם מחדש מה־SVG בכל שינוי בעיצוב.
 
 אפליקציית ווב לניהול ומעקב תיק מניות, עם תמיכה בעברית/אנגלית (RTL/LTR), ארבעה מסכי עבודה מרכזיים ותשתית נתונים מבוססת Supabase.
+
+## מקורות השקעה אישיים
+
+היכולת פורסמה באתר ובמסד הנתונים ב־16.11.2026. כל משתמש חדש מתחיל ב„מקור ראשי” ויכול להוסיף בנקים, בתי השקעות או מקורות בשמות אישיים. בהגדרות אפשר לשנות שם, לארכב ולשחזר; בטופס החזקה חדשה אפשר ליצור מקור ולבחור אותו מיד. ארכוב מתאפשר רק ללא החזקות פעילות או הוראות ממתינות וכשנשאר מקור פעיל נוסף. ההיסטוריה נשמרת. בנקים קיימים מוסבים למקורות נפרדים, והמזהים והעסקאות נשמרים.
+
+[מבנה הנתונים, המעבר ובדיקות](docs/INVESTMENT_SOURCES.md) · [הוכחת הפריסה ושימור הנתונים](docs/verification/investment-sources-production-2026-11-16.json). קוד הסנכרון ו־MCP משתמשים במזהי מקורות ובקטלוג השמות האישי; הנחיות המקורות האישיים פורסמו גם בפלאגין הקיים, בגרסה 1.1.2.
+
+| מחשב · מקורות השקעה | מובייל · מקורות השקעה |
+| --- | --- |
+| ![ניהול מקורות במחשב עם נתוני בדיקה](docs/screenshots/investment-sources-desktop.png) | ![ניהול מקורות במובייל עם נתוני בדיקה](docs/screenshots/investment-sources-mobile.png) |
+
+## חשבונות אישיים — Better Auth ו־Supabase
+
+חזרה ללשונית מבצעת בדיקת התחברות שקטה ברקע, בלי לפרק את התיק או לאבד טיוטות. תגובה תקינה של אותו חשבון ותקלה זמנית ברשת משמרות את המסך; התנתקות מאומתת או מעבר לזהות אחרת מנקים את הנתונים. [21 בדיקות הרגרסיה ופריסת התיקון](docs/verification/background-session-revalidation-2026-11-15.json).
+
+מסך ההשקה כולל כניסה עם Google בעברית ובאנגלית, עם תמיכה במצב בהיר וכהה. טפסי דוא״ל וסיסמה נשמרו בקוד כאפשרות כבויה להפעלה עתידית; הם אינם מוצגים ואינם נגישים ב־API במצב ההשקה. סיסמאות נשמרות כגיבוב בסכמה פרטית, ועוגיית ההתחברות מוגנת מגישת JavaScript. סודות ומפתחות אינם נשמרים ב־localStorage.
+
+**מצב ההשקה:** האתר והאיחוד הכללי פעילים, Google הוא External / In production, והמשתמש אישר כניסה וצפייה בתיק הקיים. [הפלאגין החדש](plugins/livestocks-oauth/README.md) נבדק בחיבור אמיתי, כולל חידוש וביטול; הישן הוסר. בדיקת Google אנושית שנייה לא בוצעה לפי ויתור מפורש של המשתמש; הפרדת משתמשים סינתטיים נבדקה בענן ובמסד המקומי. תהליך ההגשה הציבורית ובדיקת iPhone הם שלבים נפרדים.
+
+[בדיקת היסוד המקומית](docs/verification/onsite-local-foundation-2026-11-14.json): **711 בדיקות עברו**, בדיקת PostgreSQL הנפרדת ו־11 שלבי SQL עברו, וכן `lint`, בדיקת טיפוסים ו־build נקי. בדיקת ספק PostgreSQL מסומנת skipped בחבילה הרגילה ומורצת בנפרד באמצעות הסקריפט הייעודי. אלו אינן בדיקות ייצור.
+
+בדיקות הטפסים והגבולות הציבוריים עברו **43 תרחישים ב־5 קבצים**, יחד עם בדיקת טיפוסים ו־lint ממוקד. בדפדפן מקומי נבדקו חמשת המסכים, עברית RTL ואנגלית LTR, מצב בהיר וכהה וגדלי מחשב ונייד. צילומי המסך משתמשים בתצורה סינתטית ובתגובה מדומה של בדיקת session; הם אינם הוכחה למשלוח דוא״ל או לכניסה אמיתית. בדיקת ספק נפרדת מול PostgreSQL מקומי כללה הרשמה, אימות, כניסה וטוקנים חתומים, עם דוא״ל מדומה.
+
+השרת מאמת את המשתמש בכל API; לקוח Supabase בדפדפן מקבל הרשאה זמנית דרך `/api/account/database-token`, ללא שמירת טוקנים בדפדפן. נתוני התיק מוגנים בבעלות לפי חשבון ו־RLS. מפתחות Finnhub מוצפנים בשרת. החלפת חשבון או התנתקות מאפסות את נתוני הממשק והבקשות הקודמות. חיבור הפלאגין הוא לקריאה בלבד כברירת מחדל. הרשאת סנכרון נפרדת ומוגבלת מאפשרת רק התאמת יתרות שאושרה בכרטיס בתוך ChatGPT; הווידג׳ט נשאר לקריאה בלבד.
+
+בדיקות Auth0 הקודמות נשמרות כראיה היסטורית בלבד ואינן מאמתות את Better Auth: [בדיקת ספק](docs/verification/auth0-oauth-gate-2026-11-14.json) הסתיימה ב־14 PASS ו־1 FAIL; [בדיקת Supabase מבודדת בענן](docs/verification/auth0-hosted-gate-2026-11-14.json) עברה 22 תרחישי הרשאה ו־4 בדיקות ניקוי; [בדיקת האתר המקומית הקודמת](docs/verification/account-local-e2e-2026-11-14.json) עברה 13 תרחישים. החריגה הידועה אצל Auth0 נשארת מסומנת FAIL בדוח המקורי.
+
+| כניסה במחשב | כניסה בנייד |
+| --- | --- |
+| ![מסך כניסה בעברית במחשב, ללא נתוני תיק](docs/screenshots/account-sign-in-desktop.png) | ![מסך כניסה בנייד, ללא נתוני תיק](docs/screenshots/account-sign-in-mobile.png) |
+
+מסך הכניסה משתמש בצבעי רקע וטקסט סמנטיים גם במצב כהה. נבדקו עברית ואנגלית במחשב ובנייד, ללא גלילה אופקית; [תצוגה כהה במחשב](docs/screenshots/account-sign-in-dark-desktop.png) ו־[תצוגה כהה באנגלית בנייד](docs/screenshots/account-sign-in-dark-english-mobile.png) מציגות סביבה מקומית ללא חשבון או נתוני תיק. זמינות גם תצוגות של [הרשמה](docs/screenshots/account-sign-up-desktop.png) ו־[בקשת שחזור סיסמה](docs/screenshots/account-forgot-password-dark-mobile.png).
+
+דפי `/about`, `/privacy` ו־`/terms` זמינים בכתובת הקנונית בעברית ובאנגלית עם פרטי המפעיל והתמיכה שאושרו. שלושתם נבדקו ללא התחברות: HTTP 200 בכתובת המדויקת, בלי הפניה. קישוריהם נשמרו ב־Google Branding; Google פורסם כ־External / In production; [הוכחת מצב הפרסום](docs/verification/google-public-sign-in-2026-11-15.json). הדפים אינם טוענים נתוני תיק, ובסביבה ללא `PUBLISHER_NAME` ו־`PUBLIC_SUPPORT_EMAIL` הם ממשיכים להחזיר 503. [תוכן המדיניות והחלטות הפרסום](docs/PUBLIC_POLICY_DRAFT.md).
+
+איחוד חשבונות זמין ב״החשבון שלי״. לפני האיחוד מוצגים נתוני שני החשבונות אחרי שני אימותים טריים, ונבחרות הגדרות ומפתח לשימור. הרשומות והיסטוריית העסקאות נשמרות, ושינוי נתונים לאחר הסקירה דורש אישור סקירה מעודכנת. [חוזה ה־API והממשק](docs/ACCOUNT_LINKING_UI.md) · [השרת והתאוששות מכשל](docs/ACCOUNT_LINKING.md). לא בוצע איחוד כללי של שני תיקים אמיתיים בייצור; בדיקת השימור וההתאוששות משתמשת בנתונים סינתטיים וב־SDK ובמסד אמיתיים.
+
+[מצב המסירה והשלבים שנותרו](docs/ACCOUNTS_HANDOFF.md) · [פרומפטים מוכנים לשיחות המשך](docs/CONTINUATION_PROMPTS.md)
+
+במצב סיסמאות אופציונלי בלבד, אפשר להוסיף Google לחשבון סיסמה דרך ההגדרות לאחר אימות הסיסמה ובחירה מפורשת, או להוסיף סיסמה לחשבון Google באמצעות קישור לדוא״ל המאומת. שתי השיטות נשארות באותו מזהה חשבון ובאותו תיק; התאמת דוא״ל לבדה אינה מעניקה גישה. [מימוש שיטות הכניסה ובדיקות השימור](docs/SIGN_IN_METHODS.md) מתארים את ההגנות ואת הגבולות של בדיקות Google ודוא״ל מדומים.
+
+מסך ההסכמה לחיבור OAuth נמצא ב־`/oauth/consent`: הוא מציג את החשבון והרשאות הקריאה, שומר את ההקשר החתום לאחר הכניסה וחוסם החלפת חשבון בזמן האישור. [מדריך ההסכמה ויצירת לקוח MCP](docs/OAUTH_CONSENT.md) כולל כלי יצירה מוגבל לשרת ובדיקת PostgreSQL מקומית עם ספק אמיתי. בדיקה זו אינה מאמתת חיבור בפועל מתוך ChatGPT או פריסה לייצור.
 
 ## עיצוב Liquid Glass
 
@@ -41,6 +103,7 @@
 - `React 18` + `TypeScript`
 - `Tailwind CSS` + `Radix UI`
 - `Supabase` (Postgres + RLS)
+- `Better Auth` לטפסי כניסה באתר, אימות דוא״ל ו־OAuth
 - `Vitest` + `Testing Library`
 - ספקי נתונים:
   - `Finnhub` למחירי מניות
@@ -57,12 +120,13 @@ app/
   portfolio/                    # היסטוריה, יעדים ורווח ממומש
   positions/                    # עסקאות, החזקות והיסטוריית lots
   realized/                     # הפניה ללשונית הרווח הממומש
-  settings/                     # הגדרות שפה/מטבע/Token
+  settings/                     # הגדרות אישיות, Finnhub וחיבורי MCP/ווידג׳ט
+  sign-in/                      # טפסי כניסה, הרשמה ושחזור באתר
   stock/[symbol]/               # דף מניה
   watchlist/                    # רשימות מעקב
 
 components/
-  dashboard/ portfolio/ watchlist/ charts/ ui/
+  auth/ dashboard/ portfolio/ watchlist/ charts/ ui/
 
 hooks/
   use-portfolio-data.ts         # טעינת נתוני תיק וחישובי ציר זמן
@@ -70,10 +134,11 @@ hooks/
 
 lib/
   calculations.ts               # חישובים פיננסיים
+  auth/                         # אימות Better Auth, סודות וחיבורים אישיים
   context.tsx                   # AppProvider: שפה, הגדרות ורענון משותף
   plans.ts                      # מנוע תוכניות; אינו מופעל אוטומטית בממשק
   services/                     # Finnhub, exchange-rate, historical-fx
-  supabase.ts                   # יצירת Supabase client וטייפים
+  supabase.ts                   # לקוח דפדפן מבודד לפי משתמש וטייפים
 
 supabase/
   migrations/                   # כל המיגרציות
@@ -129,7 +194,7 @@ supabase/
 | --- | --- |
 | ![קבוצת סגירה במחשב](docs/screenshots/close-group-desktop.png) | <img src="docs/screenshots/close-group-mobile.png" alt="קבוצת סגירה בנייד" width="300" /> |
 
-הפלאגין משתמש באותו מנגנון דרך `get_close_pair_proposals`, עם מצבי מפסידה אחת/עד שלוש. `validate_close_proposal` בודק את כל הקבוצה מול תמונת הנתונים האחרונה הזמינה, ללא תקציב קנייה. פלט הכלי מפריד בין רווח מצטבר, רווח שיתממש כעת ותמורה ברוטו, ומסמן כיסוי חסר וזמני ציטוט. תמונת השרת נשמרת במטמון כחמש דקות ועשויה להיות ישנה יותר בזמן רענון או תקלה; האימות אינו עוקף אותו ואינו מבטיח מחיר בר־ביצוע. האתר והפלאגין תואמים כשהקלט ומועד החישוב זהים; זמני רענון שונים עשויים להציג הצעות שונות. הוראות הפלאגין ודרך פרסומו מתועדות ב־[plugins/livestocks/README.md](plugins/livestocks/README.md).
+הפלאגין משתמש באותו מנגנון דרך `get_close_pair_proposals`, עם מצבי מפסידה אחת/עד שלוש. `validate_close_proposal` מחשב מחדש את הקבוצה עבור החשבון המחובר, ללא תקציב קנייה. פלט הכלי מפריד בין רווח מצטבר, רווח שיתממש כעת ותמורה ברוטו, ומסמן כיסוי חסר וזמני ציטוט. במימוש החשבונות אין מטמון תיק משותף; גם נתונים שנקראו מחדש אינם מבטיחים מחיר בר־ביצוע. האתר והפלאגין תואמים כשהקלט ומועד החישוב זהים; זמני רענון שונים עשויים להציג הצעות שונות. הוראות הפלאגין ודרך פרסומו מתועדות ב־[plugins/livestocks/README.md](plugins/livestocks/README.md).
 
 קישור נפרד מוביל לדף המניה. הבחירה נשמרת בכתובת (`holding`) ומשוחזרת בחזרה לדף יחד עם החיפוש והסינון.
 הכרטיסים תומכים במקלדת, מסתירים פרטים סגורים מקוראי מסך ומסדר המיקוד, ומכבדים העדפה להפחתת תנועה.
@@ -161,6 +226,9 @@ supabase/
 בנייד טווחי הזמן מסודרים בשתי שורות, כרטיסי המחיר ברשת קומפקטית, ציר הסבבים בטור והגרף בגובה מותאם ללא גלילה אופקית של הדף.
 
 ## API פנימי (Next.js Route Handlers)
+
+הנתיבים הבאים דורשים חשבון אתר מאומת או הרשאת OAuth תקפה של הפלאגין; מפתח ספק אינו מתקבל בפרמטרי URL. תגובות תיק הן `private, no-store`. הווידג׳ט משתמש רק ב־`POST /api/widget/summary` עם מפתח ייעודי לקריאה בלבד, המוגבל ל־90 יום וניתן לביטול בהגדרות.
+
 - `GET /api/quote?symbol=...` ציטוט למניה אחת (עם cache קצר בזיכרון)
 - `GET /api/quotes?symbols=AAPL,MSFT` ציטוטים מרובים
 - `GET /api/candles?symbol=...&from=...&to=...&resolution=D|60|W|M` נרות מחיר
@@ -174,34 +242,41 @@ supabase/
 
 מקור הפלאגין נמצא ב־[`plugins/livestocks`](plugins/livestocks/README.md). [LiveStocks ב־ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b) הוא חיבור App פרטי בענן, עם אייקון האתר, לשרת LiveStocks הקיים באמצעות `POST /api/mcp`. הוא כולל קריאת תיק מלא, מחירי מועמדות מחוץ לתיק, הוראות מחקר ובדיקת טבלת פעולות: קנייה של מניה שאינה מוחזקת בלבד או מכירה מלאה בכל החשבונות. אין כלי לביצוע עסקאות או לעדכון נתוני התיק. המחקר מתבצע באמצעות חיפוש הרשת של ChatGPT ופתיחת מקורות עדכניים, עם קישורים ותאריכים ליד הטענות. לא נוסף ספק מחקר או מפתח API. אם חיפוש אינו זמין בשיחה, הפלאגין מציין את החסר ונמנע מהמלצה סופית שתלויה בו.
 
-העלאת חבילה עם הצהרת MCP עשויה להגביל אותה למחשב גם כשהשרת בענן; לכן הפלאגין הפעיל שומר חיבור App דרך `.app.json`, ללא הצהרת MCP מקומית. מסלול הענן נבדק בקריאת תיק מתוך ChatGPT בדפדפן, והמשתמש אישר קריאה גם באפליקציה בטלפון. החיבור הממותג משתמש באותו שרת ובאותן הרשאות. מצב האימות והוראות החיבור מפורטים ב־README של הפלאגין.
+העלאת חבילה עם הצהרת MCP עשויה להגביל אותה למחשב גם כשהשרת בענן; לכן הפלאגין הפעיל שומר חיבור App דרך `.app.json`, ללא הצהרת MCP מקומית. **הגרסה הקודמת, ללא חשבונות אישיים**, נבדקה בקריאת תיק מתוך ChatGPT בדפדפן, והמשתמש אישר קריאה גם באפליקציה בטלפון. בדיקות אלה אינן מאמתות את זרימת OAuth החדשה. מצב האימות והוראות החיבור מפורטים ב־README של הפלאגין.
 
-מחקר דוחות, חדשות ומאקרו נעשה באמצעות כלי המחקר הזמינים בשיחה; הפלאגין אינו מסנן שוק או מנוע חדשות עצמאי. להקצאה אישית נדרשים תקציב מזומן פנוי, אופק ורמת סיכון. החיבור משתמש במודל הגישה המשותף הקיים של ה־API; פלאגין פרטי אינו הופך את נתיב השרת למאומת. פירוט מגבלות ועדכון הוראות המחקר מופיע ב־README של הפלאגין.
+מחקר דוחות, חדשות ומאקרו נעשה באמצעות כלי המחקר הזמינים בשיחה; הפלאגין אינו מסנן שוק או מנוע חדשות עצמאי. להקצאה אישית נדרשים תקציב מזומן פנוי, אופק ורמת סיכון. המימוש החדש מחייב OAuth של Better Auth ומציג רק את נתוני החשבון המחובר, ללא אפשרות כתיבה גם במסד. החיבור הפעיל בענן יעודכן רק לאחר בדיקת התאימות והמעבר; הכנת הפרסום מפורטת ב־[מסמך ההפצה](plugins/livestocks/PUBLIC_RELEASE.md).
 
 ## בסיס נתונים (Supabase)
 טבלאות עיקריות:
 - `positions` פוזיציות בסיס
 - `position_lots` פעולות BUY/SELL בפועל
 - `position_plans` נתוני תוכניות קיימים (pending/triggered/expired/cancelled); נשמרו לתאימות, ללא ממשק תכנון גלוי
-- `settings` שורת הגדרות גלובלית (singleton)
+- `settings` שורת הגדרות אחת לכל משתמש
 - `watchlist_groups` קבוצות watchlist
 - `watchlist_tickers` ניירות בתוך כל קבוצה
 
 הערות חשובות:
 - קיימת תמיכה בעמלות ב-`position_lots` ו-`position_plans`
 - `positions.location` ו-`position_plans.location` משתמשים ב-enum `position_location`
-- ב-local המיגרציות מגדירות מדיניות RLS פתוחה לפיתוח
+- המיגרציות החדשות מחליפות גישה ציבורית בבעלות לפי `user_id` קנוני ובמיפוי זהויות לפי issuer ו־subject. מזהי חשבונות בנק נשארים בתוך אותו משתמש; ספרי FIFO נפרדים נשמרים גם אחרי איחוד.
+- `user_profiles` מחזיקה את זהויות המשתמשים; סודות וחיבורי MCP/ווידג׳ט נמצאים בסכמת `private` שאינה חשופה ל־Data API.
+- השינוי שומר מזהים, עסקאות, עמלות וחותמות זמן. נתונים קיימים מחייבים חשבון יעד מפורש והעברה מוצפנת של מפתח Finnhub; המיגרציה נעצרת אם אחד מהם חסר.
 
 ## משתני סביבה
 העתיקו:
 ```bash
-cp .env.exemple .env.local
+cp .env.example .env.local
 ```
 
 משתנים:
 - `NEXT_PUBLIC_SUPABASE_URL` חובה
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` חובה
-- `FINNHUB_TOKEN` אופציונלי אך מומלץ מאוד
+- `APP_BASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_DATABASE_URL` לחיבור האתר בתפקיד מסד ייעודי
+- `BETTER_AUTH_WEBSITE_CLIENT_ID`, `BETTER_AUTH_MCP_CLIENT_ID` לבידול הרשאות האתר והפלאגין
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` לכניסה עם Google
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD` למשלוח אימות ושחזור אמיתי
+- `SUPABASE_SERVICE_ROLE_KEY`, `CREDENTIAL_ENCRYPTION_KEY` בשרת בלבד לאחסון סודות וחיבורים; אין לחשוף תחת `NEXT_PUBLIC_`
+- משתני `AUTH0_*` נשמרים רק לכלי בדיקה והוכחת זהות היסטוריים; הם אינם מפעילים את האתר החדש
 - `DEFAULT_GROWTH_RATE` אופציונלי (ברירת מחדל חישובית)
 - `DEFAULT_USD_TO_ILS_RATE` אופציונלי (fallback)
 - `EXCHANGE_RATE_URL` אופציונלי
@@ -213,7 +288,10 @@ cp .env.exemple .env.local
 npm install
 ```
 
-### 2) העלאת Supabase מקומי
+### 2) הגדרת חשבונות וסביבת נתונים
+הגדירו את Better Auth, תפקיד המסד, משלוח אימייל וכתובות החזרה לפי [מדריך ההתקנה](docs/BETTER_AUTH_SETUP.md). ללא תצורה מלאה הטפסים מציגים הודעת הגדרה חסרה והמידע הפרטי חסום. בדיקות PostgreSQL מבודדות זמינות דרך `python3 scripts/test-tenancy.py` ו־`python3 scripts/test-better-auth-postgres.py`, ללא חיבור לייצור.
+
+להעלאת סביבת Supabase מקומית:
 ```bash
 npx supabase start
 ```
@@ -243,7 +321,7 @@ npm run dev
 
 ![תצוגה מקדימה של הווידג׳ט](output/widget/preview-dark.png)
 
-ה-widget קורא ל-`POST /api/portfolio` עם `includeWeightedPrice: true` ו-`targetCurrency: "ILS"`, ולכן הוא נשאר מסונכרן עם אותו חוזה API של האפליקציה.
+גרסה 8 קוראת ל־`POST /api/widget/summary` בלבד עם טוקן אישי לקריאה בלבד. יוצרים טוקן בהגדרות החשבון ומדביקים בחלון המאובטח בהפעלה מתוך Scriptable; הטוקן נשמר ב־Keychain לפי כתובת האתר המדויקת, ולא בקוד, בפרמטרי הווידג׳ט או בקובץ iCloud. נתוני התיק נשמרים מקומית עד שעה ולכל היותר עד תפוגת הטוקן. תשובת 401/403 מוחקת את המטמון ומבקשת להתחבר מחדש. פרטים ובדיקות ב־[מדריך הווידג׳ט](output/widget/README.md).
 
 ## בדיקות
 תיקיית `__tests__/` כוללת בדיקות עבור:
@@ -252,21 +330,29 @@ npm run dev
 - watchlist
 - plans
 - נתוני תיק משותפים, בסיס רווח לפני/אחרי מס, ניווט מסכים וייצוא לניתוח
+- Better Auth, בדיקות Auth0 היסטוריות, הפרדת קהלים/לקוחות, sessions בדפדפן, איחוד ללא אובדן נתונים, API אישי, הצפנת מפתחות וביטול חיבורים
 
 להרצה:
 ```bash
 npm test
+npm run typecheck
+npm run lint
+npm run build
+node output/widget/widget-auth-test.cjs
+node output/widget/widget-v7-test.cjs
 ```
 
+אימות הווידג׳ט כולל 10 תרחישי הרשאה ו־222 בדיקות תצוגה ב־36 רינדורים מדומים. הוא אינו בדיקה על iPhone. הפלט הצפוי של חלק מבדיקות הכשל כולל הודעות Offline/נתון חסר; הודעות אלו אינן כישלון של חבילת הבדיקות.
+
 ## זרימת נתונים בקצרה
-1. נתונים נשמרים ב-Supabase (`positions`, `lots`, `plans`, `settings`, `watchlist`).
+1. Better Auth מאמת את החשבון בתוך האתר; נתונים נשמרים ב־Supabase עם בעלות ו־RLS (`positions`, `lots`, `plans`, `settings`, `watchlist`).
 2. `PortfolioDataProvider` משתמש ב-`/api/portfolio/dashboard`; צרכני `usePortfolioData` חולקים טעינה, חישובים ומצב רענון אחד.
 3. מסכי UI וחלונית הייצוא צורכים את הנתונים המשותפים. רענון שנכשל משאיר את הנתונים האחרונים ומציג הודעה עם ניסיון חוזר.
 4. `AppProvider` מנהל שפה, הגדרות, תדירות רענון וטריגרים לרענון. הוא אינו מפעיל את `processPendingPlans`. נתוני התוכניות וה-API הקיים נשמרו, אך תכנון עתידי אינו חלק מהממשק.
 
 ## דגשים לפיתוח שוטף
-- הפרויקט תלוי בהגדרת Supabase env vars; בלעדיהם ייזרק error בעלייה.
-- ללא `FINNHUB_TOKEN` המערכת תעבוד חלקית (פחות נתונים חיים).
+- ללא תצורת Better Auth מלאה מופיעה הודעת הגדרה חסרה. חיבור למסד דורש את משתני Supabase, תפקיד האימות הייעודי ואינטגרציית Custom OIDC התואמת.
+- נתוני Finnhub דורשים מפתח אישי שנשמר בהגדרות החשבון; אין מפתח סביבתי משותף או fallback לחשבון אחר.
 - `output/widget/` מכילה את קוד הווידג׳ט להפצה, הבדיקות, מחולל התצוגה והתמונה המוצגת ב־README; קבצים אלה נשמרים ב־Git. את `preview.html` המקומי אפשר לייצר מחדש באמצעות `node output/widget/widget-v7-preview.cjs`.
 - תוצרי צילום ובנייה מקומיים (`output/playwright/`, `output/pdf/`, `tmp/`, `build.log`) וסביבת העיצוב `.venv-design/` אינם נשמרים ב־Git. תמונות התיעוד הפעילות נמצאות ב־`docs/screenshots/`.
 - `seed.sql` קיים אך מינימלי, מומלץ להרחיב אותו ל-onboarding מהיר.
@@ -275,7 +361,7 @@ npm test
 - `Supabase client is not configured`:
   - לבדוק `NEXT_PUBLIC_SUPABASE_URL` ו-`NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - אין ציטוטים חיים:
-  - לבדוק `FINNHUB_TOKEN` ב-`.env.local` ובטבלת `settings`.
+  - לבדוק שבהגדרות החשבון מופיע מפתח Finnhub שמור; אפשר להחליפו או למחוק אותו שם. אין להוסיף מפתח ל־URL, ל־localStorage או לטבלת `settings`.
 - שגיאות טיפוסים/בנייה:
   - להריץ `npm run typecheck` ואז `npm run build`.
 
@@ -291,16 +377,16 @@ npm test
 `GET /api/portfolio/ai` מחזיר JSON מלא לקריאה בלבד (ללא הרצת תוכניות), בשונה מהייצוא המצומצם בחלונית ייצוא לניתוח.
 
 ```bash
-curl --fail http://localhost:3000/api/portfolio/ai
+curl --fail --header "Authorization: Bearer $LIVESTOCKS_OAUTH_ACCESS_TOKEN" http://localhost:3000/api/portfolio/ai
 ```
 
-אפשר לתת לכלי AI בעל גישה לשרת את הכתובת `<your-app-url>/api/portfolio/ai`, או להעביר אליו את ה-JSON.
+הנתיב דורש כניסת אתר או הרשאת OAuth תקפה של הפלאגין. לשימוש בשיחה יש לחבר את LiveStocks לחשבון, או לייצא נתונים במפורש מתוך האתר; קישור לבדו אינו מקנה גישה.
 
-לכלי גלישה שמתקשים לקרוא JSON ישירות, השתמשו ב־`<your-app-url>/api/portfolio/ai?format=html`. זו גרסת HTML של אותו מידע מלא, עם אותו מטמון שרת, ללא JavaScript ועם escaping של הנתונים. ב־Vercel Standard Protection דומיין ה־Production הקבוע נגיש לציבור; כתובת פריסה זמנית עשויה לדרוש התחברות. השתמשו ב־`https://razmaz-live-stocks.vercel.app/api/portfolio/ai?format=html`, ולא בכתובת הפריסה שנוצרת לכל build. נגישות HTTP אינה מבטיחה שכלי גלישה חיצוני יצליח לקרוא את התוכן.
+`?format=html` מציג את אותו מידע עם escaping וללא JavaScript, ודורש את אותה הרשאה. הוא אינו ייצוא ציבורי או קישור לשיתוף.
 
-התמונה נשמרת במטמון Data Cache של Next.js בצד השרת ל־5 דקות, גם בין בקשות ומופעי שרת ב־Vercel. לאחר מכן בקשה יכולה לקבל את התמונה הקודמת בזמן רענון ברקע (stale-while-revalidate); `generatedAt` נשאר זמן יצירת התמונה המקורית. שינויים בתיק ובהגדרות מופיעים לאחר הרענון. פרמטרים בכתובת וכותרות בקשה אינם עוקפים את המטמון.
+תמונות תיק מחושבות לאחר אימות החשבון, ללא מטמון תיק משותף וללא איחוד בקשות בין משתמשים. מחירי שוק עשויים להשתמש במטמון הספק; `generatedAt` אינו זמן עדכון מחיר השוק.
 
-בקשות מקבילות באותו מופע שרת מאוחדות לטעינה אחת. כשל בטעינה גורר המתנה של 30 שניות באותו מופע לפני ניסיון נוסף; שגיאה אינה נשמרת כתמונת תיק מוצלחת. ללא תמונה זמינה מוחזר `500` עם `Retry-After: 30`; אם יש תמונה קודמת, מטמון Next.js יכול להמשיך להחזיר אותה בזמן תקלה. התשובות נשארות `private, no-store` בדפדפן וב־CDN. זהו צמצום עומס על בסיס הנתונים וספקי המידע, ולא חסימת תעבורה או מגבלת בקשות גלובלית; טעינות ראשונות במופעי שרת נפרדים עדיין עשויות לחפוף.
+כשל בטעינה אינו מוחלף בנתונים מחשבון אחר או בתמונה ציבורית ישנה. טביעות הצעות הסגירה כוללות את בעל החשבון, נתוני המקור, המדיניות ויום החישוב; האימות מחשב מחדש את ההצעה גם כאשר קריאה קודמת נעשתה לפני כמה שניות.
 
 - `schemaVersion`, `startedAt`, `generatedAt`: גרסת החוזה וחלון איסוף הנתונים. הקריאות לבסיס הנתונים אינן טרנזקציה אטומית.
 - `summary`: סיכום החזקות פתוחות יחד עם רווח ממומש ויעד; `totalValue` ו-`totalCost` הם ב-USD, `totalCurrentPnL*` כוללים ממומש ולא ממומש. `totalTaxesPaid*` הם **אומדן** מס של האפליקציה, ולא אישור מס ששולם.
@@ -313,4 +399,16 @@ curl --fail http://localhost:3000/api/portfolio/ai
 
 מחיר שוק חסר מוחזר כ-`null`; אין החלפה במחיר הכניסה. אם חסר מחיר להחזקה פתוחה, `summary` ואחוזי ההקצאה מוחזרים כ-`null`, כדי לא להציג תיק חלקי כתיק שלם. בהיעדר FX לא מוחזרים סכומי ILS. בהיעדר יעד אישי לא מומצא יעד ברירת מחדל. זמן יצירת התשובה אינו זמן עדכון מחיר השוק.
 
-הנתיב פועל באותו מודל גישה משותף של ה-API הקיים, ללא מנגנון אימות חדש. התשובה כוללת מידע כספי מלא; יש להגן על הגישה לשרת אם הוא נגיש מבחוץ. מפתחות ספקים אינם כלולים בתשובה. לא נשמרים באפליקציה מזומן, התחייבויות, הפקדות/משיכות, דיבידנדים, אופק השקעה או סיבולת סיכון; אין להסיק שהם אפס.
+התשובה כוללת מידע כספי מלא של המשתמש המאומת בלבד. מפתחות ספקים אינם כלולים בתשובה. לא נשמרים באפליקציה מזומן, התחייבויות, הפקדות/משיכות, דיבידנדים, אופק השקעה או סיבולת סיכון; אין להסיק שהם אפס.
+
+## Screenshot portfolio reconciliation inside ChatGPT
+
+The fast path is **photo → short inline review → one confirm button**, without opening the website. ChatGPT reads the screenshot and calls prepare_screenshot_sync. A compact MCP App card shows the exact before/after balances, account, observation date and any confirmed/estimated dates. The user clicks “אישור וסנכרון” or cancels inside ChatGPT. Missing acquisition dates never block synchronization; dates can be supplied briefly in chat, from a transaction screenshot, or as separately labeled historical price-match estimates.
+
+Research remains read-only. Users separately consent to the optional portfolio:sync scope; it allows only exact saved checkpoint proposals, not trading, history deletion, settings, plans or keys. A random confirmation secret travels only in host-private result metadata to the app-only tool and never appears in model-visible output. Proposals expire after 15 minutes and bind to the same owner, session, client and grant. Corrections supersede the old card, cancellation persists, and uncertain-response retries return the saved receipt.
+
+Existing quantity and cost changes append immutable **RECONCILE checkpoints**, preserving historical trades and recorded realized sales. Future sales consuming snapshot basis are labeled reconciled_average. Incomplete lifetime returns, tax, benchmarks and historical FX remain unavailable rather than guessed; current USD value and open gain remain calculable. Omitted holdings are untouched; only an explicit zero clears a balance. See [the full accounting and security model](docs/SCREENSHOT_SYNC.md). The [isolated real-host gate](docs/CHAT_SYNC_ISOLATED_FIXTURE.md) uses disposable local data and separate synthetic accounts; it records incomplete host steps explicitly.
+
+Deployment requires both migrations, compatible readers/writers, explicit operator opt-in for the client’s optional sync scope, user OAuth consent, and refresh of the existing App tools/skill. No production settings or plugin publication are changed by this PR. Real ChatGPT host acceptance remains a release check; the screenshots below use a synthetic MCP host.
+
+<img src="docs/screenshots/chat-sync-mobile.png" alt="Inline ChatGPT-style reconciliation review in a synthetic MCP host" width="300" />

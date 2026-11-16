@@ -1,0 +1,49 @@
+{
+  "status": "PASS_LOCAL",
+  "date": "2026-11-15",
+  "defaultMode": "Google only",
+  "optInFlag": "PASSWORD_AUTH_ENABLED=true",
+  "fullSuite": {
+    "passed": 748,
+    "skipped": 2,
+    "passedFiles": 72,
+    "skippedFiles": 2
+  },
+  "additionalBoundaryTests": {
+    "passed": 6,
+    "files": 1
+  },
+  "nativePostgresGate": "PASS both provider and method suites; mocked Google transport and mail; disposable runtime cleanup confirmed",
+  "typecheck": "PASS",
+  "focusedLint": "PASS",
+  "build": "Not rerun; parent coordinating subsequent owner-confirmation UI",
+  "realGoogleProviderVerified": false,
+  "productionDeployed": false,
+  "smtpRequired": false,
+  "brevoOnboarding": "Stopped at user decision; no SMTP key captured, no email sent",
+  "visualVerification": {
+    "environment": "Isolated local Next preview; synthetic configuration/session route; no provider navigation",
+    "desktop": {
+      "width": 1440,
+      "height": 1000,
+      "locale": "he",
+      "direction": "rtl",
+      "theme": "light",
+      "passwordInputs": 0,
+      "horizontalOverflow": false
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "locale": "en",
+      "direction": "ltr",
+      "theme": "dark",
+      "passwordInputs": 0,
+      "horizontalOverflow": false
+    },
+    "screenshots": [
+      "docs/screenshots/google-only-he-desktop.png",
+      "docs/screenshots/google-only-en-mobile-dark.png"
+    ]
+  }
+}

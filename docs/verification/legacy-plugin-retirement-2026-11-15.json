@@ -1,0 +1,114 @@
+{
+  "observedDate": "2026-11-15",
+  "status": "PARTIAL_RETIRED_LABELS_NO_SKILLS_DELETION_FAILED",
+  "legacy": [
+    {
+      "pluginId": "plugin_asdk_app_6af6d33c4e6881919e385643f9d350ad",
+      "displayName": "\u05dc\u05d0 \u05e4\u05e2\u05d9\u05dc \u2014 1",
+      "description": "\u05e4\u05dc\u05d0\u05d2\u05d9\u05df \u05d9\u05e9\u05df \u05e9\u05d0\u05d9\u05e0\u05d5 \u05e4\u05e2\u05d9\u05dc",
+      "scope": "USER",
+      "discoverability": "PRIVATE",
+      "version": "1.0.2",
+      "releaseId": "pluginrel_6af6db8d32d88191b6edb552f1adb6b3",
+      "skillFiles": 0,
+      "appBindingStillPresent": true,
+      "fullyEmpty": false,
+      "customInactiveIconApplied": false,
+      "installed": false,
+      "cloudArtifactDeleted": false,
+      "shortDescriptionCharacters": 21,
+      "connectedAccount": false,
+      "installedStateNote": "After the UI inspection, root ran supported plugin_management uninstall_app for this exact legacy ID and received status uninstalled."
+    },
+    {
+      "pluginId": "plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b",
+      "displayName": "\u05dc\u05d0 \u05e4\u05e2\u05d9\u05dc \u2014 2",
+      "description": "\u05e4\u05dc\u05d0\u05d2\u05d9\u05df \u05d9\u05e9\u05df \u05e9\u05d0\u05d9\u05e0\u05d5 \u05e4\u05e2\u05d9\u05dc",
+      "scope": "USER",
+      "discoverability": "PRIVATE",
+      "version": "1.1.1",
+      "releaseId": "pluginrel_6af9d04312bc8191b4feaa8495d03d78",
+      "skillFiles": 0,
+      "appBindingStillPresent": true,
+      "fullyEmpty": false,
+      "customInactiveIconApplied": false,
+      "installed": false,
+      "cloudArtifactDeleted": false,
+      "shortDescriptionCharacters": 21,
+      "connectedAccount": false,
+      "installedStateNote": "After the UI inspection, root ran supported plugin_management uninstall_app for this exact legacy ID and received status uninstalled."
+    }
+  ],
+  "activePlugin": {
+    "pluginId": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "displayName": "LiveStocks",
+    "version": "1.1.1",
+    "releaseId": "pluginrel_6af9cef9c9d4819186ac76a2a7a20eb4",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "analystSkillCount": 1,
+    "websiteIconReferencePreserved": true,
+    "unchanged": true
+  },
+  "limitations": [
+    "Private App-backed settings exposed name and description edits but no icon editor.",
+    "Private legacy Admin Console actions exposed Download/Delete, not Upload new version.",
+    "App bindings and stale tool declarations remain; the entries are not fully empty.",
+    "No publication, audience change, replacement plugin, artifact deletion or forbidden binding-removal attempt was performed."
+  ],
+  "verification": {
+    "bothNamesAndDescriptionsReadBack": true,
+    "bothSkillInventoriesEmpty": true,
+    "owningUiRenameVerified": true,
+    "activeReleaseUnchanged": true,
+    "financialDataChanged": false
+  },
+  "skillRemoval": {
+    "targetPluginId": "plugin_asdk_app_6af6d6f889a88191ae50abfc0070421b",
+    "deletedPath": "skills/livestocks-investment-analyst/SKILL.md",
+    "guardedUpdateAccepted": true,
+    "formerReleaseId": "pluginrel_6af842632d8c8191aa9425bf0485c771",
+    "newReleaseId": "pluginrel_6af9d04312bc8191b4feaa8495d03d78"
+  },
+  "deletionAttempt": {
+    "explicitUserAuthorizationForBothLegacyArtifacts": true,
+    "activeExcluded": true,
+    "pluginLevelDeleteError": "Couldn't delete plugin. Try again",
+    "appLevelDeleteError": "Couldn't update the app. Try again",
+    "legacy1Attempts": {
+      "pluginDeleteBeforeNormalization": 1,
+      "appDeleteAfterNormalization": 1
+    },
+    "legacy2Attempts": {
+      "appDeleteBeforeNormalization": 1,
+      "pluginDeleteBeforeNormalization": 1,
+      "appDeleteAfterNormalization": 1
+    },
+    "shortDescriptionGuidelineDiscrepancyCorrected": true,
+    "shortDescriptionCauseOfDeletionFailureEstablished": false,
+    "bothPostCorrectionRetriesFailed": true,
+    "fieldSpecificValidationErrorProvided": false,
+    "artifactsDeleted": false,
+    "unsupportedApiUsed": false,
+    "furtherBlindRetriesPerformed": false
+  },
+  "structuralChecks": {
+    "bothManifestsParse": true,
+    "bothNamesPresent": true,
+    "bothVersionsSemver": true,
+    "bothAppReferencesResolveToExactExpectedAppIds": true,
+    "bothShortDescriptionsWithin30Characters": true,
+    "bothSkillInventoriesEmpty": true,
+    "fullBackendDeleteSchemaAvailable": false,
+    "note": "These checks do not claim validation against an unpublished deletion schema."
+  },
+  "nextSupportedOption": "Report the exact legacy App/plugin IDs and reproduced generic deletion errors to OpenAI support for owning-record repair/deletion; no support message has been sent.",
+  "finalUninstall": {
+    "method": "plugin_management uninstall_app",
+    "bothExactLegacyIdsReturnedStatus": "uninstalled",
+    "performedBy": "root agent",
+    "afterDeletionAttempts": true,
+    "activePluginTargeted": false,
+    "cloudArtifactsDeleted": false
+  }
+}

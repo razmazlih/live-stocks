@@ -1,0 +1,51 @@
+{
+  "status": "PASS_CREDENTIAL_FREE_DEPLOYMENT_PREFLIGHT",
+  "supabaseAccess": false,
+  "startedAt": "2026-11-15T11:09:39.502Z",
+  "cleanup": {
+    "vercel": {
+      "ok": true,
+      "runId": "755a8f4c-acc3-4cae-975b-8e442948536b",
+      "deploymentsRemoved": 1,
+      "environmentRemoved": 2,
+      "errors": [],
+      "credentialFreeAliasRestored": true
+    },
+    "leaseReleased": true
+  },
+  "gateRunId": "071f8c57-ebd2-464f-a6cf-9c089f2b86ad",
+  "sourceHashes": {
+    "lib/auth/better-auth-config.ts": "108d147a536063bbc18ce88a556d35ec2300412e038402169dceb7587652eed5",
+    "lib/auth/auth-email.ts": "d04b695608f68fa32c4fb46ae552a5a1dd7b3ed544ae1525d59137d7894f1ef5",
+    "lib/auth/sign-in-method-guard.ts": "de45dab1eab977753bd5cfd52af57ada255ee9587fded84e9cfe784a2ecd38bf",
+    "lib/auth/better-auth.ts": "2f9cb6945ff94fe0734ede3d5ba0c14033d430867a9cd184cc85bf13f45967f1",
+    "lib/auth/better-auth-handler.ts": "2069b28b0213b29be6975ad8bce5d32101a998728cd4bf0fe82189d2846d0116",
+    "scripts/lib/better-auth-gate-health.mjs": "91dc928bd8869fea8be12693e7c55f1e6946e4a435850a585d99f1e4248bc491"
+  },
+  "cloudRunId": "755a8f4c-acc3-4cae-975b-8e442948536b",
+  "deployment": {
+    "url": "https://livestocks-auth-gate-oni5se4e4-razs-projects-0212f70e.vercel.app",
+    "id": "dpl_8bQoEF2zvfuXWHwqNGS8Yr2ghjwH",
+    "readyState": "READY",
+    "aliasMatches": true
+  },
+  "publicSourceMatches": true,
+  "unguardedProbeDenied": true,
+  "readiness": {
+    "status": 503,
+    "category": "CONFIGURATION_INVALID",
+    "environmentRunIdMatches": true,
+    "allAuthConfigurationAbsent": true,
+    "requestId": "eec4ec7a-9119-478e-a39e-44eb1ecac744"
+  },
+  "discovery": {
+    "status": 503,
+    "code": "AUTH_UNAVAILABLE"
+  },
+  "completedAt": "2026-11-15T11:10:47.627Z",
+  "scope": "Credential-free isolated diagnostic service only; not hosted token or RLS acceptance",
+  "independentSourceAudit": "PASS",
+  "localFocusedTests": 44,
+  "nativeFixtureProviderGate": "PASS",
+  "productionMutations": false
+}

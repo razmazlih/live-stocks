@@ -1,10 +1,10 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { AppProvider } from '@/lib/context';
-import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
+import { AuthProvider } from '@/components/auth/auth-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { transparencyInitScript } from '@/lib/appearance-preferences';
+import { getAuthPublicOptions } from '@/lib/auth/better-auth-config';
 
 export const metadata: Metadata = {
   title: 'Stocks Status',
@@ -29,10 +29,8 @@ export default function RootLayout({
       <head><script dangerouslySetInnerHTML={{ __html: transparencyInitScript }} /></head>
       <body className="font-sans">
         <ThemeProvider>
-          <AppProvider>
-            <StockNavigationProvider>{children}</StockNavigationProvider>
-            <Toaster />
-          </AppProvider>
+          <AuthProvider options={getAuthPublicOptions()}>{children}</AuthProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

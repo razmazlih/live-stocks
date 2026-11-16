@@ -57,7 +57,7 @@ describe('short binary pair review contract', () => {
 
 it('exports every group member and includes historical results from the extra loser', () => {
   const makeLeg = (symbol: string, realized: number, unrealized: number): ClosePairLeg => ({
-    position: { symbol, display: symbol, entryDate: '2026-01-01T00:00:00Z', entryPrice: 100, quantity: 10, location: 'bank_one' },
+    position: { symbol, display: symbol, imageUrl: '', entryDate: '2026-01-01T00:00:00Z', entryPrice: 100, quantity: 10, location: 'bank_one' },
     quantity: 10, currentPrice: (1000 + unrealized) / 10, costBasisUsd: 1000,
     proceedsUsd: 1000 + unrealized, realizedPnlUsd: realized, unrealizedPnlUsd: unrealized,
     pnlUsd: realized + unrealized, targetProfitUsd: 20, surplusUsd: realized + unrealized - 20,

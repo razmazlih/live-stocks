@@ -1,0 +1,52 @@
+{
+  "status": "PASS_LOCAL",
+  "date": "2026-11-15",
+  "providerVersion": "1.7.23",
+  "command": "python3 scripts/test-better-auth-postgres.py",
+  "integrationTestFiles": [
+    "__tests__/better-auth-postgres.test.ts",
+    "__tests__/sign-in-methods-postgres.test.ts"
+  ],
+  "storage": "Disposable native PostgreSQL; all repository migrations; limited authentication backend role",
+  "transport": "Actual Better Auth and application Request/Response handlers in process",
+  "googleTransport": "Mock Google code exchange with PKCE verification and synthetic identity claims; no real Google account",
+  "mailDelivery": "Synthetic in-memory mailbox",
+  "checks": [
+    "Public link-social and verify-password routes return 404",
+    "Password proof, explicit consent, same-origin and strict body enforced",
+    "Wrong or unverified Google email and browser account switch rejected",
+    "Expired operation, signed-out initiating session and callback replay rejected",
+    "Valid explicit Google linking preserves exact Better Auth user ID",
+    "Subsequent Google login resolves to original password account",
+    "Google-first password setup preserves exact user ID and revokes original sessions",
+    "One user record per email remains after both paths",
+    "Profile and all six financial tables compared before and after method addition",
+    "Five invalid password attempts allowed; sixth blocked with 429",
+    "Disposable PostgreSQL stopped and removed",
+    "Google-only mode creates a new verified Google user/session with SMTP variables empty and no mail send",
+    "Google-only mode returns 404 for email signup/sign-in, reset, verification, change-password/email and method-add endpoints",
+    "Original financial snapshot remains unchanged after Google-only mode test"
+  ],
+  "preservedTables": [
+    "user_profiles",
+    "positions",
+    "position_lots",
+    "settings",
+    "position_plans",
+    "watchlist_groups",
+    "watchlist_tickers"
+  ],
+  "sourceSha256": {
+    "__tests__/sign-in-methods-postgres.test.ts": "d72cadd27247c19cd46601d962e99deb2f5c9a2c4531ab19f6ece614590dfd87",
+    "lib/auth/sign-in-method-guard.ts": "de45dab1eab977753bd5cfd52af57ada255ee9587fded84e9cfe784a2ecd38bf",
+    "lib/auth/sign-in-methods.ts": "3422833bbd27210ffcf844b393913eb78e79fbf83abdf7d405540c932a8c44c8",
+    "supabase/migrations/20261115094000_sign_in_method_operations.sql": "9242a3e784b92146b3ac737d6bfe2ecbf707bcb52cba6d7fbbdc4669f4c14a11"
+  },
+  "productionMutations": false,
+  "hostedMethodLinkingVerified": false,
+  "realGoogleFlowVerified": false,
+  "realEmailDeliveryVerified": false,
+  "mergingPreExistingDistinctPortfoliosClaimed": false,
+  "passwordFeaturesRequireExplicitOptIn": true,
+  "launchMode": "Google only; PASSWORD_AUTH_ENABLED defaults false"
+}

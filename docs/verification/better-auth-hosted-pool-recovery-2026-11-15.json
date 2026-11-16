@@ -1,0 +1,130 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "HOSTED_PROVIDER_AND_ISOLATED_FIXTURE_RLS",
+  "fullHostedFinancialMigration": false,
+  "startedAt": "2026-11-15T12:00:29.351Z",
+  "projectRef": "qdcvlhghabchxstoedzq",
+  "issuer": "https://livestocks-auth-gate.vercel.app/api/auth",
+  "productionMutations": false,
+  "cases": [
+    {
+      "name": "cleaner_paused",
+      "status": "PASS",
+      "at": "2026-11-15T12:02:33.514Z"
+    },
+    {
+      "name": "test_restored",
+      "status": "PASS",
+      "at": "2026-11-15T12:06:22.639Z"
+    },
+    {
+      "name": "native_tls_limited_role",
+      "status": "PASS",
+      "at": "2026-11-15T12:06:30.607Z",
+      "financialTableAndColumnAccess": false,
+      "callablePublicSecurityDefiners": 0
+    }
+  ],
+  "cleanup": {},
+  "prestate": {
+    "test": "INACTIVE",
+    "cleaner": "ACTIVE_HEALTHY"
+  },
+  "gateRunId": "071f8c57-ebd2-464f-a6cf-9c089f2b86ad",
+  "sourceHashes": {
+    "lib/auth/better-auth-config.ts": "108d147a536063bbc18ce88a556d35ec2300412e038402169dceb7587652eed5",
+    "lib/auth/auth-email.ts": "d04b695608f68fa32c4fb46ae552a5a1dd7b3ed544ae1525d59137d7894f1ef5",
+    "lib/auth/sign-in-method-guard.ts": "de45dab1eab977753bd5cfd52af57ada255ee9587fded84e9cfe784a2ecd38bf",
+    "lib/auth/better-auth.ts": "2f9cb6945ff94fe0734ede3d5ba0c14033d430867a9cd184cc85bf13f45967f1",
+    "lib/auth/better-auth-handler.ts": "2069b28b0213b29be6975ad8bce5d32101a998728cd4bf0fe82189d2846d0116",
+    "scripts/lib/better-auth-gate-health.mjs": "91dc928bd8869fea8be12693e7c55f1e6946e4a435850a585d99f1e4248bc491"
+  },
+  "migrationHashes": {
+    "20241003120000_create_positions_and_settings.sql": "15d93eaf90c9047c66526297187e004ca8eaf7c0662e1dbcddf60700be069edd",
+    "20241015100000_add_position_lots.sql": "520510bb0c6d58f9bb1536a80280c21366bdf5e8af9a0b45bc9e47d55939a491",
+    "20241020110000_create_watchlist_tables.sql": "b36004ec943f5c6a907e2e76e1475086816d65dda0dbf9dc407416c1fae86d97",
+    "20241028103000_create_position_plans.sql": "0d9ab14aae9820dd15f3a5baac65709be8792ade3cb7feab24bb02acabffc2c7",
+    "20241030120000_add_side_to_position_plans.sql": "59f9bed455b81af88b1c35c2e2a26c5a54742efb742500d3c2e0ef41ec299704",
+    "20241101090000_add_commission_to_position_lots.sql": "e3a2ec22dfccdecd41a405164ee153d5034be34494e1ba6322b8403861e7163d",
+    "20241102120000_add_commission_to_position_plans.sql": "c162629348f903fe5b9efa26d79e744797845b6d36101da24e6c3bb6359bfcb8",
+    "20241105100000_add_location_to_positions.sql": "2b489fb80ce736011dd84677b6f918c1155259121e5b6a8a22ea7a32d4b271d5",
+    "20261110130000_reuse_position_identity.sql": "a9fb54cf522cec51ba0fa8bd8e883baacfded58cc923235d988aecc10de7eac6",
+    "20261114114916_auth0_user_isolation.sql": "92f2a3c6bd5255029232576c2c147ced84dbc0fa3c527c6c4df6703e5f32dffc",
+    "20261114145729_canonical_profiles_and_lossless_merge.sql": "057446814d430582fefea215129d27b28efa88531c2b0648f86723bf0837c501",
+    "20261114151506_better_auth_private_sessions.sql": "bec5796f998d5ba541ce6333319bb0b2544975bc3eb66115d652b8487cf6935e",
+    "20261115094000_sign_in_method_operations.sql": "9242a3e784b92146b3ac737d6bfe2ecbf707bcb52cba6d7fbbdc4669f4c14a11"
+  },
+  "databaseCaSha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+  "approvedRestoreBy": "2026-11-15T13:08:47.000Z",
+  "activeDeadline": "2026-11-15T12:40:33.470Z",
+  "activeBudgetMinutes": 40,
+  "fixtureRunId": "93dd694d-ec91-41bb-ba92-870abf5a974a",
+  "cloudRunId": "c285d148-e0ab-4f7f-99f8-cc06acc7a2e5",
+  "pauseRequestedAt": "2026-11-15T12:01:06.838Z",
+  "originalPublicTables": [
+    "position_lots",
+    "position_plans",
+    "positions",
+    "settings",
+    "watchlist_groups",
+    "watchlist_tickers"
+  ],
+  "administrativeRole": {
+    "current_user": "postgres",
+    "session_user": "postgres",
+    "rolsuper": false,
+    "rolcreaterole": true,
+    "self_grant": ""
+  },
+  "reservedNamespacePrestate": {
+    "private_schema": false,
+    "auth_schema": false,
+    "backend_role": false,
+    "fixture_table": false,
+    "marker_table": false
+  },
+  "fixtureDdlAcknowledged": true,
+  "authConfigAcknowledged": true,
+  "backendCredentialAcknowledged": true,
+  "failedPhase": "native_pool_idle_error_after_privilege_probe",
+  "failure": {
+    "sqlState": "57P01",
+    "unhandledPoolError": true,
+    "rawClientObjectPrintedByNode": true,
+    "testCredentialInvalidatedDuringRecovery": true
+  },
+  "recovery": {
+    "status": "PASS_CRASH_RECOVERY",
+    "startedAt": "2026-11-15T12:08:54.995Z",
+    "errors": [],
+    "deadOwnerLeaseRecovered": true,
+    "backendCredentialInvalidated": true,
+    "fixtureRemoved": true,
+    "originalTablesAndCountsPreserved": true,
+    "restoration": {
+      "testPaused": true,
+      "cleanerHealthy": true,
+      "errors": [
+        "cleaner_restore_retry"
+      ],
+      "cleanerHealthyAt": "2026-11-15T12:14:48.065Z",
+      "ok": true,
+      "deadlineReached": false
+    },
+    "vercel": {
+      "ok": true,
+      "environmentRemoved": 10,
+      "deploymentsRemoved": 0,
+      "baselineRestored": true
+    },
+    "leaseReleased": true,
+    "completedAt": "2026-11-15T12:16:07.523Z"
+  },
+  "hostedAcceptanceProven": false,
+  "substageAcknowledgments": {
+    "fixtureDdlAcknowledged": true,
+    "authConfigAcknowledged": true,
+    "backendCredentialAcknowledged": true
+  },
+  "preflightCountsRetainedPrivately": true
+}
