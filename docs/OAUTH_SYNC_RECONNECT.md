@@ -95,6 +95,40 @@ requested scope names and consent outcome; never tokens, cookies, secrets or
 personal holdings. A reauthorization request that omits sync after a full sync
 challenge indicates host-side step-up/configuration behavior requiring inspection.
 
+## Files changed
+
+- `app/api/mcp/route.ts`: transport challenges and protocol compatibility.
+- `lib/auth/auth0-token.ts`: safe expiration classification.
+- `lib/auth/server.ts`: safe response codes and revocation classification.
+- `__tests__/investment-mcp.test.ts`: challenge/retry/read regressions.
+- `__tests__/auth0-token.test.ts`: signed expired versus malformed token.
+- `__tests__/auth-server-availability.test.ts`: expired/revoked/unavailable codes.
+- `__tests__/better-auth-postgres.test.ts`: real provider and refresh regressions.
+- `README.md` and this report: current status and acceptance procedure.
+- `verification/oauth-sync-reconnect-2026-11-16.json`: sanitized deployment proof.
+
+## Deployment result
+
+The fix was deployed and promoted to the existing production domain:
+`https://razmaz-live-stocks.vercel.app`.
+
+- Deployment: `dpl_4RhhXNxz2pBVA1gszDdLZ1Ken9dd`, READY.
+- Original production source: `5c791d0086fdac542b5246ca1ad6712356b41a45`.
+- Release commit: `302a43a`, branch `codex/oauth-sync-release` in
+  `/private/tmp/livestocks-oauth-sync-release`; only the fix was cherry-picked.
+- Working branch: `codex/oauth-sync-step-up-fix`, implementation commit `fe83cc4`.
+- No environment variables, OAuth registrations or database state were changed.
+- Staged and live probes passed: PRM/AS discovery publishes sync; no credentials
+  yield bare 401 discovery; synthetic invalid bearer yields 401 `invalid_token`
+  without scope narrowing. No financial data was accessed.
+- Post-deployment error-log query succeeded with zero entries in the first
+  15-minute query window; this is an immediate smoke check, not long-term monitoring.
+- Source commits remain local and are not merged to `main`. A future release
+  must include this patch to retain it.
+- Live authenticated read/sync, step-up consent and review-card retry in the
+  existing ChatGPT connection remain **unverified**. Native provider + SQL tests
+  and public live probes do not replace this host acceptance.
+
 ## Protocol references
 
 - [OpenAI Apps authentication](https://developers.openai.com/plugins/build/auth)
