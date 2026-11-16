@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-16",
+  "status": "FIX_VALIDATED_LOCALLY_LIVE_MAIN_PENDING",
+  "incident": {
+    "failedDeployment": "dpl_eAaSDzGjBeUM9VRXziLT3Y8JEbgX",
+    "observed": "Google social initiation returned 503 AUTH_UNAVAILABLE before Google navigation.",
+    "temporaryRecovery": "Promoted known-working compatible source deployment dpl_BSoaf6YoP2nKq7MCidzdetUFa8pD; Google initiation returned 200 and actual Google sign-in reached settings.",
+    "rootCause": "Unconfirmed; the original deployment later returned 200 on direct recheck. A rejected SDK initialization context is independently proven to remain cached, but is not established as the original incident cause."
+  },
+  "fix": {
+    "failedInitialization": "Discard only the matching failed auth singleton and close its own pool. A later independent request may initialize fresh.",
+    "operationReplay": false,
+    "diagnostics": "Allowlisted phase/error class/code/cause only; no raw messages, stack, SQL, request fields, cookies or credentials.",
+    "authSecurityChanges": false
+  },
+  "validation": {
+    "vitestPassed": 1005,
+    "vitestOptionalSkipped": 3,
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "nativeBetterAuthAndSignInMethods": "PASS PostgreSQL 17",
+    "liveGoogleSignIn": "PASS on temporarily restored compatible deployment",
+    "liveDesktopSourceCreateRename": "PASS",
+    "liveMobileArchiveRestore": "PASS at 390x844",
+    "liveRenamePersistsAfterReload": "PASS",
+    "liveActiveHoldingArchiveRejected": "PASS",
+    "mobileHorizontalOverflow": false
+  },
+  "testData": {
+    "testSource": "בדיקת מקורות זמנית – נבדק",
+    "finalState": "Archived; original source and all holdings unchanged."
+  },
+  "limitations": [
+    "Mobile browser viewport emulation, not a physical phone.",
+    "Permanent cause of the initial transient 503 remains unconfirmed.",
+    "Final main-branch deployment verification will be appended after the follow-up fix is merged."
+  ]
+}

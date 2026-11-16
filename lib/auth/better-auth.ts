@@ -146,14 +146,30 @@ export function createBetterAuth(config: BetterAuthConfiguration, pool: Pool, bo
 }
 
 let singleton: { key: string; auth: ReturnType<typeof createBetterAuth>; pool: Pool } | undefined;
+function closeAuthPool(pool: Pool): void {
+  try { void pool.end().catch(() => {}); } catch { /* Cleanup must not mask an authentication failure. */ }
+}
 export function getBetterAuth(): ReturnType<typeof createBetterAuth> | null {
   let config: BetterAuthConfiguration;
   try { config = betterAuthConfiguration(); } catch { return null; }
   const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId, isPasswordAuthEnabled(), process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]);
   if (!singleton || singleton.key !== key) {
-    if (singleton) void singleton.pool.end();
+    const previous = singleton;
+    singleton = undefined;
+    if (previous) closeAuthPool(previous.pool);
     const pool = createAuthPool(config);
-    singleton = { key, pool, auth: createBetterAuth(config, pool) };
+    let auth: ReturnType<typeof createBetterAuth>;
+    try { auth = createBetterAuth(config, pool); }
+    catch (error) { closeAuthPool(pool); throw error; }
+    const candidate = { key, pool, auth };
+    singleton = candidate;
+    // The SDK retains a rejected initialization promise. Discard only this
+    // instance so a later independent request may initialize again. Never
+    // replay a request or reset an instance for an ordinary handler failure.
+    void auth.$context.catch(() => {
+      if (singleton === candidate) singleton = undefined;
+      closeAuthPool(pool);
+    });
   }
   return singleton.auth;
 }
