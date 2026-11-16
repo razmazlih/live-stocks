@@ -57,6 +57,8 @@ Release the migrations and compatible readers/writers together. Explicitly revie
 
 **Unverified:** actual ChatGPT rendering, metadata isolation and app-only tool confirmation after OAuth upgrade. Desktop/mobile browser tests use a synthetic MCP host and are not a physical-phone or live ChatGPT acceptance test.
 
+The [isolated real-host gate](CHAT_SYNC_ISOLATED_FIXTURE.md) subsequently connected a disposable OAuth account and prepared the correct before/after review in both ChatGPT modes. The embedded card failed to open despite successful resource reads, so final in-chat confirmation remains a release blocker. [Recorded host evidence](verification/chat-sync-isolated-host-2026-11-16.json) distinguishes this partial result from the synthetic browser checks. Website approval is not a substitute for passing this gate. The isolated gateway actually served both the standard MCP App MIME and the legacy ChatGPT skybridge MIME with HTTP 200; neither opened the card. A planned static-HTML diagnostic was **not actually served** because its temporary source override was not installed, so that retry provides no static-rendering evidence. The precise cause remains unknown; no host-platform root cause is established.
+
 ## Recorded verification
 
 Current test totals and native runs are recorded in the PR description. Synthetic browser checks cover no automatic writes, private secret absent DOM, exact button arguments, confirmed success/cancel and a 390px mobile layout without page overflow. Unit tests cover stale proposal reply isolation and actual/estimated date labels. No real screenshot or personal financial data appears in these artifacts.

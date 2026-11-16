@@ -1,0 +1,296 @@
+{
+  "status": "PARTIAL_REAL_CHATGPT_HOST_ACCEPTANCE",
+  "observedDate": "2026-11-16",
+  "sourceCommit": "946d6a4f069d859b44b6f8dca7edd16a879444a3",
+  "productionAccess": false,
+  "productionCredentialsUsed": false,
+  "productionPortfolioReads": false,
+  "productionPortfolioWrites": false,
+  "environment": {
+    "kind": "disposable local PostgreSQL + real PostgREST + production Next build + temporary HTTPS tunnel",
+    "syntheticAccounts": 2,
+    "sourceEnvironmentFilesCopied": false,
+    "productionAppConnectionReplaced": false
+  },
+  "hostObservations": {
+    "temporaryOAuthConnection": "PASS",
+    "realChatGPTPrepareReview": "PASS_CORRECT_REVIEW",
+    "realWorkPrepareReview": "PASS_CORRECT_REVIEW",
+    "resourceReadHttpStatus": 200,
+    "inlineCardRendering": "BLOCKED_COULD_NOT_OPEN_APP",
+    "inlineConfirmationClick": "NOT_VERIFIED",
+    "inlineConfirmationWrite": "NOT_VERIFIED",
+    "screenshotUpload": "BLOCKED_BROWSER_EXTENSION_FILE_URL_PERMISSION",
+    "screenshotExtraction": "NOT_TESTED",
+    "textPreparationIsScreenshotProof": false,
+    "websiteApprovalUsedAsSubstitute": false,
+    "compatibilityDiagnostics": {
+      "source": "Sanitized local ngrok inspector records; only public resource URI, MIME, HTML length and status retained",
+      "resourceUri": "ui://livestocks/screenshot-sync-v1.html",
+      "capturedSuccessfulResourceReads": 18,
+      "observedVariants": [
+        {
+          "mimeType": "text/html+skybridge",
+          "htmlCharacterCount": 11185,
+          "httpStatus": 200,
+          "capturedCount": 4
+        },
+        {
+          "mimeType": "text/html;profile=mcp-app",
+          "htmlCharacterCount": 11185,
+          "httpStatus": 200,
+          "capturedCount": 14
+        }
+      ],
+      "renderingAfterStandardsMime": "REPORTED_COULD_NOT_OPEN_APP",
+      "renderingAfterLegacyMime": "REPORTED_COULD_NOT_OPEN_APP",
+      "standardsMime": "text/html;profile=mcp-app",
+      "legacyMime": "text/html+skybridge",
+      "legacyMimeChangeScope": "Disposable runtime gateway only; same authenticated HTML and metadata, JSON framing preserved; repository app source unchanged",
+      "staticDiagnostic": {
+        "status": "NOT_ACTUALLY_SERVED",
+        "capturedStaticPayloadCount": 0,
+        "correction": "The test-only flag was created but the runtime script replacement was not applied before restart. Captured responses retained the original 11185-character app HTML. The attempted static retry is not evidence that a static document failed to render."
+      },
+      "confirmedFailureStage": "Authenticated resource reads succeeded; parent browser observation still showed Opening app / Could not open app and no usable review card",
+      "rootCause": "UNKNOWN",
+      "inferenceLimit": "Both actual MIME variants failed in the observed host, but the records do not establish whether the exact failure is host-side, metadata parsing, sandbox creation or app initialization. No static-HTML isolation claim is supported.",
+      "followup": "No more process or browser actions after parent requested cleanup. Final app-only confirmation remains unverified."
+    },
+    "screenshotEvidence": "../screenshots/chat-sync-real-host-blocked.jpg"
+  },
+  "financialIntegrity": {
+    "beforeCaptured": true,
+    "afterCaptured": true,
+    "comparison": "PASS_EXACT_SYNTHETIC_FINANCIAL_EQUALITY_AFTER_PREPARATION",
+    "before": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "88cd5c75f17c5a924c194cdd412886e1c15a7252e1025e32644af984b5d3bc5c"
+          },
+          "position_lots": {
+            "count": 2,
+            "digest": "05c2e51f494a434c005b6e801463ab2b18b4464e7d7d2cfc97b79b246616d3cf"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "be08cfd41b592b85fa562c43b7145592775b74b4591917ff3f911c56029b2131"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "05c2e51f494a434c005b6e801463ab2b18b4464e7d7d2cfc97b79b246616d3cf"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 8,
+            "averageCostUsd": 100,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "27b47f752d65598deb1da6b7a00f88450a71ced68ec9dc031315be94b3b6e095"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "dc16b0703cf8114b6269c51704837c97ca1d8ca0014aff214ae96326942495c0"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "06a029231c26ea351cb35b09431031f409cf2655305eded1153b00824f4511d2"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "dc16b0703cf8114b6269c51704837c97ca1d8ca0014aff214ae96326942495c0"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "comparisonPerformedAt": "2026-11-16T08:43:34.198055+00:00",
+    "afterStage": "real ChatGPT/Work preparation attempts only; no inline confirmation accepted",
+    "after": [
+      {
+        "account": 1,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "88cd5c75f17c5a924c194cdd412886e1c15a7252e1025e32644af984b5d3bc5c"
+          },
+          "position_lots": {
+            "count": 2,
+            "digest": "05c2e51f494a434c005b6e801463ab2b18b4464e7d7d2cfc97b79b246616d3cf"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "be08cfd41b592b85fa562c43b7145592775b74b4591917ff3f911c56029b2131"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 2,
+          "digest": "05c2e51f494a434c005b6e801463ab2b18b4464e7d7d2cfc97b79b246616d3cf"
+        },
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "quantity": 8,
+            "averageCostUsd": 100,
+            "recordedRealizedProfitUsd": 40
+          }
+        ]
+      },
+      {
+        "account": 2,
+        "tables": {
+          "positions": {
+            "count": 1,
+            "digest": "27b47f752d65598deb1da6b7a00f88450a71ced68ec9dc031315be94b3b6e095"
+          },
+          "position_lots": {
+            "count": 1,
+            "digest": "dc16b0703cf8114b6269c51704837c97ca1d8ca0014aff214ae96326942495c0"
+          },
+          "position_plans": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "settings": {
+            "count": 1,
+            "digest": "06a029231c26ea351cb35b09431031f409cf2655305eded1153b00824f4511d2"
+          },
+          "watchlist_groups": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "watchlist_tickers": {
+            "count": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "originalTradeLots": {
+          "count": 1,
+          "digest": "dc16b0703cf8114b6269c51704837c97ca1d8ca0014aff214ae96326942495c0"
+        },
+        "holdings": [
+          {
+            "symbol": "MSFT",
+            "quantity": 7,
+            "averageCostUsd": 200,
+            "recordedRealizedProfitUsd": 0
+          }
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "account": 1,
+        "allSixFinancialTablesUnchanged": true,
+        "perTableUnchanged": {
+          "positions": true,
+          "position_lots": true,
+          "position_plans": true,
+          "settings": true,
+          "watchlist_groups": true,
+          "watchlist_tickers": true
+        },
+        "originalBuySellLotsUnchanged": true,
+        "holdingsSymbolsUnchanged": true,
+        "quantitiesUnchanged": true,
+        "averageCostsUnchanged": true,
+        "recordedRealizedProfitUnchanged": true
+      },
+      {
+        "account": 2,
+        "allSixFinancialTablesUnchanged": true,
+        "perTableUnchanged": {
+          "positions": true,
+          "position_lots": true,
+          "position_plans": true,
+          "settings": true,
+          "watchlist_groups": true,
+          "watchlist_tickers": true
+        },
+        "originalBuySellLotsUnchanged": true,
+        "holdingsSymbolsUnchanged": true,
+        "quantitiesUnchanged": true,
+        "averageCostsUnchanged": true,
+        "recordedRealizedProfitUnchanged": true
+      }
+    ],
+    "allAccountsFinanciallyUnchanged": true,
+    "noInlineWriteAcceptanceClaimed": true
+  },
+  "cleanup": {
+    "status": "PASS",
+    "temporaryPluginUninstalled": true,
+    "permanentDraftDeletionPerformed": false,
+    "disposableDatabaseAndSourceRemoved": true,
+    "temporaryTunnelStopped": true,
+    "localCredentialsPageStopped": true,
+    "taskPortsNoLongerListening": [
+      3137,
+      3138,
+      3140,
+      4040
+    ],
+    "productionPluginUntouched": true
+  },
+  "evidenceLimits": [
+    "The synthetic hosted browser/iframe checks do not prove real ChatGPT inline rendering.",
+    "A successful tool preparation and HTTP200 resource read do not prove a user can open the app or confirm.",
+    "All holdings in this artifact are generated test fixtures, not the real owner portfolio.",
+    "Exact before/after equality establishes no synthetic financial change during preparation; it does not prove successful inline confirmation."
+  ]
+}
