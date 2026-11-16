@@ -5,6 +5,7 @@ import { ReactNode, useId, useMemo, useState } from 'react';
 import { HistoricalPoint, PositionMetrics } from '@/types';
 import { formatCurrency, formatNumber, formatDate, formatPercent, hasMaterialExitPriceGap } from '@/lib/calculations';
 import { computeRealizedSales } from '@/lib/positions';
+import { useInvestmentSources } from '@/hooks/use-investment-sources';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -25,6 +26,7 @@ interface PositionCardProps {
 
 export function PositionCard({ metrics, sparklineData, closedSelector }: PositionCardProps) {
   const { locale, settings } = useApp();
+  const { sourceName } = useInvestmentSources();
   const [, , sourceUrl] = useUrlState(() => null);
   const { t } = useTranslation(locale);
   const {
@@ -273,7 +275,7 @@ export function PositionCard({ metrics, sparklineData, closedSelector }: Positio
             <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-slate-500">
               <span dir="ltr" className="font-medium tracking-wide text-slate-500">{position.symbol}</span>
               <span aria-hidden="true">·</span>
-              <span>{position.location === 'bank_two' ? 'Pepper' : 'ONE ZERO'}</span>
+              <span>{sourceName(position.location, locale)}</span>
             </div>
           </div>
           <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[10px] font-medium', isClosed ? 'text-slate-500' : 'text-blue-600')}>
