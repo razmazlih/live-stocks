@@ -7,7 +7,7 @@ const JWKS_CODES = new Set(['ERR_JWKS_TIMEOUT', 'ERR_JWKS_INVALID', 'ERR_JOSE_GE
 const NODE_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE', 'ERR_INVALID_URL', 'MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ERR_PACKAGE_PATH_NOT_EXPORTED', 'ERR_REQUIRE_ESM', 'ERR_CRYPTO_INVALID_KEYLEN', 'ERR_CRYPTO_INVALID_IV', 'ERR_OSSL_EVP_UNSUPPORTED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'ERR_TLS_CERT_SIGNATURE_ALGORITHM_UNSUPPORTED', 'CERT_HAS_EXPIRED', 'CERT_NOT_YET_VALID', 'CERT_SIGNATURE_FAILURE', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE']);
 export type AuthFailurePhase = 'configuration' | 'initialization' | 'request' | 'session' | 'website-token' | 'token-verification' | 'account-storage';
 
-function safeErrorFields(error: unknown): { name: string; category: string; code: string } {
+function safeErrorFields(error: unknown): { name: string; category: string; code: string; reason?: 'session-pool-capacity' } {
   // Never pass through error objects, messages, stacks, URLs or unrecognized strings.
   let name: unknown, code: unknown;
   try {
@@ -18,7 +18,19 @@ function safeErrorFields(error: unknown): { name: string; category: string; code
   } catch { /* Untrusted getters are not diagnostic data. */ }
   const safeName = typeof name === 'string' && ERROR_NAMES.has(name) ? name : 'UnknownError';
   if (typeof code === 'string' && JWKS_CODES.has(code)) return { name: safeName, category: 'jwks', code };
-  if (typeof code === 'string' && SQL_CODES.has(code)) return { name: safeName, category: 'postgres', code };
+  if (typeof code === 'string' && SQL_CODES.has(code)) {
+    // XX000 alone is generic. Recognize only these known session-pool capacity
+    // prefixes, and emit a fixed reason rather than any database message text.
+    let capacity = false;
+    if (code === 'XX000') try {
+      const message = (error as { message?: unknown }).message;
+      capacity = typeof message === 'string' && (
+        message.startsWith('MaxClientsInSessionMode: max clients reached')
+        || message.startsWith('max clients reached - in Session mode max clients are limited to pool_size')
+        || message.startsWith('max clients reached pool_size'));
+    } catch { /* Ignore unsafe accessors. */ }
+    return { name: safeName, category: 'postgres', code, ...(capacity ? { reason: 'session-pool-capacity' as const } : {}) };
+  }
   if (typeof code === 'string' && NODE_CODES.has(code)) return { name: safeName, category: code.includes('CERT') || code.startsWith('ERR_TLS_') || code.startsWith('UNABLE_TO_') ? 'tls' : 'node', code };
   return { name: safeName, category: 'unknown', code: 'UNRECOGNIZED' };
 }

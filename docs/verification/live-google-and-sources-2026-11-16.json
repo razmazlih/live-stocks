@@ -12,10 +12,19 @@
     "operationReplay": false,
     "diagnostics": "Allowlisted phase/error class/code/cause only; no raw messages, stack, SQL, request fields, cookies or credentials.",
     "authSecurityChanges": false,
-    "availability": "Session/database/key-service failures return503; explicit invalid/expired/revoked/unverified credentials retain401/403. Existing browser session remains on temporary failure."
+    "availability": "Session/database/key-service failures return503; explicit invalid/expired/revoked/unverified credentials retain401/403. Existing browser session remains on temporary failure.",
+    "poolLifecycle": {
+      "package": "@vercel/functions@3.11.3",
+      "attachDatabasePool": true,
+      "maxPerInstance": 2,
+      "idleTimeoutMs": 5000,
+      "maxLifetimeSeconds": 60,
+      "allowExitOnIdle": true,
+      "tlsDedicatedRoleSearchPathUnchanged": true
+    }
   },
   "validation": {
-    "vitestPassed": 1019,
+    "vitestPassed": 1022,
     "vitestOptionalSkipped": 3,
     "typecheck": "PASS",
     "lint": "PASS",
@@ -45,5 +54,14 @@
     "desktopSourceRestore": "PASS",
     "mobileSourceArchive": "PASS",
     "note": "An initial reload briefly returned to sign-in; inspection found broad infrastructure-error-to401 conversion, addressed by the availability fix recorded above."
+  },
+  "poolIncident": {
+    "observedCode": "XX000 during session checks",
+    "observedDedicatedRoleConnections": 15,
+    "observedIdleConnections": 15,
+    "idleConnectionsOlderThan5Minutes": 6,
+    "oneTimeRelease": "User explicitly approved closure of auth-service idle connections older than5minutes;10 qualified and were released at execution time. No sessions, identities or holdings were deleted.",
+    "browserRecoveryAfterRelease": "PASS: account, connections, settings and source catalog loaded after reload.",
+    "capacityReason": "XX000 alone is not unique to capacity. Only a known message prefix produces the fixed session-pool-capacity reason; raw message text is never logged."
   }
 }

@@ -4,6 +4,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { jwt } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { Pool } from 'pg';
+import { attachDatabasePool } from '@vercel/functions';
 import { randomUUID } from 'node:crypto';
 import { betterAuthConfiguration, getAuthPublicOptions, isPasswordAuthEnabled, PASSWORD_AUTH_PATHS, type BetterAuthConfiguration } from './better-auth-config';
 import { requireAuthEmailConfiguration, sendAuthEmail } from './auth-email';
@@ -37,11 +38,12 @@ export function createAuthPool(config: BetterAuthConfiguration): Pool {
   // pg connection-string SSL query options can replace explicit TLS options.
   // Remove them and enforce certificate validation here instead.
   for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key);
-  const pool = new Pool({ connectionString: url.href, max: 5, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000,
+  const pool = new Pool({ connectionString: url.href, max: 2, idleTimeoutMillis: 5_000, maxLifetimeSeconds: 60, allowExitOnIdle: true, connectionTimeoutMillis: 10_000,
     options: `-c search_path=${AUTH_SCHEMA} -c statement_timeout=15000`,
     ssl: local && process.env.NODE_ENV !== 'production' ? false
       : { rejectUnauthorized: true, ...(process.env.BETTER_AUTH_DATABASE_CA ? { ca: process.env.BETTER_AUTH_DATABASE_CA.replace(/\\n/g, '\n') } : {}) },
   });
+  attachDatabasePool(pool);
   // pg removes a failed idle client before emitting this event. Without a
   // listener Node throws the error, which may contain the client/credentials.
   // Do not log it or retry active queries; those still reject to their caller.

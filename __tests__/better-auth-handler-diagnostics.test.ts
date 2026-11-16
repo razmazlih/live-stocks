@@ -80,6 +80,20 @@ describe('safe authentication failure diagnostics', () => {
     expect(output).toContain('UnknownError');
   });
 
+  it('reports session-pool capacity only for a known XX000 prefix and never emits its message', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    for (const message of ['MaxClientsInSessionMode: max clients reached - in Session mode max clients are limited to pool_size SECRET_DETAILS', 'max clients reached pool_size SECRET_DETAILS']) {
+      mocks.handler.mockRejectedValueOnce(Object.assign(new Error(message), { code: 'XX000' }));
+      expect((await handleBetterAuthRequest(request())).status).toBe(503);
+      expect(log.mock.calls.at(-1)?.[1]).toMatchObject({ error: { category: 'postgres', code: 'XX000', reason: 'session-pool-capacity' } });
+    }
+    mocks.handler.mockRejectedValueOnce(Object.assign(new Error('SECRET_UNRELATED_INTERNAL_ERROR'), { code: 'XX000' }));
+    await handleBetterAuthRequest(request());
+    expect(log.mock.calls.at(-1)?.[1].error).not.toHaveProperty('reason');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('SECRET');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('max clients reached');
+  });
+
   it('does not log successful requests or ordinary origin rejections', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect((await handleBetterAuthRequest(request())).status).toBe(200);

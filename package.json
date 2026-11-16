@@ -30,6 +30,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.22",
+    "@vercel/functions": "3.11.3",
     "autoprefixer": "^10.4.21",
     "better-auth": "1.7.23",
     "class-variance-authority": "^0.7.1",
