@@ -126,3 +126,69 @@ add sync, so an existing affected connection may need one fresh authorization.
 
 Do not replace/delete the existing production App, automatically broaden a user
 grant, change secrets/callbacks, or approve real holdings as a diagnostic.
+
+## Real ChatGPT result (synthetic account)
+
+The temporary **LiveStocks OAuth isolated TTWO** plugin was connected to the real
+application over HTTPS with an initial read-only grant. The production LiveStocks
+App and personal connection were left unchanged.
+
+The real host displayed its generic Reconnect prompt. One click launched an
+actual authorization request containing `portfolio:read portfolio:sync` plus
+identity/offline scopes. The Hebrew consent page explicitly showed the limited
+sync permission. After synthetic consent, token issuance retained sync and
+ChatGPT resumed the request. On MCP2026-07-28 the prepare call and resources/read
+both returned HTTP200; ChatGPT displayed **Opened app** and the real review iframe:
+TTWO0→6, USD unit cost222, acquisition2026-11-16, with the human confirmation
+button present. A second chat request prepared another card without reconnect,
+confirmed TTWO was still absent from holdings and superseded the first proposal.
+
+No confirmation button was clicked and no confirmation tool was called. Direct
+local database readback retained AAPL8@100 with original BUY/SELL rows and realized
+profit40 in accountA, and MSFT7@200 in accountB. There were no TTWO holdings.
+These values are synthetic fixture data only.
+
+![Real ChatGPT TTWO review, synthetic data only](screenshots/oauth-sync-ttwo-host-2026-11-16.jpg)
+
+The server setup correction was integrated into main at `a2c04cf` and deployed as
+`dpl_ABUBbFCmD6gzfFY1zTrCe5QGfsty`. Vercel readback shows READY and the canonical
+production alias points to this release. Public live PRM/AS discovery and the
+synthetic-invalid-token boundary probes passed. The repaired resource row was
+read back again after deployment and still had full scopes and the same invariant
+digest. No real portfolio was read or mutated during those probes.
+
+This verifies ChatGPT's actual read-to-sync consent and review rendering with an
+isolated account. It does not claim a sync test against the owner's personal
+portfolio or a physical-phone test. The existing affected personal connection
+may require one fresh OAuth authorization because its old refresh token remains
+read-only. No App recreation or new credential is required.
+
+### Expired access token: actual host refresh passed
+
+The third chat request was sent more than five minutes after the last observed
+access-token issuance. At 17:54:43 UTC, the sanitized gateway observed an actual
+`grant_type=refresh_token` request from ChatGPT, HTTP200, retaining `portfolio:sync`.
+Portfolio reading then succeeded at17:54:48, preparation at17:54:55, and the review
+resource at17:54:58. The third iframe opened without login or another consent.
+No subsequent authorization request was needed. Final financial digests matched
+the earlier snapshot for both synthetic accounts and no proposal was applied.
+
+Final checks: `npm test` **1060 passed**, three opt-in native tests skipped in
+that command; actual native PostgreSQL/provider suite separately passed. Full
+TypeScript, lint, local build and cloud build passed. Five privacy tests verify
+the trace cannot expose token values, credentials, arbitrary paths/scopes or user
+arguments. The first deployment's post-release error scan returned zero entries.
+
+The temporary test plugin was uninstalled through its owning UI. Its draft was
+not permanently deleted. PostgreSQL/PostgREST/Next/gateway, the task-owned tunnel
+and credential transfer server were stopped, and the private state/runtime were
+removed. Ports3137,3138,3140,4040 were verified closed. The original production
+App, user connection, credentials and financial data were left unchanged apart
+from the explicitly repaired server-side resource policy.
+
+**VERIFIED FIXED for the reproduced read-to-sync/refresh flow in actual ChatGPT
+with isolated synthetic data**, with the matching production resource policy
+repair and server deployment independently verified. An owner-portfolio sync was
+intentionally not run; its affected old grant may require one new authorization.
+
+[Sanitized structured evidence](verification/oauth-sync-resource-policy-2026-11-16.json)
