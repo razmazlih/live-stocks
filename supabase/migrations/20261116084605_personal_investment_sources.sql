@@ -352,6 +352,10 @@ begin
  return result;
 end;
 $$;
+-- Managed postgres has SET membership, but does not inherit executor ownership.
+-- Replace this function as its existing owner; CREATE is held only inside this transaction.
+grant create on schema public to livestocks_merge_executor;
+set local role livestocks_merge_executor;
 create or replace function public.server_merge_prepare(p_job_id uuid,p_encrypted_value text default null,p_credential_version text default null)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare j private.account_merge_jobs%rowtype;t text;chosen_settings uuid;expected_secret text;s record;candidate text;counter integer;
@@ -405,6 +409,8 @@ begin
 end;
 $$;
 -- Old enum has no live references; historical migrations retain its original definition.
+reset role;
+revoke create on schema public from livestocks_merge_executor;
 drop type public.position_location;
 notify pgrst,'reload schema';
 commit;
