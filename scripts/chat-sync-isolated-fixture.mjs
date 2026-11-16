@@ -19,6 +19,7 @@ pgTypes.setTypeParser(1082, value => value);
 import { SignJWT } from 'jose';
 import { applyChatSyncResourceDiagnostic } from './lib/chat-sync-resource-diagnostic.mjs';
 import { makeLostConfirmationReply } from './lib/chat-sync-fixture-fault.mjs';
+import { runOAuthSyncGate } from './lib/chat-sync-oauth-gate.mjs';
 import { gunzipSync, brotliDecompressSync, inflateSync } from 'node:zlib';
 const execute = promisify(execFile);
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,6 +86,8 @@ import {Pool} from 'pg';import {hashPassword} from 'better-auth/crypto';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {getBetterAuth,getBetterAuthSession,getWebsiteDatabaseToken,seedMcpClient,shutdownBetterAuth} from './lib/auth/better-auth.ts';
 export {mapPositionRow,computeRealizedSales,summarizeLots} from './lib/positions.ts';
+import {getConsentReview} from './lib/auth/oauth-consent.ts';
+export async function consentReview(query,cookie){try{return await getConsentReview(query,new Headers({cookie}));}finally{await shutdownBetterAuth();}}
 export async function bootstrap(adminUrl){
  const pool=new Pool({connectionString:adminUrl}),users=[];const auth=getBetterAuth();await auth.$context;
  try{for(let index=0;index<2;index++){
@@ -251,10 +254,11 @@ else if (mode === 'serve') await serve(await readState());
 else if (mode === 'seed-client') { const state = await readState(); await seed(state, options.callback || ''); console.log('PASS isolated MCP client registered; credentials remain private'); }
 else if (mode === 'stop') { await stop(await readState()); console.log('PASS isolated processes/database/source removed; no production access'); }
 else if (mode === 'restart-gateway') { const state = await readState(); try { process.kill(-state.processes.gateway, 'SIGTERM'); } catch {} await delay(400); await startProcess(state, 'gateway', process.execPath, [fileURLToPath(import.meta.url), 'serve', '--state-file', stateFile], cleanBase, repository); await until(async () => (await fetch('http://127.0.0.1:' + GATEWAY_PORT + '/__isolated-health')).ok, 'restarted gateway'); console.log('PASS isolated gateway restarted; database and sessions preserved'); }
+else if (mode === 'oauth-sync-gate') { const state = await readState(); applyEnvironment(state.environment); state.sdk = await buildSdkHelper(state); await writeState(state); const sdk = await import(pathToFileURL(state.sdk).href); console.log(JSON.stringify(await runOAuthSyncGate({ state, sdk, snapshot: () => snapshot(state) }), null, 2)); }
 else if (mode === 'snapshot') { console.log(JSON.stringify(await snapshot(await readState()), null, 2)); }
 else if (mode === 'arm-lost-reply') { const state = await readState(); await writeFile(join(state.runtime, 'lose-next-confirm.flag'), 'armed', { mode: 0o600 }); console.log('Armed isolated one-shot confirmation reply loss'); }
 else if (mode === 'status') { const state = await readState(); console.log(JSON.stringify({ status: state.status, origin: state.origin, productionAccess: state.productionAccess, sourceCommit: state.sourceCommit, syntheticAccounts: state.users.length })); }
-else { const usage = 'Usage: start --origin HTTPS_TUNNEL --postgrest TEMP_BINARY --state-file PRIVATE_STATE | seed-client --state-file PRIVATE_STATE --callback EXACT_CHATGPT_CALLBACK | status/snapshot/restart-gateway/arm-lost-reply/stop --state-file PRIVATE_STATE'; if (mode === '--help' || mode === 'help') console.log(usage); else throw Error(usage); }
+else { const usage = 'Usage: start --origin HTTPS_TUNNEL --postgrest TEMP_BINARY --state-file PRIVATE_STATE | seed-client --state-file PRIVATE_STATE --callback EXACT_CHATGPT_CALLBACK | status/snapshot/oauth-sync-gate/restart-gateway/arm-lost-reply/stop --state-file PRIVATE_STATE'; if (mode === '--help' || mode === 'help') console.log(usage); else throw Error(usage); }
 
 }
 void main().catch(async error => {
