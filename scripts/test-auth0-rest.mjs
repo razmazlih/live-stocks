@@ -175,13 +175,15 @@ async function main() {
     phase='web_fixtures'; const fixtures=[];
     for(const [token,owner,label] of [[input.webAToken,a,'A'],[input.webBToken,b,'B']]) {
       one(await request('user_profiles',token,'POST',{id:owner.userId}),'Website profile bootstrap failed');
-      const purchase={p_request_id:randomUUID(),p_symbol:'SYNTHETIC',p_display:`Synthetic ${label}`,p_image_url:'',p_location:'bank_one',p_price:10,p_quantity:2,p_executed_at:'2026-01-01',p_has_commission:false,p_commission_amount:0};
+      const source=one(await request('investment_sources?archived_at=is.null',token),'Default investment source missing');
+      check(source.user_id===owner.userId,'Default investment source belongs to another owner');
+      const purchase={p_request_id:randomUUID(),p_symbol:'SYNTHETIC',p_display:`Synthetic ${label}`,p_image_url:'',p_location:source.id,p_price:10,p_quantity:2,p_executed_at:'2026-01-01',p_has_commission:false,p_commission_amount:0};
       const ids=one(await request('rpc/record_position_purchase',token,'POST',purchase),'Website purchase RPC failed');
       one(await request('rpc/record_position_purchase',token,'POST',purchase),'Website retry RPC failed');
-      const rows={};
+      const rows={investment_sources:source};
       rows.positions=one(await request(`positions?id=eq.${ids.position_id}`,token),'Position lookup failed');
       rows.position_lots=one(await request(`position_lots?id=eq.${ids.lot_id}`,token),'Lot lookup failed');
-      rows.position_plans=one(await request('position_plans',token,'POST',{symbol:'PLAN',target_price:20,target_quantity:1,target_date:'2027-01-01'}),'Standalone plan failed');
+      rows.position_plans=one(await request('position_plans',token,'POST',{symbol:'PLAN',location:source.id,target_price:20,target_quantity:1,target_date:'2027-01-01'}),'Standalone plan failed');
       rows.settings=one(await request('settings',token,'POST',{annual_growth_rate:0.05}),'Settings creation failed');
       rows.watchlist_groups=one(await request('watchlist_groups',token,'POST',{name:`Synthetic ${label}`}),'Group creation failed');
       rows.watchlist_tickers=one(await request('watchlist_tickers',token,'POST',{group_id:rows.watchlist_groups.id,symbol:'WATCH'}),'Ticker creation failed');
@@ -219,7 +221,7 @@ async function main() {
       one(await request(`${table}?id=eq.${before.id}`,input.webAToken),'MCP denial did not preserve row');
       record(`${table}_mcp_owner_read_write_denied`);
     }
-    denied(await request('rpc/record_position_purchase',input.mcpAToken,'POST',{p_request_id:randomUUID(),p_symbol:'FORBIDDEN',p_display:'Forbidden',p_image_url:'',p_location:'bank_one',p_price:1,p_quantity:1,p_executed_at:'2026-01-01'}),'MCP write RPC was not denied');
+    denied(await request('rpc/record_position_purchase',input.mcpAToken,'POST',{p_request_id:randomUUID(),p_symbol:'FORBIDDEN',p_display:'Forbidden',p_image_url:'',p_location:fixtures[0].investment_sources.id,p_price:1,p_quantity:1,p_executed_at:'2026-01-01'}),'MCP write RPC was not denied');
     denied(await request('rpc/server_get_credentials',input.mcpAToken,'POST',{p_user_id:a.userId}),'Private service-only RPC accessible to MCP');
     record('mcp_write_rpc_and_private_service_rpc_denied');
     phase='revocation';
