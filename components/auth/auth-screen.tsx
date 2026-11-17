@@ -16,14 +16,14 @@ import type { AuthScreenMode } from '@/types/auth';
 
 type ScreenError = 'sign-in' | 'request' | 'delivery' | 'password-mismatch' | 'reset-link';
 export type AuthScreenProps = {
-  configured: boolean; passwordEnabled?: boolean; googleEnabled?: boolean; emailDeliveryConfigured?: boolean;
+  configured: boolean; demoEnabled?: boolean; passwordEnabled?: boolean; googleEnabled?: boolean; emailDeliveryConfigured?: boolean;
   mode?: AuthScreenMode; initialLocale?: 'he' | 'en'; returnTo?: string;
   error?: boolean; verificationRequired?: boolean; callbackFailed?: boolean; verificationReturned?: boolean;
   resetToken?: string; resetLinkInvalid?: boolean;
   oauthQuery?: string | null;
 };
 
-export function AuthScreen({ configured, passwordEnabled = false, googleEnabled = false, emailDeliveryConfigured = false,
+export function AuthScreen({ configured, demoEnabled = false, passwordEnabled = false, googleEnabled = false, emailDeliveryConfigured = false,
   mode: requestedMode = 'sign-in', initialLocale = 'he', returnTo = '/', error, verificationRequired, callbackFailed,
   verificationReturned, resetToken: initialResetToken, resetLinkInvalid, oauthQuery = null }: AuthScreenProps) {
   const mode = passwordEnabled ? requestedMode : 'sign-in';
@@ -143,6 +143,7 @@ export function AuthScreen({ configured, passwordEnabled = false, googleEnabled 
       {passwordEnabled && verificationRequired && <p role="alert" className="rounded-xl bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-text)]">{he ? 'לפני פתיחת התיק יש לאמת את כתובת הדוא״ל דרך ההודעה שנשלחה אליך.' : 'Verify your email using the message sent to you before opening your portfolio.'}</p>}
       {passwordEnabled && verificationReturned && !success && <p role="status" className="text-sm leading-6 text-muted-foreground">{he ? 'לאחר אימות כתובת הדוא״ל אפשר להתחבר לחשבון.' : 'Once your email is verified, you can sign in to your account.'}</p>}
       {formError && <p role="alert" className="text-sm leading-6 text-[var(--color-red-600)]">{errorText}</p>}
+      {mode === 'sign-in' && demoEnabled && <div className="space-y-2"><Button type="button" variant="outline" className="w-full" disabled={busy} onClick={async () => { setBusy(true); try { const response = await fetch('/api/local-demo', { method: 'POST', credentials: 'same-origin' }); if (!response.ok) throw new Error('Demo unavailable'); clearBrowserAccount('session'); window.location.assign('/'); } catch { setFormError('request'); setBusy(false); } }}>{he ? 'כניסה לחשבון דמו' : 'Explore demo account'}</Button><p className="text-xs leading-5 text-muted-foreground">{he ? 'נתוני הדגמה בלבד, ללא חיבור לתיק האישי. הדמו זמין בהרצה מקומית.' : 'Sample data only, separate from your personal portfolio. Available locally.'}</p></div>}
       {!configured && <p role="status" className="rounded-xl bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-text)]">{he ? 'ההתחברות עדיין אינה מוגדרת בסביבה זו. אפשר לחזור לאחר השלמת ההגדרה.' : 'Sign-in is not configured in this environment yet. Please return after setup is complete.'}</p>}
       {configured && !passwordEnabled && !googleEnabled && <p role="status" className="text-sm leading-6 text-muted-foreground">{he ? 'כניסה עם Google אינה זמינה כרגע. אפשר לנסות שוב מאוחר יותר.' : 'Google sign-in is currently unavailable. Please try again later.'}</p>}
       {configured && needsDelivery && !emailDeliveryConfigured && <p role="status" className="rounded-xl bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-text)]">{he ? 'שליחת דוא״ל עדיין אינה זמינה. הרשמה ואימות באמצעות דוא״ל יתאפשרו לאחר הפעלתה.' : 'Email delivery is not available yet. Email registration and verification will be available once it is enabled.'}</p>}

@@ -31,9 +31,21 @@ describe('own-origin auth configuration', () => {
     configured(); vi.stubEnv('APP_BASE_URL', value); expect(() => betterAuthConfiguration()).toThrow();
   });
   it('rejects shared web/MCP client identities', () => { configured(); vi.stubEnv('BETTER_AUTH_WEBSITE_CLIENT_ID', config.mcpClientId); expect(() => betterAuthConfiguration()).toThrow(); });
+  it('uses a local browser origin without changing registered database trust', () => {
+    configured(); vi.stubEnv('NODE_ENV', 'development'); vi.stubEnv('LOCAL_AUTH_ORIGIN', 'http://localhost:3001');
+    expect(betterAuthConfiguration()).toMatchObject({ origin: 'http://localhost:3001', issuer: `${origin}/api/auth`, websiteAudience: `${origin}/api/web`, mcpAudience: config.mcpAudience });
+  });
+  it.each(['https://localhost:3001', 'http://evil.example:3001', 'http://localhost:3001/path', 'http://user:pass@localhost:3001', 'http://localhost:3001?x=1'])('rejects unsafe local browser origin %s', value => {
+    configured(); vi.stubEnv('NODE_ENV', 'development'); vi.stubEnv('LOCAL_AUTH_ORIGIN', value);
+    expect(() => betterAuthConfiguration()).toThrow();
+  });
+  it.each(['production', 'test'])('rejects local origin overrides outside development (%s)', value => {
+    configured(); vi.stubEnv('NODE_ENV', value); vi.stubEnv('LOCAL_AUTH_ORIGIN', 'http://localhost:3001');
+    expect(() => betterAuthConfiguration()).toThrow();
+  });
   it('public options contain booleans only and do not require a database call', () => {
     configured(); vi.stubEnv('SMTP_PASSWORD', ''); vi.stubEnv('GOOGLE_CLIENT_ID', '');
-    expect(getAuthPublicOptions()).toEqual({ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false });
+    expect(getAuthPublicOptions()).toEqual({ configured: true, passwordEnabled: true, googleEnabled: false, emailDeliveryConfigured: false, demoEnabled: false });
   });
   it('refuses a privileged database role', () => {
     configured(); expect(() => createAuthPool({ ...betterAuthConfiguration(), databaseUrl: 'postgresql://postgres@127.0.0.1/dummy' })).toThrow('dedicated database role');

@@ -9,6 +9,7 @@ import { SignIn } from './sign-in';
 import { isPublicAuthPath, isPublicInformationPath } from '@/lib/public-routes';
 import { authClient } from '@/lib/auth/better-auth-client';
 import { authNavigation, clearBrowserAccount } from '@/lib/auth/browser-session';
+import { DEMO_USER_ID } from '@/lib/demo/data';
 import { Button } from '@/components/ui/button';
 import type { AuthPublicOptions } from '@/types/auth';
 
@@ -44,6 +45,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   const currentSession = useRef<AccountSession | null>(null);
   const pendingRequest = useRef<AbortController | null>(null);
   const signingOut = useRef(false);
+  const demoSignOutPending = useRef(false);
   const [signOutState, setSignOutState] = useState<'idle' | 'pending' | 'failed'>('idle');
 
   const acceptSession = useCallback((value: AccountSession) => {
@@ -138,6 +140,8 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   }, [revalidate, acceptSession]);
 
   const signOut = useCallback(async () => {
+    const isDemo = demoSignOutPending.current || currentSession.current?.user?.id === DEMO_USER_ID;
+    demoSignOutPending.current = isDemo;
     signingOut.current = true;
     setSignOutState('pending');
     pendingRequest.current?.abort();
@@ -145,6 +149,12 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
     clearBrowserAccount('logout');
     acceptSession({ user: null, configured: true });
     try {
+      if (process.env.NODE_ENV === 'development' && isDemo) {
+        const response = await fetch('/api/local-demo', { method: 'DELETE', credentials: 'same-origin' });
+        if (!response.ok) throw new Error('Demo sign-out failed');
+        authNavigation.assign('/sign-in');
+        return;
+      }
       const result = await authClient.signOut();
       if (result.error) throw new Error('Sign-out failed');
       authNavigation.assign('/sign-in');
@@ -158,6 +168,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>
     <AppProvider key={`${session.user.id}:${generation}`}>
+      {session.user.id === DEMO_USER_ID && <div role="status" className="sticky top-0 z-50 flex items-center justify-center gap-4 bg-amber-100 px-4 py-2 text-sm text-amber-950" dir="rtl"><span>חשבון דמו · נתונים סינתטיים להמחשה בלבד · תצוגה בלבד</span><button type="button" className="underline" onClick={() => { void signOut(); }}>יציאה מהדמו</button></div>}
       <StockNavigationProvider>{children}</StockNavigationProvider>
     </AppProvider>
   </AuthContext.Provider>;

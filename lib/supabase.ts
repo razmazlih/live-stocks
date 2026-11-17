@@ -1,3 +1,4 @@
+import { DEMO_USER_ID } from '@/lib/demo/data';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type SupabaseInstance = SupabaseClient<any, any, any>;
@@ -42,6 +43,11 @@ export function getSupabaseClient(): SupabaseInstance {
   }
   if (!currentUserId) throw new Error('A signed-in account is required.');
   if (cachedClient) return cachedClient;
+
+  if (process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
+    cachedClient = createClient(`${window.location.origin}/api/local-demo`, 'local-demo-public-placeholder', { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    return cachedClient;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

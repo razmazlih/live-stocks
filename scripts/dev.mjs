@@ -1,0 +1,22 @@
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import net from 'node:net';
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env');
+loadEnvConfig(process.cwd(), true);
+const args = process.argv.slice(2);
+const option = (long, short) => { const index = args.findIndex(value => value === long || value === short || value.startsWith(`${long}=`));return index < 0 ? undefined : args[index].includes('=') ? args[index].split('=')[1] : args[index + 1]; };
+const explicitPort = option('--port', '-p') ?? process.env.PORT;
+const hostname = option('--hostname', '-H') ?? 'localhost';
+if (!['localhost', '127.0.0.1', '::1'].includes(hostname)) throw new Error('Local development authentication requires a loopback hostname.');
+let port = Number(explicitPort ?? 3000);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid development port.');
+const availableOn = (candidate, host) => new Promise((resolve, reject) => {const server = net.createServer();server.once('error', error => error.code === 'EADDRINUSE' ? resolve(false) : ['EADDRNOTAVAIL', 'EAFNOSUPPORT'].includes(error.code) ? resolve(true) : reject(error));server.listen(candidate, host, () => server.close(() => resolve(true)));});
+const available = async candidate => { for (const host of new Set([hostname, '127.0.0.1', '::1'])) { if (!(await availableOn(candidate, host))) return false; } return true; };
+while (!(await available(port))) { if (explicitPort) throw new Error(`Port ${port} is already in use.`);if (++port > 65535) throw new Error('No available local port.'); }
+const origin = `http://${hostname === '::1' ? '[::1]' : hostname}:${port}`;
+console.log(`LiveStocks local: ${origin} (isolated read-only demo available)`);
+const forwarded = args.filter((value, index) => !['--port','-p','--hostname','-H'].includes(value) && !value.startsWith('--port=') && !value.startsWith('--hostname=') && !['--port','-p','--hostname','-H'].includes(args[index - 1]));
+const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--hostname', hostname, '--port', String(port), ...forwarded], {stdio:'inherit', env:{...process.env, NODE_ENV:'development', LOCAL_AUTH_ORIGIN:origin}});
+for (const signal of ['SIGINT','SIGTERM']) process.on(signal, () => child.kill(signal));
+child.on('exit', (code, signal) => { if (signal) process.kill(process.pid, signal);else process.exit(code ?? 1); });

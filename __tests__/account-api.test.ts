@@ -19,7 +19,7 @@ vi.mock('@/lib/auth/server', async (importOriginal) => {
   return { ...original, requireWebPrincipal: mocks.principal, bootstrapWebAccount: mocks.bootstrap };
 });
 
-import { AuthenticationError } from '@/lib/auth/server';
+import { AuthenticationError, requireSameOrigin } from '@/lib/auth/server';
 import { GET as getCredentials, PUT as putCredentials, DELETE as deleteCredentials } from '@/app/api/account/credentials/route';
 import { GET as getConnections } from '@/app/api/account/connections/route';
 import { POST as updateMcp } from '@/app/api/account/connections/mcp/route';
@@ -282,5 +282,28 @@ describe('isolated widget summary access', () => {
     expect(response.status).toBe(401);
     expect(mocks.buildPortfolio).toHaveBeenCalledOnce();
     expect(await response.text()).not.toContain('totalCurrentPnLUsd');
+  });
+});
+
+
+describe('local browser origin with canonical authentication', () => {
+  function localConfig() {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('LOCAL_AUTH_ORIGIN', 'http://localhost:3001');
+    vi.stubEnv('BETTER_AUTH_SECRET', 's'.repeat(48));
+    vi.stubEnv('BETTER_AUTH_DATABASE_URL', 'postgresql://livestocks_auth_backend@localhost/test');
+    vi.stubEnv('BETTER_AUTH_WEBSITE_CLIENT_ID', 'website-local-test');
+    vi.stubEnv('BETTER_AUTH_MCP_CLIENT_ID', 'mcp-local-test');
+  }
+  it('accepts only the validated local browser origin for local mutations', () => {
+    localConfig();
+    expect(() => requireSameOrigin(request('POST', {}, { origin: 'http://localhost:3001' }))).not.toThrow();
+    expect(() => requireSameOrigin(request('POST'))).toThrow(AuthenticationError);
+    expect(() => requireSameOrigin(request('POST', {}, { origin: 'http://localhost:3002' }))).toThrow(AuthenticationError);
+    expect(() => requireSameOrigin(request('POST', {}, { origin: 'http://localhost:3001', 'sec-fetch-site': 'cross-site' }))).toThrow(AuthenticationError);
+  });
+  it('rejects a local origin override in production', () => {
+    localConfig(); vi.stubEnv('NODE_ENV', 'production');
+    expect(() => requireSameOrigin(request('POST', {}, { origin: 'http://localhost:3001' }))).toThrow();
   });
 });

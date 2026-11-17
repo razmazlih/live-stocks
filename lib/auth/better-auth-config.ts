@@ -18,7 +18,19 @@ export function betterAuthConfiguration(): BetterAuthConfiguration {
   for (const id of [BETTER_AUTH_WEBSITE_CLIENT_ID, BETTER_AUTH_MCP_CLIENT_ID]) {
     if (!/^[a-zA-Z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid authentication client identifier');
   }
-  return { origin: url.origin, issuer: `${url.origin}/api/auth`, websiteAudience: `${url.origin}/api/web`,
+  // Development may serve browser cookies locally while retaining the database's
+  // registered issuer, audiences and identity mappings. Never derive trust from Host.
+  let browserOrigin = url.origin;
+  if (process.env.LOCAL_AUTH_ORIGIN) {
+    const browser = new URL(process.env.LOCAL_AUTH_ORIGIN);
+    if (process.env.NODE_ENV !== 'development' || browser.protocol !== 'http:'
+      || !['localhost', '127.0.0.1', '[::1]'].includes(browser.hostname)
+      || browser.username || browser.password || browser.search || browser.hash || browser.pathname !== '/') {
+      throw new Error('Local authentication origin requires development and an HTTP loopback origin');
+    }
+    browserOrigin = browser.origin;
+  }
+  return { origin: browserOrigin, issuer: `${url.origin}/api/auth`, websiteAudience: `${url.origin}/api/web`,
     mcpAudience: `${url.origin}/api/mcp`, websiteClientId: BETTER_AUTH_WEBSITE_CLIENT_ID,
     mcpClientId: BETTER_AUTH_MCP_CLIENT_ID, secret: BETTER_AUTH_SECRET, databaseUrl: BETTER_AUTH_DATABASE_URL };
 }
@@ -38,7 +50,7 @@ export function isPasswordAuthPath(path: string): boolean { return PASSWORD_AUTH
 export function getAuthPublicOptions() {
   let configured = false;
   try { betterAuthConfiguration(); configured = true; } catch { /* Public pages render while setup is incomplete. */ }
-  return { configured, passwordEnabled: isPasswordAuthEnabled(),
+  return { configured, demoEnabled: process.env.NODE_ENV === 'development', passwordEnabled: isPasswordAuthEnabled(),
     googleEnabled: configured && Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     emailDeliveryConfigured: isPasswordAuthEnabled() && getAuthSmtpPort() !== null && Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
   };

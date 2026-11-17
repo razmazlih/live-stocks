@@ -1,3 +1,4 @@
+import { hasLocalDemoSession, demoApiResponse } from '@/lib/demo/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBetterAuthSession } from '@/lib/auth/better-auth';
 import { isPublicInformationPath, isPublicAuthPath } from '@/lib/public-routes';
@@ -8,6 +9,10 @@ export async function proxy(request: NextRequest) {
   const maintenance = maintenanceResponse(request);
   if (maintenance) return maintenance;
   const pathname = request.nextUrl.pathname;
+  if (hasLocalDemoSession(request) && pathname !== '/api/local-demo') {
+    if (pathname.startsWith('/api/')) return demoApiResponse(request);
+    if (!pathname.startsWith('/oauth/') && !pathname.startsWith('/account/')) return NextResponse.next();
+  }
   // APIs verify their own web, MCP, or widget credentials at the route boundary.
   if (pathname.startsWith('/api/') || pathname.startsWith('/.well-known/')) return NextResponse.next();
 

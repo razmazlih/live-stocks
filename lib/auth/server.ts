@@ -149,7 +149,7 @@ export function authenticationResponse(error: unknown): Response | null {
 
 export function requireSameOrigin(request: Request): void {
   const origin = request.headers.get('origin');
-  const expected = process.env.APP_BASE_URL;
+  const expected = process.env.LOCAL_AUTH_ORIGIN ? betterAuthConfiguration().origin : process.env.APP_BASE_URL;
   if (!expected || !origin || origin !== new URL(expected).origin || request.headers.get('sec-fetch-site') === 'cross-site') {
     throw new AuthenticationError(403, 'Request origin is not allowed');
   }
