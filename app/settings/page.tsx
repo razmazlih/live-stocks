@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/lib/context";
+import { useAuth } from "@/components/auth/auth-provider";
+import { DEMO_USER_ID } from "@/lib/demo/data";
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,11 @@ import { AppearanceSettings } from "@/components/settings/appearance-settings";
 export default function SettingsPage() {
   const { locale, setLocale, settings, setSettings } = useApp();
   const { t } = useTranslation(locale);
+  const { user } = useAuth();
+  const isDemo = user.id === DEMO_USER_ID;
+  const demoMessage = locale === "he"
+    ? "חשבון הדמו הוא לתצוגה בלבד. לא ניתן לשמור בו הגדרות תיק. שפה ומראה ניתנים לשינוי במכשיר הזה."
+    : "The demo is read-only. Portfolio settings cannot be saved. Language and appearance can still be changed on this device.";
   const [formData, setFormData] = useState(settings);
   const [saving, setSaving] = useState(false);
   const marketOpen = isNasdaqTradingHours();
@@ -118,15 +125,21 @@ export default function SettingsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isDemo) {
+      toast.info(demoMessage);
+      return;
+    }
     setSaving(true);
 
     try {
       const supabase = getSupabaseClient();
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from("settings")
         .select("id")
         .eq("is_active", true)
         .maybeSingle();
+
+      if (lookupError) throw lookupError;
 
       if (existing) {
         const { error } = await supabase
@@ -177,11 +190,19 @@ export default function SettingsPage() {
         />
 
         <DashboardMain>
-          <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />
+          {isDemo ? (
+            <DashboardSurface>
+              <h2 className="text-lg font-semibold">{locale === "he" ? "חשבון דמו" : "Demo account"}</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{locale === "he"
+                ? "תיק הדגמה עם נתונים סינתטיים. חיבורי חשבון, מפתחות אישיים וניהול מקורות השקעה זמינים בחשבון אישי."
+                : "A sample portfolio with synthetic data. Account connections, personal keys and investment source management are available in a personal account."}</p>
+            </DashboardSurface>
+          ) : <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />}
           <AppearanceSettings locale={locale} />
-          <InvestmentSourceSettings locale={locale} />
+          {!isDemo && <InvestmentSourceSettings locale={locale} />}
           <DashboardSurface>
               <form onSubmit={handleSubmit} className="space-y-8">
+                {isDemo && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">{demoMessage}</p>}
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="growthRate">
@@ -189,6 +210,7 @@ export default function SettingsPage() {
                     </Label>
                     <Input
                       id="growthRate"
+                      disabled={isDemo}
                       type="number"
                       step="0.01"
                       min="0"
@@ -211,6 +233,7 @@ export default function SettingsPage() {
                     <Label htmlFor="currency">{t.settings.currency}</Label>
                     <Select
                       value={formData.currency}
+                      disabled={isDemo}
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
@@ -269,7 +292,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button type="submit" disabled={saving}>
+                  <Button type="submit" disabled={saving || isDemo}>
                     {saving
                       ? locale === "he"
                         ? "שומר..."
