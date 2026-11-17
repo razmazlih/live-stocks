@@ -167,8 +167,8 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   if (!session) return <main className="flex min-h-screen items-center justify-center"><p role="status">LiveStocks · טוען / Loading…</p></main>;
   if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>
-    <AppProvider key={`${session.user.id}:${generation}`}>
-      {session.user.id === DEMO_USER_ID && <div role="status" className="sticky top-0 z-50 flex items-center justify-center gap-4 bg-amber-100 px-4 py-2 text-sm text-amber-950" dir="rtl"><span>חשבון דמו · נתונים סינתטיים להמחשה בלבד · תצוגה בלבד</span><button type="button" className="underline" onClick={() => { void signOut(); }}>יציאה מהדמו</button></div>}
+    <AppProvider key={`${session.user.id}:${generation}`} demo={session.user.id === DEMO_USER_ID}>
+      {session.user.id === DEMO_USER_ID && <div role="status" className="sticky top-0 z-50 flex items-center justify-center gap-4 bg-amber-100 px-4 py-2 text-sm text-amber-950" dir="rtl"><span>חשבון דמו · נתונים סינתטיים · הגדרות נשמרות בדפדפן בלבד</span><button type="button" className="underline" onClick={() => { void signOut(); }}>יציאה מהדמו</button></div>}
       <StockNavigationProvider>{children}</StockNavigationProvider>
     </AppProvider>
   </AuthContext.Provider>;

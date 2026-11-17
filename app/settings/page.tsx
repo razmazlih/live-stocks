@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useApp } from "@/lib/context";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DEMO_USER_ID } from "@/lib/demo/data";
+import { readDemoSettings, saveDemoSettings } from "@/lib/demo/settings";
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,8 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const isDemo = user.id === DEMO_USER_ID;
   const demoMessage = locale === "he"
-    ? "חשבון הדמו הוא לתצוגה בלבד. לא ניתן לשמור בו הגדרות תיק. שפה ומראה ניתנים לשינוי במכשיר הזה."
-    : "The demo is read-only. Portfolio settings cannot be saved. Language and appearance can still be changed on this device.";
+    ? "הגדרות הדמו נשמרות רק בדפדפן הזה, גם להפעלה הבאה של הדמו, ואינן משפיעות על החשבון האישי."
+    : "Demo settings are saved only in this browser for your next visit and do not affect your personal account.";
   const [formData, setFormData] = useState(settings);
   const [saving, setSaving] = useState(false);
   const marketOpen = isNasdaqTradingHours();
@@ -89,10 +90,11 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  async function loadSettings() {
+    async function loadSettings() {
+    if (isDemo) {
+      setFormData(previous => readDemoSettings() ?? previous);
+      return;
+    }
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
@@ -114,7 +116,9 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("Error loading settings:", error);
     }
-  }
+    }
+    void loadSettings();
+  }, [isDemo]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -125,13 +129,15 @@ export default function SettingsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isDemo) {
-      toast.info(demoMessage);
-      return;
-    }
     setSaving(true);
 
     try {
+      if (isDemo) {
+        saveDemoSettings(formData);
+        setSettings(formData);
+        toast.success(locale === "he" ? "הגדרות הדמו נשמרו בדפדפן להפעלה הבאה" : "Demo settings saved in this browser for your next visit");
+        return;
+      }
       const supabase = getSupabaseClient();
       const { data: existing, error: lookupError } = await supabase
         .from("settings")
@@ -210,7 +216,6 @@ export default function SettingsPage() {
                     </Label>
                     <Input
                       id="growthRate"
-                      disabled={isDemo}
                       type="number"
                       step="0.01"
                       min="0"
@@ -233,7 +238,6 @@ export default function SettingsPage() {
                     <Label htmlFor="currency">{t.settings.currency}</Label>
                     <Select
                       value={formData.currency}
-                      disabled={isDemo}
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
@@ -292,7 +296,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button type="submit" disabled={saving || isDemo}>
+                  <Button type="submit" disabled={saving}>
                     {saving
                       ? locale === "he"
                         ? "שומר..."

@@ -22,9 +22,11 @@ vi.mock('@/components/dashboard/page-primitives', () => {
   return { DashboardContainer: Container, DashboardMain: Container, DashboardSurface: Container };
 });
 import SettingsPage from '@/app/settings/page';
+import { DEMO_SETTINGS_KEY, readDemoSettings } from '@/lib/demo/settings';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   mocks.user.id = 'local-demo-account';
   mocks.single.mockResolvedValue({ data: { id: 'settings-1', annual_growth_rate: 0.05, currency: 'USD', refresh_interval: 60 }, error: null });
   const chain = { select: vi.fn(), eq: vi.fn(), maybeSingle: mocks.single, update: mocks.update, insert: mocks.insert };
@@ -39,28 +41,55 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 async function openSettings() {
   const view = render(<SettingsPage />);
-  await waitFor(() => expect(mocks.single).toHaveBeenCalledTimes(1));
+  if (mocks.user.id !== 'local-demo-account') await waitFor(() => expect(mocks.single).toHaveBeenCalledTimes(1));
   return view;
 }
 
-describe('settings in the read-only demo', () => {
-  it('disables account changes and explains why saving is unavailable', async () => {
-    await openSettings();
-    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
-    expect(document.getElementById('growthRate')).toBeDisabled();
-    expect(document.getElementById('currency')).toBeDisabled();
-    expect(screen.getByText(/demo.*read.only|read.only.*demo/i)).toBeInTheDocument();
-    expect(document.getElementById('language')).not.toBeDisabled();
+describe('locally persisted demo settings', () => {
+  it.each(['broken json', JSON.stringify({ annualGrowthRate: -1, currency: 'USD', refreshInterval: 60 }), JSON.stringify({ annualGrowthRate: 0.05, currency: 'EUR', refreshInterval: 60 })])('ignores corrupt or invalid stored settings: %s', (value) => {
+    localStorage.setItem(DEMO_SETTINGS_KEY, value);
+    expect(readDemoSettings()).toBeNull();
   });
 
-  it('blocks direct form submissions before any write or save lookup', async () => {
-    const view = await openSettings();
-    fireEvent.submit(view.container.querySelector('form')!);
-    expect(mocks.single).toHaveBeenCalledTimes(1);
+  it('allows editing and restores saved demo settings after remount without database requests', async () => {
+    await openSettings();
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled();
+    expect(document.getElementById('growthRate')).toBeEnabled();
+    expect(document.getElementById('currency')).toBeEnabled();
+    expect(document.getElementById('language')).toBeEnabled();
+    fireEvent.change(document.getElementById('growthRate')!, { target: { value: '0.08' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(mocks.success).toHaveBeenCalled());
+    expect(JSON.parse(localStorage.getItem(DEMO_SETTINGS_KEY)!)).toEqual(expect.objectContaining({ annualGrowthRate: 0.08 }));
+    expect(mocks.setSettings).toHaveBeenCalledWith(expect.objectContaining({ annualGrowthRate: 0.08 }));
+    cleanup();
+    await openSettings();
+    await waitFor(() => expect(document.getElementById('growthRate')).toHaveValue(0.08));
+    expect(mocks.getClient).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('does not apply stored demo settings to a real account', async () => {
+    const demoSettings = { annualGrowthRate: 0.12, currency: 'ILS', refreshInterval: 60 };
+    localStorage.setItem(DEMO_SETTINGS_KEY, JSON.stringify(demoSettings));
+    mocks.user.id = 'real-account';
+    await openSettings();
+    await waitFor(() => expect(document.getElementById('growthRate')).toHaveValue(0.05));
+    expect(document.getElementById('currency')).toHaveTextContent('USD');
+    expect(JSON.parse(localStorage.getItem(DEMO_SETTINGS_KEY)!)).toEqual(demoSettings);
+  });
+
+  it('reports a failed local save without changing settings or claiming success', async () => {
+    await openSettings();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage unavailable'); });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    fireEvent.change(document.getElementById('growthRate')!, { target: { value: '0.08' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(mocks.success).not.toHaveBeenCalled();
     expect(mocks.setSettings).not.toHaveBeenCalled();
-    expect(mocks.error).not.toHaveBeenCalled();
+    expect(mocks.getClient).not.toHaveBeenCalled();
   });
 
   it('still saves changes for a real account', async () => {

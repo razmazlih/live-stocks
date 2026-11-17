@@ -13,6 +13,7 @@ import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
+import { readDemoSettings } from '@/lib/demo/settings';
 
 interface AppContextType {
   locale: Locale;
@@ -26,7 +27,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, demo = false }: { children: ReactNode; demo?: boolean }) {
   const [locale, setLocale] = useState<Locale>('he');
   const [settings, setSettings] = useState<Settings>({
     annualGrowthRate: parseFloat(process.env.DEFAULT_GROWTH_RATE || '0.05'),
@@ -40,13 +41,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const initializeSettings = async () => {
-      const savedLocale = localStorage.getItem('locale') as Locale;
+      const savedLocale = localStorage.getItem(demo ? 'livestocks:demo:locale:v1' : 'locale') as Locale;
       if (savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
         setLocale(savedLocale);
       }
 
       // Delete the legacy shared credential cache; personal settings are database-owned.
       localStorage.removeItem('settings');
+
+      if (demo) {
+        const saved = readDemoSettings();
+        if (saved && !cancelled) setSettings(saved);
+        if (!cancelled) setSettingsReady(true);
+        return;
+      }
 
       try {
         const supabase = getSupabaseClient();
@@ -81,13 +89,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demo]);
 
   useEffect(() => {
-    localStorage.setItem('locale', locale);
+    localStorage.setItem(demo ? 'livestocks:demo:locale:v1' : 'locale', locale);
     document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
-  }, [locale]);
+  }, [locale, demo]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
