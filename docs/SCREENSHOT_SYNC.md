@@ -1,4 +1,8 @@
-# Screenshot reconciliation
+# Screenshot reconciliation — historical archive
+
+**Current status — retired on 16 November 2026:** screenshot balance reconciliation is disabled in MCP discovery, server write paths and database mutation functions, including previously pending cards. Read/cancel access and historical records remain. Record already-executed BUY/SELL transactions through [the current transaction flow](CHAT_TRANSACTIONS.md), with actual execution details, a known commission or explicit zero-fee confirmation, separate `portfolio:transactions` consent and a user click on the review card. Holdings-only screenshots cannot establish missing trades.
+
+The rest of this document preserves historical design, release and verification evidence. Its former activation and confirmation instructions are archival, not current operating instructions. See [current permissions and release status](CHAT_TRANSACTION_AUTH.md).
 
 **Verified in actual ChatGPT on source `2c9b845`:** screenshot extraction, modern review, explicit confirmation, safe idempotent retry and authoritative portfolio readback passed with synthetic accounts. [Latest acceptance evidence](verification/chat-sync-chatgpt-acceptance-2026-11-16.json) supersedes the historical blocked attempt below. Work-mode rendering and explicit cancellation also passed without changing either synthetic portfolio. The temporary test connection was uninstalled; the disposable database, app, tunnel and credential page were stopped/removed, and their ports were verified closed.
 

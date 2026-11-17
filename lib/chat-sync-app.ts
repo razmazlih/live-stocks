@@ -103,7 +103,7 @@ function accept(result){
   }
   if(value.status==='cancelled'){
     if(typeof value.proposalId!=='string'||(data&&value.proposalId!==data.proposalId))return;
-    phase('cancelled');text('headline','השארנו הכול כמו שהיה');text('eyebrow','העדכון בוטל');text('summary-state','לא שינינו כלום');completed=true;confirmationSecret='';text('error','');text('status','לא עדכנו שום דבר בתיק. אפשר לשלוח צילום חדש מתי שתרצה.');controls();size();return;
+    phase('cancelled');text('headline','השארנו הכול כמו שהיה');text('eyebrow','העדכון בוטל');text('summary-state','לא שינינו כלום');completed=true;confirmationSecret='';text('error','');text('status','לא עדכנו שום דבר בתיק. אפשר להכין בקשה חדשה בצ׳אט.');controls();size();return;
   }
   if(value.status==='unchanged'||value.status==='needs_details'){
     generation+=1;data=null;confirmationSecret='';busy=false;completed=true;phase(value.status);el('review').hidden=true;el('portfolio').hidden=true;el('toggle-review').hidden=true;text('error','');el('status').className='';text('headline',value.status==='unchanged'?'הכול כבר תואם':'חסר לנו עוד פרט');

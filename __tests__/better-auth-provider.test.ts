@@ -90,6 +90,18 @@ describe('MCP authorization boundary', () => {
 });
 
 describe('authentication email delivery', () => {
+  it.each(['', 'smtp', '0', '-1', '65536', '587.5', '5.87e2', '0x24b'])('does not advertise delivery or create a transport with invalid SMTP port %s', async port => {
+    configured();
+    for (const [key, value] of Object.entries({ SMTP_HOST: 'smtp.example.invalid', SMTP_PORT: port, SMTP_FROM: 'no-reply@example.invalid', SMTP_USER: 'dummy', SMTP_PASSWORD: 'private-test-value' })) vi.stubEnv(key, value);
+    expect(getAuthPublicOptions().emailDeliveryConfigured).toBe(false);
+    await expect(sendAuthEmail('dummy@example.invalid', 'https://example.invalid/verify', 'verify')).rejects.toBeInstanceOf(AuthEmailUnavailable);
+    expect(nodemailer.createTransport).not.toHaveBeenCalled();
+  });
+  it.each(['465', '587', ' 587 ', '65535'])('recognizes a configured SMTP port %s', port => {
+    configured();
+    for (const [key, value] of Object.entries({ SMTP_HOST: 'smtp.example.invalid', SMTP_PORT: port, SMTP_FROM: 'no-reply@example.invalid', SMTP_USER: 'dummy', SMTP_PASSWORD: 'private-test-value' })) vi.stubEnv(key, value);
+    expect(getAuthPublicOptions().emailDeliveryConfigured).toBe(true);
+  });
   it('fails before transport creation when SMTP is absent', async () => {
     vi.stubEnv('SMTP_HOST', ''); await expect(sendAuthEmail('dummy@example.invalid', 'https://example.invalid/verify', 'verify')).rejects.toBeInstanceOf(AuthEmailUnavailable);
     expect(nodemailer.createTransport).not.toHaveBeenCalled();

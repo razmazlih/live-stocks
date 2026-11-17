@@ -1,6 +1,6 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
-import { getAuthPublicOptions } from './better-auth-config';
+import { getAuthPublicOptions, getAuthSmtpPort } from './better-auth-config';
 
 export class AuthEmailUnavailable extends Error {
   constructor() { super('Email delivery is unavailable'); this.name = 'AuthEmailUnavailable'; }
@@ -13,8 +13,8 @@ export function requireAuthEmailConfiguration(): void {
 /** Provider-agnostic SMTP. Neither mail URLs nor credentials are logged. */
 export async function sendAuthEmail(to: string, url: string, purpose: 'verify' | 'reset'): Promise<void> {
   requireAuthEmailConfiguration();
-  const port = Number(process.env.SMTP_PORT);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new AuthEmailUnavailable();
+  const port = getAuthSmtpPort();
+  if (port === null) throw new AuthEmailUnavailable();
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
   const transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST!, port, secure, requireTLS: !secure,
