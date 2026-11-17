@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { demoAssets, demoAsset, demoQuote } from './assets';
 import { DEMO_COOKIE, demoDashboard, demoTable, demoUser } from './data';
 
 export function localDemoEnabled() { return process.env.NODE_ENV === 'development'; }
@@ -9,7 +10,19 @@ export function hasLocalDemoSession(request: NextRequest) {
 const headers = { 'Cache-Control': 'private, no-store' };
 export function demoApiResponse(request: NextRequest): NextResponse {
   const path = request.nextUrl.pathname;
-  if (request.method !== 'GET') return NextResponse.json({ error: 'חשבון הדמו הוא לתצוגה בלבד. / Demo is read-only.', message: 'חשבון הדמו הוא לתצוגה בלבד. / Demo is read-only.', code: 'DEMO_READ_ONLY' }, { status: 403, headers });
+  if (request.method !== 'GET') return NextResponse.json({ error: 'שינויים בדמו נשמרים בדפדפן בלבד, ולא בשרת. / Demo changes are saved only in your browser, never on the server.', message: 'שינויים בדמו נשמרים בדפדפן בלבד, ולא בשרת. / Demo changes are saved only in your browser, never on the server.', code: 'DEMO_READ_ONLY' }, { status: 403, headers });
+  if (path === '/api/assets') {
+    const symbol = request.nextUrl.searchParams.get('symbol')?.trim().toUpperCase();
+    if (symbol) return NextResponse.json(demoAsset(symbol) ?? { error: 'No demo profile found' }, { status: demoAsset(symbol) ? 200 : 404, headers });
+    const query = (request.nextUrl.searchParams.get('q') ?? '').trim().toUpperCase();
+    return NextResponse.json({ results: demoAssets.filter(asset => `${asset.symbol} ${asset.display}`.toUpperCase().includes(query))
+      .map(asset => demoAsset(asset.symbol)) }, { headers });
+  }
+  if (path === '/api/quote') {
+    const symbol = request.nextUrl.searchParams.get('symbol')?.trim().toUpperCase();
+    return symbol && demoAsset(symbol) ? NextResponse.json(demoQuote(symbol), { headers })
+      : NextResponse.json({ error: 'No synthetic quote for this symbol; enter a price manually.' }, { status: 404, headers });
+  }
   if (path === '/api/account/session') return NextResponse.json({ configured: true, user: demoUser }, { headers });
   if (path === '/api/portfolio/dashboard') return NextResponse.json(demoDashboard(), { headers });
   if (path.startsWith('/api/local-demo/rest/v1/')) {

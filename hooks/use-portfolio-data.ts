@@ -3,6 +3,7 @@
 import { createContext, createElement, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useApp } from '@/lib/context';
+import { getLocalDemoDashboard } from '@/lib/supabase';
 import {
   computeRealizedSalesWithFx,
   expandPositionActivations,
@@ -352,12 +353,14 @@ function usePortfolioDataState() {
         params.set('forceQuoteRefresh', '1');
       }
       const query = params.toString();
-      const response = await fetch(`/api/portfolio/dashboard${query ? `?${query}` : ''}`, { signal: controller.signal });
-      if (!response.ok) {
-        throw new Error(`Dashboard request failed: HTTP ${response.status}`);
+      const localPayload = getLocalDemoDashboard();
+      let payload: PortfolioDashboardPayload;
+      if (localPayload) payload = localPayload;
+      else {
+        const response = await fetch(`/api/portfolio/dashboard${query ? `?${query}` : ''}`, { signal: controller.signal });
+        if (!response.ok) throw new Error(`Dashboard request failed: HTTP ${response.status}`);
+        payload = (await response.json()) as PortfolioDashboardPayload;
       }
-
-      const payload = (await response.json()) as PortfolioDashboardPayload;
 
       const mappedPositions = Array.isArray(payload.positions) ? payload.positions : [];
       const activationPositions = Array.isArray(payload.activationPositions)

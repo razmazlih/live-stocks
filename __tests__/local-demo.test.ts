@@ -25,6 +25,13 @@ describe('isolated local demo', () => {
     vi.stubEnv('NODE_ENV', 'production');
     expect((await POST(request('http://localhost:3001/api/local-demo', 'POST', 'http://localhost:3001'))).status).toBe(404);
   });
+  it('serves synthetic asset lookup and price suggestions without an external provider', async () => {
+    const assets = await demoApiResponse(request('http://localhost:3001/api/assets?q=Tesla')).json();
+    expect(assets.results).toContainEqual({ symbol: 'TSLA', display: 'Tesla', imageUrl: '' });
+    const quote = await demoApiResponse(request('http://localhost:3001/api/quote?symbol=TSLA')).json();
+    expect(quote.c).toBe(260);
+    expect(demoApiResponse(request('http://localhost:3001/api/quote?symbol=UNKNOWN')).status).toBe(404);
+  });
   it('returns only synthetic portfolio rows and rejects all write/token endpoints', async () => {
     const dashboard = demoDashboard();
     expect(dashboard.positions).toHaveLength(3);

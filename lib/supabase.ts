@@ -1,4 +1,5 @@
 import { DEMO_USER_ID } from '@/lib/demo/data';
+import { createDemoFetch, localDemoDashboard } from '@/lib/demo/ledger';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type SupabaseInstance = SupabaseClient<any, any, any>;
@@ -37,6 +38,12 @@ export function configureSupabaseUser(userId: string | null) {
   currentUserId = userId;
 }
 
+export function getLocalDemoDashboard() {
+  return process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID
+    && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
+    ? localDemoDashboard() : null;
+}
+
 export function getSupabaseClient(): SupabaseInstance {
   if (typeof window === 'undefined') {
     throw new Error('The browser database client cannot be used on the server.');
@@ -45,7 +52,14 @@ export function getSupabaseClient(): SupabaseInstance {
   if (cachedClient) return cachedClient;
 
   if (process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
-    cachedClient = createClient(`${window.location.origin}/api/local-demo`, 'local-demo-public-placeholder', { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    const generation = sessionGeneration;
+    const assertCurrentSession = () => {
+      if (generation !== sessionGeneration || currentUserId !== DEMO_USER_ID) throw new Error('This demo session is no longer active.');
+    };
+    cachedClient = createClient(`${window.location.origin}/api/local-demo`, 'local-demo-public-placeholder', {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: createDemoFetch(assertCurrentSession) },
+    });
     return cachedClient;
   }
 

@@ -15,7 +15,7 @@ const availableOn = (candidate, host) => new Promise((resolve, reject) => {const
 const available = async candidate => { for (const host of new Set([hostname, '127.0.0.1', '::1'])) { if (!(await availableOn(candidate, host))) return false; } return true; };
 while (!(await available(port))) { if (explicitPort) throw new Error(`Port ${port} is already in use.`);if (++port > 65535) throw new Error('No available local port.'); }
 const origin = `http://${hostname === '::1' ? '[::1]' : hostname}:${port}`;
-console.log(`LiveStocks local: ${origin} (isolated read-only demo available)`);
+console.log(`LiveStocks local: ${origin} (isolated local demo available)`);
 const forwarded = args.filter((value, index) => !['--port','-p','--hostname','-H'].includes(value) && !value.startsWith('--port=') && !value.startsWith('--hostname=') && !['--port','-p','--hostname','-H'].includes(args[index - 1]));
 const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--hostname', hostname, '--port', String(port), ...forwarded], {stdio:'inherit', env:{...process.env, NODE_ENV:'development', LOCAL_AUTH_ORIGIN:origin}});
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, () => child.kill(signal));
