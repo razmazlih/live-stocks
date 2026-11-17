@@ -180,6 +180,7 @@ export type Database = {
           basis_date_estimate?: string | null;
           has_commission: boolean;
           commission_amount: number;
+          commission_known?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -194,6 +195,7 @@ export type Database = {
           basis_date_estimate?: string | null;
           has_commission?: boolean;
           commission_amount?: number;
+          commission_known?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -208,6 +210,7 @@ export type Database = {
           basis_date_estimate?: string | null;
           has_commission?: boolean;
           commission_amount?: number;
+          commission_known?: boolean;
           created_at?: string;
           updated_at?: string;
         };

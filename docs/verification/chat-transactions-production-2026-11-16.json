@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-16",
+  "status": "TRANSACTION_RELEASE_PUBLISHED_ICON_STILL_GENERIC_GIT_PUSH_CONFIRMED",
+  "sourceCommit": "c541bf7ceeb29f3b304df452786e9bca607da749",
+  "deploymentId": "dpl_3FJff5RdRpGHTxdZcLffmRBEyjF5",
+  "domain": "https://razmaz-live-stocks.vercel.app",
+  "plugin": {
+    "id": "plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "appId": "asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b",
+    "version": "1.2.0",
+    "release": "pluginrel_6afb50e4b6848191bf9693a1f468c621",
+    "scope": "WORKSPACE",
+    "discoverability": "LISTED",
+    "sourceReadback": true,
+    "uiVersionAndGuidanceReadback": true,
+    "toolRefresh": true,
+    "uiTools": {
+      "write": 6,
+      "read": 10
+    },
+    "existingConnectedProfileRead": "PASS"
+  },
+  "database": {
+    "project": "osvwctooasdxsztatirz",
+    "migration": "chat_executed_transactions",
+    "rls": true,
+    "anonymousDenied": true,
+    "authenticatedDirectWorkerDenied": true,
+    "financialDigestsUnchanged": true,
+    "financialDigests": {
+      "positions": "7d7848d3132300eb4d6385b80bdadd43",
+      "position_lots_excluding_new_default_flag": "74eb3a11a8227cbbafc789bbb0c29958",
+      "position_plans": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "securityAdvisorNewFindings": 0,
+    "existingInformationalPrivateNoPolicyFindings": 7
+  },
+  "oauth": {
+    "addedOptionalScope": "portfolio:transactions",
+    "existingUserGrantsExpanded": false,
+    "clientNonScopeInvariant": "2dfcad2423e58685c676eea7f14c417ebeecffe00465be9e42b4f3c8c6586af5",
+    "resourceNonScopeInvariant": "7adba4e734ede50bb1311a92623aa6190d3c91d70ca4a9fbe382f38e9c254768"
+  },
+  "checks": {
+    "unitTestsPassed": 1116,
+    "optionalNativeTestsSkippedInDefaultSuite": 3,
+    "transactionNativeGate": "PASS_ALL_NINE_GROUPS",
+    "screenshotNativeGate": "PASS",
+    "authNativeGate": "PASS",
+    "localBuild": "PASS",
+    "hostedBuild": "PASS",
+    "typescript": "PASS",
+    "eslint": "PASS",
+    "publicResourceDiscovery": "PASS",
+    "unauthenticatedMcpHttpStatus": 401,
+    "iconAssetHttpStatus": 200
+  },
+  "verificationBoundaries": {
+    "personalFinancialMutation": false,
+    "realChatGPTTransactionCardWrite": false,
+    "newTransactionConsentInPersonalConnection": false,
+    "displayedPluginIconFixed": false,
+    "githubPush": "PASS_USER_EXPLICITLY_APPROVED"
+  },
+  "github": {
+    "repository": "https://github.com/razmazlih/live-stocks",
+    "branch": "codex/chatgpt-friendly-transactions",
+    "verifiedRemoteCommit": "dc054df3841a3daa1cff24642ea4221864ccd669"
+  }
+}

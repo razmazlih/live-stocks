@@ -15,7 +15,7 @@ const prices = [0, 1, 2, 3].map(offset => ({ timestamp: start + offset * day, cl
 describe('reconciliation disclosure and chart semantics', () => {
   it('declares incomplete transaction history without changing known past history', () => {
     const p = position();
-    expect(reconciliationQuality([p])).toEqual({ completeTransactionHistory: false, reconciledSymbols: ['ABC'], realizedProfitScope: 'recorded_executions_only' });
+    expect(reconciliationQuality([p])).toEqual({ completeCommissionHistory: true, missingCommissionSymbols: [], completeTransactionHistory: false, reconciledSymbols: ['ABC'], realizedProfitScope: 'recorded_executions_only' });
     expect(hasReconciliationHistory(p, start + day)).toBe(false);
     expect(hasReconciliationHistory(p, start + 2 * day)).toBe(true);
     const timeline = buildPositionTimeline(p, prices, .1, prices, () => 3.5, start + 4 * day - 1);

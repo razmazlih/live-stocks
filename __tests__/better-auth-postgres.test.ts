@@ -45,7 +45,7 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(metadataResponse.status).toBe(200);
     const metadata = await metadataResponse.json();
     expect(metadata.issuer).toBe(issuer);
-    expect(metadata.scopes_supported).toEqual(expect.arrayContaining(['portfolio:read', 'portfolio:sync', 'offline_access']));
+    expect(metadata.scopes_supported).toEqual(expect.arrayContaining(['portfolio:read', 'portfolio:sync', 'portfolio:transactions', 'offline_access']));
     expect(metadata.grant_types_supported).toEqual(expect.arrayContaining(['authorization_code', 'refresh_token']));
     expect(metadata.token_endpoint).toBe(issuer + '/oauth2/token');
     async function request(path: string, body?: Record<string, unknown>, cookie = '', form = false, browser = false) {
@@ -216,6 +216,29 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     expect(syncIdentity.portfolioSync).toBe(true);
     expect(syncIdentity.scopes).toContain('portfolio:sync');
     expect(syncIdentity.scopes).not.toContain('portfolio:write');
+    expect(syncIdentity.scopes).not.toContain('portfolio:transactions');
+    // A second explicit ceiling change does not silently widen prior screenshot
+    // consent or either existing access/refresh grant.
+    await seedMcpClient(headers, [callback], { enablePortfolioTransactions: true });
+    expect((await verify(syncIssued.data.access_token, 'mcp')).scopes).not.toContain('portfolio:transactions');
+    const transactionStart = await authorize(a.cookie, resource, true, 'portfolio:read portfolio:transactions', browserOptions);
+    expect(new URL(transactionStart.location!, origin).pathname).toBe('/oauth/consent');
+    const transactionReview = await getConsentReview(new URL(transactionStart.location!, origin).search.slice(1), headers);
+    expect(transactionReview.scopes).toEqual(['portfolio:read', 'portfolio:transactions']);
+    const transactionChoice = await decideConsent({ query: transactionReview.query, receipt: transactionReview.receipt, accept: true }, headers);
+    const transactionCode = new URL(transactionChoice, origin).searchParams.get('code');
+    const transactionIssued = await token({ grant_type: 'authorization_code', code: transactionCode,
+      code_verifier: transactionStart.verifier, redirect_uri: callback, resource });
+    expect(transactionIssued.response.status).toBe(200);
+    const transactionIdentity = await verify(transactionIssued.data.access_token, 'mcp');
+    expect(transactionIdentity.scopes).toEqual(['portfolio:read', 'portfolio:transactions']);
+    expect(transactionIdentity.portfolioSync).toBe(false);
+    expect((await verify(positive.data.access_token, 'mcp')).scopes).not.toContain('portfolio:transactions');
+    const readForTransactions = await exchange();
+    const refusedTransactions = await token({ grant_type: 'refresh_token', refresh_token: readForTransactions.data.refresh_token,
+      resource, scope: 'portfolio:read portfolio:transactions' });
+    expect(refusedTransactions.data.access_token).toBeUndefined();
+    expect(refusedTransactions.data.error).toBe('invalid_scope');
     // Expiry is a token failure, not lost consent. Advance Date only so SDK
     // cleanup/network timers remain real, then refresh the existing sync grant.
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -227,6 +250,7 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       expect(syncRefresh.response.status).toBe(200);
       const renewed = await verify(syncRefresh.data.access_token, 'mcp');
       expect(renewed.portfolioSync).toBe(true);
+      expect(renewed.scopes).not.toContain('portfolio:transactions');
       expect(renewed.grantId).toBe(syncIdentity.grantId);
       expect(renewed.authSessionId).toBe(syncIdentity.authSessionId);
       expect(renewed.expiresAt).toBeGreaterThan(syncIdentity.expiresAt);

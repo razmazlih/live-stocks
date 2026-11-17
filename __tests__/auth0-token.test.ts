@@ -67,6 +67,14 @@ describe('Auth0 access-token trust boundaries', () => {
     await expect(verify(await sign({ ...payload, scope: 'portfolio:read portfolio:sync portfolio:write' }), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
     await expect(verify(await sign({ ...claims('web'), scope: 'portfolio:read portfolio:write portfolio:sync' }), 'web')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
   });
+  it('preserves transaction permission only as its exact signed scope and rejects it on website tokens', async () => {
+    const payload = { ...claims(), scope: 'openid portfolio:read portfolio:transactions' };
+    await expect(verify(await sign(payload), 'mcp')).resolves.toMatchObject({ portfolioSync: false, scopes: ['openid', 'portfolio:read', 'portfolio:transactions'] });
+    const readOnly = await verify(await sign({ ...claims(), portfolioTransactions: true }), 'mcp');
+    expect(readOnly.scopes).not.toContain('portfolio:transactions');
+    await expect(verify(await sign({ ...payload, scope: 'portfolio:read portfolio:transactions portfolio:write' }), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+    await expect(verify(await sign({ ...claims('web'), scope: 'portfolio:read portfolio:write portfolio:transactions' }), 'web')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+  });
   it('accepts the exact resource in a well-formed audience list', async () => {
     await expect(verify(await sign({ ...claims(), aud: [mcpAudience, `${issuer}userinfo`] }), 'mcp')).resolves.toMatchObject({ userId });
   });

@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 import nodemailer from 'nodemailer';
 import { betterAuthConfiguration, getAuthPublicOptions } from '@/lib/auth/better-auth-config';
-import { AUTH_SCOPES, MCP_ALLOWED_SCOPES, createAuthPool } from '@/lib/auth/better-auth';
+import { AUTH_SCOPES, MCP_ALLOWED_SCOPES, createAuthPool, mcpRegistrationScopes } from '@/lib/auth/better-auth';
 import { validateAuthRequest } from '@/lib/auth/better-auth-handler';
 import { AuthEmailUnavailable, sendAuthEmail } from '@/lib/auth/auth-email';
 
@@ -62,6 +62,21 @@ describe('MCP authorization boundary', () => {
     expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read%20portfolio:sync`), config)).toBeNull();
     expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read%20portfolio:write`), config)?.status).toBe(400);
     expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read&scope=portfolio:sync`), config)?.status).toBe(400);
+  });
+  it('makes transaction recording a separate optional permission with no automatic sync grant', () => {
+    expect(AUTH_SCOPES).not.toContain('portfolio:transactions');
+    expect(MCP_ALLOWED_SCOPES).toContain('portfolio:transactions');
+    const base = `${config.issuer}/oauth2/authorize?client_id=${config.mcpClientId}&resource=${encodeURIComponent(config.mcpAudience)}`;
+    expect(validateAuthRequest(new Request(`${base}&scope=portfolio:read%20portfolio:transactions`), config)).toBeNull();
+    expect(validateAuthRequest(new Request(`${base}&scope=portfolio:transactions`), config)?.status).toBe(400);
+    expect(mcpRegistrationScopes()).toEqual(AUTH_SCOPES);
+    expect(mcpRegistrationScopes(AUTH_SCOPES, { enablePortfolioSync: true })).toEqual([...AUTH_SCOPES, 'portfolio:sync']);
+    expect(mcpRegistrationScopes(AUTH_SCOPES, { enablePortfolioTransactions: true })).toEqual([...AUTH_SCOPES, 'portfolio:transactions']);
+    expect(mcpRegistrationScopes([...AUTH_SCOPES, 'portfolio:sync'], { enablePortfolioTransactions: true })).toEqual(MCP_ALLOWED_SCOPES);
+    expect(mcpRegistrationScopes(MCP_ALLOWED_SCOPES, { enablePortfolioSync: true })).toEqual(MCP_ALLOWED_SCOPES);
+    for (const current of [[...AUTH_SCOPES, 'portfolio:write'], [...AUTH_SCOPES, 'portfolio:sync:all'], ['portfolio:transactions'], [...AUTH_SCOPES, 'portfolio:read']]) {
+      expect(() => mcpRegistrationScopes(current, { enablePortfolioTransactions: true })).toThrow('requires review');
+    }
   });
   it('requires an exact origin for browser mutations including first login', () => {
     for (const headers of [{}, { origin: 'https://evil.example' }, { origin, 'sec-fetch-site': 'cross-site' }] as Record<string, string>[]) {

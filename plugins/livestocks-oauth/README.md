@@ -2,7 +2,7 @@
 
 Retained source for the user-approved RABEN workspace [LiveStocks plugin](https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b). This is the sole installed LiveStocks connection after the user-approved legacy-plugin uninstall. The old `plugins/livestocks` source and owned cloud artifact are retained; uninstall did not permanently delete them.
 
-The published App-backed package version is `1.1.1`. `.app.json` binds the new App; `plugin.json` is the Agent Plugins manifest and `.codex-plugin/plugin.json` preserves the OpenAI overlay. The full analyst skill requires an authenticated profile before personal portfolio research and keeps the original full-sale/new-stock-only recommendation rules. It does not execute transactions.
+The published App-backed package version is `1.2.0`. `.app.json` binds the new App; `plugin.json` is the Agent Plugins manifest and `.codex-plugin/plugin.json` preserves the OpenAI overlay. The full analyst skill requires an authenticated profile before personal portfolio research and keeps the original full-sale/new-stock-only recommendation rules. It does not execute transactions.
 
 Use Plugin Creator's expected-release update workflow to change skill files. Preserve the existing App binding, metadata and RABEN WORKSPACE/LISTED audience. OAuth client credentials belong in the host's owning connection settings, never in this package. Read the [activation evidence and checklist](../../docs/CHATGPT_ACTIVATION.md) before changing the connection.
 
@@ -50,3 +50,12 @@ The screenshot-sync skill was published as version **1.1.3** on 2026-11-16, pres
 ## Configurable investment sources
 
 The local source now discovers each user's investment sources from `get_portfolio_snapshot.sources`. Screenshot synchronization passes the selected active source UUID as `location` and shows its actual name in the review card. A single active source is selected automatically; multiple ambiguous sources require one clarification by name. Source creation and renaming remain website actions. Source-catalog guidance was published as workspace plugin **1.1.2**, release `pluginrel_6afac82680cc8191bf9db8c8c7bab7b0`, and read back. The partial update preserved the App, workspace, audience, assets and existing research instructions. Only the source-catalog section was added to the remote research skill; the separate local screenshot-sync draft section above was not included in that package update.
+
+
+## Conversational transaction recording — 1.2.0
+
+Published to the same RABEN workspace plugin on 16 November 2026 as release `pluginrel_6afb50e4b6848191bf9693a1f468c621`. The existing App binding, audience and website-icon PNGs were preserved. The owning App description was updated through its supported settings to describe screenshot updates and recording already-executed purchases/sales; the skill distinguishes recording from investment recommendations and never places broker orders.
+
+The four transaction tools use a separately consented optional `portfolio:transactions` scope. Existing read/screenshot grants remain unchanged. The server, additive transaction migration and both persisted OAuth capability ceilings are deployed; the active connection tools were refreshed. The existing connected profile still reads successfully. No personal financial record was created to test this release.
+
+Package/description/tool refresh success does not establish that the detail-page avatar is fixed. The user's mobile screenshot showed the generic icon on 1.1.3 despite correct package assets. See [current branding observations](../../docs/PLUGIN_BRANDING_CURRENT.md) for the separate rendering status.

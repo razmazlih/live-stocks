@@ -1,0 +1,18 @@
+Subject: Existing LiveStocks App shows generic icon despite approved package assets
+
+Please help update the registered logo of this existing App in place, without replacing or removing the App, OAuth connection, plugin, skills, workspace audience or user data.
+
+Plugin: https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b
+App ID: asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b
+Version: 1.2.0
+Release: pluginrel_6afb50e4b6848191bf9693a1f468c621
+
+The desired logo is the existing website icon:
+https://razmaz-live-stocks.vercel.app/brand/apple-touch-icon.png
+SHA-256: ccae77958433dff4eb2b78855c332f057f8c30ab0376b79d054313cd9930cbae
+
+Both current manifest representations reference the retained composer/logo PNGs. Current-release archive bytes were verified; the 180px composer is byte-identical to the website icon and the 512px logo matches the approved brand asset. The complete package was uploaded and source-read back, App tools refreshed and the detail page fully reloaded. The visible avatar is still the generic multicolor icon on desktop, matching the user's mobile screenshot of the preceding version.
+
+Existing App settings show Edit name, Edit description, Refresh tools and workspace publication; no logo field was observed. Admin Console Configure reproducibly returns “Plugins unavailable — You don’t have access to plugins in this workspace.” The retained legacy Apps page now loads: the exact App is in Drafts, its About/Edit control contains only Description, and its menu contains View details and Delete. It exposes no logo editor. Please identify the supported existing-App logo editor or correct the registered/resolved logo while preserving all existing identities and connections.
+
+This is a draft only. No support message has been sent.

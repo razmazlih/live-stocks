@@ -3,7 +3,7 @@
   "author": {
     "name": "App developer"
   },
-  "description": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
+  "description": "התיק שלך, מסודר בשיחה: ניתוח השקעות, עדכון מצילום מסך ורישום קניות ומכירות שכבר ביצעת, עם אישור שלך לפני השמירה. בלי פקודות מסחר.",
   "extensions": {
     "com.openai": {
       "apps": "./.app.json",
@@ -13,13 +13,13 @@
         "defaultPrompt": null,
         "developerName": "App developer",
         "displayName": "LiveStocks",
-        "longDescription": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
-        "shortDescription": "ניתוח התיק האישי ב־LiveStocks ואיתור הזדמנויות בשוק, עם כניסה מאובטחת וקריאה בלבד. המלצות ללא ביצוע עסקאות.",
+        "longDescription": "התיק שלך, מסודר בשיחה: ניתוח השקעות, עדכון מצילום מסך ורישום קניות ומכירות שכבר ביצעת, עם אישור שלך לפני השמירה. בלי פקודות מסחר.",
+        "shortDescription": "התיק שלך, מסודר בשיחה: ניתוח השקעות, עדכון מצילום מסך ורישום קניות ומכירות שכבר ביצעת, עם אישור שלך לפני השמירה. בלי פקודות מסחר.",
         "composerIcon": "./assets/livestocks-composer.png",
         "logo": "./assets/livestocks-logo.png"
       }
     }
   },
   "name": "dev-6af9b5f79fe48191a12eaa9c67d6ae7b",
-  "version": "1.1.3"
+  "version": "1.2.0"
 }

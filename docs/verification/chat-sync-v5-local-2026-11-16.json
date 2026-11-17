@@ -1,0 +1,55 @@
+{
+  "status": "LOCAL_SYNTHETIC_VERIFICATION_PASSED",
+  "date": "2026-11-16",
+  "resource": "ui://livestocks/screenshot-sync-v5.html",
+  "cachedV4ReadCompatibility": true,
+  "productionDeployment": false,
+  "realChatGPTV5Acceptance": false,
+  "personalPortfolioMutation": false,
+  "theme": {
+    "followsDevice": true,
+    "liveChangeWithoutReload": true,
+    "lightSurface": "rgb(255, 255, 255)",
+    "darkSurface": "rgb(28, 34, 45)",
+    "reducedMotionAnimationName": "none"
+  },
+  "browser": {
+    "engine": "Chromium",
+    "widths": [
+      320,
+      390,
+      760
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "horizontalOverflow": false,
+    "confirmedClickFlow": [
+      "pending",
+      "saving",
+      "applied"
+    ],
+    "portfolioHoldingsInSyntheticReceipt": 3,
+    "canReopenExactReview": true
+  },
+  "tests": {
+    "targetedVitest": 72,
+    "typescript": "passed",
+    "targetedEslint": "passed",
+    "diffCheck": "passed"
+  },
+  "portfolioRead": {
+    "afterConfirmedWrite": true,
+    "deadlineMs": 5000,
+    "failurePreservesAppliedReceipt": true,
+    "missingCostsRemainUnknown": true
+  },
+  "screenshots": [
+    "../screenshots/chat-sync-redesign-light.png",
+    "../screenshots/chat-sync-redesign-mobile.png",
+    "../screenshots/chat-sync-redesign-saved.png",
+    "../screenshots/chat-sync-redesign-saved-light.png",
+    "../screenshots/chat-sync-redesign-desktop.png"
+  ]
+}

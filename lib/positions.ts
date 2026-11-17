@@ -24,6 +24,7 @@ interface SupabasePositionLot {
   executed_at: string;
   has_commission: boolean | null;
   commission_amount: number | string | null;
+  commission_known?: boolean | null;
 }
 
 interface SupabasePositionPlan {
@@ -105,6 +106,7 @@ function normalizeLot(lot: SupabasePositionLot): PositionLot {
     executedAt: lot.executed_at,
     hasCommission,
     commissionAmount,
+    commissionKnown: lot.commission_known !== false,
   };
 }
 

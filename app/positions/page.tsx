@@ -16,6 +16,7 @@ import {
   DEFAULT_COMMISSION_USD,
   mapPositionRow,
 } from "@/lib/positions";
+import { correctedLedgerPreview } from "@/lib/reconciliation-correction";
 import { recordPositionPurchase } from "@/lib/position-purchase";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/calculations";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,7 @@ interface PositionFormData {
 }
 
 interface TransactionFormData {
+  replacesCheckpoint?: boolean;
   id?: string;
   type: PositionLotType;
   price: number;
@@ -101,6 +103,7 @@ interface TransactionFormData {
   executedAt: string;
   hasCommission: boolean;
   commissionAmount: number;
+  commissionKnown: boolean;
 }
 
 type PositionLocationFilter = PositionLocation | "all";
@@ -148,6 +151,7 @@ function createDefaultTransactionForm(): TransactionFormData {
     executedAt: getTodayIsoDate(),
     hasCommission: false,
     commissionAmount: 0,
+    commissionKnown: true,
   };
 }
 
@@ -503,17 +507,18 @@ export default function PositionsPage() {
   }
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
-    if (lot.type === "RECONCILE") return;
     setHistoryDialogOpen(false);
     setTransactionTarget(position);
     setTransactionForm({
       id: lot.id,
-      type: lot.type,
-      price: lot.price,
-      quantity: lot.quantity,
-      executedAt: lot.executedAt,
+      replacesCheckpoint: lot.type === "RECONCILE",
+      type: lot.type === "RECONCILE" ? "BUY" : lot.type,
+      price: lot.type === "RECONCILE" ? 0 : lot.price,
+      quantity: lot.type === "RECONCILE" ? 0 : lot.quantity,
+      executedAt: lot.type === "RECONCILE" ? "" : lot.executedAt,
       hasCommission: lot.hasCommission,
       commissionAmount: lot.hasCommission ? lot.commissionAmount : 0,
+      commissionKnown: lot.type !== "RECONCILE" && lot.commissionKnown !== false,
     });
     setTransactionDialogOpen(true);
   }
@@ -753,6 +758,22 @@ export default function PositionsPage() {
       return;
     }
 
+    if (transactionForm.replacesCheckpoint) {
+      if (!transactionForm.commissionKnown || !transactionForm.executedAt || transactionForm.type === "RECONCILE") {
+        toast.error(locale === "he" ? "יש להזין את תאריך הביצוע האמיתי ולאשר את העמלה, כולל אם לא הייתה עמלה." : "Enter the actual execution date and confirm the fee, including no commission.");
+        return;
+      }
+      try {
+        const preview = correctedLedgerPreview(transactionTarget.lots ?? [], transactionForm.id!, { ...transactionForm, id: transactionForm.id, type: transactionForm.type });
+        if (!confirm(locale === "he"
+          ? `להחליף את התאמת היתרה בעסקה האמיתית שהזנת? כמות לפני: ${preview.before}; אחרי: ${preview.after}. עסקאות אחרות נשמרות.${preview.historyStillIncomplete ? " נותרו התאמות נוספות ולכן ההיסטוריה עדיין חלקית." : ""}`
+          : `Replace this balance checkpoint with the actual transaction entered? Shares before: ${preview.before}; after: ${preview.after}. Other transactions are preserved.${preview.historyStillIncomplete ? " Other checkpoints remain, so history is still incomplete." : ""}`)) return;
+      } catch {
+        toast.error(locale === "he" ? "התיקון משאיר מכירה ללא מספיק מניות בתאריך הביצוע. יש להשלים קודם את העסקאות החסרות." : "The correction leaves a sale without enough shares at execution. Supply the missing transactions first.");
+        return;
+      }
+    }
+
     try {
       const commissionAmount = transactionForm.hasCommission
         ? Math.max(transactionForm.commissionAmount, 0)
@@ -768,6 +789,8 @@ export default function PositionsPage() {
             executed_at: transactionForm.executedAt,
             has_commission: transactionForm.hasCommission,
             commission_amount: commissionAmount,
+            commission_known: transactionForm.commissionKnown,
+            ...(transactionForm.replacesCheckpoint ? { basis_acquired_on: null, basis_date_estimate: null } : {}),
           })
           .eq("id", transactionForm.id);
 
@@ -783,6 +806,7 @@ export default function PositionsPage() {
           executed_at: transactionForm.executedAt,
           has_commission: transactionForm.hasCommission,
           commission_amount: commissionAmount,
+          commission_known: transactionForm.commissionKnown,
         });
 
         if (error) throw error;
@@ -799,13 +823,21 @@ export default function PositionsPage() {
   }
 
   async function handleDeleteTransaction(lot: PositionLot) {
-    if (lot.type === "RECONCILE") return;
     if (!lot.id) {
       toast.error(t.common.error);
       return;
     }
 
-    if (!confirm(t.positions.confirmDeleteTransaction)) {
+    if (lot.type === "RECONCILE") {
+      const position = positions.find(position => position.lots?.some(item => item.id === lot.id));
+      try {
+        const preview = correctedLedgerPreview(position?.lots ?? [], lot.id);
+        if (!confirm(locale === "he" ? `למחוק את התאמת היתרה? כמות לפני: ${preview.before}; אחרי: ${preview.after}. עסקאות אחרות נשמרות.` : `Delete this balance checkpoint? Shares before: ${preview.before}; after: ${preview.after}. Other transactions are preserved.`)) return;
+      } catch {
+        toast.error(locale === "he" ? "מחיקת ההתאמה תשאיר מכירה ללא מספיק מניות. יש לתקן קודם את העסקאות החסרות." : "Removing this checkpoint leaves a sale without enough shares. Correct the missing transactions first.");
+        return;
+      }
+    } else if (!confirm(t.positions.confirmDeleteTransaction)) {
       return;
     }
 
@@ -827,7 +859,6 @@ export default function PositionsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (positions.some(position => position.id === id && position.lots?.some(lot => lot.type === "RECONCILE"))) return;
     if (
       !confirm(
         locale === "he" ? "האם למחוק פוזיציה זו?" : "Delete this position?",
@@ -1127,6 +1158,9 @@ export default function PositionsPage() {
             </DialogHeader>
             <form onSubmit={handleTransactionSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 [&_input]:h-11 sm:px-7 [&_input]:sm:h-10">
+              {transactionForm.replacesCheckpoint && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {locale === "he" ? "התאמת יתרה אינה עסקה. כאן ניתן להחליף אותה בקנייה או במכירה שבוצעה בפועל. יש להזין מחיר, כמות ותאריך ביצוע אמיתיים ולציין עמלה. אין להעתיק יתרה מצטברת כקנייה נוספת. אם היו כמה עסקאות, יש לרשום את כולן בנפרד." : "A balance checkpoint is not a transaction. Replace it only with an actual executed buy or sell: enter its execution price, quantity, date and fee. Do not treat a cumulative balance as another purchase. Multiple executions must be recorded separately."}
+              </div>}
               <section className="space-y-3">
                 <div>
                   <Label>{t.positions.transactionType}</Label>
@@ -1240,15 +1274,24 @@ export default function PositionsPage() {
                       setTransactionForm((previous) => ({
                         ...previous,
                         hasCommission: checked,
+                        commissionKnown: checked ? previous.commissionKnown : true,
                         commissionAmount: checked
                           ? previous.commissionAmount > 0
                             ? previous.commissionAmount
-                            : DEFAULT_COMMISSION_USD
+                            : previous.commissionKnown ? DEFAULT_COMMISSION_USD : 0
                           : 0,
                       }))
                     }
                   />
                 </div>
+                {!transactionForm.commissionKnown ? (
+                  <div className="mt-3 rounded-lg bg-[var(--warning-soft)] p-3 text-xs leading-relaxed text-[var(--warning-text)]" role="status">
+                    <p>{locale === "he" ? "העמלה בעסקה הזאת עדיין לא ידועה. אפשר להפעיל את שדה העמלה ולהזין את הסכום, או לאשר שלא הייתה עמלה." : "The commission for this transaction is still unknown. Enable the commission field and enter the amount, or confirm there was no commission."}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => setTransactionForm(previous => ({ ...previous, hasCommission: false, commissionAmount: 0, commissionKnown: true }))}>
+                      {locale === "he" ? "לא הייתה עמלה" : "No commission was charged"}
+                    </Button>
+                  </div>
+                ) : null}
                 {transactionForm.hasCommission && <div className="mt-4 border-t border-slate-200 pt-4">
                   <Label htmlFor="transaction-commission-amount">
                     {t.positions.transactionCommissionAmount}
@@ -1262,6 +1305,7 @@ export default function PositionsPage() {
                     onChange={(e) =>
                       setTransactionForm({
                         ...transactionForm,
+                        commissionKnown: e.target.value.trim() !== "" && Number.isFinite(Number(e.target.value)),
                         commissionAmount:
                           Number.parseFloat(e.target.value) || 0,
                       })
@@ -1326,7 +1370,9 @@ export default function PositionsPage() {
                           : "bg-rose-100 text-rose-700";
                       const commissionApplied =
                         lot.hasCommission && lot.commissionAmount > 0;
-                      const commissionLabel = commissionApplied
+                      const commissionLabel = lot.commissionKnown === false
+                        ? (locale === "he" ? "העמלה לא ידועה" : "Commission unknown")
+                        : commissionApplied
                         ? t.positions.transactionCommissionApplied(
                             formatCurrency(lot.commissionAmount, "USD", locale),
                           )
@@ -1358,7 +1404,6 @@ export default function PositionsPage() {
                                 openEditTransactionDialog(historyTarget, lot)
                               }
                               aria-label={t.positions.editTransaction}
-                              disabled={lot.type === "RECONCILE"}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1368,7 +1413,6 @@ export default function PositionsPage() {
                               className="h-10 flex-1 border border-slate-200 bg-white sm:w-10 sm:flex-none"
                               onClick={() => handleDeleteTransaction(lot)}
                               aria-label={t.positions.deleteTransaction}
-                              disabled={lot.type === "RECONCILE"}
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
@@ -1698,8 +1742,7 @@ export default function PositionsPage() {
                                           position.id && handleDelete(position.id)
                                         }
                                         aria-label={t.positions.delete}
-                                        disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
-                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
+                                        disabled={!position.id}
                                         className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1857,8 +1900,7 @@ export default function PositionsPage() {
                                         position.id && handleDelete(position.id)
                                       }
                                       aria-label={t.positions.delete}
-                                      disabled={!position.id || position.lots?.some(lot => lot.type === "RECONCILE")}
-                                        title={position.lots?.some(lot => lot.type === "RECONCILE") ? (locale === "he" ? "היסטוריית ההתאמות נשמרת; ניתן לעדכן יתרה בסנכרון חדש" : "Reconciliation history is preserved; use a new sync to update the balance") : undefined}
+                                      disabled={!position.id}
                                       className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 disabled:text-slate-300"
                                     >
                                       <Trash2 className="h-4 w-4" />

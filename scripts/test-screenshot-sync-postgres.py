@@ -20,6 +20,8 @@ if len(__import__('sys').argv) != 1:
     raise ValueError('Local-only runner accepts no arguments')
 root = pathlib.Path(__file__).resolve().parent.parent
 binding_migration = root / 'supabase/migrations/20261116092048_one_pending_chat_sync_review.sql'
+retirement_migration = root / 'supabase/migrations/20261116211802_retire_screenshot_reconciliation.sql'
+correction_migrations = sorted((root / 'supabase/migrations').glob('*_web_reconciliation_corrections.sql'))
 # The release migration may retire pending reviews and change function ACLs,
 # but must contain no direct financial INSERT, UPDATE or DELETE statement.
 assert not re.search(r'\b(?:insert\s+into|update|delete\s+from)\s+(?:public\.)?(?:positions|position_lots|position_plans|settings|watchlist_groups|watchlist_tickers|investment_sources)\b', binding_migration.read_text(), re.I)
@@ -107,7 +109,7 @@ try:
         "create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;"
         "grant usage on schema auth,public to anon,authenticated,service_role")
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
-        if migration != binding_migration:
+        if migration not in (binding_migration, retirement_migration, *correction_migrations):
             sql(path=migration)
     sql("insert into public.user_profiles(id) values('fixture-a'),('fixture-b');"
         "insert into private.auth_config(singleton,issuer,website_client_id,mcp_client_id,website_audience,mcp_audience,auth_provider) values(true,'https://fixture.invalid/auth','fixture-web','fixture-mcp','https://fixture.invalid/web','https://fixture.invalid/mcp','better_auth');"
@@ -362,6 +364,28 @@ try:
     sql("update public.user_profiles set merge_state='frozen' where id='fixture-a'")
     rejected(apply(before['fingerprint'], [dict(new, symbol='LOCKED', lotId=str(uuid.uuid4()))]))
     print('PASS SQL checkpoints, actual/estimated date separation, existing-balance correction, explicit zero, consolidated ledger zeroing, legacy baseline preservation, immutable history, merge ownership transfer, later BUY/SELL preservation, replay/tamper, isolation, read-only denial, stale/backdated review, rollback, limits, role grants and frozen-account fence')
+    sql("update public.user_profiles set merge_state='active' where id='fixture-a'")
+    for migration in correction_migrations:
+        sql(path=migration)
+    # Apply retirement after historical implementation tests. Old cards stay
+    # readable/cancellable, but neither old hosts nor direct RPCs can import a
+    # new checkpoint. The migration and denied attempts cannot alter finances.
+    before_retirement = sql("select jsonb_build_object('positions',(select coalesce(jsonb_agg(to_jsonb(p) order by id),'[]'::jsonb) from public.positions p),'lots',(select coalesce(jsonb_agg(to_jsonb(l) order by id),'[]'::jsonb) from public.position_lots l))")
+    sql("alter function public.apply_screenshot_sync(text,jsonb) owner to fixture_migrator")
+    sql('set session authorization fixture_migrator;\n' + retirement_migration.read_text())
+    assert sql("select jsonb_build_object('positions',(select coalesce(jsonb_agg(to_jsonb(p) order by id),'[]'::jsonb) from public.positions p),'lots',(select coalesce(jsonb_agg(to_jsonb(l) order by id),'[]'::jsonb) from public.position_lots l))") == before_retirement
+    mcp_rejected(create_proposal(str(uuid.uuid4()), unchanged_financial['fingerprint'], race_target, secret), sync=True)
+    mcp_rejected(f"select public.confirm_chat_sync_proposal('{race_new}','{secret}')", sync=True)
+    # Owner's old saved receipt and pending review remain read-only history.
+    assert json.loads(mcp(f"select public.read_chat_sync_proposal('{race_new}')"))['status'] == 'pending'
+    assert json.loads(mcp(f"select public.cancel_chat_sync_proposal('{race_new}','{secret}')"))['status'] == 'cancelled'
+    rejected(apply(before['fingerprint'], [dict(new, symbol='RETIRED', lotId=str(uuid.uuid4()))]))
+    mcp_rejected(f"select private.chat_sync_dispatch_retired_legacy('confirm','{race_new}',null,null,null,null,'{secret}')", sync=True)
+    assert sql("select has_function_privilege('authenticated','private.chat_sync_dispatch_retired_legacy(text,uuid,text,jsonb,jsonb,text,text,uuid)','EXECUTE')") == 'f'
+    assert sql("select has_function_privilege('authenticated','public.apply_screenshot_sync(text,jsonb)','EXECUTE')") == 'f'
+    assert sql("select jsonb_build_object('positions',(select coalesce(jsonb_agg(to_jsonb(p) order by id),'[]'::jsonb) from public.positions p),'lots',(select coalesce(jsonb_agg(to_jsonb(l) order by id),'[]'::jsonb) from public.position_lots l))") == before_retirement
+    print('PASS managed non-superuser retirement; denied screenshot create/confirm/raw apply, preserved read/cancel and byte-equivalent financial rows')
+
 finally:
     if started:
         call(['pg_ctl', '-D', str(runtime / 'data'), '-m', 'immediate', '-w', '-t', '30', 'stop'])

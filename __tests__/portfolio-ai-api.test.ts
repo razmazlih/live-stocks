@@ -64,6 +64,31 @@ describe('GET portfolio AI snapshot', () => {
     expect(data.realized.recordedSalesEstimatedTaxUsd).toBe(0);
     expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'reconciliation_history_incomplete' });
   });
+  it('keeps exact market values but withholds fee-incomplete profit, tax and proposals', async () => {
+    rows.position_lots[0] = { ...(rows.position_lots[0] as object), commission_known: false };
+    rows.position_lots.push({ id: 'sale1', position_id: 'p1', side: 'SELL', price: 110, quantity: 1, executed_at: '2026-01-01', has_commission: false, commission_amount: 0, commission_known: true });
+    const data = await (await readSnapshot()).json();
+    expect(data.dataQuality).toMatchObject({ completeMarketValuation: true, completeCommissionHistory: false, missingCommissionSymbols: ['ABC'] });
+    expect(data.dataQuality.warnings.join(' ')).toContain('unknown, not zero');
+    expect(data.positions[0].lots[0].commissionKnown).toBe(false);
+    expect(data.holdings[0]).toMatchObject({ marketValueUsd: 120, currentPriceUsd: 120, unrealizedPnlUsd: null, returnPercent: null, annualTargetPriceUsd: null });
+    expect(data.summary).toMatchObject({ totalValue: 120, totalCost: null, totalNetPnLUsd: null, totalCurrentPnLUsd: null, totalTaxesPaidUsd: null });
+    expect(data.realized.estimatedTaxUsd).toBeNull();
+    expect(data.realized.recordedSalesEstimatedTaxUsd).toBeNull();
+    expect(data.realized.totals.profitUsd).toBeNull();
+    expect(data.realizedSales[0]).toMatchObject({ quantity: 1, sellPrice: 110, profitUsd: null, proceedsUsd: null, costBasisUsd: null });
+    expect(data.goals.symbolTargets[0]).toMatchObject({ symbol: 'ABC', status: 'invalid', invalidReason: 'commission_history_incomplete' });
+    expect(data.closePairProposals.availability).toBe('unavailable');
+    expect(data.closePairProposals.coverage.exclusions).toContainEqual({ symbol: 'ABC', reason: 'commission_history_incomplete' });
+    expect(data.closePairProposals.unavailableReason).toContain('Supply the missing commission');
+  });
+  it('retains historical known-commission results when the new flag is absent', async () => {
+    const data = await (await readSnapshot()).json();
+    expect(data.dataQuality.completeCommissionHistory).toBe(true);
+    expect(data.dataQuality.missingCommissionSymbols).toEqual([]);
+    expect(data.holdings[0].unrealizedPnlUsd).toBe(40);
+    expect(data.summary.totalCost).toBe(200);
+  });
   it('offers escaped HTML for browsing tools with the same complete snapshot', async () => {
     rows.positions[0] = { ...(rows.positions[0] as object), display: '<script>alert("x")</script>' };
     const response = await GET(new Request('https://example.com/api/portfolio/ai?format=html'));

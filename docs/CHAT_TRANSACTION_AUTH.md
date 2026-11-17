@@ -1,0 +1,46 @@
+# Separate permission for recording completed transactions
+
+`portfolio:transactions` is an optional MCP scope for recording purchases and sales the user has already made. It is distinct from `portfolio:sync` (screenshot balance reconciliation) and `portfolio:write` (never accepted on MCP tokens). `portfolio:read` remains required. Website tokens cannot carry either MCP bookkeeping scope.
+
+The provider advertises the new scope, but its default registration/authorization scopes remain the unchanged read-only `AUTH_SCOPES`. Previously issued access tokens, refresh grants and user consents are not expanded by a deployment or client-policy update. The consent screen explains completed-transaction recording and the per-entry card confirmation requirement, including partial sales; it does not describe that permission as read-only.
+
+## Operator activation
+
+After the server and transaction schema are ready, use the existing operator-only bootstrap with the exact established origin, client ID, callback list and verified operator session. Configuration, callback and cookie files must be owner-only (0600) files outside the checkout. Review first, then repeat the same command with `--apply`:
+
+```sh
+node scripts/seed-mcp-client.mjs \
+  --config-file /private/operator/auth-config.json \
+  --cookie-file /private/operator/session-cookie.txt \
+  --callbacks-file /private/operator/exact-callbacks.json \
+  --origin https://YOUR_EXISTING_LIVESTOCKS_ORIGIN \
+  --client-id YOUR_EXISTING_MCP_CLIENT_ID \
+  --operator-id YOUR_VERIFIED_OPERATOR_ID \
+  --enable-portfolio-transactions
+```
+
+This explicit flag adds transaction recording to both stored capability ceilings: the OAuth client and its canonical resource. It preserves the existing callback/resource binding, secret, PKCE, mandatory consent, identity scopes, and any already-approved screenshot-sync ceiling. Repeating it is idempotent. It never adds screenshot-sync to a read-only client unless `--enable-portfolio-sync` is separately provided. Unreviewed scopes (including `portfolio:write`), disabled resources, and unexpected policy settings cause refusal.
+
+The user must then authorize the newly requested `portfolio:transactions` scope through the existing ChatGPT connection. Existing `portfolio:sync` authorization alone does not permit recording BUY or SELL lots. Refreshing an old read-only/screenshot-only refresh token cannot add the new permission.
+
+## Verification
+
+Focused tests cover signed token boundaries, optional scope defaults/union, explicit consent text and bootstrap guardrails. The native Better Auth test also verifies an actual consent/code/token exchange for transaction-only permission after enabling the ceiling, and verifies that old screenshot/read-only tokens stay unexpanded and refresh escalation is refused. Native tests use disposable localhost PostgreSQL and synthetic accounts only; they are not proof of a production consent flow.
+
+
+## Production activation on 16 November 2026
+
+The additive transaction migration was applied to the existing `supabase-live-stocks` project. The operator enabled `portfolio:transactions` on both the exact registered `livestocks-mcp-chatgpt` client and canonical `https://razmaz-live-stocks.vercel.app/api/mcp` resource, guarded by their observed prior scope arrays and SHA-256 hashes of every non-scope/non-timestamp field. The invariant hashes were identical afterward. No user grant, token, session, callback, secret, signing, expiry, PKCE or consent field changed. Financial table counts and digests matched before and after the migration/configuration update.
+
+Production deployment `dpl_3FJff5RdRpGHTxdZcLffmRBEyjF5` serves commit `c541bf7` on the existing domain. Public protected-resource discovery includes the optional transaction scope; unauthenticated MCP access still returns 401. Plugin 1.2.0 was published and source-read back; existing App tools were refreshed. A connected profile read still succeeds. New transaction consent and a real transaction-card write have not been performed in the owner's personal account; first use must obtain the user's new optional consent.
+
+
+## Ordinary-transaction correction (16 November 2026)
+
+Screenshot balance reconciliation is retired at MCP discovery, application write boundaries and database mutation functions, including cached pending cards. Read/cancel access and historical records remain. Trade confirmations and reported executions must use `prepare_chat_transaction`; holdings/average-cost screenshots cannot establish execution dates, prices or fees. New transactions require a known commission or explicit no-fee choice, preserving the website's ordinary FIFO, net-profit and personal-target behavior. No existing checkpoint or unknown fee is silently rewritten.
+
+The owner's website controls support correcting legacy checkpoints only from explicit actual-execution details, or deleting erroneous entries. Neither the plugin nor a migration fabricates historical trades. Full profit/forecast recovery requires correcting all incomplete history affecting the portfolio.
+
+Verified production release: plugin **1.2.1**, release `pluginrel_6afb73a2ac0881919138075cb61a8721`, with skill read-back matching the changed source and unchanged App binding, audience and presentation. Deployment `dpl_75rqH6kmcGA2WErfKSWEbFk3mvxZ` is READY and assigned to `https://razmaz-live-stocks.vercel.app`. A live connected `get_research_brief` returned the new ordinary-transaction/retired-reconciliation policy; the connected profile read also succeeded. Public scope discovery returned 200 and includes `portfolio:transactions`; unauthenticated MCP access returned 401.
+
+All three migrations were applied and their production guards checked. Position and lot counts and content hashes matched before/after (18 positions, 56 lots); no personal history was corrected automatically. Validation: 1,112 Vitest tests passed, 3 skipped; typecheck, lint and production build passed. Disposable PostgreSQL covered 10 ordinary-transaction/correction groups plus historical/retired screenshot cases, including immutable fields, owner isolation, cached pending cards, unmatched-sale rollback and last-lot cleanup. The owner's real transaction-card write and physical iPhone remain untested; no private portfolio mutation was used for verification.
