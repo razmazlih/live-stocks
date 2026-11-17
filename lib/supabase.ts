@@ -1,5 +1,5 @@
 import { DEMO_USER_ID } from '@/lib/demo/data';
-import { createDemoFetch, localDemoDashboard } from '@/lib/demo/ledger';
+import { demoRequest } from '@/lib/demo/client';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type SupabaseInstance = SupabaseClient<any, any, any>;
@@ -38,10 +38,10 @@ export function configureSupabaseUser(userId: string | null) {
   currentUserId = userId;
 }
 
-export function getLocalDemoDashboard() {
+export function getLocalDemoDashboard(signal?: AbortSignal) {
   return process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID
     && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
-    ? localDemoDashboard() : null;
+    ? demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>('dashboard', { signal }) : null;
 }
 
 export function getSupabaseClient(): SupabaseInstance {
@@ -58,7 +58,18 @@ export function getSupabaseClient(): SupabaseInstance {
     };
     cachedClient = createClient(`${window.location.origin}/api/local-demo`, 'local-demo-public-placeholder', {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { fetch: createDemoFetch(assertCurrentSession) },
+      global: { fetch: async (input, init) => {
+        assertCurrentSession();
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/local-demo/rest/v1/')) {
+          throw new Error('Demo requests must stay on the local computer');
+        }
+        const signal = init?.signal ? AbortSignal.any([init.signal, sessionRequests.signal]) : sessionRequests.signal;
+        const response = await fetch(input, { ...init, signal, credentials: 'same-origin' });
+        assertCurrentSession();
+        return response;
+      } },
     });
     return cachedClient;
   }

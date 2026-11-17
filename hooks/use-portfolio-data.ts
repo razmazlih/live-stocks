@@ -353,7 +353,8 @@ function usePortfolioDataState() {
         params.set('forceQuoteRefresh', '1');
       }
       const query = params.toString();
-      const localPayload = getLocalDemoDashboard();
+      const localRequest = getLocalDemoDashboard(controller.signal);
+      const localPayload = localRequest ? await localRequest : null;
       let payload: PortfolioDashboardPayload;
       if (localPayload) payload = localPayload;
       else {

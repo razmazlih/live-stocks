@@ -53,3 +53,6 @@ next-env.d.ts
 supabase.txt
 __pycache__/
 *.pyc
+
+# Computer-local demo account (private data and atomic-write locks)
+/.local/

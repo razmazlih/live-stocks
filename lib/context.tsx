@@ -14,6 +14,8 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
 import { readDemoSettings } from '@/lib/demo/settings';
+import { readDemoPreferences, saveDemoPreferences } from '@/lib/demo/client';
+import { toast } from 'sonner';
 
 interface AppContextType {
   locale: Locale;
@@ -41,7 +43,7 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
     let cancelled = false;
 
     const initializeSettings = async () => {
-      const savedLocale = localStorage.getItem(demo ? 'livestocks:demo:locale:v1' : 'locale') as Locale;
+      const savedLocale = demo ? (await readDemoPreferences()).locale : localStorage.getItem('locale') as Locale;
       if (savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
         setLocale(savedLocale);
       }
@@ -50,7 +52,7 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
       localStorage.removeItem('settings');
 
       if (demo) {
-        const saved = readDemoSettings();
+        const saved = await readDemoSettings();
         if (saved && !cancelled) setSettings(saved);
         if (!cancelled) setSettingsReady(true);
         return;
@@ -84,7 +86,12 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
       }
     };
 
-    void initializeSettings();
+    void initializeSettings().catch(() => {
+      if (!cancelled) {
+        setSettingsReady(true);
+        toast.error('לא ניתן לטעון את הגדרות החשבון המקומי / Could not load local account settings');
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -92,10 +99,17 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
   }, [demo]);
 
   useEffect(() => {
-    localStorage.setItem(demo ? 'livestocks:demo:locale:v1' : 'locale', locale);
+    if (!demo) localStorage.setItem('locale', locale);
     document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
   }, [locale, demo]);
+
+  const changeLocale = useCallback((value: Locale) => {
+    if (!demo) { setLocale(value); return; }
+    void saveDemoPreferences({ locale: value }).then(() => setLocale(value)).catch(() => {
+      toast.error(locale === 'he' ? 'לא ניתן לשמור את שפת הדמו במחשב' : 'Could not save the demo language on this computer');
+    });
+  }, [demo, locale]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
@@ -129,7 +143,7 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
     <AppContext.Provider
       value={{
         locale,
-        setLocale,
+        setLocale: changeLocale,
         settings,
         setSettings,
         settingsReady,

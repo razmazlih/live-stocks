@@ -22,11 +22,30 @@ vi.mock('@/components/dashboard/page-primitives', () => {
   return { DashboardContainer: Container, DashboardMain: Container, DashboardSurface: Container };
 });
 import SettingsPage from '@/app/settings/page';
-import { DEMO_SETTINGS_KEY, readDemoSettings } from '@/lib/demo/settings';
+import { DEMO_SETTINGS_KEY } from '@/lib/demo/settings';
+let computerSettings = { annualGrowthRate: 0.05, currency: 'USD', refreshInterval: 60 };
+let failSave = false;
+let failReset = false;
+let computerFetch: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  computerSettings = { annualGrowthRate: 0.05, currency: 'USD', refreshInterval: 60 };
+  failSave = false;
+  failReset = false;
+  computerFetch = vi.fn(async (input: string, init?: RequestInit) => {
+    if (input === '/api/local-demo/settings') {
+      if (init?.method === 'PUT') {
+        if (failSave) return Response.json({ message: 'Disk unavailable' }, { status: 503 });
+        computerSettings = JSON.parse(String(init.body));
+      }
+      return Response.json(computerSettings);
+    }
+    if (input === '/api/local-demo/reset') return failReset ? Response.json({ message: 'Disk unavailable' }, { status: 503 }) : Response.json({ ok: true });
+    return Response.json({});
+  });
+  vi.stubGlobal('fetch', computerFetch);
   mocks.user.id = 'local-demo-account';
   mocks.single.mockResolvedValue({ data: { id: 'settings-1', annual_growth_rate: 0.05, currency: 'USD', refresh_interval: 60 }, error: null });
   const chain = { select: vi.fn(), eq: vi.fn(), maybeSingle: mocks.single, update: mocks.update, insert: mocks.insert };
@@ -37,21 +56,37 @@ beforeEach(() => {
   mocks.insert.mockResolvedValue({ error: null });
   mocks.getClient.mockReturnValue({ from: vi.fn().mockReturnValue(chain) });
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 async function openSettings() {
   const view = render(<SettingsPage />);
   if (mocks.user.id !== 'local-demo-account') await waitFor(() => expect(mocks.single).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled());
   return view;
 }
 
 describe('locally persisted demo settings', () => {
-  it.each(['broken json', JSON.stringify({ annualGrowthRate: -1, currency: 'USD', refreshInterval: 60 }), JSON.stringify({ annualGrowthRate: 0.05, currency: 'EUR', refreshInterval: 60 })])('ignores corrupt or invalid stored settings: %s', (value) => {
-    localStorage.setItem(DEMO_SETTINGS_KEY, value);
-    expect(readDemoSettings()).toBeNull();
+  it('does not allow saving defaults while the computer settings are loading', async () => {
+    let finish!: (response: Response) => void;
+    computerFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+    const view = render(<SettingsPage />);
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+    fireEvent.submit(view.container.querySelector('form')!);
+    expect(computerFetch).toHaveBeenCalledTimes(1);
+    expect(mocks.setSettings).not.toHaveBeenCalled();
+    finish(Response.json({ annualGrowthRate: 0.11, currency: 'ILS', refreshInterval: 60 }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled());
+    expect(document.getElementById('growthRate')).toHaveValue(0.11);
   });
 
-  it('allows editing and restores saved demo settings after remount without database requests', async () => {
+  it('uses computer settings instead of a stale browser-only value', async () => {
+    localStorage.setItem(DEMO_SETTINGS_KEY, JSON.stringify({ annualGrowthRate: 0.3, currency: 'ILS', refreshInterval: 60 }));
+    await openSettings();
+    await waitFor(() => expect(document.getElementById('growthRate')).toHaveValue(0.05));
+    expect(computerFetch).toHaveBeenCalledWith('/api/local-demo/settings', expect.objectContaining({ credentials: 'same-origin' }));
+  });
+
+  it('allows editing and restores computer settings after remount without account database requests', async () => {
     await openSettings();
     expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled();
     expect(document.getElementById('growthRate')).toBeEnabled();
@@ -60,7 +95,7 @@ describe('locally persisted demo settings', () => {
     fireEvent.change(document.getElementById('growthRate')!, { target: { value: '0.08' } });
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(mocks.success).toHaveBeenCalled());
-    expect(JSON.parse(localStorage.getItem(DEMO_SETTINGS_KEY)!)).toEqual(expect.objectContaining({ annualGrowthRate: 0.08 }));
+    expect(computerSettings).toEqual(expect.objectContaining({ annualGrowthRate: 0.08 }));
     expect(mocks.setSettings).toHaveBeenCalledWith(expect.objectContaining({ annualGrowthRate: 0.08 }));
     cleanup();
     await openSettings();
@@ -80,9 +115,9 @@ describe('locally persisted demo settings', () => {
     expect(JSON.parse(localStorage.getItem(DEMO_SETTINGS_KEY)!)).toEqual(demoSettings);
   });
 
-  it('reports a failed local save without changing settings or claiming success', async () => {
+  it('reports a failed disk save without changing settings or claiming success', async () => {
     await openSettings();
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage unavailable'); });
+    failSave = true;
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     fireEvent.change(document.getElementById('growthRate')!, { target: { value: '0.08' } });
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
@@ -90,6 +125,29 @@ describe('locally persisted demo settings', () => {
     expect(mocks.success).not.toHaveBeenCalled();
     expect(mocks.setSettings).not.toHaveBeenCalled();
     expect(mocks.getClient).not.toHaveBeenCalled();
+  });
+
+  it('requires the reset confirmation dialog and cancellation sends no reset request', async () => {
+    await openSettings();
+    fireEvent.click(screen.getByRole('button', { name: /^Reset demo$/ }));
+    expect(screen.getByRole('dialog', { name: 'Reset this computer’s demo account?' })).toBeInTheDocument();
+    expect(screen.getByText(/every browser on this computer/)).toBeInTheDocument();
+    expect(computerFetch.mock.calls.some(([url]) => url === '/api/local-demo/reset')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(computerFetch.mock.calls.some(([url]) => url === '/api/local-demo/reset')).toBe(false);
+  });
+
+  it('shows a failed reset without removing the saved browser backup', async () => {
+    localStorage.setItem(DEMO_SETTINGS_KEY, JSON.stringify({ annualGrowthRate: 0.08, currency: 'ILS', refreshInterval: 60 }));
+    failReset = true;
+    await openSettings();
+    fireEvent.click(screen.getByRole('button', { name: /^Reset demo$/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm demo reset' }));
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(computerFetch).toHaveBeenCalledWith('/api/local-demo/reset', expect.objectContaining({ method: 'POST', body: JSON.stringify({ confirm: true }) }));
+    expect(localStorage.getItem(DEMO_SETTINGS_KEY)).not.toBeNull();
+    expect(mocks.setSettings).not.toHaveBeenCalled();
   });
 
   it('still saves changes for a real account', async () => {

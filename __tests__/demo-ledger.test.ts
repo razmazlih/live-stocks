@@ -143,7 +143,8 @@ describe('persistent isolated demo ledger', () => {
     });
     configureSupabaseUser(DEMO_USER_ID);
     await getSupabaseClient().from('positions').select('*');
-    expect(network).not.toHaveBeenCalled();
+    expect(network.mock.calls.some(([input]) => String(input).includes('/api/local-demo/rest/v1/positions'))).toBe(true);
+    expect(network.mock.calls.some(([input]) => String(input).startsWith('https://database.example.test'))).toBe(false);
     const original = localStorage.getItem(DEMO_LEDGER_KEY);
     configureSupabaseUser('real-user');
     await getSupabaseClient().from('positions').select('*');

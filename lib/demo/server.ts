@@ -18,10 +18,27 @@ export function demoApiResponse(request: NextRequest): NextResponse {
     return NextResponse.json({ results: demoAssets.filter(asset => `${asset.symbol} ${asset.display}`.toUpperCase().includes(query))
       .map(asset => demoAsset(asset.symbol)) }, { headers });
   }
+  if (path === '/api/quotes') {
+    const symbols = [...new Set((request.nextUrl.searchParams.get('symbols') ?? '').split(',').map(symbol => symbol.trim().toUpperCase()).filter(Boolean))].slice(0, 100);
+    return NextResponse.json({ quotes: Object.fromEntries(symbols.map(symbol => [symbol, demoQuote(symbol)])) }, { headers });
+  }
   if (path === '/api/quote') {
     const symbol = request.nextUrl.searchParams.get('symbol')?.trim().toUpperCase();
     return symbol && demoAsset(symbol) ? NextResponse.json(demoQuote(symbol), { headers })
       : NextResponse.json({ error: 'No synthetic quote for this symbol; enter a price manually.' }, { status: 404, headers });
+  }
+  if (path === '/api/exchange-rate') return NextResponse.json({ usdToIls: 3.65, timestamp: new Date().toISOString() }, { headers });
+  if (path === '/api/candles') {
+    const symbol = request.nextUrl.searchParams.get('symbol') ?? 'SPY';
+    const now = Math.floor(Date.now() / 1000);
+    const requestedFrom = Number(request.nextUrl.searchParams.get('from'));
+    const requestedTo = Number(request.nextUrl.searchParams.get('to'));
+    const to = Number.isFinite(requestedTo) && requestedTo > 0 ? Math.min(now, requestedTo) : now;
+    const from = Number.isFinite(requestedFrom) && requestedFrom > 0 ? Math.min(requestedFrom, to) : to - 90 * 86400;
+    const price = demoQuote(symbol).c;
+    const t = Array.from({ length: 90 }, (_, index) => Math.round(from + (to - from) * index / 89));
+    const c = t.map((_, index) => price * (0.9 + index / 890));
+    return NextResponse.json({ s: 'ok', t, c, o: c, h: c, l: c, v: c.map(() => 1000) }, { headers });
   }
   if (path === '/api/account/session') return NextResponse.json({ configured: true, user: demoUser }, { headers });
   if (path === '/api/portfolio/dashboard') return NextResponse.json(demoDashboard(), { headers });

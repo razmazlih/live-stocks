@@ -9,7 +9,7 @@ export async function proxy(request: NextRequest) {
   const maintenance = maintenanceResponse(request);
   if (maintenance) return maintenance;
   const pathname = request.nextUrl.pathname;
-  if (hasLocalDemoSession(request) && pathname !== '/api/local-demo') {
+  if (hasLocalDemoSession(request) && pathname !== '/api/local-demo' && !pathname.startsWith('/api/local-demo/')) {
     if (pathname.startsWith('/api/')) return demoApiResponse(request);
     if (!pathname.startsWith('/oauth/') && !pathname.startsWith('/account/')) return NextResponse.next();
   }
