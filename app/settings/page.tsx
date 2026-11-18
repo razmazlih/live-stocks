@@ -38,7 +38,7 @@ import { AppearanceSettings } from "@/components/settings/appearance-settings";
 export default function SettingsPage() {
   const { locale, setLocale, settings, setSettings } = useApp();
   const { t } = useTranslation(locale);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const isDemo = user.id === DEMO_USER_ID;
   const demoMessage = locale === "he"
     ? "כל נתוני הדמו נשמרים בקובץ במחשב הזה ומשותפים לכל הדפדפנים, גם לאחר הפעלה מחדש. הם אינם נשלחים למסד הנתונים של החשבון האישי."
@@ -227,6 +227,7 @@ export default function SettingsPage() {
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{locale === "he"
                 ? "חשבון מקומי עם נתונים סינתטיים. עסקאות, מקורות השקעה, רשימות מעקב והגדרות נשמרים במחשב הזה. חיבורים לחשבון אישי ולשירותים חיצוניים אינם מופעלים בדמו."
                 : "A local account with synthetic data. Transactions, investment sources, watchlists and settings are saved on this computer. Personal account connections and external integrations remain unavailable in demo."}</p>
+              <Button type="button" variant="outline" className="mt-4" onClick={() => { void signOut(); }}>{locale === "he" ? "יציאה מהדמו" : "Sign out of demo"}</Button>
             </DashboardSurface>
           ) : <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />}
           <AppearanceSettings locale={locale} demo={isDemo} />
