@@ -32,6 +32,61 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const toggleRef = useRef<HTMLButtonElement>(null);
   const chartSlotRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<HTMLDivElement>(null);
+  const openRequested = useRef(false);
+  const toggleFromUser = () => {
+    openRequested.current = !expanded;
+    onToggle();
+    if (expanded) toggleRef.current?.focus({ preventScroll: true });
+  };
+
+  useLayoutEffect(() => {
+    if (!expanded || !openRequested.current) return;
+    openRequested.current = false;
+    const reducedMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let cancelled = false;
+    let frame = 0;
+    const started = performance.now();
+    let lastFrame = started;
+    const keepVisible = (time = performance.now()) => {
+      const card = cardRef.current;
+      if (cancelled || !card) return;
+      const bounds = card.getBoundingClientRect();
+      if (bounds.height <= 0) return;
+      const viewport = window.visualViewport?.height ?? window.innerHeight;
+      const navigation = document.querySelector('nav.glass-navigation')?.getBoundingClientRect();
+      const bottom = Math.min(viewport, navigation && navigation.height > 0 && navigation.top > viewport / 2 ? navigation.top : viewport) - 12;
+      const delta = bounds.top < 12 ? bounds.top - 12
+        : bounds.bottom > bottom ? Math.min(bounds.bottom - bottom, bounds.top - 12) : 0;
+      // Even a partially clipped card enters smoothly: never apply a large
+      // correction on the first layout frame or after a slow frame.
+      const travel = reducedMotion ? Math.abs(delta) : Math.max(1, Math.min(32, time - lastFrame) * 3.5);
+      lastFrame = time;
+      if (Math.abs(delta) > 0.5) {
+        const step = Math.sign(delta) * Math.min(Math.abs(delta), travel);
+        window.scrollTo({ top: Math.max(0, window.scrollY + step), behavior: reducedMotion ? 'auto' : 'instant' });
+      }
+    };
+    // Follow the expanding geometry in the same frames as the reveal. There is
+    // no second scrolling phase, and closing never changes the reading position.
+    keepVisible(started);
+    const followExpansion = (time: number) => {
+      if (cancelled) return;
+      keepVisible(time);
+      if (time - started < 260) frame = window.requestAnimationFrame(followExpansion);
+    };
+    if (!reducedMotion) frame = window.requestAnimationFrame(followExpansion);
+    const cancel = () => { cancelled = true; window.cancelAnimationFrame(frame); };
+    const cancelWhenHidden = () => { if (document.hidden) cancel(); };
+    document.addEventListener('visibilitychange', cancelWhenHidden);
+    window.addEventListener('wheel', cancel, { passive: true });
+    window.addEventListener('touchmove', cancel, { passive: true });
+    return () => {
+      cancel();
+      document.removeEventListener('visibilitychange', cancelWhenHidden);
+      window.removeEventListener('wheel', cancel);
+      window.removeEventListener('touchmove', cancel);
+    };
+  }, [expanded]);
   const money = (value: number) => Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
   const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
   const tone = (value: number) => value > 0.01 ? 'text-emerald-700' : value < -0.01 ? 'text-rose-600' : 'text-slate-600';
@@ -101,29 +156,33 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const allocation = Number.isFinite(value) && portfolioValue > 0 ? value / portfolioValue * 100 : undefined;
   const entryDate = new Date(m.position.entryDate);
   const entryLabel = Number.isFinite(entryDate.getTime()) ? entryDate.toLocaleDateString(he ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-  return <article ref={cardRef} data-trend={holdingTone} className={`holding-card ${expanded ? 'holding-card-open' : ''}`}>
+  return <article ref={cardRef} data-trend={holdingTone} className={`holding-card overview-holding-card ${expanded ? 'holding-card-open overview-holding-card-open' : ''}`} onKeyDown={(event) => {
+    if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggleFromUser(); }
+  }}>
     <div ref={graphRef} aria-hidden="true" className="holding-trend-layer"><HoldingTrendBackground points={displayPoints} tone={holdingTone} expanded={expanded} baseline={m.position.entryPrice} targetPrice={target.salePrice} events={events} locale={locale} profitPoints={contextPriceMode ? undefined : profitPoints} references={priceReferences} activeFromTimestamp={activeFromTimestamp} /></div>
-    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={onToggle} className="holding-toggle block w-full rounded-2xl px-4 pb-4 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
+    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={toggleFromUser} className="holding-toggle block w-full rounded-2xl px-4 pb-4 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
       
       <span className="holding-summary-content">
       <span className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-3">
           <StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} />
-          <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
+          <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="holding-company mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
           <span className="text-end"><span className="block text-[11px] text-slate-500">{he ? 'מחיר כעת · USD' : 'Current · USD'}</span><span className="mt-1 block text-lg font-semibold tabular-nums tracking-tight text-slate-950"><bdi>{usd(m.currentPrice)}</bdi></span></span>
-          <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
+          <span className="inline-flex items-center gap-1.5">
+            <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
+          </span>
         </span>
       </span>
-      <span id={`${id}-summary`} className="mt-4 grid grid-cols-[1.25fr_1fr_0.9fr] items-start gap-3 sm:gap-5">
+      <span id={`${id}-summary`} className="holding-summary-grid mt-4 grid grid-cols-[1.25fr_1fr_0.9fr] items-start gap-3 sm:gap-5">
         <span><span className="inline-flex items-center gap-1.5 text-xs font-medium leading-5 text-slate-600"><Target aria-hidden className="h-3.5 w-3.5 text-blue-500" />{he ? 'מכירה ליעד' : 'Sell for target'}</span><span className="mt-1 block text-lg font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></span></span>
         <span><span className="block text-xs leading-5 text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-lg font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
         <span><span className="block text-xs leading-5 text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</span><span className="mt-1 block text-sm font-medium tabular-nums text-slate-700"><bdi>{money(value)}</bdi></span></span>
       </span>
-      <span className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <span className="holding-summary-footer mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <span title={he ? 'רווח מצטבר בסימול בכל החשבונות, לפי הנתון האחרון בגרף ובדולרים' : 'Cumulative symbol profit across all accounts, in USD, at the latest chart sample'} className={`holding-status inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium tabular-nums ${holdingTone === 'profit' ? 'bg-emerald-50/90 text-emerald-700' : holdingTone === 'loss' ? 'bg-rose-50/90 text-rose-700' : 'bg-slate-50/90 text-slate-600'}`}><span aria-hidden className={`h-1.5 w-1.5 rounded-full ${holdingTone === 'profit' ? 'bg-emerald-500' : holdingTone === 'loss' ? 'bg-rose-500' : 'bg-slate-400'}`} />{holdingTone === 'profit' ? (he ? 'רווח מצטבר' : 'Cumulative profit') : holdingTone === 'loss' ? (he ? 'הפסד מצטבר' : 'Cumulative loss') : typeof cumulativeProfit === 'number' && Number.isFinite(cumulativeProfit) ? (he ? 'באיזון' : 'At break-even') : (he ? 'רווח לא זמין' : 'P/L unavailable')} <bdi>{typeof cumulativeProfit === 'number' ? usd(Math.abs(cumulativeProfit)) : '—'}</bdi></span>
-        <span className="text-[10px] text-slate-500">{he ? 'יעד להיום · כולל מכירות קודמות' : 'Today’s target · includes previous sales'}</span>
+        <span className="holding-summary-note text-[10px] text-slate-500">{he ? 'יעד להיום · כולל מכירות קודמות' : 'Today’s target · includes previous sales'}</span>
       </span>
       </span>
     </button>
@@ -131,8 +190,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
       <div className="min-h-0 cursor-pointer overflow-hidden" onClick={(event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (!expanded || target?.closest('a, button, input, select, textarea, [role="button"]') || window.getSelection()?.isCollapsed === false) return;
-        onToggle();
-        toggleRef.current?.focus({ preventScroll: true });
+        toggleFromUser();
       }}>
         <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
           <dl className="grid grid-cols-2 gap-x-5 gap-y-4 pt-1 sm:grid-cols-3">
@@ -140,7 +198,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
             <div><dt className="text-xs text-slate-500">{he ? 'שינוי היום' : 'Today’s change'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></dd></div>
             <div className="col-span-2 flex items-center justify-between gap-3 text-xs sm:col-span-1 sm:block"><dt className="text-slate-500">{he ? 'רווח / הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`font-medium tabular-nums sm:mt-1.5 sm:text-sm ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="ms-2 inline-block text-xs"><bdi>{percent(holdingReturn)}</bdi></span></dd></div>
           </dl>
-          <div className="mt-5">
+          <div className="holding-chart-detail mt-5">
             <div data-chart-meta="" className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500"><span>{contextPriceMode ? he ? 'מחיר המניה · USD' : 'Share price · USD' : he ? 'רווח מצטבר · USD' : 'Cumulative profit · USD'}</span>{historyRange ? <span className="text-[10px]"><bdi>{historyRange.start} – {historyRange.end}</bdi></span> : null}</div>
             <div data-chart-meta="" className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[10px] text-slate-500">
               <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-rose-500" />{contextPriceMode ? he ? 'מתחת לעלות' : 'Below cost' : he ? 'הפסד' : 'Loss'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-blue-500" />{he ? 'מתחת ליעד' : 'Below target'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{he ? 'ביעד ומעלה' : 'At / above target'}</span></span>
@@ -152,11 +210,14 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
             </div>
           </div>
           {contextPriceMode ? <p className="mt-1 text-[10px] text-slate-400">{he ? 'שבוע לפני הכניסה באפור · הצבעים מתחילים בכניסה להחזקה הנוכחית' : 'One week before entry in gray · colors begin at the current holding’s entry'}</p> : null}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="holding-detail-footer mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p>
+            <div className="holding-detail-actions flex items-center gap-2">
+              <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
             <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-blue-100 bg-white/90 px-4 text-sm font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
               {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
             </StockDetailsLink>
+            </div>
           </div>
 
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Circle, Search } from 'lucide-react';
 import { useApp } from '@/lib/context';
@@ -18,13 +18,22 @@ import type { HistoricalPoint, Position, PositionMetrics } from '@/types';
 const FILTERS = ['all', 'winners', 'losers', 'ahead', 'lagging'] as const;
 function parseHoldings(params: URLSearchParams) {
   const filter = params.get('filter');
-  return { holding: params.get('holding'), q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
+  return { q: (params.get('q') ?? '').slice(0, 200), filter: FILTERS.includes(filter as typeof FILTERS[number]) ? filter as typeof FILTERS[number] : 'all' };
 }
 
 export function OverviewHoldings({ metrics, sparklineData = {}, contextSparklineData = {}, positions }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]>; contextSparklineData?: Record<string, HistoricalPoint[]>; positions?: Position[] }) {
   const { locale, settings } = useApp();
   const he = locale === 'he';
   const [state, patch, sourceUrl] = useUrlState(parseHoldings);
+  const [expandedHolding, setExpandedHolding] = useState<string | null>(null);
+  // Old shared links must no longer reopen a holding or retain its state in the URL.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('holding')) patch({ holding: null });
+  }, [sourceUrl, patch]);
+  const [sourcePath, sourceQuery] = sourceUrl.split('?');
+  const returnParams = new URLSearchParams(sourceQuery);
+  returnParams.delete('holding');
+  const returnUrl = `${sourcePath || '/'}${returnParams.size ? `?${returnParams}` : ''}`;
   const historyBySymbol = useMemo(() => {
     const grouped = new Map<string, Position[]>();
     for (const position of positions ?? metrics.map(metric => metric.position)) {
@@ -59,11 +68,11 @@ export function OverviewHoldings({ metrics, sparklineData = {}, contextSparkline
         const id = `overview-${m.position.activationId ?? m.position.id ?? m.position.symbol}`;
         const pnl = currency === 'ILS' ? m.positionPnLIls : m.positionPnLUsd;
         const target = getHoldingTarget(m);
-        return <tr key={id} className="hover:bg-slate-50/70"><td className="px-3 py-3"><Link id={id} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-[44px] items-center gap-2.5 rounded text-start"><StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} className="h-9 w-9 rounded-lg" /><span className="flex min-w-0 flex-col"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></span></Link></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{usd(m.currentPrice)}</bdi><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></td><td className={`px-3 py-3 text-end font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi><span className="mt-1 block text-xs font-normal">{gapLabel(target.difference)}</span></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></td><td className={`px-3 py-3 text-end tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block text-xs"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact targetPrice={target.salePrice ?? null} /></td></tr>;
+        return <tr key={id} className="hover:bg-slate-50/70"><td className="px-3 py-3"><Link id={id} href={buildStockHref(m.position.symbol, returnUrl)} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-[44px] items-center gap-2.5 rounded text-start"><StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} className="h-9 w-9 rounded-lg" /><span className="flex min-w-0 flex-col"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></span></Link></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{usd(m.currentPrice)}</bdi><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></td><td className={`px-3 py-3 text-end font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi><span className="mt-1 block text-xs font-normal">{gapLabel(target.difference)}</span></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></td><td className={`px-3 py-3 text-end tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block text-xs"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact targetPrice={target.salePrice ?? null} /></td></tr>;
       })}</tbody></table>
       <div className="space-y-2 xl:hidden">{filtered.map((metric) => {
         const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;
-        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} contextPoints={contextSparklineData[key] ?? []} expanded={state.holding === key} onToggle={() => patch({ holding: state.holding === key ? null : key })} sourceUrl={sourceUrl || '/'} portfolioValue={portfolioValue} historyPositions={historyBySymbol.get(metric.position.symbol.trim().toUpperCase()) ?? []} />;
+        return <OverviewHoldingCard key={key} metric={metric} points={sparklineData[key] ?? []} contextPoints={contextSparklineData[key] ?? []} expanded={expandedHolding === key} onToggle={() => setExpandedHolding(current => current === key ? null : key)} sourceUrl={returnUrl} portfolioValue={portfolioValue} historyPositions={historyBySymbol.get(metric.position.symbol.trim().toUpperCase()) ?? []} />;
       })}</div>
     </> : <p className="py-10 text-center text-sm text-slate-500">{he ? 'אין החזקות פעילות התואמות לסינון.' : 'No active holdings match your filters.'}</p>}
   </DashboardSurface>;

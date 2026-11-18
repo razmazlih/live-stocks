@@ -1,6 +1,6 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
 import type { Position, PositionMetrics } from '@/types';
 import { calculatePositionMetrics, calculateRequiredExitPrice, formatCurrency } from '@/lib/calculations';
@@ -18,6 +18,7 @@ const metrics = [metric('AAPL', -10), metric('MSFT', 20), metric('CLOSED', -30, 
 
 describe('overview holdings continuity', () => {
   beforeEach(() => window.history.replaceState(null, '', '/?chartRange=1Y'));
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
   it('labels daily percentage separately from return since entry and leaves missing daily quotes unavailable', () => {
     render(<OverviewHoldings metrics={metrics} />);
     const table = within(screen.getByRole('table'));
@@ -102,9 +103,10 @@ describe('overview holdings continuity', () => {
     expect(apple).toHaveAttribute('aria-expanded', 'true');
     expect(panel).not.toHaveAttribute('inert');
     expect(apple).toHaveFocus();
-    expect(new URLSearchParams(window.location.search).get('holding')).toBe('AAPL');
+    expect(window.location.search).toBe('?chartRange=1Y');
+    expect(within(apple).queryByText('Close', { exact: true })).not.toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'View AAPL details' });
-    expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y&holding=AAPL');
+    expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y');
     // Prevent navigation in jsdom while exercising the return-context handler.
     link.addEventListener('click', event => event.preventDefault());
     await user.click(link);
@@ -134,11 +136,100 @@ describe('overview holdings continuity', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(panel).toHaveAttribute('inert');
   });
-  it('reopens the selected mobile holding from its return URL', () => {
+  it('discards a legacy open-card URL while preserving search and chart range', () => {
     window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');
     render(<OverviewHoldings metrics={metrics} />);
+    expect(screen.getByRole('button', { name: 'Expand MSFT details' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'View MSFT details' })).not.toBeInTheDocument();
+    const query = new URLSearchParams(window.location.search);
+    expect(query.get('holding')).toBeNull();
+    expect(query.get('q')).toBe('Microsoft');
+    expect(query.get('chartRange')).toBe('1Y');
+  });
+  it('starts with all cards collapsed after the overview mounts again', async () => {
+    const user = userEvent.setup();
+    const first = render(<OverviewHoldings metrics={metrics} />);
+    await user.click(screen.getByRole('button', { name: 'Expand AAPL details' }));
+    expect(screen.getByRole('button', { name: 'Collapse AAPL details' })).toHaveAttribute('aria-expanded', 'true');
+    expect(window.location.search).toBe('?chartRange=1Y');
+    first.unmount();
+    render(<OverviewHoldings metrics={metrics} />);
+    expect(screen.getByRole('button', { name: 'Expand AAPL details' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Expand MSFT details' })).toHaveAttribute('aria-expanded', 'false');
+  });
+  it.each([
+    { reducedMotion: false, closeFrom: 'header' },
+    { reducedMotion: false, closeFrom: 'footer' },
+    { reducedMotion: false, closeFrom: 'details' },
+    { reducedMotion: true, closeFrom: 'header' },
+  ])('follows opening immediately but never scrolls on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
+    vi.useFakeTimers();
+    let offset = 400;
+    vi.stubGlobal('scrollY', offset);
+    vi.stubGlobal('innerHeight', 902);
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: reducedMotion, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(5000);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation((options?: ScrollToOptions | number, y?: number) => {
+      offset = typeof options === 'number' ? y ?? offset : options?.top ?? offset;
+      vi.stubGlobal('scrollY', offset);
+    });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('holding-card')) {
+        const top = 1000 - offset;
+        const height = this.classList.contains('holding-card-open') ? 500 : 190;
+        return { x: 0, y: top, top, left: 0, right: 360, bottom: top + height, width: 360, height, toJSON() {} };
+      }
+      return { x: 0, y: 0, top: 0, left: 0, right: 360, bottom: 44, width: 360, height: 44, toJSON() {} };
+    });
+    render(<OverviewHoldings metrics={[metrics[0]]} />);
+    const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const card = toggle.closest('article')!;
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    expect(scrollTo).not.toHaveBeenCalled();
+    fireEvent.click(toggle);
+    // No timer advance: following starts during the opening layout update.
+    expect(scrollTo).toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: reducedMotion ? 'auto' : 'instant' }));
+    // Normal motion starts with a small step rather than jumping to the final offset.
+    if (!reducedMotion) expect(Math.abs(offset - 400)).toBeLessThanOrEqual(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
+    expect(card.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+    expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(902);
+    const beforeClose = offset;
+    scrollTo.mockClear();
+    if (closeFrom === 'details') fireEvent.click(within(panel).getByText('Purchase cost'));
+    else fireEvent.click(closeFrom === 'footer' ? screen.getByRole('button', { name: 'Close card' }) : toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(scrollTo).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(offset).toBe(beforeClose);
+    expect(toggle).toHaveFocus();
+  });
+  it('keeps local open state during a data refresh without scrolling or persisting it in the URL', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('scrollY', 400);
+    vi.stubGlobal('innerHeight', 902);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 600, top: 600, left: 0, right: 360, bottom: 1100, width: 360, height: 500, toJSON() {} });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    window.history.replaceState(null, '', '/?holding=MSFT&chartRange=1Y');
+    const { rerender } = render(<OverviewHoldings metrics={metrics} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
+    expect(scrollTo).not.toHaveBeenCalled();
+    const microsoft = screen.getByRole('button', { name: 'Expand MSFT details' });
+    expect(microsoft).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(microsoft);
+    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
+    expect(scrollTo).toHaveBeenCalled();
+    scrollTo.mockClear();
+    scrollBy.mockClear();
+    rerender(<OverviewHoldings metrics={metrics.map(item => ({ ...item, currentPrice: item.currentPrice + 1 }))} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(screen.getByRole('button', { name: 'Collapse MSFT details' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('link', { name: 'View MSFT details' })).toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled();
+    expect(new URLSearchParams(window.location.search).get('holding')).toBeNull();
   });
   it('filters active holdings, preserves the chart range and links back to the exact overview state', async () => {
     const user = userEvent.setup();

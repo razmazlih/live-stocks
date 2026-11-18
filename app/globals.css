@@ -584,6 +584,34 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
   .holding-detail-content { transform: none; }
 }
 
+/* Focused inline holding details keep the chart and the exit visible together. */
+.overview-holding-card { overflow-anchor: none; }
+.overview-holding-card .holding-toggle { transition: padding 240ms cubic-bezier(.22,1,.36,1); }
+.overview-holding-card .holding-summary-grid { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), gap 240ms cubic-bezier(.22,1,.36,1); }
+.overview-holding-card .holding-summary-grid > span > span:last-child { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), font-size 240ms cubic-bezier(.22,1,.36,1), line-height 240ms cubic-bezier(.22,1,.36,1); }
+.overview-holding-card .holding-summary-footer { transition: margin-top 240ms cubic-bezier(.22,1,.36,1); }
+.overview-holding-card-open .holding-toggle { padding-top: 12px; padding-bottom: 10px; }
+.overview-holding-card-open .holding-summary-grid { margin-top: 8px; gap: 8px; }
+.overview-holding-card-open .holding-summary-grid > span > span:last-child { margin-top: 2px; font-size: 14px; line-height: 20px; }
+.overview-holding-card-open .holding-summary-footer { margin-top: 6px; }
+.overview-holding-card-open .holding-detail-content { padding-bottom: 12px; }
+.overview-holding-card-open .holding-detail-content > dl { row-gap: 8px; }
+.overview-holding-card-open .holding-detail-content dd { margin-top: 3px; }
+.overview-holding-card-open .holding-chart-detail { margin-top: 12px; }
+.overview-holding-card-open .holding-chart-detail [data-chart-meta] { margin-bottom: 6px; }
+.overview-holding-card-open .holding-chart-slot { height: clamp(112px, calc(100dvh - 560px), 176px); }
+.overview-holding-card-open .holding-detail-footer { margin-top: 8px; gap: 4px; }
+.overview-holding-card-open .holding-detail-footer > p { width: 100%; font-size: 10px; line-height: 16px; }
+.overview-holding-card-open .holding-detail-actions { width: 100%; justify-content: space-between; }
+.overview-holding-card-open .stock-details-action { min-height: 44px; padding-inline: 12px; font-size: 12px; }
+.overview-holding-card-open .holding-close-action { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .overview-holding-card .holding-toggle,
+  .overview-holding-card .holding-summary-grid,
+  .overview-holding-card .holding-summary-grid > span > span:last-child,
+  .overview-holding-card .holding-summary-footer { transition: none; }
+}
+
 /* Liquid Glass materials. Semantic colors work in cards, portals and SVG charts. */
 :root {
   color-scheme: light;
