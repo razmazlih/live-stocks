@@ -108,6 +108,7 @@ describe('overview holdings continuity', () => {
     // Prevent navigation in jsdom while exercising the return-context handler.
     link.addEventListener('click', event => event.preventDefault());
     await user.click(link);
+    expect(apple).toHaveAttribute('aria-expanded', 'true');
     expect(JSON.parse(sessionStorage.getItem('livestocks:return-context')!).focusId).toBe(apple.id);
     await user.click(microsoft);
     expect(apple).toHaveAttribute('aria-expanded', 'false');
@@ -117,6 +118,21 @@ describe('overview holdings continuity', () => {
     await user.keyboard(' ');
     expect(microsoft).toHaveAttribute('aria-expanded', 'false');
     expect(new URLSearchParams(window.location.search).get('holding')).toBeNull();
+  });
+  it('collapses from the expanded details and chart space while preserving the keyboard toggle', async () => {
+    const user = userEvent.setup();
+    render(<OverviewHoldings metrics={metrics} />);
+    const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    await user.click(toggle);
+    await user.click(within(panel).getByText('Purchase cost'));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+    expect(new URLSearchParams(window.location.search).get('holding')).toBeNull();
+    await user.keyboard('{Enter}');
+    await user.click(panel.querySelector('.holding-chart-slot')!);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(panel).toHaveAttribute('inert');
   });
   it('reopens the selected mobile holding from its return URL', () => {
     window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');

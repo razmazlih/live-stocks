@@ -128,7 +128,12 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
       </span>
     </button>
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
-      <div className="min-h-0 overflow-hidden">
+      <div className="min-h-0 cursor-pointer overflow-hidden" onClick={(event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!expanded || target?.closest('a, button, input, select, textarea, [role="button"]') || window.getSelection()?.isCollapsed === false) return;
+        onToggle();
+        toggleRef.current?.focus({ preventScroll: true });
+      }}>
         <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
           <dl className="grid grid-cols-2 gap-x-5 gap-y-4 pt-1 sm:grid-cols-3">
             <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
