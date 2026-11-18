@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { route, resetClient } = vi.hoisted(() => ({ route: { pathname: '/privacy' }, resetClient: vi.fn() }));
@@ -33,10 +33,10 @@ describe('anonymous public information rendering', () => {
     render(<AuthProvider><h1>Private nested content</h1></AuthProvider>);
     await screen.findByText(/ההתחברות עדיין אינה מוגדרת/);
     expect(screen.queryByText('Private nested content')).not.toBeInTheDocument();
-    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
       '/api/account/session',
       '/api/account/link/recovery-status',
-    ]);
+    ]));
     // The signed-out recovery hint must not bootstrap private financial data.
     expect(fetch).toHaveBeenCalledWith('/api/account/link/recovery-status', expect.objectContaining({
       cache: 'no-store', credentials: 'same-origin', redirect: 'error',

@@ -175,14 +175,16 @@ describe('correcting old plugin balance checkpoints', () => {
     await user.click(within(history).getByRole('button', { name: 'Edit transaction' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit transaction' });
     expect(within(dialog).getByText(/A balance checkpoint is not a transaction/)).toBeInTheDocument();
-    expect(dialog.querySelector('#transactionDate')).toHaveValue('');
+    expect(within(dialog).getByLabelText('Date', { exact: true })).toHaveTextContent('Choose a date');
     expect(within(dialog).getByRole('spinbutton', { name: 'Price' })).toHaveValue(0);
     expect(within(dialog).getByRole('spinbutton', { name: 'Quantity' })).toHaveValue(0);
     fireEvent.submit(dialog.querySelector('form')!);
     expect(update).not.toHaveBeenCalled();
     fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Price' }), { target: { value: '100' } });
     fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Quantity' }), { target: { value: '5' } });
-    fireEvent.change(dialog.querySelector('#transactionDate')!, { target: { value: '2026-01-01' } });
+    await user.click(within(dialog).getByLabelText('Date', { exact: true }));
+    await user.type(screen.getByLabelText('Enter a date'), '01/01/2026');
+    await user.click(screen.getByRole('button', { name: /^Apply date$/ }));
     await user.click(within(dialog).getByRole('button', { name: 'No commission was charged' }));
     fireEvent.submit(dialog.querySelector('form')!);
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
