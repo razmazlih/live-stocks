@@ -21,6 +21,7 @@ import { recordPositionPurchase } from "@/lib/position-purchase";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/calculations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -1058,16 +1059,11 @@ export default function PositionsPage() {
                     </div>
                     <div className="sm:col-span-1">
                       <Label htmlFor="initialDate">{matchingPosition ? t.positions.transactionDate : t.positions.initialDate}</Label>
-                      <Input
+                      <DatePicker
                         id="initialDate"
-                        type="date"
+                        locale={locale}
                         value={formData.initialDate}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            initialDate: e.target.value,
-                          })
-                        }
+                        onChange={(initialDate) => setFormData({ ...formData, initialDate })}
                         required
                       />
                     </div>
@@ -1234,16 +1230,11 @@ export default function PositionsPage() {
                   <Label htmlFor="transactionDate">
                     {t.positions.transactionDate}
                   </Label>
-                  <Input
+                  <DatePicker
                     id="transactionDate"
-                    type="date"
+                    locale={locale}
                     value={transactionForm.executedAt}
-                    onChange={(e) =>
-                      setTransactionForm({
-                        ...transactionForm,
-                        executedAt: e.target.value,
-                      })
-                    }
+                    onChange={(executedAt) => setTransactionForm({ ...transactionForm, executedAt })}
                     required
                   />
                 </div>
