@@ -18,11 +18,11 @@ import { calculatePositionMetrics } from '@/lib/calculations';
 import type { Position } from '@/types';
 
 const context = vi.hoisted(() => ({ locale: 'en', settings: {annualGrowthRate: 0} }));
-const fixturePolicy = vi.hoisted(() => ({ minLossUsd: 0, maxLosers: 1 }));
+const fixturePolicy = vi.hoisted(() => ({ minLossUsd: 0, maxLosers: 1 as number | undefined }));
 // Keep the small accounting fixtures; engine policy thresholds are tested separately.
 vi.mock('@/lib/close-pair-proposals', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/close-pair-proposals')>();
-  return { ...original, buildClosePairProposals: (...args: Parameters<typeof original.buildClosePairProposals>) => original.buildClosePairProposals(args[0], args[1], args[2], args[3], args[4], { ...args[5], ...fixturePolicy }) };
+  return { ...original, buildClosePairProposals: (...args: Parameters<typeof original.buildClosePairProposals>) => original.buildClosePairProposals(args[0], args[1], args[2], args[3], args[4], { ...args[5], minLossUsd: fixturePolicy.minLossUsd, ...(fixturePolicy.maxLosers === undefined ? {} : { maxLosers: fixturePolicy.maxLosers }) }) };
 });
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/context', () => ({ useApp: () => context }));
@@ -32,9 +32,9 @@ const metric = (symbol: string, price: number) => calculatePositionMetrics({
 } satisfies Position, price, 3.5);
 
 describe('close pair disclosure', () => {
-  it('shows every ticker and every full quantity in a multi-loser group', async () => {
+  it('automatically includes multiple eligible losers without requiring a manual selector', async () => {
     context.locale = 'en';
-    fixturePolicy.maxLosers = 3;
+    fixturePolicy.maxLosers = undefined;
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 160), metric('LOSS', 80), metric('MORE', 80)]} />);
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS \+ MORE details/ });
@@ -43,12 +43,8 @@ describe('close pair disclosure', () => {
     expect(screen.getAllByText('All 2 shares')).toHaveLength(3);
     expect(screen.getByRole('link', { name: /^MORE/ })).toBeVisible();
     expect(screen.getByText('+$40.00')).toBeInTheDocument();
-    const selector = screen.getByRole('combobox', { name: 'Losing stocks per proposal' });
-    expect(selector).toHaveValue('3');
-    fixturePolicy.maxLosers = 1;
-    await user.selectOptions(selector, '1');
-    expect(screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Expand WIN \+ LOSS \+ MORE details/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Losing stocks per proposal' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loss filter:/)).not.toBeInTheDocument();
   });
 
   beforeEach(() => { context.settings.annualGrowthRate = 0; fixturePolicy.maxLosers = 1; });
@@ -127,13 +123,12 @@ describe('close pair disclosure', () => {
     expect(snapshot.pairs[0].legs[1]).toMatchObject({realizedProfitUsd: -30, unrealizedProfitUsd: -20, cumulativeProfitUsd: -50});
   });
 
-  it('explains the filters when there is no profitable group', () => {
+  it('keeps the empty state concise without exposing the removed controls or filter paragraph', () => {
     context.locale = 'en';
     render(<ClosePairProposals metrics={[metric('WIN', 110), metric('LOSS', 80)]} />);
     expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
-    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('at least 5% and $50');
-    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('up to 24 eligible stocks');
-    expect(screen.getByText(/Loss filter:/)).toHaveTextContent('does not guarantee the best combination');
+    expect(screen.queryByText(/Loss filter:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Losing stocks per proposal' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copy prompt for AI review' })).not.toBeInTheDocument();
   });
 

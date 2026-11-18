@@ -22,9 +22,8 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const { sourceName } = useInvestmentSources();
   const he = locale === 'he';
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(() => new Set());
-  const [maxLosers, setMaxLosers] = useState(3);
   const panelId = useId();
-  const proposals = useMemo(() => buildClosePairProposals(metrics, 3, Date.now(), settings.annualGrowthRate, positions, { maxLosers }), [metrics, positions, settings.annualGrowthRate, maxLosers]);
+  const proposals = useMemo(() => buildClosePairProposals(metrics, 3, Date.now(), settings.annualGrowthRate, positions), [metrics, positions, settings.annualGrowthRate]);
   const [copying, setCopying] = useState(false);
   const copyForAi = async () => {
     setCopying(true);
@@ -42,21 +41,16 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const anyExpanded = proposals.some(proposal => expandedPairs.has(pairKey(proposal)));
 
   return <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" aria-label={he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}>
-    <div className="flex min-h-[64px] items-center gap-3 px-4 py-4 sm:px-5">
-        <span aria-hidden className="holding-monogram flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50/60 text-blue-600"><ArrowLeftRight className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1"><h2 className="text-sm font-semibold tracking-tight text-slate-950 sm:text-base">{he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}</h2><span className="mt-1 block text-xs leading-5 text-slate-500">{he ? 'כולל רווחים והפסדים מכל המכירות הקודמות' : 'Including gains and losses from all previous sales'}</span></span>
-        <span className="shrink-0 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600" aria-label={he ? 'מספר הצעות' : 'Idea count'}>{proposals.length}</span>
-    </div>
-      {proposals.length > 0 && <div className="flex items-center justify-end border-t border-slate-100 px-4 py-2 sm:px-5">
-      <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל קבוצה' : 'Copy a prompt for research and a verdict on each group'} className="inline-flex min-h-[44px] items-center gap-2 shrink-0 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-blue-200 hover:bg-blue-100/70 hover:shadow-sm active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 motion-reduce:transform-none motion-reduce:transition-none"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>
-      </div>}
-
-    <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 px-4 py-2 sm:px-5">
-      <label htmlFor={`${panelId}-loser-count`} className="text-xs font-medium text-slate-600">{he ? 'מספר מניות מפסידות בהצעה' : 'Losing stocks per proposal'}</label>
-      <select id={`${panelId}-loser-count`} value={maxLosers} onChange={event => { setMaxLosers(Number(event.target.value)); setExpandedPairs(new Set()); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-        <option value={1}>{he ? 'מפסידה אחת' : 'One losing stock'}</option>
-        <option value={3}>{he ? 'עד 3 מפסידות' : 'Up to 3 losing stocks'}</option>
-      </select>
+    <div className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+      <span aria-hidden className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50/60 text-blue-600 sm:flex"><ArrowLeftRight className="h-4 w-4" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold tracking-tight text-slate-950 sm:text-base">{he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}</h2>
+          <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md bg-slate-100 px-1 text-[11px] font-medium text-slate-600" aria-label={he ? 'מספר הצעות' : 'Idea count'}>{proposals.length}</span>
+        </div>
+        <p className="mt-0.5 text-[11px] leading-4 text-slate-500">{he ? 'כולל מכירות קודמות' : 'Includes prior sales'}</p>
+      </div>
+      {proposals.length > 0 && <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל קבוצה' : 'Copy a prompt for research and a verdict on each group'} className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>}
     </div>
     {proposals.length === 0 && <p role="status" className="border-t border-slate-100 px-4 py-4 text-sm leading-6 text-slate-500 sm:px-5">{he ? 'לא נמצאו הצעות שעומדות בתנאים בנתונים הזמינים. החזקות עם הפסד קטן או חדש מוגנות; אין צורך לייצר מכירה.' : 'No qualifying exit groups in the available data. Small or recent losses are protected; no sale is required.'}</p>}
     <div data-testid="close-pair-preview" className={`grid items-start gap-3 border-y border-slate-100 bg-slate-50/60 p-3 sm:gap-4 sm:p-4 ${proposals.length === 2 ? 'md:grid-cols-2' : proposals.length > 2 ? 'xl:grid-cols-3' : ''}`}>
@@ -95,7 +89,6 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
     </div>
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-[11px] leading-5 text-slate-500 sm:px-5">
       <p>{he ? 'יעד אישי להיום · USD · לפני מס ועלויות מכירה' : 'Personal target to date · USD · before tax & exit costs'}</p>
-      <p className="w-full leading-5">{he ? 'מסנן הפסדים: לפחות 5% וגם $50; גיל משוקלל של המניות שנותרו לפחות 30 יום, או הפסד של 15% ומעלה גם בהחזקה חדשה. מניה מרוויחה אחת לצד מספר המפסידות שנבחר. נבדקים צירופים מתוך עד 24 המפסידות הכשירות עם ההפסד הגדול ביותר; הבחירה אינה מבטיחה את השילוב הטוב ביותר לכל התיק. אלו כללי סינון להצעות, לא המלצת השקעה.' : 'Loss filter: at least 5% and $50; cost-weighted age of remaining shares at least 30 days, or a loss of 15% or more even for a recent holding. One profitable stock with the selected number of losing stocks. Combinations are searched among up to 24 eligible stocks with the largest losses; selection does not guarantee the best combination for the entire portfolio. These are proposal filters, not investment advice.'}</p>
 
     </div>
     <div className={anyExpanded ? 'holding-card-open' : ''}><div aria-hidden={!anyExpanded} ref={element => { if (anyExpanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal"><div className="min-h-0 overflow-hidden"><details className="px-4 pb-3 text-[11px] leading-relaxed text-slate-500 sm:px-5"><summary className="flex min-h-[44px] cursor-pointer items-center text-blue-700">{he ? 'מה כלול בחישוב?' : 'What’s included?'}</summary><p>{he ? 'הדמיה בדולרים לפי המחירים הזמינים ועלות FIFO, כולל עמלות קנייה ומכירה שהוזנו ותוצאות כל המכירות הקודמות של כל סימול בכל החשבונות. יעד התשואה השנתי האישי נצבר לכל מנת קנייה עד מכירתה או עד היום אם היא עדיין פתוחה, ואינו תחזית שוק. כל קבוצה משלבת מניה ברווח מעל היעד עם מניה מפסידה אחת או יותר. הרווח המצטבר המשולב חייב להיות חיובי ומעל היעד האישי של כולן. מס, עמלות מכירה ושינויי מחיר אינם כלולים ועשויים לשנות את התוצאה. העדפה להפסד הגדול ביותר שניתן לסגור ואז לסך ההפסדים המכוסים; כל מניה מופיעה בקבוצה אחת בלבד. הפרומפט כולל את כמויות וסכומי ההצעות המוצגות, להדבקה ידנית ב־AI. ההצעות אינן מבצעות מכירה.' : 'USD simulation using available prices and FIFO cost, including recorded buy and sell fees and every prior sale result for each symbol across accounts. The personal annual return target accrues for each purchase until it is sold, or until today while open; it is not a market forecast. Each group combines one profitable holding above target with one or more losing holdings; cumulative profit must be positive and exceed all personal targets. Tax, exit fees and price changes are excluded and may change the result. Prioritizes the largest individual loss, then total covered losses; each stock appears in one group only. The prompt includes the displayed quantities and amounts for manually pasting into your AI. These ideas do not execute trades.'}</p></details></div></div></div>
