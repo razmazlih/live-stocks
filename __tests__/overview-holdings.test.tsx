@@ -21,6 +21,13 @@ describe('overview holdings continuity', () => {
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
   it('labels daily percentage separately from return since entry and leaves missing daily quotes unavailable', () => {
     render(<OverviewHoldings metrics={metrics} />);
+    const card = within(screen.getByRole('button', { name: 'Expand AAPL details' }));
+    expect(card.getByText('Daily price change')).toBeInTheDocument();
+    expect(card.getByText('-2.50%')).toBeInTheDocument();
+    expect(card.getByText('Return since purchase')).toBeInTheDocument();
+    expect(card.getByText('+25.00%')).toBeInTheDocument();
+    expect(card.getByText('Holding value')).toBeInTheDocument();
+    expect(within(screen.getByRole('button', { name: 'Expand MSFT details' })).getByText('—')).toBeInTheDocument();
     const table = within(screen.getByRole('table'));
     const apple = within(table.getByRole('row', { name: /AAPL/ }));
     expect(apple.getByText('-2.50%')).toBeInTheDocument();
@@ -48,7 +55,7 @@ describe('overview holdings continuity', () => {
     expect(document.querySelector('[data-price-line="true"]')).toBeInTheDocument();
   });
 
-  it('shows a sale target recovering earlier partial losses in the collapsed card', () => {
+  it('shows a sale target recovering earlier partial losses in the expanded card', () => {
     const asOf = new Date('2025-01-01T00:00:00Z');
     const position: Position = {
       id: 'TEST', symbol: 'TEST', display: 'Test Corp', imageUrl: '',
@@ -62,8 +69,9 @@ describe('overview holdings continuity', () => {
     const holding = { ...calculatePositionMetrics(position, 100, 3.2, 0), requiredExitPrice, projectedPrice: 110 };
     render(<OverviewHoldings metrics={[holding]} />);
     const button = screen.getByRole('button', { name: 'Expand TEST details' });
-    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
-    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(summary.getByText(formatCurrency(123.37, 'USD', 'en'))).toBeInTheDocument();
     expect(summary.getByText(/23\.37%/)).toBeInTheDocument();
     expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
@@ -71,21 +79,24 @@ describe('overview holdings continuity', () => {
   it('rounds the target upward to a tradable cent before comparing it with today’s price', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), requiredExitPrice: 100.001 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
-    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    fireEvent.click(button);
+    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(summary.getByText(formatCurrency(100.01, 'USD', 'en'))).toBeInTheDocument();
     expect(summary.getByText(/0\.01%/)).toBeInTheDocument();
   });
   it('measures an already exceeded target relative to the target price', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), currentPrice: 125, requiredExitPrice: 100 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
-    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    fireEvent.click(button);
+    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(summary.getByText(/25\.00%/)).toBeInTheDocument();
     expect(summary.queryByText(/20\.00%/)).not.toBeInTheDocument();
   });
   it('leaves an unavailable full-history sale target unknown instead of using the open-lot target', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', -10), requiredExitPrice: undefined, projectedPrice: 110 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
-    const summary = within(document.getElementById(button.getAttribute('aria-describedby')!)!);
+    fireEvent.click(button);
+    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(summary.getAllByText('—').length).toBeGreaterThan(0);
     expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
   });
@@ -97,7 +108,7 @@ describe('overview holdings continuity', () => {
     const panel = document.getElementById(apple.getAttribute('aria-controls')!)!;
     expect(apple).toHaveAttribute('aria-expanded', 'false');
     expect(panel).toHaveAttribute('inert');
-    expect(screen.queryByRole('link', { name: 'View AAPL details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View AAPL details' })).toBeInTheDocument();
     apple.focus();
     await user.keyboard('{Enter}');
     expect(apple).toHaveAttribute('aria-expanded', 'true');
@@ -140,7 +151,7 @@ describe('overview holdings continuity', () => {
     window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');
     render(<OverviewHoldings metrics={metrics} />);
     expect(screen.getByRole('button', { name: 'Expand MSFT details' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('link', { name: 'View MSFT details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View MSFT details' })).toBeInTheDocument();
     const query = new URLSearchParams(window.location.search);
     expect(query.get('holding')).toBeNull();
     expect(query.get('q')).toBe('Microsoft');

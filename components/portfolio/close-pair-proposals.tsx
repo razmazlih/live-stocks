@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { ArrowLeftRight, ChevronDown, Copy } from 'lucide-react';
+import { ChevronDown, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildClosePairReviewPrompt } from '@/lib/close-pair-review-prompt';
 import { buildClosePairProposals, getCloseProposalLegs } from '@/lib/close-pair-proposals';
@@ -23,6 +23,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const he = locale === 'he';
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(() => new Set());
   const panelId = useId();
+  const [showIdeas, setShowIdeas] = useState(false);
   const proposals = useMemo(() => buildClosePairProposals(metrics, 3, Date.now(), settings.annualGrowthRate, positions), [metrics, positions, settings.annualGrowthRate]);
   const [copying, setCopying] = useState(false);
   const copyForAi = async () => {
@@ -41,18 +42,21 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const anyExpanded = proposals.some(proposal => expandedPairs.has(pairKey(proposal)));
 
   return <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" aria-label={he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}>
-    <div className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
-      <span aria-hidden className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50/60 text-blue-600 sm:flex"><ArrowLeftRight className="h-4 w-4" /></span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold tracking-tight text-slate-950 sm:text-base">{he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}</h2>
-          <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md bg-slate-100 px-1 text-[11px] font-medium text-slate-600" aria-label={he ? 'מספר הצעות' : 'Idea count'}>{proposals.length}</span>
-        </div>
-        <p className="mt-0.5 text-[11px] leading-4 text-slate-500">{he ? 'כולל מכירות קודמות' : 'Includes prior sales'}</p>
-      </div>
-      {proposals.length > 0 && <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל קבוצה' : 'Copy a prompt for research and a verdict on each group'} className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>}
+    <h2>
+      <button type="button" aria-expanded={showIdeas} aria-controls={panelId} onClick={() => setShowIdeas(open => !open)}
+        className="flex min-h-14 w-full items-center gap-2 px-4 py-3 text-start text-sm font-semibold text-slate-950 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5 sm:text-base">
+        <span>{he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}</span>{' '}
+        <span className="text-sm font-normal tabular-nums text-slate-500">({proposals.length})</span>
+        <ChevronDown aria-hidden className={`ms-auto h-4 w-4 text-slate-500 transition-transform motion-reduce:transition-none ${showIdeas ? 'rotate-180' : ''}`} />
+      </button>
+    </h2>
+    <div id={panelId} hidden={!showIdeas}>
+    {showIdeas && (proposals.length > 0 ? <>
+    <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-2 text-xs text-slate-500 sm:px-5">
+      <p>{he ? 'כולל מכירות קודמות' : 'Includes prior sales'}</p>
+      <button type="button" onClick={copyForAi} disabled={copying} aria-label={he ? 'העתקת פרומפט לבדיקה ב־AI' : 'Copy prompt for AI review'} title={he ? 'העתקת פרומפט למחקר והכרעה לגבי כל קבוצה' : 'Copy a prompt for research and a verdict on each group'} className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50"><Copy aria-hidden className="h-3.5 w-3.5" />{copying ? (he ? 'מעתיק…' : 'Copying…') : (he ? 'בדיקת AI' : 'AI review')}</button>
     </div>
-    {proposals.length === 0 && <p role="status" className="border-t border-slate-100 px-4 py-4 text-sm leading-6 text-slate-500 sm:px-5">{he ? 'לא נמצאו הצעות שעומדות בתנאים בנתונים הזמינים. החזקות עם הפסד קטן או חדש מוגנות; אין צורך לייצר מכירה.' : 'No qualifying exit groups in the available data. Small or recent losses are protected; no sale is required.'}</p>}
+
     <div data-testid="close-pair-preview" className={`grid items-start gap-3 border-y border-slate-100 bg-slate-50/60 p-3 sm:gap-4 sm:p-4 ${proposals.length === 2 ? 'md:grid-cols-2' : proposals.length > 2 ? 'xl:grid-cols-3' : ''}`}>
       {proposals.map((proposal, index) => {
         const key = pairKey(proposal);
@@ -92,5 +96,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
 
     </div>
     <div className={anyExpanded ? 'holding-card-open' : ''}><div aria-hidden={!anyExpanded} ref={element => { if (anyExpanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal"><div className="min-h-0 overflow-hidden"><details className="px-4 pb-3 text-[11px] leading-relaxed text-slate-500 sm:px-5"><summary className="flex min-h-[44px] cursor-pointer items-center text-blue-700">{he ? 'מה כלול בחישוב?' : 'What’s included?'}</summary><p>{he ? 'הדמיה בדולרים לפי המחירים הזמינים ועלות FIFO, כולל עמלות קנייה ומכירה שהוזנו ותוצאות כל המכירות הקודמות של כל סימול בכל החשבונות. יעד התשואה השנתי האישי נצבר לכל מנת קנייה עד מכירתה או עד היום אם היא עדיין פתוחה, ואינו תחזית שוק. כל קבוצה משלבת מניה ברווח מעל היעד עם מניה מפסידה אחת או יותר. הרווח המצטבר המשולב חייב להיות חיובי ומעל היעד האישי של כולן. מס, עמלות מכירה ושינויי מחיר אינם כלולים ועשויים לשנות את התוצאה. העדפה להפסד הגדול ביותר שניתן לסגור ואז לסך ההפסדים המכוסים; כל מניה מופיעה בקבוצה אחת בלבד. הפרומפט כולל את כמויות וסכומי ההצעות המוצגות, להדבקה ידנית ב־AI. ההצעות אינן מבצעות מכירה.' : 'USD simulation using available prices and FIFO cost, including recorded buy and sell fees and every prior sale result for each symbol across accounts. The personal annual return target accrues for each purchase until it is sold, or until today while open; it is not a market forecast. Each group combines one profitable holding above target with one or more losing holdings; cumulative profit must be positive and exceed all personal targets. Tax, exit fees and price changes are excluded and may change the result. Prioritizes the largest individual loss, then total covered losses; each stock appears in one group only. The prompt includes the displayed quantities and amounts for manually pasting into your AI. These ideas do not execute trades.'}</p></details></div></div></div>
+    </> : <p role="status" className="border-t border-slate-100 px-4 py-4 text-sm leading-6 text-slate-500 sm:px-5">{he ? 'לא נמצאו הצעות שעומדות בתנאים בנתונים הזמינים. החזקות עם הפסד קטן או חדש מוגנות; אין צורך לייצר מכירה.' : 'No qualifying exit groups in the available data. Small or recent losses are protected; no sale is required.'}</p>)}
+    </div>
   </section>;
 }

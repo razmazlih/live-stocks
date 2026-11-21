@@ -466,18 +466,6 @@
   }
 }
 
-/* Approved portfolio design: restrained surfaces, readable data and consistent spacing. */
-@layer components {
-  .overview-stat { border-inline-end: 1px solid var(--border-subtle); }
-  .overview-stat:nth-child(2n) { border-inline-end: 0; }
-  .overview-stat:nth-child(-n+2) { border-bottom: 1px solid var(--border-subtle); }
-  @media (min-width: 640px) {
-    .overview-stat:nth-child(2n) { border-inline-end: 1px solid var(--border-subtle); }
-    .overview-stat:last-child { border-inline-end: 0; }
-    .overview-stat:nth-child(-n+2) { border-bottom: 0; }
-  }
-}
-
 /* Mobile holdings: intrinsic-height accordion, including an animated close. */
 .holding-card {
   position: relative;
@@ -917,10 +905,10 @@ body { color: var(--text-primary); }
 .glass-dialog { color: var(--text-primary); background: var(--surface); border-color: var(--glass-border); box-shadow: var(--glass-shadow); }
 .glass-menu { color: var(--text-primary); }
 .portfolio-summary { overflow: hidden; }
-.portfolio-summary-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
-.portfolio-summary .overview-stat { border: 0; min-width: 0; padding: 20px 24px; }
-.portfolio-summary .overview-stat-primary { grid-column: 1 / -1; padding: 28px 24px 24px; border-bottom: 1px solid var(--border-subtle); background: radial-gradient(ellipse at 100% 0%, var(--ambient-a), transparent 75%); }
-.portfolio-summary .overview-stat:not(.overview-stat-primary) + .overview-stat { border-inline-start: 1px solid var(--border-subtle); }
+.portfolio-summary-grid { display: grid; align-items: center; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); padding: 26px 28px; gap: 20px 32px; }
+.portfolio-summary .overview-stat { min-width: 0; }
+.overview-summary-link { display: inline-flex; align-items: center; gap: .25rem; min-height: 44px; border-radius: 4px; color: var(--accent-text); font-weight: 500; }
+.overview-summary-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .glass-disclosure > summary { cursor: pointer; list-style: none; }
 .glass-disclosure > summary::-webkit-details-marker { display: none; }
 .holding-card { border-radius: 24px; background: var(--surface); box-shadow: var(--surface-shadow); }
@@ -933,9 +921,7 @@ input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
 .text-white { color: #fff !important; }
 .bg-slate-900 { background-color: var(--control-strong) !important; }
 @media (max-width: 639px) {
-  .portfolio-summary .overview-stat { padding: 16px 12px; }
-  .portfolio-summary .overview-stat-primary { padding: 24px 20px; }
-  .portfolio-summary .overview-stat:not(.overview-stat-primary) dd { font-size: clamp(.875rem, 4vw, 1.25rem); }
+  .portfolio-summary-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px 20px 12px; }
   .glass-dialog {
     top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
     width: 100% !important; height: auto !important; max-height: 90dvh !important;
