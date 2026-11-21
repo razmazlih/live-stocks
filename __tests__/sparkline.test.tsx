@@ -95,6 +95,22 @@ describe('Sparkline historical holding colors', () => {
     expect(colorAt(container, 6 / 7)).toBe('#f00');
   });
 
+  it('splits an interval at the reference timestamp and uses the last reference at a tie', () => {
+    const { container } = render(<Sparkline
+      points={[history[0], history[2]]}
+      holdingReferences={[
+        { timestamp: start + day, baseline: 110, target: 120 },
+        { timestamp: start, baseline: 100, target: 110 },
+        { timestamp: start + day, baseline: 90, target: 100 },
+        { timestamp: start + 2 * day, baseline: 110, target: 120 },
+      ]}
+      belowEntryColor="#f00" betweenProjectedColor="#00f" aboveProjectedColor="#0f0"
+    />);
+
+    expect(colorAt(container, .25)).toBe('#00f');
+    expect(colorAt(container, .75)).toBe('#0f0');
+  });
+
   it('leaves an earlier active interval gray when its own reference is missing', () => {
     const { container } = render(<Sparkline
       points={history} holdingPeriods={periods}
