@@ -52,6 +52,6 @@
 
 - [מעבר הבעלות בייצור](verification/production-personal-account-cutover-2026-11-15.json), [הקשחת הרשאות](verification/production-permission-hardening-2026-11-15.json), [הוכחת איחוד מקומית](verification/account-linking-native-2026-11-15.json).
 - [בדיקת הספק בענן](verification/better-auth-hosted-provider-fixture-2026-11-15.json), [Google ציבורי](verification/google-public-sign-in-2026-11-15.json), [מחזור חיי OAuth במארח](verification/chatgpt-oauth-activation-2026-11-15.json), [API הווידג׳ט](verification/widget-production-api-2026-11-15.json).
-- [שרת האיחוד](ACCOUNT_LINKING.md), [הגדרת Better Auth](BETTER_AUTH_SETUP.md), [הפעלת ChatGPT](CHATGPT_ACTIVATION.md), [הווידג׳ט](../output/widget/README.md), [פרומפטי המשך](CONTINUATION_PROMPTS.md).
+- [שרת האיחוד](ACCOUNT_LINKING.md), [הגדרת Better Auth](BETTER_AUTH_SETUP.md), [הפעלת ChatGPT](CHATGPT_ACTIVATION.md), [הווידג׳ט](../output/widget/README.md).
 
 Supabase ייצור: `osvwctooasdxsztatirz`; בדיקות: `qdcvlhghabchxstoedzq`. Vercel: `live-stocks`, פרויקט `prj_rq3UoLiTcbg3yl28LGDsxNiVbvgb`. אישור השהיה ישן אינו חלון תחזוקה חדש. סודות וארכיונים נשארים מחוץ ל־Git ול־iCloud, תחת `~/.codex/secrets/livestocks/` ו־`~/.codex/backups/livestocks/`. אין להדפיס tokens, receipts, cookies או נתוני תיק. תחזוקה ו־rollback לא יחזירו הרשאות אנונימיות ולא ימחקו היסטוריה.

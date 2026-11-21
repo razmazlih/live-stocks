@@ -4,12 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   principal: vi.fn(), bootstrap: vi.fn(), rpc: vi.fn(), readCredential: vi.fn(), saveCredential: vi.fn(),
-  revokeGrants: vi.fn(), buildPortfolio: vi.fn(), session: vi.fn(), configured: vi.fn(), decryptCredential: vi.fn(),
+  buildPortfolio: vi.fn(), session: vi.fn(), configured: vi.fn(), decryptCredential: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth/admin', () => ({ getAdminSupabase: () => ({ rpc: mocks.rpc }) }));
 vi.mock('@/lib/auth/credentials', () => ({ readFinnhubCredential: mocks.readCredential, saveFinnhubCredential: mocks.saveCredential, decryptCredential: mocks.decryptCredential }));
-vi.mock('@/lib/auth/management', () => ({ revokeMcpGrants: mocks.revokeGrants }));
 vi.mock('@/lib/server/portfolio-response', () => ({ buildPortfolioResponse: mocks.buildPortfolio }));
 vi.mock('@/lib/auth/better-auth-config', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/auth/better-auth-config')>(), getAuthPublicOptions: mocks.configured,
@@ -49,7 +48,6 @@ function assertNoPrivateSideEffects() {
   expect(mocks.rpc).not.toHaveBeenCalled();
   expect(mocks.readCredential).not.toHaveBeenCalled();
   expect(mocks.saveCredential).not.toHaveBeenCalled();
-  expect(mocks.revokeGrants).not.toHaveBeenCalled();
   expect(mocks.bootstrap).not.toHaveBeenCalled();
   expect(mocks.buildPortfolio).not.toHaveBeenCalled();
 }
@@ -67,7 +65,6 @@ beforeEach(() => {
   mocks.readCredential.mockResolvedValue(providerKey);
   mocks.decryptCredential.mockReturnValue(providerKey);
   mocks.saveCredential.mockResolvedValue(undefined);
-  mocks.revokeGrants.mockResolvedValue(undefined);
   mocks.bootstrap.mockResolvedValue(undefined);
   mocks.buildPortfolio.mockImplementation(async () => Response.json({
     timestamp: now.toISOString(), usdToIlsRate: 3.7, summary: { totalCurrentPnLUsd: 12 },
@@ -199,10 +196,10 @@ describe('MCP disconnect and reconnect ordering', () => {
     expect(await response.text()).not.toContain(providerKey);
   });
 
-  it('does not attempt provider revocation if the database block could not be saved', async () => {
+  it('stops after the database block fails', async () => {
     mocks.rpc.mockResolvedValue({ error: { message: 'write failed' } });
     expect((await updateMcp(request('POST', { action: 'disconnect' }))).status).toBe(503);
-    expect(mocks.revokeGrants).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
   });
 
   it('reenables only after cleanup and records a cutoff beyond cleanup completion', async () => {
