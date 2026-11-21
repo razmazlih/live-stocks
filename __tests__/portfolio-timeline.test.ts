@@ -25,6 +25,27 @@ describe('daily portfolio timeline', () => {
     expect(points[0].expectedNetPnLUsd).toBeGreaterThan(0);
     expect(points[1].totalPnLUsd).toBe(92);
   });
+  it('preserves ledger values between execution days while updating FX and benchmark prices', () => {
+    const sale: PositionLot = { ...buy, type: 'SELL', quantity: 4, price: 120, executedAt: new Date(start + 2 * DAY + 18 * 3_600_000).toISOString() };
+    const prices = [{ timestamp: start, close: 110 }];
+    const spy = [{ timestamp: start, close: 100 }, { timestamp: start + DAY, close: 120 }];
+    const points = buildPositionTimeline(
+      { ...position, quantity: 6, lots: [sale, buy] },
+      prices,
+      .1,
+      spy,
+      (timestamp) => timestamp >= start + 3 * DAY ? Number.NaN : 3,
+      start + 4 * DAY - 1,
+    );
+    expect(points.map(point => point.commissionUsd)).toEqual([8, 8, 16, 16]);
+    expect(points[0].spyNetPnLUsd).toBe(0);
+    expect(points[1].spyNetPnLUsd).toBeCloseTo(201.6);
+    expect(points[2].spyNetPnLUsd).toBeCloseTo(201.6);
+    expect(points[3].spyNetPnLUsd).toBeCloseTo(201.6);
+    expect(points[3].netPnLUsd).toBe(points[2].netPnLUsd);
+    expect(points[3].netPnLIls).toBeNaN();
+  });
+
   it('realizes a weekend sale without requiring another candle and freezes the closed return', () => {
     const sale: PositionLot = { ...buy, type: 'SELL', price: 120, executedAt: new Date(start + DAY + 18 * 3_600_000).toISOString() };
     const points = buildPositionTimeline({ ...position, quantity: 0, lots: [buy, sale] }, [{ timestamp: start, close: 110 }], .1, [], () => 3, start + DAY * 3 - 1);

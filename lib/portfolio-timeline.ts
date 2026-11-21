@@ -18,13 +18,15 @@ export function buildPositionTimeline(
   getFxRateAt: (timestamp: number) => number,
   asOf = Date.now(),
 ): PortfolioTimelinePoint[] {
-  const prices = points.filter(p => Number.isFinite(p.timestamp) && Number.isFinite(p.close) && p.close > 0).slice().sort((a, b) => a.timestamp - b.timestamp);
-  const spy = spyPoints.filter(p => Number.isFinite(p.timestamp) && p.close > 0).slice().sort((a, b) => a.timestamp - b.timestamp);
-  const lots: PositionLot[] = (position.lots?.length ? position.lots : position.quantity > 0 ? [{ type: 'BUY' as const, price: position.entryPrice, quantity: position.quantity, executedAt: position.entryDate, hasCommission: false, commissionAmount: 0 }] : [])
-    .filter(lot => (lot.quantity > 0 || lot.type === 'RECONCILE') && Number.isFinite(Date.parse(lot.executedAt)))
-    .slice().sort((a, b) => Date.parse(a.executedAt) - Date.parse(b.executedAt));
+  const prices = points.filter(p => Number.isFinite(p.timestamp) && Number.isFinite(p.close) && p.close > 0).sort((a, b) => a.timestamp - b.timestamp);
+  const spy = spyPoints.filter(p => Number.isFinite(p.timestamp) && p.close > 0).sort((a, b) => a.timestamp - b.timestamp);
+  const lots = (position.lots?.length ? position.lots : position.quantity > 0 ? [{ type: 'BUY' as const, price: position.entryPrice, quantity: position.quantity, executedAt: position.entryDate, hasCommission: false, commissionAmount: 0 }] : [])
+    .filter(lot => lot.quantity > 0 || lot.type === 'RECONCILE')
+    .map(lot => ({ lot, timestamp: Date.parse(lot.executedAt) }))
+    .filter(({ timestamp }) => Number.isFinite(timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp);
   if (!lots.length) return [];
-  const first = dayStart(Date.parse(lots[0].executedAt));
+  const first = dayStart(lots[0].timestamp);
   const priceAt = (history: HistoricalPoint[], timestamp: number) => {
     let low = 0; let high = history.length - 1; let value: number | undefined;
     const day = dayStart(timestamp);
@@ -35,36 +37,16 @@ export function buildPositionTimeline(
     }
     return value;
   };
-  const timeline: PortfolioTimelinePoint[] = [];
-  for (let day = first; day <= dayStart(asOf); day += DAY_MS) {
-    const timestamp = Math.min(day + DAY_MS - 1, asOf);
-    const activeLots = lots.filter(lot => Date.parse(lot.executedAt) <= timestamp);
+  const activeLots: PositionLot[] = [];
+  let nextLot = 0;
+
+  function buildLotState(timestamp: number) {
     const snapshot = { ...position, lots: activeLots };
+    const commissions = calculateCommissionTotals(activeLots, getFxRateAt, timestamp);
     if (hasReconciliationHistory(snapshot, timestamp)) {
-      // A checkpoint is not a sale or a purchase. Never draw a fabricated
-      // lifetime-return/benchmark bridge over unrecorded executions.
-      timeline.push({ ...calculateCommissionTotals(activeLots, getFxRateAt, timestamp), timestamp,
-        totalPnLUsd: Number.NaN, totalPnLIls: Number.NaN, netPnLUsd: Number.NaN, netPnLIls: Number.NaN,
-        expectedNetPnLUsd: Number.NaN, expectedNetPnLIls: Number.NaN, spyNetPnLUsd: Number.NaN, spyNetPnLIls: Number.NaN });
-      continue;
+      return { commissions, hasReconciliation: true } as const;
     }
-    const open = computeOpenLots(activeLots);
-    const realized = calculateRealizedPortfolioTotals(computeRealizedSalesWithFx(snapshot, getFxRateAt), annualGrowthRate, getFxRateAt(timestamp), getFxRateAt);
-    const close = priceAt(prices, timestamp);
-    const fx = getFxRateAt(timestamp);
-    let actualUsd = realized.profitUsd;
-    let actualIls = realized.profitIls;
-    let targetUsd = realized.expectedProfitUsd;
-    let targetIls = realized.expectedProfitIls;
-    for (const lot of open) {
-      const buyTime = Date.parse(lot.executedAt);
-      const buyFx = getFxRateAt(buyTime);
-      const gain = lot.totalCost * (Math.pow(1 + annualGrowthRate, Math.max(0, timestamp - buyTime) / YEAR_MS) - 1);
-      actualUsd += lot.quantity * (close ?? Number.NaN) - lot.totalCost;
-      actualIls += lot.quantity * (close ?? Number.NaN) * fx - lot.totalCost * buyFx;
-      targetUsd += gain;
-      targetIls += gain * buyFx;
-    }
+
     // SPY is a counterfactual investment of each purchase's full cost; sales freeze its return.
     const spyQueue: Array<{ quantity: number; invested: number; buyPrice: number | undefined }> = [];
     let spyRealized = 0;
@@ -84,9 +66,55 @@ export function buildPositionTimeline(
         }
       }
     }
+
+    return {
+      commissions,
+      hasReconciliation: false,
+      open: computeOpenLots(activeLots),
+      sales: computeRealizedSalesWithFx(snapshot, getFxRateAt),
+      spyQueue,
+      spyRealized,
+    } as const;
+  }
+
+  const timeline: PortfolioTimelinePoint[] = [];
+  let lotState: ReturnType<typeof buildLotState> | undefined;
+  for (let day = first; day <= dayStart(asOf); day += DAY_MS) {
+    const timestamp = Math.min(day + DAY_MS - 1, asOf);
+    while (nextLot < lots.length && lots[nextLot].timestamp <= timestamp) {
+      activeLots.push(lots[nextLot].lot);
+      nextLot += 1;
+      lotState = undefined;
+    }
+    // Ledger results depend on executions, while prices, FX and open targets change each day.
+    lotState ??= buildLotState(timestamp);
+    if (lotState.hasReconciliation) {
+      // A checkpoint is not a sale or a purchase. Never draw a fabricated
+      // lifetime-return/benchmark bridge over unrecorded executions.
+      timeline.push({ ...lotState.commissions, timestamp,
+        totalPnLUsd: Number.NaN, totalPnLIls: Number.NaN, netPnLUsd: Number.NaN, netPnLIls: Number.NaN,
+        expectedNetPnLUsd: Number.NaN, expectedNetPnLIls: Number.NaN, spyNetPnLUsd: Number.NaN, spyNetPnLIls: Number.NaN });
+      continue;
+    }
+    const fx = getFxRateAt(timestamp);
+    const realized = calculateRealizedPortfolioTotals(lotState.sales, annualGrowthRate, fx, getFxRateAt);
+    const close = priceAt(prices, timestamp);
+    let actualUsd = realized.profitUsd;
+    let actualIls = realized.profitIls;
+    let targetUsd = realized.expectedProfitUsd;
+    let targetIls = realized.expectedProfitIls;
+    for (const lot of lotState.open) {
+      const buyTime = Date.parse(lot.executedAt);
+      const buyFx = getFxRateAt(buyTime);
+      const gain = lot.totalCost * (Math.pow(1 + annualGrowthRate, Math.max(0, timestamp - buyTime) / YEAR_MS) - 1);
+      actualUsd += lot.quantity * (close ?? Number.NaN) - lot.totalCost;
+      actualIls += lot.quantity * (close ?? Number.NaN) * fx - lot.totalCost * buyFx;
+      targetUsd += gain;
+      targetIls += gain * buyFx;
+    }
     const spyClose = priceAt(spy, timestamp);
-    const spyPnl = spyQueue.reduce((sum, buy) => sum + (buy.buyPrice && spyClose ? buy.invested * (spyClose / buy.buyPrice - 1) : 0), spyRealized);
-    timeline.push({ ...calculateCommissionTotals(activeLots, getFxRateAt, timestamp), timestamp, totalPnLUsd: actualUsd, totalPnLIls: actualIls, netPnLUsd: actualUsd, netPnLIls: actualIls, expectedNetPnLUsd: targetUsd, expectedNetPnLIls: targetIls, spyNetPnLUsd: spyPnl, spyNetPnLIls: spyPnl * fx });
+    const spyPnl = lotState.spyQueue.reduce((sum, buy) => sum + (buy.buyPrice && spyClose ? buy.invested * (spyClose / buy.buyPrice - 1) : 0), lotState.spyRealized);
+    timeline.push({ ...lotState.commissions, timestamp, totalPnLUsd: actualUsd, totalPnLIls: actualIls, netPnLUsd: actualUsd, netPnLIls: actualIls, expectedNetPnLUsd: targetUsd, expectedNetPnLIls: targetIls, spyNetPnLUsd: spyPnl, spyNetPnLIls: spyPnl * fx });
   }
   return timeline;
 }

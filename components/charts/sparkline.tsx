@@ -35,6 +35,20 @@ export interface SparklineHoldingPeriod {
   current: boolean;
 }
 
+function firstTimestampAfter(timestamps: number[], timestamp: number): number {
+  let start = 0;
+  let end = timestamps.length;
+  while (start < end) {
+    const mid = Math.floor((start + end) / 2);
+    if (timestamps[mid] <= timestamp) {
+      start = mid + 1;
+    } else {
+      end = mid;
+    }
+  }
+  return start;
+}
+
 interface SparklineProps {
   holdingPeriods?: SparklineHoldingPeriod[];
   holdingReferences?: HoldingChartReference[];
@@ -396,10 +410,15 @@ export function Sparkline({
     }
 
     const references = holdingReferences ? [...holdingReferences].sort((a, b) => a.timestamp - b.timestamp) : undefined;
+    const referenceTimes = references?.map(reference => reference.timestamp);
+    const searchableReferences = referenceTimes?.every(Number.isFinite);
     const referenceAt = (timestamp: number) => {
       if (holdingPeriods && !holdingPeriods.some((period) => timestamp >= period.start && (period.end === null || timestamp < period.end))) return null;
       if (references) {
         // Use only the latest known reference, never a later purchase or target.
+        if (referenceTimes && searchableReferences && Number.isFinite(timestamp)) {
+          return references[firstTimestampAfter(referenceTimes, timestamp) - 1] ?? null;
+        }
         let reference: HoldingChartReference | null = null;
         for (const candidate of references) {
           if (candidate.timestamp > timestamp) break;
@@ -415,12 +434,20 @@ export function Sparkline({
       ...(holdingPeriods?.flatMap((period) => [period.start, ...(period.end === null ? [] : [period.end])]) ?? []),
       ...(references?.map((reference) => reference.timestamp) ?? []),
       ...(typeof activeFromTimestamp === 'number' ? [activeFromTimestamp] : []),
-    ];
+    ].filter(Number.isFinite).sort((a, b) => a - b);
     for (let index = 1; index < normalized.points.length; index += 1) {
       const start = normalized.points[index - 1];
       const end = normalized.points[index];
       const duration = end.timestamp - start.timestamp || 1;
-      const timeRatios = [0, ...boundaries.filter((time) => time > start.timestamp && time < end.timestamp).map((time) => (time - start.timestamp) / duration), 1];
+      const timeRatios = [0];
+      if (!Number.isNaN(start.timestamp) && !Number.isNaN(end.timestamp)) {
+        let boundary = firstTimestampAfter(boundaries, start.timestamp);
+        while (boundary < boundaries.length && boundaries[boundary] < end.timestamp) {
+          timeRatios.push((boundaries[boundary] - start.timestamp) / duration);
+          boundary += 1;
+        }
+      }
+      timeRatios.push(1);
       const cuts = [...new Set(timeRatios)].sort((a, b) => a - b);
       const valueAt = (ratio: number) => start.close + (end.close - start.close) * ratio;
       const pointAt = (ratio: number) => ({ x: start.x + (end.x - start.x) * ratio, y: start.y + (end.y - start.y) * ratio });

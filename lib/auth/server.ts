@@ -24,22 +24,6 @@ export type Principal = {
 };
 
 let verifierCache: { key: string; verify: ReturnType<typeof createAuth0TokenVerifier> } | undefined;
-export function auth0Configuration() {
-  const domain = process.env.AUTH0_DOMAIN;
-  const websiteClientId = process.env.AUTH0_CLIENT_ID;
-  const mcpClientId = process.env.AUTH0_MCP_CLIENT_ID;
-  const websiteAudience = process.env.AUTH0_WEB_AUDIENCE;
-  const mcpAudience = process.env.AUTH0_MCP_AUDIENCE;
-  if (!domain || !websiteClientId || !mcpClientId || !websiteAudience || !mcpAudience) {
-    throw new AuthenticationError(503, 'Authentication is not configured');
-  }
-  const issuer = new URL(domain.startsWith('https://') ? domain : `https://${domain}`);
-  if (issuer.protocol !== 'https:' || issuer.username || issuer.password || issuer.search || issuer.hash || issuer.pathname !== '/') {
-    throw new AuthenticationError(503, 'Authentication is not configured');
-  }
-  return { issuer: issuer.href, websiteClientId, mcpClientId, websiteAudience, mcpAudience };
-}
-
 export function authenticationConfiguration() {
   try {
     const { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId } = betterAuthConfiguration();

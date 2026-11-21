@@ -31,10 +31,8 @@ import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
 
 interface SparklineResult {
   key: string;
-  symbol: string;
   points: HistoricalPoint[];
   timeline: PortfolioTimelinePoint[];
-  isHistorical: boolean;
 }
 
 interface LoadSparklinesResult {
@@ -97,32 +95,18 @@ function toUtcDayStart(timestamp: number): number {
 }
 
 function resolveEarliestPortfolioActivityTimestamp(positions: Position[]): number | null {
-  const timestamps: number[] = [];
-
-  positions.forEach((position) => {
-    const entryTimestamp = parseTimestamp(position.entryDate);
-    if (entryTimestamp !== null) {
-      timestamps.push(entryTimestamp);
+  let earliest = Number.POSITIVE_INFINITY;
+  for (const position of positions) {
+    earliest = Math.min(
+      earliest,
+      parseTimestamp(position.entryDate) ?? Number.POSITIVE_INFINITY,
+      parseTimestamp(position.activationStart) ?? Number.POSITIVE_INFINITY,
+    );
+    for (const lot of position.lots ?? []) {
+      earliest = Math.min(earliest, parseTimestamp(lot.executedAt) ?? Number.POSITIVE_INFINITY);
     }
-
-    const activationStartTimestamp = parseTimestamp(position.activationStart ?? null);
-    if (activationStartTimestamp !== null) {
-      timestamps.push(activationStartTimestamp);
-    }
-
-    (position.lots ?? []).forEach((lot) => {
-      const lotTimestamp = parseTimestamp(lot.executedAt);
-      if (lotTimestamp !== null) {
-        timestamps.push(lotTimestamp);
-      }
-    });
-  });
-
-  if (!timestamps.length) {
-    return null;
   }
-
-  return Math.min(...timestamps);
+  return Number.isFinite(earliest) ? earliest : null;
 }
 
 function buildContinuousTimeline(
@@ -131,7 +115,6 @@ function buildContinuousTimeline(
 ): PortfolioTimelinePoint[] {
   const sortedTimeline = timeline
     .filter((point) => Number.isFinite(point.timestamp))
-    .slice()
     .sort((a, b) => a.timestamp - b.timestamp);
 
   if (!sortedTimeline.length) {
@@ -229,10 +212,8 @@ function usePortfolioDataState() {
 
         return {
           key,
-          symbol: position.symbol,
           points,
           timeline,
-          isHistorical: Boolean(position.isHistoricalActivation),
         };
       });
 
@@ -397,7 +378,12 @@ function usePortfolioDataState() {
         const positionsBySymbol = new Map<string, Position[]>();
         mappedPositions.forEach((position) => {
           const symbol = position.symbol.trim().toUpperCase();
-          positionsBySymbol.set(symbol, [...(positionsBySymbol.get(symbol) ?? []), position]);
+          const group = positionsBySymbol.get(symbol);
+          if (group) {
+            group.push(position);
+          } else {
+            positionsBySymbol.set(symbol, [position]);
+          }
         });
         const requiredExitPriceBySymbol = new Map(
           Array.from(positionsBySymbol.entries()).map(([symbol, symbolPositions]) => [
