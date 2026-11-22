@@ -25,6 +25,18 @@ describe('isolated local demo', () => {
     vi.stubEnv('NODE_ENV', 'production');
     expect((await POST(request('http://localhost:3001/api/local-demo', 'POST', 'http://localhost:3001'))).status).toBe(404);
   });
+  it('accepts numeric loopback authority normalized by Next while keeping host, port and origin paired', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const action = (host: string, origin: string, site = 'same-origin') => POST(new NextRequest('http://localhost:3983/api/local-demo', {
+      method: 'POST', headers: { host, origin, 'sec-fetch-site': site },
+    }));
+    expect((await action('127.0.0.1:3983', 'http://127.0.0.1:3983')).ok).toBe(true);
+    expect((await action('[::1]:3983', 'http://[::1]:3983')).ok).toBe(true);
+    expect((await action('127.0.0.1:3983', 'http://localhost:3983')).status).toBe(403);
+    expect((await action('127.0.0.1:3983', 'http://127.0.0.1:3984')).status).toBe(403);
+    expect((await action('127.0.0.1:3983', 'http://127.0.0.1:3983','cross-site')).status).toBe(403);
+    expect((await action('foreign.example:3983', 'http://foreign.example:3983')).status).toBe(404);
+  });
   it('serves synthetic asset lookup and price suggestions without an external provider', async () => {
     const assets = await demoApiResponse(request('http://localhost:3001/api/assets?q=Tesla')).json();
     expect(assets.results).toContainEqual({ symbol: 'TSLA', display: 'Tesla', imageUrl: '' });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hasLocalDemoSession } from '@/lib/demo/server';
+import { hasLocalDemoSession, localDemoOriginAllowed } from '@/lib/demo/server';
 import { executeDemoOperation, localDemoDashboard } from '@/lib/demo/ledger';
 import { readDemoState, migrateDemoState, updateDemoState, resetDemoState, seedDemoState,
   validateDemoSettings, validateDemoPreferences, type DemoImport } from '@/lib/demo/store';
@@ -12,10 +12,8 @@ const json = (value: unknown, status = 200) => NextResponse.json(value, { status
 
 async function handler(request: NextRequest, context: Context) {
   if (!hasLocalDemoSession(request)) return json({ error: 'Local account is unavailable' }, 404);
-  const origin = request.headers.get('origin');
-  if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin && origin !== new URL(request.url).origin)) return json({ error: 'Request origin is not allowed' }, 403);
   const write = !['GET','HEAD'].includes(request.method);
-  if (write && origin !== new URL(request.url).origin) return json({ error: 'A same-origin local action is required' }, 403);
+  if (!localDemoOriginAllowed(request, !write)) return json({ error: 'Request origin is not allowed' }, 403);
   const parts = (await context.params).path;
   const endpoint = parts.join('/');
   try {

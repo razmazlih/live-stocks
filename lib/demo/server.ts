@@ -3,9 +3,28 @@ import { demoAssets, demoAsset, demoQuote } from './assets';
 import { DEMO_COOKIE, demoDashboard, demoTable, demoUser } from './data';
 
 export function localDemoEnabled() { return process.env.NODE_ENV === 'development'; }
-export function isLoopbackHost(hostname: string) { return ['localhost', '127.0.0.1', '[::1]'].includes(hostname); }
+const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+export function isLoopbackHost(hostname: string) { return loopbackHosts.includes(hostname); }
+
+export function localDemoRequestOrigin(request: NextRequest): string | null {
+  const url = new URL(request.url);
+  if (!localDemoEnabled() || !isLoopbackHost(url.hostname)) return null;
+  // Next normalizes all loopback IPs in request.url to localhost. Match the
+  // browser authority only against loopback literals on the actual server port.
+  const authority = request.headers.get('host')?.toLowerCase() ?? url.host;
+  const port = url.port ? ':' + url.port : '';
+  const host = loopbackHosts.find(hostname => authority === hostname + port);
+  return host ? url.protocol + '//' + host + port : null;
+}
+
+export function localDemoOriginAllowed(request: NextRequest, readOnly = false) {
+  const expected = localDemoRequestOrigin(request);
+  if (!expected || request.headers.get('sec-fetch-site') === 'cross-site') return false;
+  const origin = request.headers.get('origin');
+  return readOnly && origin === null || origin === expected;
+}
 export function hasLocalDemoSession(request: NextRequest) {
-  return localDemoEnabled() && isLoopbackHost(request.nextUrl.hostname) && request.cookies.get(DEMO_COOKIE)?.value === '1';
+  return localDemoRequestOrigin(request) !== null && request.cookies.get(DEMO_COOKIE)?.value === '1';
 }
 const headers = { 'Cache-Control': 'private, no-store' };
 export function demoApiResponse(request: NextRequest, review = false): NextResponse {
