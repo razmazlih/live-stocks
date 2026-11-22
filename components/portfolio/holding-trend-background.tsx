@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo } from 'react';
 import type { SparklineEvent } from '@/components/charts/sparkline';
 import type { HistoricalPoint } from '@/types';
 import type { HoldingChartReference } from '@/lib/holding-chart-history';
@@ -8,7 +8,6 @@ import type { HoldingChartReference } from '@/lib/holding-chart-history';
 const WIDTH = 1000;
 const HEIGHT = 160;
 const PADDING = 8;
-const DURATION = 420;
 const EMPTY_EVENTS: SparklineEvent[] = [];
 const COLORS = { profit: '#059669', loss: '#e11d48', neutral: '#64748b', belowTarget: '#2563eb' };
 const validNumber = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
@@ -34,31 +33,6 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
   const gradientId = useId();
   const strokeId = `${gradientId}-stroke`;
   const areaMaskId = `${gradientId}-mask`;
-  const [progress, setProgress] = useState(expanded ? 1 : 0);
-  const progressRef = useRef(progress);
-  const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-  useEffect(() => {
-    const target = expanded ? 1 : 0;
-    const start = progressRef.current;
-    if (start === target) return;
-    if (reducedMotion || typeof requestAnimationFrame === 'undefined') {
-      progressRef.current = target;
-      return;
-    }
-    const started = performance.now();
-    let frame = 0;
-    const animate = (now: number) => {
-      const elapsed = Math.min(Math.max((now - started) / DURATION, 0), 1);
-      const eased = 1 - Math.pow(1 - elapsed, 3);
-      progressRef.current = start + (target - start) * eased;
-      setProgress(progressRef.current);
-      if (elapsed < 1) frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [expanded, reducedMotion]);
-
   const data = useMemo(() => {
     const profitMode = profitPoints !== undefined;
     const activeEntry = !profitMode && validNumber(activeFromTimestamp) ? activeFromTimestamp : undefined;
@@ -166,7 +140,16 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
           if (to <= from) continue;
           const center = (from + to) / 2;
           const segmentColor = classify(valueAt(center), center);
-          stops.push({ offset: x(from) / WIDTH, color: segmentColor }, { offset: x(to) / WIDTH, color: segmentColor });
+          // A constant-color run needs only its two boundary stops, even if
+          // it spans hundreds of samples.
+          const previous = stops.at(-1);
+          const startOffset = x(from) / WIDTH;
+          const endOffset = x(to) / WIDTH;
+          if (previous?.color === segmentColor && previous.offset === startOffset) {
+            previous.offset = endOffset;
+          } else {
+            stops.push({ offset: startOffset, color: segmentColor }, { offset: endOffset, color: segmentColor });
+          }
         }
       }
     }
@@ -174,9 +157,10 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
   }, [points, profitPoints, events, baseline, activeFromTimestamp, targetPrice, references]);
 
   if (!data) return null;
-  const domainProgress = reducedMotion || typeof requestAnimationFrame === 'undefined' ? Number(expanded) : progress;
-  const low = data.low + (data.expandedLow - data.low) * domainProgress;
-  const high = data.high + (data.expandedHigh - data.high) * domainProgress;
+  // The browser interpolates the SVG presentation attributes and reverses an
+  // in-flight transition when the user toggles again.
+  const low = expanded ? data.expandedLow : data.low;
+  const high = expanded ? data.expandedHigh : data.high;
   const y = (price: number) => high > low ? HEIGHT - 24 - (price - low) / (high - low) * (HEIGHT - 48) : HEIGHT / 2;
   const segments: { x: number; y: number }[][] = [];
   let activeSegment: { x: number; y: number }[] | null = null;
@@ -204,8 +188,7 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
   };
   const baselinePath = referencePath('baseline');
   const targetPath = referencePath('target');
-  const transition = reducedMotion ? 'none' : 'stop-color 420ms ease';
-  const detailStyle = { opacity: expanded ? 1 : 0, transition: reducedMotion ? 'none' : 'opacity 420ms ease' };
+  const detailStyle = { opacity: expanded ? 1 : 0 };
   const markerStyle = { transform: 'scale(var(--chart-marker-x, 1), var(--chart-marker-y, 1))', transformOrigin: '0 0' };
 
   return <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0 h-full w-full select-none" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none">
@@ -216,18 +199,18 @@ export function HoldingTrendBackground({ points, profitPoints, tone = 'neutral',
       </linearGradient>
       <mask id={areaMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={WIDTH} height={HEIGHT}><rect width={WIDTH} height={HEIGHT} fill={`url(#${gradientId})`} /></mask>
       <linearGradient data-price-stroke="true" id={strokeId} x1="0" x2={WIDTH} y1="0" y2="0" gradientUnits="userSpaceOnUse">
-        {data.stops.map((stop, index) => <stop key={index} offset={stop.offset} stopColor={expanded || data.activeEntry !== undefined ? stop.color : color} style={{ transition }} />)}
+        {data.stops.map((stop, index) => <stop key={index} offset={stop.offset} stopColor={expanded || data.activeEntry !== undefined ? stop.color : color} className="motion-safe:transition-[stop-color] motion-safe:duration-300" />)}
       </linearGradient>
     </defs>
-    <path data-price-area="true" d={area} fill={`url(#${strokeId})`} mask={`url(#${areaMaskId})`} />
-    <g style={detailStyle}>
-      {baselinePath ? <path data-reference="baseline" d={baselinePath} fill="none" stroke="#94a3b8" strokeWidth="1" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" /> : null}
-      {targetPath ? <path data-reference="target" d={targetPath} fill="none" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" /> : null}
+    <path className="motion-safe:transition-[d] motion-safe:duration-300" data-price-area="true" d={area} fill={`url(#${strokeId})`} mask={`url(#${areaMaskId})`} />
+    <g style={detailStyle} className="motion-safe:transition-opacity motion-safe:duration-300">
+      {baselinePath ? <path className="motion-safe:transition-[d] motion-safe:duration-300" data-reference="baseline" d={baselinePath} fill="none" stroke="#94a3b8" strokeWidth="1" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" /> : null}
+      {targetPath ? <path className="motion-safe:transition-[d] motion-safe:duration-300" data-reference="target" d={targetPath} fill="none" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" /> : null}
     </g>
-    <path data-price-line="true" d={line} fill="none" stroke={`url(#${strokeId})`} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    <g data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded || data.activeEntry !== undefined ? data.classify(latest.close, latest.timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
-    <g style={detailStyle}>
-      {data.trades.map((trade, index) => <g key={trade.id ?? index} data-event={trade.type} data-event-time={trade.timestamp} data-event-price={trade.price} style={{ pointerEvents: expanded ? 'all' : 'none' }} transform={`translate(${data.x(trade.timestamp)},${y(trade.plotValue)})`}>
+    <path className="motion-safe:transition-[d] motion-safe:duration-300" data-price-line="true" d={line} fill="none" stroke={`url(#${strokeId})`} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    <g className="motion-safe:transition-transform motion-safe:duration-300" data-current-price="true" transform={`translate(${last.x},${last.y})`}><circle cx="0" cy="0" r="3" style={markerStyle} fill={expanded || data.activeEntry !== undefined ? data.classify(latest.close, latest.timestamp) : color} stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" /></g>
+    <g style={detailStyle} className="motion-safe:transition-opacity motion-safe:duration-300">
+      {data.trades.map((trade, index) => <g className="motion-safe:transition-transform motion-safe:duration-300" key={trade.id ?? index} data-event={trade.type} data-event-time={trade.timestamp} data-event-price={trade.price} style={{ pointerEvents: expanded ? 'all' : 'none' }} transform={`translate(${data.x(trade.timestamp)},${y(trade.plotValue)})`}>
         <g style={markerStyle}>
           <circle r="7" fill={trade.type === 'BUY' ? '#059669' : '#e11d48'} fillOpacity="0.12" />
           {trade.type === 'BUY'

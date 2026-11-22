@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HoldingTrendBackground } from '@/components/portfolio/holding-trend-background';
 
@@ -99,32 +99,20 @@ describe('HoldingTrendBackground', () => {
     expect(container.querySelector('[data-reference="target"]')).toBeNull();
   });
 
-  it('interpolates the domain and reverses a partial expansion without replacing its path', () => {
-    let now = 0;
-    let nextId = 0;
-    const callbacks = new Map<number, FrameRequestCallback>();
-    vi.spyOn(performance, 'now').mockImplementation(() => now);
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callbacks.set(++nextId, callback); return nextId; });
-    vi.stubGlobal('cancelAnimationFrame', (id: number) => callbacks.delete(id));
-    const step = (timestamp: number) => {
-      now = timestamp;
-      const pending = [...callbacks.values()]; callbacks.clear();
-      act(() => pending.forEach((callback) => callback(timestamp)));
-    };
+  it('updates the persistent SVG path at both endpoints without scheduling JS animation frames', () => {
+    const scheduleFrame = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', scheduleFrame);
     const points = [{ timestamp: 0, close: 10 }, { timestamp: 1000, close: 30 }];
-    const { container, rerender } = render(<HoldingTrendBackground points={points} baseline={5} targetPrice={100} />);
+    const props = { points, baseline: 5, targetPrice: 100 };
+    const { container, rerender } = render(<HoldingTrendBackground {...props} />);
     const path = container.querySelector('[data-price-line]');
     const collapsed = path?.getAttribute('d');
-    rerender(<HoldingTrendBackground expanded points={points} baseline={5} targetPrice={100} />);
-    expect(path?.getAttribute('d')).toBe(collapsed);
-    step(210);
-    const partial = path?.getAttribute('d');
-    expect(partial).not.toBe(collapsed);
-    rerender(<HoldingTrendBackground points={points} baseline={5} targetPrice={100} />);
-    expect(path?.getAttribute('d')).toBe(partial);
-    step(630);
-    expect(path?.getAttribute('d')).toBe(collapsed);
+    rerender(<HoldingTrendBackground expanded {...props} />);
+    expect(path?.getAttribute('d')).not.toBe(collapsed);
+    rerender(<HoldingTrendBackground {...props} />);
     expect(container.querySelector('[data-price-line]')).toBe(path);
+    expect(path?.getAttribute('d')).toBe(collapsed);
+    expect(scheduleFrame).not.toHaveBeenCalled();
   });
 
   it('compares each price segment against the changing historical target and shares colors with its fill', () => {
@@ -170,8 +158,8 @@ describe('HoldingTrendBackground', () => {
       { timestamp: 1000, baseline: 10, target: 30 },
     ]} />);
     const stops = [...container.querySelectorAll('[data-price-stroke] stop')];
-    expect(stops.map((stop) => stop.getAttribute('offset'))).toEqual(['0.008', '0.254', '0.254', '0.5', '0.5', '0.746', '0.746', '0.992']);
-    expect(stops.map((stop) => stop.getAttribute('stop-color'))).toEqual(['#2563eb', '#2563eb', '#059669', '#059669', '#059669', '#059669', '#2563eb', '#2563eb']);
+    expect(stops.map((stop) => stop.getAttribute('offset'))).toEqual(['0.008', '0.254', '0.254', '0.746', '0.746', '0.992']);
+    expect(stops.map((stop) => stop.getAttribute('stop-color'))).toEqual(['#2563eb', '#2563eb', '#059669', '#059669', '#2563eb', '#2563eb']);
     expect(container.querySelector('[data-price-line]')?.getAttribute('d')?.match(/L/g)).toHaveLength(1);
     expect(container.querySelector('[data-event="SELL"] rect')).toBeNull();
   });

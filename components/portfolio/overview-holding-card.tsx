@@ -33,6 +33,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const chartSlotRef = useRef<HTMLDivElement>(null);
   const previewSlotRef = useRef<HTMLSpanElement>(null);
   const revealRef = useRef<HTMLDivElement | null>(null);
+  const summaryGridRef = useRef<HTMLSpanElement>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const topBeforeOpen = useRef<number | undefined>(undefined);
   const toggleFromUser = () => {
@@ -123,20 +124,25 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
 
   useLayoutEffect(() => {
     const card = cardRef.current;
-    const toggle = toggleRef.current;
+    const summary = summaryGridRef.current;
     const slot = chartSlotRef.current;
     const graph = graphRef.current;
     const preview = previewSlotRef.current;
-    if (!card || !toggle || !slot || !graph || !preview) return;
+    if (!card || !summary || !slot || !graph || !preview) return;
+    // Measure the resting positions. The preview spacer shrinks while the
+    // details unfold, so its live rectangle is a moving animation target.
     const measure = () => {
       const outer = card.getBoundingClientRect();
-      const target = (expanded ? slot : preview).getBoundingClientRect();
-      const x = target.left - outer.left - card.clientLeft;
-      const y = target.top - outer.top - card.clientTop;
-      const width = target.width;
-      const height = target.height;
-      graph.style.setProperty('--chart-x', `${x}px`);
-      graph.style.setProperty('--chart-y', `${y}px`);
+      const target = slot.getBoundingClientRect();
+      const summaryBounds = summary.getBoundingClientRect();
+      const previewBounds = preview.getBoundingClientRect();
+      const previewSpace = previewBounds.height + (parseFloat(getComputedStyle(preview).marginTop) || 0);
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const y = expanded ? target.top - previewSpace : summaryBounds.bottom + 0.75 * rem;
+      const width = expanded ? target.width : summaryBounds.width;
+      const height = expanded ? target.height : 5 * rem;
+      graph.style.setProperty('--chart-x', `${(expanded ? target.left : summaryBounds.left) - outer.left - card.clientLeft}px`);
+      graph.style.setProperty('--chart-y', `${y - outer.top - card.clientTop}px`);
       graph.style.setProperty('--chart-w', `${width}px`);
       graph.style.setProperty('--chart-h', `${height}px`);
       graph.style.setProperty('--chart-marker-x', `${width > 0 ? 1000 / width : 1}`);
@@ -145,9 +151,10 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
-    observer.observe(toggle);
-    observer.observe(preview);
+    observer.observe(summary);
     observer.observe(slot);
+    const details = revealRef.current?.querySelector('dl');
+    if (details) observer.observe(details);
     return () => observer.disconnect();
   }, [expanded]);
 
@@ -185,7 +192,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
             <bdi className="block text-xl font-semibold tracking-tight tabular-nums text-blue-700">{usd(target.salePrice)}</bdi>
           </span>
         </span>
-        <span className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
+        <span ref={summaryGridRef} className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
           <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
           <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
         </span>

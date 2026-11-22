@@ -598,17 +598,16 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 
 @media (prefers-reduced-motion: no-preference) {
   .overview-holding-card {
-    --holding-duration: 260ms;
+    --holding-duration: 300ms;
     --holding-ease: cubic-bezier(.24,.78,.28,1);
   }
-  /* Sibling cards exchange height at the same pace when switching holdings. */
-  :has(> .overview-holding-card-open) > .overview-holding-card { --holding-duration: 360ms; }
   .overview-holding-card::before {
     transition: opacity var(--holding-duration) ease, transform var(--holding-duration) var(--holding-ease);
   }
   .overview-holding-card .holding-preview-slot {
     transition: height var(--holding-duration) var(--holding-ease), margin-top var(--holding-duration) var(--holding-ease);
   }
+  .overview-holding-card .holding-trend-layer,
   .overview-holding-card .holding-reveal,
   .overview-holding-card .holding-chevron {
     transition-duration: var(--holding-duration);
