@@ -34,61 +34,59 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const previewSlotRef = useRef<HTMLSpanElement>(null);
   const revealRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
-  const topBeforeSwitch = useRef<number | null>(null);
+  const topBeforeOpen = useRef<number | undefined>(undefined);
   const toggleFromUser = () => {
-    const card = cardRef.current;
-    if (!expanded && card) {
-      const previous = card.parentElement?.querySelector('.overview-holding-card-open');
-      if (previous && (previous.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING)) {
-        topBeforeSwitch.current = card.getBoundingClientRect().top;
-      }
-    }
+    if (!expanded) topBeforeOpen.current = cardRef.current?.getBoundingClientRect().top;
     onToggle();
     if (expanded) toggleRef.current?.focus({ preventScroll: true });
   };
 
   useLayoutEffect(() => {
-    const originalTop = topBeforeSwitch.current;
-    topBeforeSwitch.current = null;
-    if (expanded && originalTop !== null && cardRef.current) {
-      // Closing a preceding card shifts this header. Preserve its position before paint.
-      const shift = cardRef.current.getBoundingClientRect().top - originalTop;
-      if (Math.abs(shift) > 0.5) window.scrollBy({ top: shift, behavior: 'instant' });
-    }
-  }, [expanded]);
-  useLayoutEffect(() => {
     const card = cardRef.current;
     const reveal = revealRef.current;
     if (!expanded || !card || !reveal) return;
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    let pending = true;
-    const cancel = () => { pending = false; };
-    const fit = () => {
-      if (!pending) return;
-      cancel();
-      const bounds = card.getBoundingClientRect();
-      if (!bounds.height) return;
-      const viewport = window.visualViewport;
-      const top = (viewport?.offsetTop ?? 0) + 12;
-      const viewportEnd = top - 12 + (viewport?.height ?? window.innerHeight);
-      const nav = document.querySelector('nav.glass-navigation')?.getBoundingClientRect();
-      const bottom = Math.min(viewportEnd, nav && nav.height > 0 && nav.top > top ? nav.top : viewportEnd) - 12;
-      const delta = bounds.height > bottom - top || bounds.top < top
-        ? bounds.top - top : Math.max(0, bounds.bottom - bottom);
-      if (Math.abs(delta) > 1) window.scrollTo({ top: window.scrollY + delta, behavior: reducedMotion ? 'instant' : 'smooth' });
+    const viewport = window.visualViewport;
+    const top = (viewport?.offsetTop ?? 0) + 12;
+    const viewportEnd = top - 12 + (viewport?.height ?? window.innerHeight);
+    const nav = document.querySelector('nav.glass-navigation')?.getBoundingClientRect();
+    const bottom = Math.min(viewportEnd, nav && nav.height > 0 && nav.top > top ? nav.top : viewportEnd) - 12;
+    const bounds = card.getBoundingClientRect();
+    if (!bounds.height) return;
+    const originalTop = topBeforeOpen.current ?? bounds.top;
+    const fitOffset = (height: number) => height > bottom - top || originalTop < top
+      ? originalTop - top : Math.max(0, originalTop + height - bottom);
+    const scroll = (offset: number) => {
+      // Track the clicked header while siblings are changing height in either direction.
+      const correction = card.getBoundingClientRect().top - (originalTop - offset);
+      if (Math.abs(correction) > 0.5) window.scrollTo({ top: Math.max(0, window.scrollY + correction), behavior: 'instant' });
     };
-    if (reducedMotion) { fit(); return; }
-    const onEnd = (event: TransitionEvent) => {
-      if (event.target === reveal && event.propertyName === 'grid-template-rows') fit();
+    if (reducedMotion) { scroll(fitOffset(bounds.height)); return; }
+
+    // The inner detail content has its full height even while the grid row is clipped.
+    const preview = previewSlotRef.current;
+    const previewSpace = preview ? preview.getBoundingClientRect().height + (parseFloat(getComputedStyle(preview).marginTop) || 0) : 0;
+    const details = reveal.firstElementChild;
+    const finalHeight = bounds.height - previewSpace - reveal.getBoundingClientRect().height
+      + (details?.scrollHeight || reveal.getBoundingClientRect().height);
+    const distance = fitOffset(finalHeight);
+    const duration = parseFloat(getComputedStyle(card).getPropertyValue('--holding-duration')) || 360;
+    const started = performance.now();
+    let frame = 0;
+    const follow = (now: number) => {
+      const progress = Math.min(1, Math.max(0, (now - started) / duration));
+      // Ease both ends, including when the collapsed card is already partly offscreen.
+      const eased = progress * progress * (3 - 2 * progress);
+      scroll(progress < 1 ? distance * eased : fitOffset(card.getBoundingClientRect().height));
+      if (progress < 1) frame = window.requestAnimationFrame(follow);
     };
-    reveal.addEventListener('transitionend', onEnd);
-    // A rapid reversal can coalesce both state changes without a transition event.
-    const fallback = window.setTimeout(fit, 450);
+    scroll(0);
+    frame = window.requestAnimationFrame(follow);
+    const cancel = () => window.cancelAnimationFrame(frame);
     window.addEventListener('wheel', cancel, { passive: true });
     window.addEventListener('touchmove', cancel, { passive: true });
     return () => {
-      window.clearTimeout(fallback);
-      reveal.removeEventListener('transitionend', onEnd);
+      cancel();
       window.removeEventListener('wheel', cancel);
       window.removeEventListener('touchmove', cancel);
     };

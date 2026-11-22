@@ -177,9 +177,10 @@ describe('overview holdings continuity', () => {
     { reducedMotion: false, closeFrom: 'footer' },
     { reducedMotion: false, closeFrom: 'details' },
     { reducedMotion: true, closeFrom: 'header' },
-  ])('fits the expanded card and preserves the viewport on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
+  ])('scrolls during expansion, fits the card and preserves the viewport on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
     vi.useFakeTimers();
     let offset = 400;
+    let expandedHeight = reducedMotion ? 500 : 370;
     vi.stubGlobal('scrollY', offset);
     vi.stubGlobal('innerHeight', 902);
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: reducedMotion, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
@@ -191,7 +192,7 @@ describe('overview holdings continuity', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains('holding-card')) {
         const top = 1000 - offset;
-        const height = this.classList.contains('holding-card-open') ? 500 : 190;
+        const height = this.classList.contains('holding-card-open') ? expandedHeight : 190;
         return { x: 0, y: top, top, left: 0, right: 360, bottom: top + height, width: 360, height, toJSON() {} };
       }
       return { x: 0, y: 0, top: 0, left: 0, right: 360, bottom: 44, width: 360, height: 44, toJSON() {} };
@@ -204,14 +205,15 @@ describe('overview holdings continuity', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     if (!reducedMotion) {
-      expect(scrollTo).not.toHaveBeenCalled();
-      const event = new Event('transitionend', { bubbles: true });
-      Object.defineProperty(event, 'propertyName', { value: 'grid-template-rows' });
-      fireEvent(panel, event);
+      await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+      const partialOffset = offset;
+      expect(partialOffset).toBeGreaterThan(400);
+      expect(partialOffset).toBeLessThan(610);
+      expandedHeight = 500;
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      expect(offset).toBeGreaterThan(partialOffset);
     }
-    await act(async () => { await vi.advanceTimersByTimeAsync(20); });
-    expect(scrollTo).toHaveBeenCalledTimes(1);
-    if (!reducedMotion) expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
     expect(card.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(902);
     const fittedOffset = offset;
@@ -224,6 +226,33 @@ describe('overview holdings continuity', () => {
     expect(scrollTo).not.toHaveBeenCalled();
     expect(offset).toBe(fittedOffset);
     expect(toggle).toHaveFocus();
+  });
+  it('anchors the new header while the preceding open card shrinks over successive frames', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('scrollY', 600);
+    vi.stubGlobal('innerHeight', 904);
+    vi.spyOn(window, 'scrollTo').mockImplementation((options?: ScrollToOptions | number) => {
+      if (typeof options === 'object') vi.stubGlobal('scrollY', options.top);
+    });
+    render(<OverviewHoldings metrics={metrics} />);
+    const [upper, lower] = Array.from(document.querySelectorAll<HTMLElement>('.overview-holding-card'));
+    const button = (card: HTMLElement) => within(card).getByRole('button', { name: /details$/ });
+    fireEvent.click(button(upper));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    let upperHeight = 400;
+    vi.spyOn(lower, 'getBoundingClientRect').mockImplementation(() => {
+      const top = 400 + upperHeight - window.scrollY;
+      return new DOMRect(0, top, 440, 450);
+    });
+    const originalTop = lower.getBoundingClientRect().top;
+    fireEvent.click(button(lower));
+    expect(button(upper)).toHaveAttribute('aria-expanded', 'false');
+    expect(button(lower)).toHaveAttribute('aria-expanded', 'true');
+    for (const height of [360, 290, 200]) {
+      upperHeight = height;
+      await act(async () => { await vi.advanceTimersByTimeAsync(64); });
+      expect(lower.getBoundingClientRect().top).toBe(originalTop);
+    }
   });
   it('keeps local open state during a data refresh without scrolling or persisting it in the URL', async () => {
     vi.useFakeTimers();
