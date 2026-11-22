@@ -572,6 +572,9 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 }
 
 /* Focused inline holding details keep the chart and the exit visible together. */
+@media (prefers-reduced-motion: no-preference) {
+  .holding-preview-slot { transition: height 240ms ease, margin-top 240ms ease; }
+}
 .overview-holding-card { overflow-anchor: none; }
 .overview-holding-card .holding-trend-layer::after { display: none; }
 .overview-holding-card:not(.holding-card-open) .holding-trend-layer { opacity: .75; }
@@ -593,6 +596,12 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 .overview-holding-card-open .holding-detail-actions { width: 100%; justify-content: space-between; }
 .overview-holding-card-open .stock-details-action { min-height: 44px; padding-inline: 12px; font-size: 12px; }
 .overview-holding-card-open .holding-close-action { pointer-events: auto; }
+/* Settle the preceding header, preview and details before anchoring the next card. */
+.overview-holding-card:not(.overview-holding-card-open):has(~ .overview-holding-card-open),
+.overview-holding-card:not(.overview-holding-card-open):has(~ .overview-holding-card-open) * {
+  transition-duration: 0s !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .overview-holding-card .holding-toggle,
   .overview-holding-card .holding-summary-grid,

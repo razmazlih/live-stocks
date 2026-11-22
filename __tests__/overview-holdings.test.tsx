@@ -177,7 +177,7 @@ describe('overview holdings continuity', () => {
     { reducedMotion: false, closeFrom: 'footer' },
     { reducedMotion: false, closeFrom: 'details' },
     { reducedMotion: true, closeFrom: 'header' },
-  ])('follows opening immediately but never scrolls on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
+  ])('preserves the viewport on open and close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
     vi.useFakeTimers();
     let offset = 400;
     vi.stubGlobal('scrollY', offset);
@@ -202,23 +202,17 @@ describe('overview holdings continuity', () => {
     const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
     expect(scrollTo).not.toHaveBeenCalled();
     fireEvent.click(toggle);
-    // No timer advance: following starts during the opening layout update.
-    expect(scrollTo).toHaveBeenCalled();
-    expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: reducedMotion ? 'auto' : 'instant' }));
-    // Normal motion starts with a small step rather than jumping to the final offset.
-    if (!reducedMotion) expect(Math.abs(offset - 400)).toBeLessThanOrEqual(1);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
-    expect(card.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
-    expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(902);
-    const beforeClose = offset;
-    scrollTo.mockClear();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(card.getBoundingClientRect().top).toBe(600);
     if (closeFrom === 'details') fireEvent.click(within(panel).getByText('Purchase cost'));
     else fireEvent.click(closeFrom === 'footer' ? screen.getByRole('button', { name: 'Close card' }) : toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(scrollTo).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(scrollTo).not.toHaveBeenCalled();
-    expect(offset).toBe(beforeClose);
+    expect(offset).toBe(400);
     expect(toggle).toHaveFocus();
   });
   it('keeps local open state during a data refresh without scrolling or persisting it in the URL', async () => {
@@ -236,9 +230,8 @@ describe('overview holdings continuity', () => {
     expect(microsoft).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(microsoft);
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
-    expect(scrollTo).toHaveBeenCalled();
-    scrollTo.mockClear();
-    scrollBy.mockClear();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled();
     rerender(<OverviewHoldings metrics={metrics.map(item => ({ ...item, currentPrice: item.currentPrice + 1 }))} />);
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(screen.getByRole('button', { name: 'Collapse MSFT details' })).toHaveAttribute('aria-expanded', 'true');

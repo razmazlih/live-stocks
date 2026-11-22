@@ -33,60 +33,27 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const chartSlotRef = useRef<HTMLDivElement>(null);
   const previewSlotRef = useRef<HTMLSpanElement>(null);
   const graphRef = useRef<HTMLDivElement>(null);
-  const openRequested = useRef(false);
+  const topBeforeSwitch = useRef<number | null>(null);
   const toggleFromUser = () => {
-    openRequested.current = !expanded;
+    const card = cardRef.current;
+    if (!expanded && card) {
+      const previous = card.parentElement?.querySelector('.overview-holding-card-open');
+      if (previous && (previous.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+        topBeforeSwitch.current = card.getBoundingClientRect().top;
+      }
+    }
     onToggle();
     if (expanded) toggleRef.current?.focus({ preventScroll: true });
   };
 
   useLayoutEffect(() => {
-    if (!expanded || !openRequested.current) return;
-    openRequested.current = false;
-    const reducedMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let cancelled = false;
-    let frame = 0;
-    const started = performance.now();
-    let lastFrame = started;
-    const keepVisible = (time = performance.now()) => {
-      const card = cardRef.current;
-      if (cancelled || !card) return;
-      const bounds = card.getBoundingClientRect();
-      if (bounds.height <= 0) return;
-      const viewport = window.visualViewport?.height ?? window.innerHeight;
-      const navigation = document.querySelector('nav.glass-navigation')?.getBoundingClientRect();
-      const bottom = Math.min(viewport, navigation && navigation.height > 0 && navigation.top > viewport / 2 ? navigation.top : viewport) - 12;
-      const delta = bounds.top < 12 ? bounds.top - 12
-        : bounds.bottom > bottom ? Math.min(bounds.bottom - bottom, bounds.top - 12) : 0;
-      // Even a partially clipped card enters smoothly: never apply a large
-      // correction on the first layout frame or after a slow frame.
-      const travel = reducedMotion ? Math.abs(delta) : Math.max(1, Math.min(32, time - lastFrame) * 3.5);
-      lastFrame = time;
-      if (Math.abs(delta) > 0.5) {
-        const step = Math.sign(delta) * Math.min(Math.abs(delta), travel);
-        window.scrollTo({ top: Math.max(0, window.scrollY + step), behavior: reducedMotion ? 'auto' : 'instant' });
-      }
-    };
-    // Follow the expanding geometry in the same frames as the reveal. There is
-    // no second scrolling phase, and closing never changes the reading position.
-    keepVisible(started);
-    const followExpansion = (time: number) => {
-      if (cancelled) return;
-      keepVisible(time);
-      if (time - started < 260) frame = window.requestAnimationFrame(followExpansion);
-    };
-    if (!reducedMotion) frame = window.requestAnimationFrame(followExpansion);
-    const cancel = () => { cancelled = true; window.cancelAnimationFrame(frame); };
-    const cancelWhenHidden = () => { if (document.hidden) cancel(); };
-    document.addEventListener('visibilitychange', cancelWhenHidden);
-    window.addEventListener('wheel', cancel, { passive: true });
-    window.addEventListener('touchmove', cancel, { passive: true });
-    return () => {
-      cancel();
-      document.removeEventListener('visibilitychange', cancelWhenHidden);
-      window.removeEventListener('wheel', cancel);
-      window.removeEventListener('touchmove', cancel);
-    };
+    const originalTop = topBeforeSwitch.current;
+    topBeforeSwitch.current = null;
+    if (expanded && originalTop !== null && cardRef.current) {
+      // Closing a preceding card shifts this header. Preserve its position before paint.
+      const shift = cardRef.current.getBoundingClientRect().top - originalTop;
+      if (Math.abs(shift) > 0.5) window.scrollBy({ top: shift, behavior: 'instant' });
+    }
   }, [expanded]);
   const money = (value: number) => Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
   const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
@@ -185,7 +152,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
           <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
         </span>
-        <span ref={previewSlotRef} aria-hidden="true" className={expanded || !chartAvailable ? 'block h-0' : 'mt-3 block h-20'} />
+        <span ref={previewSlotRef} aria-hidden="true" className={`holding-preview-slot block ${expanded || !chartAvailable ? 'h-0' : 'mt-3 h-20'}`} />
       </span>
     </button>
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
