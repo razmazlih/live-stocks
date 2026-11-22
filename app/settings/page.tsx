@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsFormSkeleton } from "@/components/settings/settings-skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNasdaqTradingHours } from "@/lib/utils/trading-hours";
@@ -21,16 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Settings as SettingsIcon,
-  RefreshCw,
-  CircleDollarSign,
-  Clock,
-  KeyRound,
-} from "lucide-react";
 import { toast } from "sonner";
 import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
-import { PageHeader } from "@/components/dashboard/page-header";
+import { SettingsHeader } from "@/components/settings/settings-header";
 import { DashboardContainer, DashboardMain, DashboardSurface } from "@/components/dashboard/page-primitives";
 import { AccountSettings } from "@/components/auth/account-settings";
 import { InvestmentSourceSettings } from "@/components/settings/investment-source-settings";
@@ -51,52 +44,7 @@ export default function SettingsPage() {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const marketOpen = isNasdaqTradingHours();
-  const minutesLabel = locale === "he" ? "דקות" : "minutes";
-  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(isDemo ? false : null);
-  const headerMetaBadges = [
-    {
-      key: "currency",
-      loading: loadingSettings,
-      icon: CircleDollarSign,
-      label: settingsLoadError ? "—" : `${t.settings.currency}: ${formData.currency}`,
-      className: "bg-blue-50 text-blue-600",
-      iconClassName: "text-blue-500",
-    },
-    {
-      key: "refresh",
-      loading: loadingSettings,
-      icon: RefreshCw,
-      label: settingsLoadError ? "—" : `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
-      className: "bg-white/70 text-slate-600",
-      iconClassName: "text-slate-500",
-    },
-    {
-      key: "market",
-      icon: Clock,
-      label: marketOpen
-        ? t.settings.refreshIntervalActive
-        : t.settings.refreshIntervalInactive,
-      className: marketOpen
-        ? "bg-emerald-50 text-emerald-600"
-        : "bg-slate-100 text-slate-600",
-      iconClassName: marketOpen ? "text-emerald-500" : "text-slate-500",
-    },
-    {
-      key: "token",
-      icon: KeyRound,
-      label: tokenConfigured === null ? "Finnhub" : tokenConfigured
-        ? locale === "he"
-          ? "מפתח Finnhub פעיל"
-          : "Finnhub token connected"
-        : locale === "he"
-          ? "אין מפתח Finnhub"
-          : "Finnhub token missing",
-      className: tokenConfigured
-        ? "bg-emerald-50 text-emerald-600"
-        : "bg-rose-50 text-rose-600",
-      iconClassName: tokenConfigured ? "text-emerald-500" : "text-rose-500",
-    },
-  ];
+  const [tokenConfigured, setTokenConfigured] = useState<boolean | null | undefined>(isDemo ? false : undefined);
 
   useEffect(() => {
     let active = true;
@@ -216,12 +164,8 @@ export default function SettingsPage() {
   return (
     <DashboardRouteShell activeKey="settings" locale={locale}>
       <DashboardContainer>
-        <PageHeader
-          title={t.settings.title}
-          subtitle={t.app.subtitle}
-          icon={SettingsIcon}
-          metaBadges={headerMetaBadges}
-        />
+        <SettingsHeader locale={locale} settings={formData} pending={loadingSettings} failed={settingsLoadError}
+          marketOpen={marketOpen} tokenConfigured={tokenConfigured} />
 
         <DashboardMain>
           {isDemo ? (
@@ -237,14 +181,7 @@ export default function SettingsPage() {
           <InvestmentSourceSettings locale={locale} />
           <DashboardSurface>
             {loadingSettings ? (
-              <div role="status" aria-label={t.common.loading} className="space-y-8">
-                {isDemo && <Skeleton className="h-16 w-full rounded-xl" />}
-                <div className="grid gap-6 md:grid-cols-2">
-                  {[0, 1].map((field) => <div key={field} className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-full" /></div>)}
-                </div>
-                {[0, 1].map((field) => <div key={field} className="space-y-2"><Skeleton className="h-4 w-28" /><Skeleton className="h-10 w-full" /></div>)}
-                <div className="flex gap-3"><Skeleton className="h-10 w-20" /><Skeleton className="h-10 w-20" /></div>
-              </div>
+              <SettingsFormSkeleton locale={locale} demo={isDemo} />
             ) : settingsLoadError ? (
               <p role="alert">{locale === "he" ? "לא ניתן לטעון את ההגדרות. יש לרענן כדי לנסות שוב." : "Unable to load settings. Refresh to try again."}</p>
             ) : (

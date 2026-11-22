@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LinkingStatusSkeleton } from '@/components/settings/account-skeleton';
 import { Button } from '@/components/ui/button';
 import { AccountLinkRequestError, navigateAccountLink, requestAccountLinkReauthentication, requestAccountLinkStatus } from '@/lib/account-linking-client';
 import type { AccountLinkConfirmation, AccountLinkOperation, AccountLinkReview, AccountLinkStatus, LinkedSignInMethod } from '@/types/account-linking';
@@ -121,7 +122,7 @@ export function AccountLinking({ locale }: { locale: 'he' | 'en' }) {
   return <section className="mt-5 space-y-4 border-t border-slate-200/60 pt-5" aria-labelledby="account-linking-heading" aria-busy={busy}>
     <h3 id="account-linking-heading" className="font-semibold">{he ? 'שיטות כניסה ואיחוד חשבונות' : 'Sign-in methods and account merging'}</h3>
     {error && <div className="space-y-2"><p role="alert" className="text-sm text-rose-600">{errorText}</p><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => { void refresh(); }}>{he ? 'רענון מצב' : 'Refresh status'}</Button></div>}
-    {!status && !error && <p role="status" className="text-sm text-slate-500">{he ? 'בודק את החשבון…' : 'Checking your account…'}</p>}
+    {!status && !error && <LinkingStatusSkeleton label={he ? 'בודק את החשבון' : 'Checking your account'} />}
     {status && !status.available && <div className="space-y-2"><p className="text-sm text-slate-500">{he ? 'איחוד חשבונות עדיין אינו זמין בסביבה זו. אותה כתובת דוא״ל לבדה אינה מאחדת חשבונות.' : 'Account merging is not available in this environment yet. Sharing an email address alone does not merge accounts.'}</p><Button variant="ghost" size="sm" disabled={busy} onClick={() => { void refresh(); }}>{he ? 'בדיקה מחדש' : 'Check again'}</Button></div>}
     {status?.available && <>
       {status.linkedMethods.length > 0 && <p className="text-sm"><span className="text-slate-500">{he ? 'שיטות הכניסה לחשבון זה: ' : 'Sign-in methods for this account: '}</span>{status.linkedMethods.map((method) => methodName(method, he)).join(' · ')}</p>}

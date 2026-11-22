@@ -39,13 +39,13 @@
   .page { padding-block: 8px 24px; }
   .hero { padding: 16px 16px 0; border-radius: 18px; }
   .heroTop { gap: 14px; padding-bottom: 16px; }
-  .quote { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px; text-align: start; }
+  .quote { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; text-align: start; }
   .quote > :first-child { grid-column: 1 / -1; }
   .quote > :last-child { margin-top: 0; font-size: 11px; text-align: end; }
   .metrics { gap: 10px; padding-block: 12px; }
   .metrics dt { font-size: 10px; }
   .metrics dd { font-size: 17px; }
-  .metrics p { font-size: 9px; }
+  .metrics p { min-height: 3em; font-size: 9px; }
   .record summary { padding-inline: 12px; }
   .recordBody { padding-inline: 12px; }
   .accounting { grid-template-columns: minmax(0, 1fr); gap: 8px; }

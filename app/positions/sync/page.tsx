@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { SyncReviewSkeleton } from '@/components/positions/sync-review-skeleton';
 import { useAuth } from '@/components/auth/auth-provider';
 import type { ScreenshotSyncInput, ScreenshotSyncPlan } from '@/lib/screenshot-sync';
 
@@ -102,7 +103,8 @@ export default function ScreenshotSyncPage() {
     <p>מחובר בתור {user.email || user.name || user.id}</p>
     <p>בדקו את החשבון, הסימולים, הכמויות והעלות לפני שמירה. התמונה אינה נשמרת ב־LiveStocks.</p>
     {error && <p role="alert" className="text-red-600">{error}</p>}
-    {busy && <p role="status">בודק את ההצעה…</p>}
+    {!review && !error && !saved && <SyncReviewSkeleton />}
+    {busy && review && <p role="status">בודק את ההצעה…</p>}
     {saved ? <p role="status">ההחזקות סונכרנו בהצלחה והיסטוריית העסקאות נשמרה. <Link href="/positions" className="underline">מעבר לפוזיציות</Link></p> : review && <>
       <p>חשבון: {review.plan.sourceName} · מצב ההחזקות נכון ל־{review.input.observedAt}</p>
       <div className="overflow-x-auto rounded-xl border p-3"><table className="w-full text-right"><caption className="mb-3 text-right font-semibold">השינויים המוצעים</caption><thead><tr><th className="p-2">סימול</th><th className="p-2">פעולה</th><th className="p-2">כמות לפני ← אחרי</th><th className="p-2">עלות ממוצעת USD לפני ← אחרי</th><th className="p-2">תאריך רכישה</th></tr></thead><tbody>{review.plan.changes.map(row => <tr key={row.symbol} className="border-t"><td className="p-2">{row.symbol}</td><td className="p-2">{actions[row.kind]}</td><td className="p-2"><span dir="ltr">{row.previousQuantity} → {row.quantity}</span></td><td className="p-2"><span dir="ltr">{row.previousAverageCostUsd?.toLocaleString(undefined, { maximumFractionDigits: 4 }) ?? '—'} → {row.quantity > 0 ? row.averageCostUsd : '—'}</span></td><td className="p-2">{(dates[row.symbol] ?? rowDates(row)).acquiredOn ?? ((dates[row.symbol] ?? rowDates(row)).estimatedAcquiredOn ? `${(dates[row.symbol] ?? rowDates(row)).estimatedAcquiredOn} · משוער בלבד` : 'לא ידוע')}</td></tr>)}</tbody></table></div>

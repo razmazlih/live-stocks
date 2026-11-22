@@ -5,11 +5,11 @@ import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { reconciliationQuality } from '@/lib/reconciliation-quality';
-import { ChevronDown, LineChart } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
-import { getPerformanceTotals, parsePerformanceOptions } from '@/lib/performance-display';
+import { getPerformanceTotals, parsePerformanceOptions, parsePerformanceView } from '@/lib/performance-display';
 import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
@@ -18,9 +18,9 @@ import { PerformanceChart } from '@/components/charts/performance-chart';
 import { ResearchExportButton } from '@/components/portfolio/research-export-button';
 import { createCommonQuickActions } from '@/components/dashboard/common-quick-actions';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
-import { PageHeader } from '@/components/dashboard/page-header';
+import { PerformanceHeader, PerformanceTabsList } from '@/components/portfolio/performance-navigation';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { formatLastUpdatedTime, formatSignedCurrency, getTrendTone } from '@/lib/utils/portfolio-display';
 
 function PendingTargets() {
@@ -36,12 +36,6 @@ function PendingRealized() {
 const TargetsPanel = dynamic(() => import('@/components/portfolio/targets-panel').then((module) => module.TargetsPanel), { loading: PendingTargets });
 const RealizedPanel = dynamic(() => import('@/components/portfolio/realized-panel').then((module) => module.RealizedPanel), { loading: PendingRealized });
 const PortfolioVisualizations = dynamic(() => import('@/components/portfolio/portfolio-visualizations').then((module) => module.PortfolioVisualizations));
-const VIEWS = ['history', 'targets', 'realized'] as const;
-function parsePerformanceView(params: URLSearchParams) {
-  const view = params.get('view');
-  return VIEWS.includes(view as typeof VIEWS[number]) ? view as typeof VIEWS[number] : 'history';
-}
-
 export default function PortfolioPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
@@ -62,17 +56,13 @@ export default function PortfolioPage() {
 
   return <DashboardRouteShell activeKey="portfolio" locale={locale}>
     <DashboardContainer>
-      <PageHeader title={isHebrew ? 'ביצועים' : 'Performance'} subtitle={isHebrew ? 'התפתחות התיק, היעד האישי והרווחים שמומשו.' : 'Portfolio history, your personal target and realized returns.'} icon={LineChart} quickActionsTitle={t.dashboard.quickActions} quickActions={quickActions} actions={<ResearchExportButton />} metaBadges={[{ key: 'updated', label: `${t.app.updated} ${formatLastUpdatedTime(lastUpdate, locale) ?? '—'}` }]} />
+      <PerformanceHeader locale={locale} loading={loading} updated={formatLastUpdatedTime(lastUpdate, locale)} quickActions={quickActions} actions={<ResearchExportButton />} />
       <DashboardMain>
         {historyIncomplete && <DashboardSurface><p role="status" className="text-sm">{isHebrew
           ? 'יתרות ההחזקות עודכנו בהתאמה לברוקר. העסקאות והרווחים הממומשים המתועדים נשמרו, אך חסרים פרטי עסקאות להסבר ההפרש. לכן רווח מצטבר, אומדן מס מלא והשוואה ליעד אינם מוצגים כמלאים. הרווח הפתוח בדולרים מחושב מהעלות שאושרה.'
           : 'Holdings include a broker balance reconciliation. Recorded trades and realized results are preserved, but missing executions prevent complete lifetime profit, tax and target comparisons. Open USD profit uses the confirmed cost basis.'}</p></DashboardSurface>}
         <Tabs value={view} onValueChange={(value) => patchUrl({ view: value })} dir={isHebrew ? 'rtl' : 'ltr'}>
-          <TabsList aria-label={isHebrew ? 'תצוגת ביצועים' : 'Performance view'} className="mb-5 grid h-auto w-full grid-cols-3 rounded-xl border border-slate-200 bg-white p-1 sm:inline-flex sm:w-auto">
-            <TabsTrigger value="history" className="min-h-11 px-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 sm:px-6">{isHebrew ? 'לאורך זמן' : 'History'}</TabsTrigger>
-            <TabsTrigger value="targets" className="min-h-11 px-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 sm:px-6">{isHebrew ? 'מול היעד' : 'Personal target'}</TabsTrigger>
-            <TabsTrigger value="realized" className="min-h-11 px-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 sm:px-6">{isHebrew ? 'רווח ממומש' : 'Realized returns'}</TabsTrigger>
-          </TabsList>
+          <PerformanceTabsList locale={locale} />
           <TabsContent value="history" className="mt-0 space-y-6">
             {loading ? <PerformanceSkeleton view="history" locale={locale} /> : !summary || positions.length === 0 ? <DashboardSurface><div className="space-y-2 py-14 text-center"><h2 className="text-lg font-semibold">{t.portfolio.emptyTitle}</h2><p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p></div></DashboardSurface> : <>
               <DashboardSurface>

@@ -61,7 +61,7 @@ import {
 import { createCommonQuickActions } from "@/components/dashboard/common-quick-actions";
 import type { DashboardQuickAction } from "@/components/dashboard/quick-actions";
 import { DashboardRouteShell } from "@/components/dashboard/dashboard-route-shell";
-import { PageHeader } from "@/components/dashboard/page-header";
+import { PositionsHeader, PositionsSkeleton, positionsSectionClass } from "@/components/portfolio/positions-route-skeleton";
 import { DashboardContainer, DashboardMain } from "@/components/dashboard/page-primitives";
 import {
   Plus,
@@ -70,8 +70,6 @@ import {
   BarChart3,
   ArrowRightLeft,
   History,
-  Layers,
-  CalendarClock,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -385,23 +383,6 @@ export default function PositionsPage() {
   const displayFrom =
     filteredPositionItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const displayTo = Math.min(currentPage * pageSize, filteredPositionItems.length);
-
-  const headerMetaBadges = [
-    {
-      key: "positions",
-      icon: Layers,
-      label: `${t.positions.overviewActivePositions}: ${!hasLoaded ? '—' : positions.filter((position) => position.quantity > 0).length.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US')}`,
-      className: "bg-blue-50 text-blue-600",
-      iconClassName: "text-blue-500",
-    },
-    {
-      key: "quantity",
-      icon: CalendarClock,
-      label: `${t.positions.overviewTotalQuantity}: ${!hasLoaded ? '—' : formatNumber(totalQuantity, locale)}`,
-      className: "bg-white/70 text-slate-600",
-      iconClassName: "text-slate-500",
-    },
-  ];
 
   const loadPositions = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -886,12 +867,10 @@ export default function PositionsPage() {
   return (
     <DashboardRouteShell activeKey="positions" locale={locale}>
       <DashboardContainer>
-        <PageHeader
-          title={locale === "he" ? "פעילות" : "Activity"}
-          subtitle={locale === "he" ? "ניהול העסקאות וההחזקות שלך במקום אחד." : "Manage your transactions and holdings in one place."}
-          icon={Layers}
-          metaBadges={headerMetaBadges}
-          quickActionsTitle={t.dashboard.quickActions}
+        <PositionsHeader
+          locale={locale}
+          count={hasLoaded ? positions.filter(position => position.quantity > 0).length.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US') : undefined}
+          quantity={hasLoaded ? formatNumber(totalQuantity, locale) : undefined}
           quickActions={quickActions}
         />
 
@@ -1437,7 +1416,7 @@ export default function PositionsPage() {
         </Dialog>
 
         <DashboardMain>
-          <section className="rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5">
+          <section className={positionsSectionClass}>
             <div className="relative z-10">
               {loadError ? (
                 <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -1447,16 +1426,7 @@ export default function PositionsPage() {
               ) : null}
               {loading && hasLoaded ? <p role="status" className="mb-3 text-xs text-slate-500">{locale === "he" ? "מעדכן נתונים…" : "Updating data…"}</p> : null}
               {loading && !hasLoaded ? (
-                <Card>
-                  <CardContent className="space-y-4 py-8" aria-label={t.common.loading} aria-busy="true">
-                    <div className="grid gap-3 sm:grid-cols-3"><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-10 rounded-xl" /></div>
-                    {[0, 1, 2].map(row => <div key={row} className="flex items-center gap-3 rounded-xl border border-slate-100 p-4">
-                      <Skeleton className="h-10 w-10 rounded-xl" />
-                      <div className="flex-1 space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-3 w-24" /></div>
-                      <Skeleton className="h-4 w-16" />
-                    </div>)}
-                  </CardContent>
-                </Card>
+                <PositionsSkeleton label={t.common.loading} />
               ) : !hasLoaded && loadError ? null : positions.length === 0 ? (
                 <Card className="border border-dashed border-slate-300 bg-white/60 text-center shadow-none backdrop-blur">
                   <CardContent className="flex flex-col items-center gap-4 py-12">

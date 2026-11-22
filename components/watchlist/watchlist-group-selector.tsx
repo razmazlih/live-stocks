@@ -1,6 +1,6 @@
 'use client';
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { WatchlistGroupSkeleton } from './watchlist-skeleton';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -29,11 +29,11 @@ interface WatchlistGroupSelectorProps {
 
 export function WatchlistGroupSelector({ groups, selectedGroupId, onSelect, onCreate, onEdit, onDelete, className, title = 'Watchlist groups', addLabel = 'New group', emptyStateText = 'No groups yet', loadingText = 'Loading…', isLoading = false, isRefreshing = false, renderTickerCount, editLabel = 'Edit group', deleteLabel = 'Delete group' }: WatchlistGroupSelectorProps) {
   const he = /[\u0590-\u05ff]/.test(title);
-  return <section aria-label={title} className={cn('flex min-w-0 max-w-full items-center gap-2', className)}>
+  return <section aria-label={title} className={cn('flex min-h-[56px] min-w-0 max-w-full items-center gap-2', className)}>
     <h2 className="sr-only">{title}</h2>
     <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
       <div className="flex w-max min-w-full items-center gap-1">
-        {isLoading ? <div aria-busy="true" aria-label={loadingText} className="flex h-14 items-center gap-2 px-3"><Skeleton className="h-9 w-24 rounded-lg" /><Skeleton className="h-9 w-16 rounded-lg" /></div> : groups.length === 0 ? <p className="flex h-14 items-center px-3 text-sm text-slate-500">{emptyStateText}</p> : groups.map((group) => {
+        {isLoading ? <WatchlistGroupSkeleton label={loadingText} /> : groups.length === 0 ? <p className="flex h-14 items-center px-3 text-sm text-slate-500">{emptyStateText}</p> : groups.map((group) => {
           const selected = group.id === selectedGroupId;
           return <div key={group.id ?? group.name} className={cn('flex shrink-0 items-center border-b-[3px]', selected ? 'border-blue-600' : 'border-transparent')}>
             <button type="button" disabled={!group.id} aria-label={`${group.name} · ${renderTickerCount ? renderTickerCount(group) : group.tickers.length}`} aria-pressed={selected} onClick={() => group.id && onSelect(group.id)} className={cn('flex min-h-14 items-center gap-3 whitespace-nowrap rounded-t-lg px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 disabled:opacity-50', selected ? 'text-slate-950' : 'text-slate-600 hover:bg-white/50 hover:text-slate-950')}>

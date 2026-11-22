@@ -25,7 +25,7 @@ function ProposalSkeleton() {
 }
 
 export function OverviewSkeleton({ locale }: { locale: 'he' | 'en' }) {
-  return <div role="status" className="flex flex-col gap-6">
+  return <div data-page-loading role="status" className="flex flex-col gap-6">
     <span className="sr-only">{locale === 'he' ? 'טוען את התיק' : 'Loading portfolio'}</span>
     <div aria-hidden="true" className="portfolio-summary overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="portfolio-summary-grid">

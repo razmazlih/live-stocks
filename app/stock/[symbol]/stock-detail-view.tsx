@@ -22,7 +22,7 @@ import { DashboardContainer, DashboardMain, DashboardSurface } from '@/component
 import { useStockNavigationPreview, useStockNavigationReady } from '@/components/portfolio/stock-navigation';
 import type { SparklineEvent } from '@/components/charts/sparkline';
 import { StockDetailChart } from '@/components/portfolio/stock-detail-chart';
-import { StockChartSkeleton } from './stock-detail-skeleton';
+import { StockChartSkeleton, StockRecordsSkeleton } from './stock-detail-skeleton';
 import styles from './stock-detail-view.module.css';
 
 import { getSupabaseClient } from '@/lib/supabase';
@@ -525,6 +525,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const shareCount = quantity.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 });
   const identity = (position?.symbol.toUpperCase() === normalizedSymbol ? position : null) ?? navigationPreview ?? { symbol: normalizedSymbol, display: normalizedSymbol, imageUrl: '' };
 
+  const awaitingInitialChart = Boolean(position && metrics && historicalEntryDate && !displayedRange && !historicalError);
   return <DashboardRouteShell activeKey={sourceRoute?.key ?? 'portfolio'} locale={locale} portfolioFeedback={false}>
     <DashboardContainer className={`stock-detail-arrival ${styles.page}`}>
       <div className={styles.toolbar}>
@@ -538,16 +539,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         </div>
       </div>
       <DashboardMain className={styles.main}>
-        <section className={`stock-detail-destination ${styles.hero}`} aria-busy={loading || refreshing}>
+        <section className={`stock-detail-destination ${styles.hero}`} aria-busy={loading || refreshing} data-page-loading={loading || awaitingInitialChart || undefined}>
           <div className={styles.heroTop}>
             <div className="flex min-w-0 items-center gap-3">
               <StockLogo symbol={identity.symbol} display={identity.display} imageUrl={identity.imageUrl} className="h-12 w-12 rounded-2xl" />
-              <div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-2"><bdi className="text-xs font-semibold tracking-wide text-blue-600">{normalizedSymbol}</bdi>{badgeLocations.map(bank => <BankBadge key={bank} bank={bank} locale={locale} size="sm" />)}</div><h1 className="break-words text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{identity.display}</h1></div>
+              <div className="min-w-0"><div className="mb-1 flex min-h-[27px] flex-wrap items-center gap-2"><bdi className="text-xs font-semibold tracking-wide text-blue-600">{normalizedSymbol}</bdi>{loading && !badgeLocations.length && <Skeleton className="h-5 w-12 rounded-full" />}{badgeLocations.map(bank => <BankBadge key={bank} bank={bank} locale={locale} size="sm" />)}</div><h1 className="break-words text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{identity.display}</h1></div>
             </div>
             <div className={styles.quote}>
               <p className="mb-1 text-[11px] text-slate-500">{locale === 'he' ? 'מחיר המניה · USD' : 'Share price · USD'}</p>
-              {loading ? <Skeleton className="h-10 w-32" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(metrics?.currentPrice)}</bdi></p>}
-              {loading ? <Skeleton className="mt-2 h-3 w-20" /> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></p>}
+              {loading ? <Skeleton className="h-[30px] w-32 sm:h-9" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(metrics?.currentPrice)}</bdi></p>}
+              {loading ? <div className="mt-2 flex h-4 items-center"><Skeleton className="h-3 w-20" /></div> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></p>}
             </div>
           </div>
           <dl className={styles.metrics}>
@@ -555,13 +556,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               { label: locale === 'he' ? 'שווי ההחזקה' : 'Holding value', value: currentValue, helper: `${shareCount} ${locale === 'he' ? 'מניות פתוחות' : 'open shares'}`, color: 'text-slate-900' },
               { label: locale === 'he' ? 'רווח / הפסד פתוח' : 'Unrealized P/L', value: unrealized, helper: locale === 'he' ? 'בהחזקה הנוכחית' : 'Current holding', color: tone(unrealized) },
               { label: locale === 'he' ? 'רווח / הפסד מצטבר' : 'Cumulative P/L', value: cumulative, helper: hasRecordedHistory ? locale === 'he' ? 'כל הסבבים והמכירות הקודמות' : 'All cycles and previous sales' : locale === 'he' ? 'לפי נתוני ההחזקה הזמינים' : 'Available holding records', color: tone(cumulative) },
-            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="mt-2 h-6 w-20" /> : <bdi>{money(item.value)}</bdi>}</dd>{loading ? <Skeleton className="mt-1 h-3 w-3/4 max-w-24" /> : <p>{item.helper}</p>}</div>)}
+            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="h-[1.5em] w-2/3 max-w-[5rem]" /> : <bdi>{money(item.value)}</bdi>}</dd>{loading ? <p><span aria-hidden="true" className="inline-block h-[.8em] w-3/4 max-w-[6rem] rounded bg-slate-400/20" /></p> : <p>{item.helper}</p>}</div>)}
           </dl>
         </section>
 
         {error ? <div role="alert" className={styles.error}><span>{metrics ? locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.' : t.stock.detailView.states.error}</span><Button variant="ghost" size="sm" onClick={() => setReloadKey(value => value + 1)} disabled={refreshing}>{t.stock.detailView.states.retry}</Button></div> : null}
-        {loading ? <StockChartSkeleton /> : position && metrics ? <>
-          <StockDetailChart chartData={chartData} historicalLoading={historicalLoading || Boolean(historicalEntryDate && !displayedRange && !historicalError)} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics.yearsHeld} baseline={averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
+        {loading ? <><StockChartSkeleton /><StockRecordsSkeleton /></> : position && metrics ? <>
+          <StockDetailChart chartData={chartData} historicalLoading={historicalLoading || awaitingInitialChart} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics.yearsHeld} baseline={averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
 
           <section className={styles.records} aria-label={locale === 'he' ? 'החזקה ופעולות' : 'Holdings and activity'}>
             <details className={styles.record}>

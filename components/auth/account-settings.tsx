@@ -24,7 +24,7 @@ async function accountRequest<T>(path: string, options?: RequestInit): Promise<T
   return response.json() as Promise<T>;
 }
 
-export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' | 'en'; onCredentialChange: (configured: boolean) => void }) {
+export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' | 'en'; onCredentialChange: (configured: boolean | null) => void }) {
   const he = locale === 'he';
   const { user, signOut } = useAuth();
   const [credentialConfigured, setCredentialConfigured] = useState<boolean | null>(null);
@@ -50,7 +50,12 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
       setCredentialConfigured(credentials.configured);
       onCredentialChange(credentials.configured);
       setConnections(connected);
-    }).catch(() => { if (!controller.signal.aborted) setLoadError(true); });
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setLoadError(true);
+        onCredentialChange(null);
+      }
+    });
     return () => controller.abort();
   }, [onCredentialChange, request]);
 
@@ -99,7 +104,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
     <DashboardSurface>
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void saveCredential(); }}>
         <h2 className="text-lg font-semibold">{he ? 'מפתח Finnhub אישי' : 'Personal Finnhub key'}</h2>
-        {credentialConfigured === null ? !loadError && <Skeleton className="h-5 w-52 max-w-full" /> : <p className="text-sm text-slate-500">{credentialConfigured ? (he ? 'מפתח שמור בחשבון: ••••••••' : 'Saved in your account: ••••••••') : (he ? 'לא הוגדר מפתח לחשבון זה' : 'No key configured for this account')}</p>}
+        {credentialConfigured === null ? !loadError && <Skeleton data-page-loading className="h-5 w-52 max-w-full" /> : <p className="text-sm text-slate-500">{credentialConfigured ? (he ? 'מפתח שמור בחשבון: ••••••••' : 'Saved in your account: ••••••••') : (he ? 'לא הוגדר מפתח לחשבון זה' : 'No key configured for this account')}</p>}
         <Label htmlFor="personal-finnhub-key">{credentialConfigured ? (he ? 'החלפת המפתח' : 'Replace key') : (he ? 'מפתח חדש' : 'New key')}</Label>
         <Input id="personal-finnhub-key" type="password" autoComplete="new-password" value={newCredential} onChange={(event) => setNewCredential(event.target.value)} placeholder={he ? 'הדבקת מפתח Finnhub' : 'Paste your Finnhub key'} dir="ltr" />
         <p className="text-xs text-slate-500">{he ? 'המפתח נשמר בשרת ואינו מוצג מחדש. ניתן לקבל מפתח באתר ' : 'Your key is saved on the server and is never displayed again. Get a key at '}<a href="https://finnhub.io" target="_blank" rel="noopener noreferrer" className="underline">Finnhub</a>.</p>

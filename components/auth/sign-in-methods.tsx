@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SignInMethodsSkeleton } from '@/components/settings/account-skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authNavigation } from '@/lib/auth/browser-session';
@@ -52,7 +52,7 @@ export function SignInMethods({ locale = 'he', completed = false }: { locale?: '
     <h3 className="font-semibold">{he ? 'שיטות כניסה לאותו חשבון' : 'Sign-in methods for this account'}</h3>
     <p className="text-sm leading-6 text-muted-foreground">{he ? 'Google וסיסמה יכולים לפתוח את אותו חשבון ואת אותו תיק. קישור שיטה נוספת אינו מעביר או מוחק נתונים.' : 'Google and a password can open the same account and portfolio. Adding a method does not move or delete data.'}</p>
     {error && <p role="alert" className="text-sm text-[var(--color-red-600)]">{he ? 'לא ניתן להשלים את הבקשה. יש לבדוק את פרטי הכניסה ולנסות שוב; לאחר כמה ניסיונות יש להמתין.' : 'The request could not be completed. Check your sign-in details and retry; after several attempts, wait before retrying.'}</p>}
-    {!value && !error && <div role="status" aria-label={he ? 'טוען שיטות כניסה' : 'Loading sign-in methods'} className="space-y-3"><Skeleton className="h-5 w-48 max-w-full" /><Skeleton className="h-9 w-40 max-w-full" /></div>}
+    {!value && !error && <SignInMethodsSkeleton label={he ? 'טוען שיטות כניסה' : 'Loading sign-in methods'} />}
     {value && <>
       <p dir="ltr" className="break-all text-sm">{value.account.email}</p>
       <ul className="space-y-1 text-sm"><li>{he ? 'סיסמה' : 'Password'}: {value.methods.password ? (he ? 'מחוברת' : 'Connected') : (he ? 'לא הוגדרה' : 'Not set')}</li><li>Google: {value.methods.google ? (he ? 'מחובר' : 'Connected') : (he ? 'לא מחובר' : 'Not connected')}</li></ul>

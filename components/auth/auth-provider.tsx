@@ -10,6 +10,8 @@ import { SignIn } from './sign-in';
 import { isPublicAuthPath, isPublicInformationPath } from '@/lib/public-routes';
 import { authClient } from '@/lib/auth/better-auth-client';
 import { authNavigation, clearBrowserAccount } from '@/lib/auth/browser-session';
+import { mirrorDemoEntryLocale } from '@/lib/entry-locale';
+import type { Locale } from '@/types';
 import { DEMO_USER_ID } from '@/lib/demo/data';
 import { initializeComputerDemo } from '@/lib/demo/client';
 import { DemoAppearanceSync } from '@/components/settings/demo-appearance-sync';
@@ -17,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import type { AuthPublicOptions } from '@/types/auth';
 
 export type AccountUser = { id: string; email?: string; name?: string; emailVerified: boolean };
-type AccountSession = { user: AccountUser | null; configured: boolean; options?: AuthPublicOptions };
+type AccountSession = { user: AccountUser | null; configured: boolean; options?: AuthPublicOptions; demoLocale?: Locale };
 const AuthContext = createContext<{ user: AccountUser; signOut: () => void } | null>(null);
 const ACCOUNT_EVENT = 'livestocks:account-change';
 
@@ -57,6 +59,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
       if (!value.user) resetSupabaseClient();
       setGeneration((current) => current + 1);
     }
+    mirrorDemoEntryLocale(value.user?.id === DEMO_USER_ID ? value.demoLocale ?? 'he' : null);
     configureSupabaseUser(value.user?.id ?? null);
     currentSession.current = value;
     setSession(value);
@@ -96,7 +99,8 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
       if (!isCurrent()) return;
       if (typeof value.configured !== 'boolean' || (value.user && !value.user.id)) throw new Error('Invalid session response');
       if (value.user?.id === DEMO_USER_ID) {
-        await initializeComputerDemo(controller.signal);
+        const demoState = await initializeComputerDemo(controller.signal);
+        value.demoLocale = demoState.preferences.locale;
         if (!isCurrent()) return;
       }
       setError(false);
@@ -174,7 +178,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   if (!session) return <EntrySkeleton />;
   if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>
-    <AppProvider key={`${session.user.id}:${generation}`} demo={session.user.id === DEMO_USER_ID}>
+    <AppProvider key={`${session.user.id}:${generation}`} demo={session.user.id === DEMO_USER_ID} initialDemoLocale={session.demoLocale}>
       {session.user.id === DEMO_USER_ID && <DemoAppearanceSync />}
       <StockNavigationProvider>{children}</StockNavigationProvider>
     </AppProvider>

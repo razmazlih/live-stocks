@@ -70,7 +70,7 @@ describe('locally persisted demo settings', () => {
     let finish!: (response: Response) => void;
     computerFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
     const view = render(<SettingsPage />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading settings' })).toHaveAttribute('data-page-loading');
     expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument();
     expect(view.container.querySelector('#growthRate')).toBeNull();
     expect(computerFetch).toHaveBeenCalledTimes(1);
@@ -78,6 +78,7 @@ describe('locally persisted demo settings', () => {
     finish(Response.json({ annualGrowthRate: 0.11, currency: 'ILS', refreshInterval: 60 }));
     await waitFor(() => expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled());
     expect(document.getElementById('growthRate')).toHaveValue(0.11);
+    expect(view.container.querySelector('[data-page-loading]')).toBeNull();
   });
 
   it('uses computer settings instead of a stale browser-only value', async () => {

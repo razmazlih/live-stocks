@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -15,14 +15,13 @@ import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboa
 import { CalendarDays, Eye, GripVertical, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { WatchlistSkeleton } from '@/components/watchlist/watchlist-skeleton';
+import { WatchlistHeader, WatchlistSkeleton } from '@/components/watchlist/watchlist-skeleton';
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerRow, WATCHLIST_ROW_COLUMNS } from '@/components/watchlist/ticker-row';
 import { TickerCard, type TickerCardProps } from '@/components/watchlist/ticker-card';
 import { Button } from '@/components/ui/button';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
-import { PageHeader } from '@/components/dashboard/page-header';
 import { DashboardContainer } from '@/components/dashboard/page-primitives';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -312,6 +311,14 @@ export default function WatchlistPage() {
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
   const [tickerForm, setTickerForm] = useState<TickerFormState>(createEmptyTickerForm);
   const [tickerStates, setTickerStates] = useState<Record<string, TickerState>>({});
+  const [initialTickersReady, setInitialTickersReady] = useState(false);
+  const awaitingInitialTickers = !initialTickersReady && (loading || selectedGroup?.tickers.some(ticker => {
+    const state = tickerStates[getTickerKey(ticker)];
+    return !state || (state.loading && !state.lastUpdated && !state.error);
+  }));
+  useEffect(() => {
+    if (!awaitingInitialTickers) setInitialTickersReady(true);
+  }, [awaitingInitialTickers]);
   const [refreshingTickers, setRefreshingTickers] = useState(false);
   const [sortableTickers, setSortableTickers] = useState<WatchlistTickerType[]>(
     selectedGroup?.tickers ?? []
@@ -343,7 +350,7 @@ export default function WatchlistPage() {
   );
 
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedGroup?.tickers) {
       setSortableTickers([...selectedGroup.tickers]);
     } else {
@@ -943,9 +950,9 @@ export default function WatchlistPage() {
   return (
     <DashboardRouteShell activeKey="watchlist" locale={locale}>
       <DashboardContainer>
-        <PageHeader className="[&_h1]:text-[32px] sm:[&_h1]:text-[40px]" title={isRtl ? 'המעקב שלי' : 'My watchlist'} subtitle={isRtl ? 'המניות שמעניינות אותך, במקום אחד.' : 'The stocks on your radar, in one place.'} icon={Eye}
+        <WatchlistHeader locale={locale}
           actions={<div className="flex items-center gap-2"><Button id="watchlist-add-stock" onClick={openCreateTickerDialog} disabled={!selectedGroup || loading} className="rounded-xl px-5"><Plus aria-hidden />{t.watchlist.actions.newTicker}</Button><Button variant="outline" size="icon" aria-label={t.watchlist.actions.refreshAll} title={t.watchlist.actions.refreshAll} disabled={loading || refreshingTickers || refreshing} onClick={handleRefreshAll} className="rounded-xl bg-white"><RefreshCw aria-hidden className={cn('h-4 w-4', (refreshingTickers || refreshing) && 'animate-spin')} /></Button></div>} />
-        <main className="mt-5 space-y-5">
+        <main data-page-loading={awaitingInitialTickers || undefined} className="mt-5 space-y-5">
           <WatchlistGroupSelector groups={groups} selectedGroupId={selectedGroupId} onSelect={handleSelectGroup} onCreate={openCreateGroupDialog} onEdit={openEditGroupDialog} onDelete={handleDeleteGroup} isLoading={loading} isRefreshing={refreshing} title={t.watchlist.groups.title} addLabel={t.watchlist.actions.newGroup} emptyStateText={t.watchlist.groups.empty} loadingText={t.watchlist.groups.loading} renderTickerCount={renderTickerCount} editLabel={t.watchlist.actions.editGroup} deleteLabel={t.watchlist.actions.deleteGroup} />
           {watchlistError ? <Alert variant="destructive" className="rounded-xl border-amber-200 bg-amber-50 text-amber-900"><AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{t.watchlist.status.error}</span><Button variant="outline" onClick={handleRefreshAll}>{t.watchlist.actions.retry}</Button></AlertDescription></Alert> : null}
           {loading && !selectedGroup ? <WatchlistSkeleton label={t.watchlist.groups.loading} /> : selectedGroup ? <section aria-label={isRtl ? 'מרחב המעקב' : 'Watchlist workspace'} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

@@ -1,5 +1,10 @@
 import type { PortfolioSummary, PortfolioTimelinePoint } from '@/types';
 
+export function parsePerformanceView(params: Pick<URLSearchParams, 'get'>) {
+  const view = params.get('view');
+  return view === 'targets' || view === 'realized' ? view : 'history';
+}
+
 export const PERFORMANCE_RANGES = ['1M', '3M', '6M', 'YTD', '1Y', 'All'] as const;
 export type PerformanceRange = typeof PERFORMANCE_RANGES[number];
 export function parsePerformanceRange(params: URLSearchParams): PerformanceRange {

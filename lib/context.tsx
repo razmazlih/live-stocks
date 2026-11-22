@@ -15,6 +15,7 @@ import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
 import { readDemoSettings } from '@/lib/demo/settings';
 import { readDemoPreferences, saveDemoPreferences } from '@/lib/demo/client';
+import { mirrorDemoEntryLocale, readPersonalLocale } from '@/lib/entry-locale';
 import { toast } from 'sonner';
 
 interface AppContextType {
@@ -29,8 +30,8 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children, demo = false }: { children: ReactNode; demo?: boolean }) {
-  const [locale, setLocale] = useState<Locale>('he');
+export function AppProvider({ children, demo = false, initialDemoLocale }: { children: ReactNode; demo?: boolean; initialDemoLocale?: Locale }) {
+  const [locale, setLocale] = useState<Locale>(() => demo ? initialDemoLocale ?? 'he' : readPersonalLocale());
   const [settings, setSettings] = useState<Settings>({
     annualGrowthRate: parseFloat(process.env.DEFAULT_GROWTH_RATE || '0.05'),
     currency: 'USD',
@@ -43,8 +44,8 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
     let cancelled = false;
 
     const initializeSettings = async () => {
-      const savedLocale = demo ? (await readDemoPreferences()).locale : localStorage.getItem('locale') as Locale;
-      if (savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
+      const savedLocale = demo ? initialDemoLocale ?? (await readDemoPreferences()).locale : readPersonalLocale();
+      if (!cancelled && savedLocale && (savedLocale === 'he' || savedLocale === 'en')) {
         setLocale(savedLocale);
       }
 
@@ -96,10 +97,11 @@ export function AppProvider({ children, demo = false }: { children: ReactNode; d
     return () => {
       cancelled = true;
     };
-  }, [demo]);
+  }, [demo, initialDemoLocale]);
 
   useEffect(() => {
-    if (!demo) localStorage.setItem('locale', locale);
+    if (demo) mirrorDemoEntryLocale(locale);
+    else localStorage.setItem('locale', locale);
     document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
   }, [locale, demo]);

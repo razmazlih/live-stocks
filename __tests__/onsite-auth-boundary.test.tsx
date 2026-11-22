@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 const state = vi.hoisted(() => ({ pathname: '/', signOut: vi.fn(), reset: vi.fn(), configure: vi.fn(), privateMount: vi.fn() }));
-vi.mock('next/navigation', () => ({ usePathname: () => state.pathname }));
+vi.mock('next/navigation', () => ({ usePathname: () => state.pathname, useSearchParams: () => new URLSearchParams(window.location.search) }));
 vi.mock('@/lib/auth/better-auth-client', () => ({ authClient: { signOut: state.signOut } }));
 vi.mock('@/lib/supabase', () => ({ configureSupabaseUser: state.configure, resetSupabaseClient: state.reset }));
 vi.mock('@/lib/context', () => ({ AppProvider: ({ children }: { children: ReactNode }) => { state.privateMount(); return children; } }));
 vi.mock('@/components/portfolio/stock-navigation', () => ({ StockNavigationProvider: ({ children }: { children: ReactNode }) => children }));
 import { AuthProvider, useAuth } from '@/components/auth/auth-provider';
+import { mirrorDemoEntryLocale, readDemoEntryLocale } from '@/lib/entry-locale';
 import { authNavigation } from '@/lib/auth/browser-session';
 
 function PrivateAccount() {
@@ -17,16 +18,39 @@ function PrivateAccount() {
 }
 
 describe('on-site public auth and sign-out boundary', () => {
-  beforeEach(() => { state.pathname = '/'; state.signOut.mockReset(); state.reset.mockReset(); state.configure.mockReset(); state.privateMount.mockReset(); });
+  beforeEach(() => { state.pathname = '/'; window.history.replaceState(null, '', '/'); state.signOut.mockReset(); state.reset.mockReset(); state.configure.mockReset(); state.privateMount.mockReset(); });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
 
   it.each(['/', '/portfolio', '/positions', '/watchlist', '/stock/AAPL', '/settings'])('shows placeholders on direct entry to %s while session verification is pending', (pathname) => {
     state.pathname = pathname;
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
     const { container } = render(<AuthProvider><PrivateAccount /></AuthProvider>);
+    expect(container.querySelector('[data-page-loading]')).toBeInTheDocument();
     expect(container.querySelector('[role="status"], [aria-busy="true"]')).toBeInTheDocument();
     expect(screen.queryByText('LiveStocks · טוען / Loading…')).not.toBeInTheDocument();
     expect(state.privateMount).not.toHaveBeenCalled();
+  });
+
+  it.each([['targets', 'מול היעד'], ['realized', 'רווח ממומש'], ['history', 'לאורך זמן']])('reserves the requested %s performance tab before signing in', (view, label) => {
+    state.pathname = '/portfolio';
+    window.history.replaceState(null, '', `/portfolio?view=${view}`);
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+    const { container } = render(<AuthProvider><PrivateAccount /></AuthProvider>);
+    expect(screen.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelector('[data-page-loading]')).toBeInTheDocument();
+    expect(state.privateMount).not.toHaveBeenCalled();
+  });
+
+  it('uses the demo language during verification and restores the personal preference when leaving demo', async () => {
+    localStorage.setItem('locale', 'he');
+    mirrorDemoEntryLocale('en');
+    let finish!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+    render(<AuthProvider><PrivateAccount /></AuthProvider>);
+    expect(screen.getByRole('heading', { name: 'Portfolio overview' })).toBeVisible();
+    await act(async () => { finish(Response.json({ configured: true, user: { id: 'personal-account', emailVerified: true } })); });
+    expect(readDemoEntryLocale()).toBeNull();
+    expect(localStorage.getItem('locale')).toBe('he');
   });
 
   it('isolates owner confirmation from financial session bootstrap and private providers', async () => {
