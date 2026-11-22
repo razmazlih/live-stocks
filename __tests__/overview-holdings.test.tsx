@@ -201,6 +201,8 @@ describe('overview holdings continuity', () => {
     const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
     const card = toggle.closest('article')!;
     const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    // The dev server can serialize 360ms as .36s in the browser.
+    card.style.setProperty('--holding-duration', '.36s');
     expect(scrollTo).not.toHaveBeenCalled();
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');

@@ -70,7 +70,8 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     const finalHeight = bounds.height - previewSpace - reveal.getBoundingClientRect().height
       + (details?.scrollHeight || reveal.getBoundingClientRect().height);
     const distance = fitOffset(finalHeight);
-    const duration = parseFloat(getComputedStyle(card).getPropertyValue('--holding-duration')) || 360;
+    const cssTime = getComputedStyle(card).getPropertyValue('--holding-duration').trim();
+    const duration = (parseFloat(cssTime) * (cssTime.endsWith('ms') ? 1 : 1000)) || 360;
     const started = performance.now();
     let frame = 0;
     const follow = (now: number) => {
