@@ -39,6 +39,7 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { formatDate, mapCandleDataToPoints } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
+import { useWatchlistQuotes } from '@/hooks/use-watchlist-quotes';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useReturnContext } from '@/hooks/use-return-context';
@@ -255,7 +256,7 @@ interface SortableTickerCardProps {
 function SortableTickerCard({ id, isActive, disabled = false, sorting, symbol, locale, children }: SortableTickerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: disabled || !sorting });
   const style: CSSProperties = { transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined, transition };
-  return <div ref={setNodeRef} style={style} role="group" aria-roledescription={sorting ? 'sortable' : undefined} className={cn('relative flex min-w-0 items-center border-b border-slate-100 last:border-b-0', isDragging && 'z-30 bg-white shadow-lg', isActive && 'ring-2 ring-inset ring-blue-300')}>
+  return <div ref={setNodeRef} data-watchlist-row={id} style={style} role="group" aria-roledescription={sorting ? 'sortable' : undefined} className={cn('relative flex min-w-0 items-center border-b border-slate-100 last:border-b-0', isDragging && 'z-30 bg-white shadow-lg', isActive && 'ring-2 ring-inset ring-blue-300')}>
     {sorting ? <button type="button" {...attributes} {...listeners} disabled={disabled} aria-label={`${locale === 'he' ? 'הזזת' : 'Reorder'} ${symbol}`} className="ms-2 flex h-11 w-7 shrink-0 touch-none items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500"><GripVertical aria-hidden className="h-4 w-4" /></button> : null}
     <div className="min-w-0 flex-1">{children}</div>
   </div>;
@@ -276,7 +277,7 @@ const subscribeWide = (notify: () => void) => {
 const getServerWideSnapshot = () => false;
 
 export default function WatchlistPage() {
-  const { locale, settings } = useApp();
+  const { locale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
   const isWide = useSyncExternalStore(subscribeWide, getWideSnapshot, getServerWideSnapshot);
@@ -301,6 +302,7 @@ export default function WatchlistPage() {
 
   const [{ range, customStartDate, search, stock }, patchUrl, sourceUrl] = useUrlState(parseWatchlistView);
   const setCustomStartDate = useCallback((date: Date | null) => patchUrl({ from: localDateParam(date) }), [patchUrl]);
+  const refreshWhenVisible = useRef(new Set<string>());
   const requests = useRef(new Map<string, { identity: string; controller: AbortController }>());
   useReturnContext(!loading && Boolean(selectedGroup));
   useEffect(() => () => { requests.current.forEach((request) => request.controller.abort()); }, []);
@@ -311,14 +313,6 @@ export default function WatchlistPage() {
   const [tickerDialogOpen, setTickerDialogOpen] = useState(false);
   const [tickerForm, setTickerForm] = useState<TickerFormState>(createEmptyTickerForm);
   const [tickerStates, setTickerStates] = useState<Record<string, TickerState>>({});
-  const [initialTickersReady, setInitialTickersReady] = useState(false);
-  const awaitingInitialTickers = !initialTickersReady && (loading || selectedGroup?.tickers.some(ticker => {
-    const state = tickerStates[getTickerKey(ticker)];
-    return !state || (state.loading && !state.lastUpdated && !state.error);
-  }));
-  useEffect(() => {
-    if (!awaitingInitialTickers) setInitialTickersReady(true);
-  }, [awaitingInitialTickers]);
   const [refreshingTickers, setRefreshingTickers] = useState(false);
   const [sortableTickers, setSortableTickers] = useState<WatchlistTickerType[]>(
     selectedGroup?.tickers ?? []
@@ -334,6 +328,31 @@ export default function WatchlistPage() {
     : sortableTickers, [sortableTickers, normalizedSearch, locale]);
   const focusedTicker = visibleTickers.find((ticker) => getTickerKey(ticker) === stock) ?? visibleTickers[0] ?? null;
   const focusedState = focusedTicker ? tickerStates[getTickerKey(focusedTicker)] : undefined;
+  const { quotes, refreshQuotes } = useWatchlistQuotes(selectedGroup?.tickers);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(entries => {
+      setOnScreen(previous => {
+        const next = new Set(previous);
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.watchlistRow;
+          if (id) { if (entry.isIntersecting) next.add(id); else next.delete(id); }
+        }
+        return next;
+      });
+    }, { rootMargin: '120px 0px' });
+    list.querySelectorAll('[data-watchlist-row]').forEach(row => observer.observe(row));
+    return () => observer.disconnect();
+  }, [visibleTickers]);
+  const priorityTickers = useMemo(() => {
+    const visible = typeof IntersectionObserver === 'undefined'
+      ? visibleTickers : visibleTickers.filter(ticker => onScreen.has(getTickerKey(ticker)));
+    return focusedTicker ? [focusedTicker, ...visible.filter(ticker => ticker !== focusedTicker)] : visible;
+  }, [focusedTicker, visibleTickers, onScreen]);
+  const awaitingInitialTickers = loading || Boolean(focusedTicker && !focusedState?.lastUpdated && !focusedState?.error);
   const focusedKey = focusedTicker ? `${getTickerKey(focusedTicker)}:${focusedState?.range}:${focusedState?.from}:${focusedState?.lastUpdated}` : 'empty';
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -505,11 +524,6 @@ export default function WatchlistPage() {
         const symbol = ticker.symbol.toUpperCase();
         const nowSeconds = Math.floor(Date.now() / 1000);
 
-        const quoteParams = new URLSearchParams({ symbol });
-        if (options?.force) {
-          quoteParams.set('forceRefresh', '1');
-        }
-
         const candlesParams = new URLSearchParams({
           symbol,
           resolution,
@@ -517,23 +531,9 @@ export default function WatchlistPage() {
           to: String(nowSeconds),
         });
 
-        const [quoteResponse, candlesResponse] = await Promise.all([
-          fetch(`/api/quote?${quoteParams.toString()}`, { signal: controller.signal }),
-          fetch(`/api/candles?${candlesParams.toString()}`, { signal: controller.signal }),
-        ]);
-
-        let quote: StockQuote | null = null;
-        if (quoteResponse.ok) {
-          quote = (await quoteResponse.json()) as StockQuote;
-        } else {
-          const payload = (await quoteResponse.json().catch(() => null)) as { error?: string } | null;
-          if (payload?.error) {
-            console.warn('Quote API error:', payload.error);
-          }
-        }
-
+        const candlesResponse = await fetch(`/api/candles?${candlesParams}`, { signal: controller.signal });
         let historical: HistoricalPoint[] = [];
-        let errorMessage: string | null = quoteResponse.ok ? null : chartErrorMessage;
+        let errorMessage: string | null = null;
 
         if (candlesResponse.ok) {
           const payload = (await candlesResponse.json()) as (CandleData & { error?: string }) | { error: string };
@@ -558,7 +558,7 @@ export default function WatchlistPage() {
         if (errorMessage) throw new Error(errorMessage);
         const fetchedAt = Date.now();
         writeTickerCache(cacheKey, {
-          quote,
+          quote: null,
           historical,
           error: errorMessage,
           storedAt: fetchedAt,
@@ -571,7 +571,7 @@ export default function WatchlistPage() {
         setTickerStates((prev) => ({
           ...prev,
           [key]: {
-            quote,
+            quote: prev[key]?.quote ?? null,
             historical,
             loading: false,
             error: errorMessage,
@@ -611,7 +611,7 @@ export default function WatchlistPage() {
       return;
     }
 
-    selectedGroup.tickers.forEach((ticker) => {
+    priorityTickers.forEach((ticker) => {
       const key = getTickerKey(ticker);
       const state = tickerStates[key];
       const shouldLoad =
@@ -619,8 +619,9 @@ export default function WatchlistPage() {
         state.requestedRange !== range ||
         state.requestedFrom !== effectiveFromSeconds;
 
-      if (shouldLoad) {
-        fetchTickerData(ticker, { range, startDate: effectiveStartDate }).catch((error) => {
+      const force = refreshWhenVisible.current.delete(key);
+      if (shouldLoad || force) {
+        fetchTickerData(ticker, { range, startDate: effectiveStartDate, force }).catch((error) => {
           console.error('Failed to load ticker data', error);
         });
       }
@@ -631,6 +632,7 @@ export default function WatchlistPage() {
     fetchTickerData,
     range,
     selectedGroup,
+    priorityTickers,
     tickerStates,
   ]);
 
@@ -829,10 +831,14 @@ export default function WatchlistPage() {
     setRefreshingTickers(true);
     try {
       if (selectedGroup) {
+        const current = new Set(priorityTickers.map(getTickerKey));
+        for (const ticker of selectedGroup.tickers) {
+          const key = getTickerKey(ticker);
+          if (!current.has(key)) refreshWhenVisible.current.add(key);
+        }
         await Promise.all(
-          selectedGroup.tickers.map((ticker) =>
-            fetchTickerData(ticker, { force: true, startDate: effectiveStartDate })
-          )
+          [refreshQuotes(selectedGroup.tickers.map(ticker => ticker.symbol.toUpperCase()), true),
+            ...priorityTickers.map(ticker => fetchTickerData(ticker, { force: true, startDate: effectiveStartDate }))]
         );
       }
       await refresh();
@@ -849,6 +855,8 @@ export default function WatchlistPage() {
     refresh,
     refreshingTickers,
     selectedGroup,
+    refreshQuotes,
+    priorityTickers,
     t.watchlist.notifications.error,
     t.watchlist.notifications.refreshed,
   ]);
@@ -927,14 +935,16 @@ export default function WatchlistPage() {
     const historical = state?.historical ?? [];
     const first = historical[0];
     const last = historical[historical.length - 1];
-    const quotePrice = state?.quote?.c;
+    const quoteState = quotes[ticker.symbol.toUpperCase()];
+    const quote = quoteState?.quote ?? state?.quote;
+    const quotePrice = quote?.c;
     return {
-      ticker, quote: state?.quote, historical, range: state?.range ?? range,
-      returnTo: sourceUrl || '/watchlist', lastUpdated: state?.lastUpdated, locale,
-      loading: state?.loading ?? !watchlistError, error: state?.error,
+      ticker, quote, historical, range: state?.range ?? range,
+      returnTo: sourceUrl || '/watchlist', lastUpdated: quoteState?.updated ?? state?.lastUpdated, locale,
+      loading: state?.loading ?? !watchlistError, error: state?.error || (quoteState?.error ? chartErrorMessage : null),
       onEdit: (item) => { previewTransitionRef.current = previewOpen; setPreviewOpen(false); openEditTickerDialog(item); },
       onDelete: handleDeleteTicker,
-      onRefresh: (item) => { void fetchTickerData(item, { force: true, startDate: effectiveStartDate }); },
+      onRefresh: (item) => { void refreshQuotes([item.symbol.toUpperCase()], true); void fetchTickerData(item, { force: true, startDate: effectiveStartDate }); },
       priceLabel: t.watchlist.labels.price, changeLabel: isRtl ? 'שינוי בטווח' : 'Period change',
       noteLabel: t.watchlist.labels.note, emptySeriesLabel: t.watchlist.charts.empty,
       errorLabel: t.watchlist.charts.error, loadingLabel: chartLoadingMessage,
@@ -965,7 +975,7 @@ export default function WatchlistPage() {
             </div>
             {hasCustomStartDate ? <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-blue-50/50 px-5 py-2 text-xs text-slate-600"><span>{t.watchlist.filters.summary(formattedStartDate)}</span><Button variant="ghost" size="sm" onClick={handleResetStartDate} className="text-blue-700">{t.watchlist.filters.resetStartDate}</Button></div> : null}
             <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
-              <div className="flex min-h-[430px] min-w-0 flex-col xl:min-h-[650px]">
+              <div ref={listRef} className="flex min-h-[430px] min-w-0 flex-col xl:min-h-[650px]">
                 <div className="px-4 pb-4 pt-5 sm:px-5"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{isRtl ? 'מניות במעקב' : 'Stocks on your radar'}</h2><span dir="ltr" className="text-xs text-slate-400">{visibleTickers.length} / {sortableTickers.length}</span></div><p className="mt-1 text-xs text-slate-500">{isRtl ? 'בחרו מניה לצפייה בגרף.' : 'Choose a stock to explore its chart.'}</p></div>
                 {visibleTickers.length ? <>
                   <div className="hidden items-center gap-2 border-b border-slate-100 px-4 pb-3 text-xs font-medium text-slate-500 sm:flex"><div className="grid min-w-0 flex-1 gap-2" style={{gridTemplateColumns:WATCHLIST_ROW_COLUMNS}}>{[isRtl ? 'מניה' : 'Stock', isRtl ? 'מחיר' : 'Price', isRtl ? 'יומי' : 'Today', isRtl ? 'בטווח' : 'Period', isRtl ? 'מגמה' : 'Trend'].map((label, index) => <span key={label} className={index ? 'text-end' : undefined}>{label}</span>)}</div><span className="w-10 shrink-0" /></div>

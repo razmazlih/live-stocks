@@ -99,6 +99,15 @@ describe('continuing existing positions from the new-position form', () => {
     vi.mocked(console.error).mockRestore();
   });
 
+  it('only changes the execution price when the user chooses the market quote', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ c: 151 }))));
+    const { user, dialog } = await openPurchaseForm();
+    const suggestion = await within(dialog).findByRole('button', { name: /Use market quote/ });
+    expect(within(dialog).getByRole('spinbutton', { name: 'Price' })).toHaveValue(120);
+    await user.click(suggestion);
+    expect(within(dialog).getByRole('spinbutton', { name: 'Price' })).toHaveValue(151);
+  });
+
   it('blocks repeated submissions while the purchase is pending', async () => {
     let resolvePurchase!: (result: typeof successfulPurchase) => void;
     rpc.mockImplementation(() => new Promise(resolve => { resolvePurchase = resolve; }));
@@ -192,4 +201,35 @@ describe('correcting old plugin balance checkpoints', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ side: 'BUY', quantity: 5, executed_at: '2026-01-01', commission_known: true, basis_acquired_on: null, basis_date_estimate: null }));
     confirmation.mockRestore();
   });
+});
+
+it('deduplicates existing-position submissions and recognizes a committed retry', async () => {
+  window.history.replaceState(null, '', '/positions?action=add&symbol=adbe&source=bank_one&q=stock');
+  const previousFrom = from.getMockImplementation()!;
+  let saved!: Record<string, unknown>;
+  let resolveInsert!: (result: { error: { message: string } }) => void;
+  const insert = vi.fn((lot: Record<string, unknown>) => {
+    saved = lot;
+    return new Promise(resolve => { resolveInsert = resolve; });
+  });
+  const maybeSingle = vi.fn(async () => ({ data: saved, error: null }));
+  const eq = () => ({ eq: () => ({ maybeSingle }) });
+  from.mockImplementation((table: string) => table === 'position_lots'
+    ? { insert, select: () => ({ eq }) } : previousFrom(table));
+  render(<PositionsPage />);
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByText(/Adobe Inc · ONE ZERO/)).toBeInTheDocument();
+  const price = within(dialog).getByRole('spinbutton', { name: 'Price' });
+  fireEvent.change(price, { target: { value: '121' } });
+  fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Quantity' }), { target: { value: '1' } });
+  fireEvent.submit(dialog.querySelector('form')!);
+  fireEvent.submit(dialog.querySelector('form')!);
+  expect(insert).toHaveBeenCalledTimes(1);
+  expect(saved.id).toEqual(expect.any(String));
+  expect(within(dialog).getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  await act(async () => resolveInsert({ error: { message: 'Response lost' } }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(maybeSingle).toHaveBeenCalledOnce();
+  expect(triggerRefresh).toHaveBeenCalledOnce();
+  expect(window.location.search).toBe('?q=stock');
 });

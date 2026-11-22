@@ -1,5 +1,6 @@
 "use client";
 
+import { isReviewActive, reviewClock } from '@/lib/demo/review';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useInvestmentSources } from "@/hooks/use-investment-sources";
@@ -79,7 +80,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUrlState } from "@/hooks/use-url-state";
 import { useReturnContext } from "@/hooks/use-return-context";
-import { parsePositionsState } from "@/lib/list-url-state";
+import { localDateParam, parsePositionsState } from "@/lib/list-url-state";
 import { buildStockHref, rememberReturnContext } from "@/lib/navigation-context";
 
 interface PositionFormData {
@@ -140,7 +141,8 @@ function buildFallbackInitials(display: string, symbol: string): string {
 }
 
 function getTodayIsoDate(): string {
-  return new Date().toISOString().split("T")[0];
+  if (isReviewActive()) return new Date(reviewClock()).toISOString().slice(0, 10);
+  return localDateParam(new Date())!;
 }
 
 function createDefaultTransactionForm(): TransactionFormData {
@@ -175,7 +177,7 @@ async function fetchQuotePrice(symbol: string): Promise<number | null> {
     const data: StockQuote = await response.json();
 
     if (typeof data.c === "number" && Number.isFinite(data.c) && data.c > 0) {
-      return data.c;
+      return Number(data.c.toFixed(4));
     }
 
     return null;
@@ -186,7 +188,12 @@ async function fetchQuotePrice(symbol: string): Promise<number | null> {
 }
 
 function parseActivityState(params: URLSearchParams) {
-  return { ...parsePositionsState(params), add: params.get('action') === 'add' };
+  const symbol = params.get('symbol')?.trim().toUpperCase() ?? '';
+  return {
+    ...parsePositionsState(params), add: params.get('action') === 'add',
+    entrySymbol: /^[A-Z0-9.^:=/-]{1,30}$/.test(symbol) ? symbol : '',
+    entrySource: params.get('source') ?? '',
+  };
 }
 
 export default function PositionsPage() {
@@ -202,6 +209,10 @@ export default function PositionsPage() {
   const positionSaveLock = useRef(false);
   const purchaseRequestRef = useRef<{ key: string; id: string } | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [sourceChoices, setSourceChoices] = useState<Position[]>([]);
+  const [savingTransaction, setSavingTransaction] = useState(false);
+  const transactionSaveLock = useRef(false);
+  const transactionRequest = useRef<string | null>(null);
   const [chooserSearch, setChooserSearch] = useState('');
   const [entryFromChooser, setEntryFromChooser] = useState(false);
   const entryTriggerRef = useRef<HTMLElement | null>(null);
@@ -227,7 +238,7 @@ export default function PositionsPage() {
   );
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyTargetId, setHistoryTargetId] = useState<string | null>(null);
-  const [{ searchTerm, locationFilter: rawLocationFilter, sortOption, pageSize, currentPage, add }, patchUrl, sourceUrl] = useUrlState(parseActivityState);
+  const [{ searchTerm, locationFilter: rawLocationFilter, sortOption, pageSize, currentPage, add, entrySymbol, entrySource }, patchUrl, sourceUrl] = useUrlState(parseActivityState);
   const locationFilter = resolveLocation(rawLocationFilter);
   const defaultSourceId = activeSources[0]?.id ?? "";
   useEffect(() => {
@@ -248,7 +259,6 @@ export default function PositionsPage() {
   const [loadError, setLoadError] = useState(false);
   const requestIdRef = useRef(0);
   useReturnContext(hasLoaded && Boolean(sourceUrl));
-  const lastFetchedSymbolRef = useRef<string | null>(null);
   const matchingPosition = positions.find((position) =>
     position.symbol.trim().toUpperCase() === formData.symbol.trim().toUpperCase() &&
     position.location === formData.location,
@@ -415,21 +425,20 @@ export default function PositionsPage() {
     loadPositions();
   }, [loadPositions, refreshTrigger]);
 
-  const openAddDialog = useCallback(() => {
+  const openAddDialog = useCallback((symbol = "", location = defaultSourceId) => {
     purchaseRequestRef.current = null;
     setEditingPosition(null);
     setFormData({
-      symbol: "",
-      display: "",
+      symbol,
+      display: symbol,
       imageUrl: "",
-      location: defaultSourceId,
+      location,
       initialPrice: 0,
       initialQuantity: 0,
       initialDate: getTodayIsoDate(),
       initialHasCommission: false,
       initialCommissionAmount: 0,
     });
-    lastFetchedSymbolRef.current = null;
     setDialogOpen(true);
   }, [defaultSourceId]);
 
@@ -449,13 +458,6 @@ export default function PositionsPage() {
     entryTransitionRef.current = false;
   };
 
-  useEffect(() => {
-    if (add) {
-      openTransactionChooser();
-      patchUrl({ action: null, view: null });
-    }
-  }, [add, openTransactionChooser, patchUrl]);
-
   function openEditDialog(position: Position) {
     if (document.activeElement instanceof HTMLElement) entryTriggerRef.current = document.activeElement;
     setEntryFromChooser(false);
@@ -474,10 +476,11 @@ export default function PositionsPage() {
     setDialogOpen(true);
   }
 
-  function openTransactionDialog(
+  const openTransactionDialog = useCallback((
     position: Position,
     type: PositionLotType = "BUY",
-  ) {
+  ) => {
+    transactionRequest.current = null;
     if (!entryTransitionRef.current && document.activeElement instanceof HTMLElement && !document.activeElement.closest('[role="dialog"]')) entryTriggerRef.current = document.activeElement;
     setEntryFromChooser(false);
     setHistoryDialogOpen(false);
@@ -487,7 +490,29 @@ export default function PositionsPage() {
       type,
     });
     setTransactionDialogOpen(true);
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!add) return;
+    if (entrySymbol && !hasLoaded && !loadError) return;
+    if (!entrySymbol || loadError) {
+      openTransactionChooser();
+      if (entrySymbol) setChooserSearch(entrySymbol);
+    } else {
+      const matches = positions.filter(position => position.symbol.trim().toUpperCase() === entrySymbol);
+      const requested = entrySource ? matches.find(position => position.location === entrySource) : undefined;
+      if (requested || (matches.length === 1 && !entrySource)) {
+        openTransactionDialog(requested ?? matches[0]);
+      } else if (matches.length) {
+        setSourceChoices(matches);
+      } else {
+        setEntryFromChooser(false);
+        openAddDialog(entrySymbol, activeSources.find(source => source.id === entrySource)?.id ?? defaultSourceId);
+      }
+    }
+    patchUrl({ action: null, symbol: null, source: null, view: null });
+  }, [add, entrySymbol, entrySource, hasLoaded, loadError, positions, activeSources, defaultSourceId,
+    openTransactionChooser, openAddDialog, openTransactionDialog, patchUrl]);
 
   function openEditTransactionDialog(position: Position, lot: PositionLot) {
     setHistoryDialogOpen(false);
@@ -536,82 +561,27 @@ export default function PositionsPage() {
     ];
   }, [t, locale, triggerRefresh, loading, openTransactionChooser]);
 
+  const quoteSymbol = dialogOpen && !isEditing ? formData.symbol.trim().toUpperCase()
+    : transactionDialogOpen && !isEditingTransaction ? transactionTarget?.symbol.trim().toUpperCase() : '';
+  const [quoteSuggestion, setQuoteSuggestion] = useState<{ symbol: string; price: number } | null>(null);
   useEffect(() => {
-    if (!dialogOpen || isEditing) {
-      return;
-    }
+    setQuoteSuggestion(null);
+    if (!quoteSymbol) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      const price = await fetchQuotePrice(quoteSymbol);
+      if (active && price !== null) setQuoteSuggestion({ symbol: quoteSymbol, price });
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [quoteSymbol]);
 
-    const symbol = formData.symbol.trim().toUpperCase();
-
-    if (!symbol) {
-      lastFetchedSymbolRef.current = null;
-      return;
-    }
-
-    if (symbol === lastFetchedSymbolRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const timeout = window.setTimeout(() => {
-      void (async () => {
-        const price = await fetchQuotePrice(symbol);
-
-        if (cancelled || price === null) {
-          return;
-        }
-
-        lastFetchedSymbolRef.current = symbol;
-        setFormData((previous) => ({
-          ...previous,
-          initialPrice: price,
-        }));
-      })();
-    }, 600);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [dialogOpen, formData.symbol, isEditing]);
-
-  const transactionSymbol =
-    transactionTarget?.symbol?.trim().toUpperCase() ?? "";
-
-  useEffect(() => {
-    if (!transactionDialogOpen || transactionForm.id || !transactionSymbol) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const price = await fetchQuotePrice(transactionSymbol);
-
-      if (cancelled || price === null) {
-        return;
-      }
-
-      setTransactionForm((previous) => {
-        if (
-          previous.id ||
-          (typeof previous.price === "number" && previous.price > 0)
-        ) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          price,
-        };
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [transactionDialogOpen, transactionForm.id, transactionSymbol]);
+  function priceSuggestion(apply: (price: number) => void) {
+    if (!quoteSuggestion || quoteSuggestion.symbol !== quoteSymbol) return null;
+    return <button type="button" className="mt-1 min-h-9 text-start text-xs font-medium text-primary underline-offset-4 hover:underline"
+      onClick={() => apply(quoteSuggestion.price)}>
+      {locale === 'he' ? 'השתמש במחיר השוק' : 'Use market quote'} · <bdi>{quoteSuggestion.price.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 4 })}</bdi>
+    </button>;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -708,6 +678,7 @@ export default function PositionsPage() {
 
   async function handleTransactionSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (transactionSaveLock.current) return;
 
     if (!transactionTarget?.id) {
       toast.error(t.common.error);
@@ -757,6 +728,8 @@ export default function PositionsPage() {
       }
     }
 
+    transactionSaveLock.current = true;
+    setSavingTransaction(true);
     try {
       const commissionAmount = transactionForm.hasCommission
         ? Math.max(transactionForm.commissionAmount, 0)
@@ -781,7 +754,9 @@ export default function PositionsPage() {
 
         toast.success(t.positions.transactionUpdated);
       } else {
-        const { error } = await supabase.from("position_lots").insert({
+        const id = transactionRequest.current ??= crypto.randomUUID();
+        const lot = {
+          id,
           position_id: transactionTarget.id,
           side: transactionForm.type,
           price: transactionForm.price,
@@ -790,9 +765,18 @@ export default function PositionsPage() {
           has_commission: transactionForm.hasCommission,
           commission_amount: commissionAmount,
           commission_known: transactionForm.commissionKnown,
-        });
-
-        if (error) throw error;
+        };
+        const { error } = await supabase.from("position_lots").insert(lot);
+        if (error) {
+          // A dropped response may follow a committed insert. Verify the original lot before reporting success.
+          const { data, error: lookupError } = await supabase.from("position_lots")
+            .select("id, position_id, side, price, quantity, executed_at, has_commission, commission_amount, commission_known")
+            .eq("id", id).eq("position_id", lot.position_id).maybeSingle();
+          if (lookupError || !data || data.side !== lot.side || Number(data.price) !== lot.price
+            || Number(data.quantity) !== lot.quantity || data.executed_at !== lot.executed_at
+            || data.has_commission !== lot.has_commission || Number(data.commission_amount) !== lot.commission_amount
+            || data.commission_known !== lot.commission_known) throw error;
+        }
 
         toast.success(t.positions.transactionSaved);
       }
@@ -802,6 +786,9 @@ export default function PositionsPage() {
     } catch (error) {
       console.error("Error saving transaction:", error);
       toast.error(t.common.error);
+    } finally {
+      transactionSaveLock.current = false;
+      setSavingTransaction(false);
     }
   }
 
@@ -873,6 +860,19 @@ export default function PositionsPage() {
           quantity={hasLoaded ? formatNumber(totalQuantity, locale) : undefined}
           quickActions={quickActions}
         />
+
+        <Dialog open={sourceChoices.length > 0} onOpenChange={open => { if (!open) setSourceChoices([]); }}>
+          <DialogContent dir={isRtl ? 'rtl' : 'ltr'}>
+            <DialogHeader className="text-start sm:text-start">
+              <DialogTitle>{isRtl ? 'בחירת מקור השקעה' : 'Choose investment source'}</DialogTitle>
+              <DialogDescription>{sourceChoices[0]?.symbol} · {isRtl ? 'בחרו היכן בוצעה העסקה.' : 'Choose where the trade was executed.'}</DialogDescription>
+            </DialogHeader>
+            {sourceChoices.map(position => <Button key={position.id} variant="outline" className="justify-between"
+              onClick={() => { setSourceChoices([]); openTransactionDialog(position); }}>
+              {sourceName(position.location, locale)} <bdi>{formatNumber(position.quantity, locale)} {isRtl ? 'מניות' : 'shares'}</bdi>
+            </Button>)}
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
           <DialogContent dir={isRtl ? 'rtl' : 'ltr'} onCloseAutoFocus={restoreEntryFocus} className="flex max-h-[90dvh] w-full sm:max-w-xl flex-col gap-0 overflow-hidden rounded-t-3xl border-slate-200 bg-white p-0 shadow-2xl sm:rounded-3xl">
@@ -998,7 +998,7 @@ export default function PositionsPage() {
                       <Input
                         id="initialPrice"
                         type="number"
-                        step="0.01"
+                        step="0.0001"
                         min="0"
                         value={
                           Number.isFinite(formData.initialPrice)
@@ -1013,6 +1013,7 @@ export default function PositionsPage() {
                         }
                         required
                       />
+                    {priceSuggestion(price => setFormData(previous => ({ ...previous, initialPrice: price })))}
                     </div>
                     <div className="sm:col-span-1">
                       <Label htmlFor="initialQuantity">
@@ -1021,7 +1022,7 @@ export default function PositionsPage() {
                       <Input
                         id="initialQuantity"
                         type="number"
-                        step="0.01"
+                        step="0.0001"
                         min="0"
                         value={
                           Number.isFinite(formData.initialQuantity)
@@ -1115,6 +1116,7 @@ export default function PositionsPage() {
         <Dialog
           open={transactionDialogOpen}
           onOpenChange={(open) => {
+            if (transactionSaveLock.current) return;
             setTransactionDialogOpen(open);
             if (!open) {
               setTransactionTarget(null);
@@ -1124,7 +1126,7 @@ export default function PositionsPage() {
         >
           <DialogContent onCloseAutoFocus={restoreEntryFocus} aria-describedby={undefined} className="flex h-auto max-h-[90dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-3xl border bg-white p-0 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-3xl sm:border">
             <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 text-start sm:px-7 sm:text-start">
-              {!isEditingTransaction ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'בחירת פוזיציה אחרת' : 'Change position'}</Button> : null}
+              {!isEditingTransaction ? <Button type="button" variant="ghost" size="sm" onClick={openTransactionChooser} disabled={savingTransaction} className="mb-2 w-fit gap-2 px-0 text-blue-700"><ChevronRight aria-hidden="true" className="h-4 w-4 ltr:rotate-180" />{locale === 'he' ? 'בחירת פוזיציה אחרת' : 'Change position'}</Button> : null}
               <DialogTitle>
                 {isEditingTransaction
                   ? t.positions.editTransaction
@@ -1175,7 +1177,7 @@ export default function PositionsPage() {
                   <Input
                     id="transactionPrice"
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={transactionForm.price}
                     onChange={(e) =>
@@ -1186,6 +1188,7 @@ export default function PositionsPage() {
                     }
                     required
                   />
+                    {priceSuggestion(price => setTransactionForm(previous => ({ ...previous, price })))}
                 </div>
                 <div className="sm:col-span-1">
                   <Label htmlFor="transactionQuantity">
@@ -1194,7 +1197,7 @@ export default function PositionsPage() {
                   <Input
                     id="transactionQuantity"
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={transactionForm.quantity}
                     onChange={(e) =>
@@ -1292,11 +1295,11 @@ export default function PositionsPage() {
                   type="button"
                   variant="outline"
                   className="h-11 sm:h-10"
-                  onClick={() => setTransactionDialogOpen(false)}
+                  disabled={savingTransaction} onClick={() => setTransactionDialogOpen(false)}
                 >
                   {t.positions.cancel}
                 </Button>
-                <Button type="submit" className="h-11 sm:h-10">{t.positions.saveTransaction}</Button>
+                <Button type="submit" disabled={savingTransaction} className="h-11 sm:h-10">{savingTransaction ? (isRtl ? "שומר…" : "Saving…") : t.positions.saveTransaction}</Button>
               </div>
             </form>
           </DialogContent>

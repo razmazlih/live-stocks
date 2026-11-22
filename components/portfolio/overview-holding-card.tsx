@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { StockDetailsLink } from './stock-navigation';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
 import { useApp } from '@/lib/context';
 import { formatCurrency, formatPercent } from '@/lib/calculations';
-import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
+import { buildStockHref, buildTransactionHref, rememberReturnContext } from '@/lib/navigation-context';
 import { getHoldingTarget } from '@/lib/holding-display';
 import { buildHoldingChartReferences, buildHoldingPerformanceHistory } from '@/lib/holding-chart-history';
 import { HoldingTrendBackground } from './holding-trend-background';
@@ -224,6 +225,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
               <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                 {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
               </StockDetailsLink>
+              <Link href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-700" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`}><Plus aria-hidden className="h-3.5 w-3.5" />{he ? 'הוספת עסקה' : 'Add transaction'}</Link>
               <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
             </div>
           </div>

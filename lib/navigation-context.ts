@@ -16,6 +16,12 @@ export function buildStockHref(symbol: string, returnTo: string): string {
   return `/stock/${encodeURIComponent(symbol)}?${new URLSearchParams({ returnTo: validateReturnTo(returnTo) })}`;
 }
 
+export function buildTransactionHref(symbol: string, source?: string): string {
+  const params = new URLSearchParams({ action: 'add', symbol: symbol.trim().toUpperCase() });
+  if (source) params.set('source', source);
+  return `/positions?${params}`;
+}
+
 export const RETURN_CONTEXT_KEY = 'livestocks:return-context';
 
 export function rememberReturnContext(focusId: string): void {

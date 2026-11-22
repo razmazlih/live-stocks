@@ -27,7 +27,7 @@ let pending: Pending[];
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 async function completeBatch(batch: Pending[], prices: number[]) {
   await act(async () => {
-    batch.forEach(({ url, resolve }) => resolve(json(url.includes('/quote') ? { c: prices.at(-1) } : { s: 'ok', t: [1700000000, 1700086400], c: prices, o: prices, h: prices, l: prices, v: [1, 1] })));
+    batch.forEach(({ url, resolve }) => resolve(json(url.includes('/quotes?') ? { quotes: Object.fromEntries(new URL(url, 'http://localhost').searchParams.get('symbols')!.split(',').map(symbol => [symbol, { c: prices.at(-1) }])) } : { s: 'ok', t: [1700000000, 1700086400], c: prices, o: prices, h: prices, l: prices, v: [1, 1] })));
   });
 }
 
@@ -49,15 +49,34 @@ describe('watchlist request continuity', () => {
     await completeBatch(pending.splice(0), [100, 110]);
     expect(screen.getByTestId('series')).toHaveTextContent('1M:100,110');
     fireEvent.click(screen.getByRole('button', { name: 'Week' }));
-    await waitFor(() => expect(pending).toHaveLength(2));
+    await waitFor(() => expect(pending).toHaveLength(1));
     const week = pending.splice(0);
     expect(screen.getByTestId('series')).toHaveTextContent('1M:100,110');
     fireEvent.click(screen.getByRole('button', { name: 'Year' }));
-    await waitFor(() => expect(pending).toHaveLength(2));
+    await waitFor(() => expect(pending).toHaveLength(1));
     await completeBatch(pending.splice(0), [200, 220]);
     await completeBatch(week, [10, 11]);
     expect(screen.getByTestId('series')).toHaveTextContent('1Y:200,220');
     expect(screen.getByTestId('loading')).toHaveTextContent('false');
+  });
+
+  it('batches group quotes and waits for visibility before requesting another chart', async () => {
+    let notify!: IntersectionObserverCallback;
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(callback: IntersectionObserverCallback) { notify = callback; }
+      observe() {} disconnect() {}
+    });
+    fixture.group.tickers.push({ id: 't2', groupId: 'g1', symbol: 'MSFT', display: 'Microsoft', sortOrder: 1 });
+    render(<WatchlistPage />);
+    await waitFor(() => expect(pending).toHaveLength(2));
+    const urls = pending.map(item => new URL(item.url, 'http://localhost'));
+    expect(urls.find(url => url.pathname === '/api/quotes')?.searchParams.get('symbols')).toBe('AAPL,MSFT');
+    expect(urls.find(url => url.pathname === '/api/candles')?.searchParams.get('symbol')).toBe('AAPL');
+    await completeBatch(pending.splice(0), [100, 110]);
+    const row = screen.getByRole('button', { name: 'View MSFT chart' }).closest('[data-watchlist-row]')!;
+    act(() => notify([{ target: row, isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    expect(pending[0].url).toContain('/api/candles?symbol=MSFT');
   });
 
   it('keeps the last chart on refresh failure with an error', async () => {
@@ -95,7 +114,7 @@ describe('watchlist request continuity', () => {
     fixture.group.tickers.push({ id: 't2', groupId: 'g1', symbol: 'MSFT', display: 'Microsoft Corp', sortOrder: 1 });
     window.history.replaceState(null, '', '/watchlist?group=g1&range=1W&from=2024-01-01&q=corp');
     render(<WatchlistPage />);
-    await waitFor(() => expect(pending).toHaveLength(4));
+    await waitFor(() => expect(pending).toHaveLength(3));
     await completeBatch(pending.splice(0), [100, 110]);
     expect(screen.getAllByTestId('series')).toHaveLength(1);
     expect(screen.getByRole('region', { name: 'AAPL focused chart' })).toBeInTheDocument();
@@ -139,7 +158,7 @@ describe('watchlist request continuity', () => {
     window.history.replaceState(null, '', '/watchlist?group=g1&range=1W&q=corp');
     const user = userEvent.setup();
     render(<WatchlistPage />);
-    await waitFor(() => expect(pending).toHaveLength(4));
+    await waitFor(() => expect(pending).toHaveLength(3));
     await completeBatch(pending.splice(0), [100, 110]);
     const row = screen.getByRole('button', { name: 'View MSFT chart' });
     expect(row).toBeEnabled();

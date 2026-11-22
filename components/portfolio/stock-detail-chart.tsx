@@ -28,7 +28,8 @@ export interface StockDetailChartProps {
   entryTimestamp?: number;
   annualGrowthRate: number;
   yearsHeld: number;
-  baseline: number;
+  marketOnly?: boolean;
+  baseline?: number;
   projectedPrice?: number;
   requiredExitPrice?: number;
   priceFormatter(value: number): string;
@@ -38,7 +39,7 @@ export function StockDetailChart({
   chartData, historicalLoading, historicalError, displayedRange, range, locale,
   timeRangeLabels, onRangeChange, onRetry, scope, onScopeChange, holdingCycles,
   holdingReferences, events, entryTimestamp, annualGrowthRate, yearsHeld,
-  baseline, projectedPrice, requiredExitPrice, priceFormatter,
+  marketOnly = false, baseline, projectedPrice, requiredExitPrice, priceFormatter,
 }: StockDetailChartProps) {
   const he = locale === 'he';
   const plotRef = useRef<HTMLDivElement>(null);
@@ -69,9 +70,9 @@ export function StockDetailChart({
     ...(requiredExitPrice === undefined ? [] : [{ label: he ? 'יציאה · כל הסבבים' : 'Exit · all cycles', value: requiredExitPrice, tone: styles.exit }]),
   ];
 
-  return <section className={styles.panel} aria-label={he ? 'גרף מחיר ויעדי המניה' : 'Stock price and targets'} aria-busy={historicalLoading}>
+  return <section className={styles.panel} aria-label={marketOnly ? (he ? 'גרף מחיר' : 'Price chart') : he ? 'גרף מחיר ויעדי המניה' : 'Stock price and targets'} aria-busy={historicalLoading}>
     <div className={styles.heading}>
-      <div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-slate-900">{he ? 'המחיר בדרך ליעד' : 'Price on the way to your target'}</h2><span className={styles.unit}>USD</span></div>
+      <div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-slate-900">{marketOnly ? (he ? 'היסטוריית מחירים' : 'Price history') : he ? 'המחיר בדרך ליעד' : 'Price on the way to your target'}</h2><span className={styles.unit}>USD</span></div>
       {holdingCycles.length > 1 ? <div className={styles.scope} role="group" aria-label={he ? 'תצוגת סבבי החזקה' : 'Holding cycle view'}>
         {(['all', 'current'] as const).map(option => <button key={option} type="button" aria-pressed={scope === option} onClick={() => onScopeChange(option)}>
           {option === 'all' ? he ? 'כל הסבבים' : 'All cycles' : he ? 'ההחזקה הנוכחית' : 'Current holding'}
@@ -79,12 +80,12 @@ export function StockDetailChart({
       </div> : null}
     </div>
 
-    <div className={styles.references} data-count={references.length}>
+    {!marketOnly && <div className={styles.references} data-count={references.length}>
       {references.map(reference => <div key={reference.label} className={reference.tone}>
         <span className={styles.referenceLabel}><i aria-hidden="true" />{reference.label}</span>
         <bdi className={styles.referenceValue}>{typeof reference.value === 'number' && Number.isFinite(reference.value) ? priceFormatter(reference.value) : '—'}</bdi>
       </div>)}
-    </div>
+    </div>}
 
     <div className={styles.ranges} role="group" aria-label={he ? 'טווח הגרף' : 'Chart range'}>
       {STOCK_DETAIL_TIME_RANGES.map(option => <button key={option} type="button" aria-pressed={range === option} disabled={historicalLoading && range === option} onClick={() => onRangeChange(option)}>{timeRangeLabels[option]}</button>)}
@@ -119,12 +120,12 @@ export function StockDetailChart({
       </li>)}
     </ol> : null}
 
-    <details className={styles.key}>
+    {!marketOnly && <details className={styles.key}>
       <summary><span className="inline-flex items-center gap-1.5"><Info aria-hidden="true" className="h-3.5 w-3.5" />{he ? 'מקרא הגרף' : 'Chart key'}</span><ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /></summary>
       <div className={styles.keyBody}>
         <p>{he ? 'הקו: אדום מתחת לעלות, כחול מתחת ליעד, ירוק ביעד ומעלה, אפור ללא החזקה. נקודה ירוקה: קנייה; אדומה: מכירה. הפס התחתון מסמן סבבי החזקה.' : 'Line: red below cost, blue below target, green at or above target, gray outside holdings. Green dot: buy; red: sell. Bottom rail: holding cycles.'}</p>
         <p>{he ? 'היעד הסגול כולל את תוצאות כל המכירות הקודמות; הכחול מתייחס להחזקה הנוכחית. מחירי סגירה ועסקאות בפועל בלבד. היעד אישי ואינו תחזית שוק.' : 'The purple target includes all prior sale results; blue covers the current holding. Actual closing prices and recorded trades only. Your personal target is not a market forecast.'}</p>
       </div>
-    </details>
+    </details>}
   </section>;
 }

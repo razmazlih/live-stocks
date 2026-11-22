@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+const app = vi.hoisted(() => ({ locale: 'he' }));
+vi.mock('@/lib/context', () => ({ useApp: () => app }));
 vi.mock('@/components/auth/auth-provider', () => ({ useAuth: () => ({ user: { id: 'owner', email: 'owner@example.test' } }) }));
 import Page from '@/app/positions/sync/page';
 afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
@@ -154,4 +156,13 @@ it('keeps the main sync available while an optional date lookup is still running
   fireEvent.click(screen.getByRole('button', { name: 'אישור וסנכרון ההחזקות' }));
   await screen.findByText(/ההחזקות סונכרנו בהצלחה/);
   expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({ token: 'sealed', action: 'apply', acknowledgeIncompleteHistory: true });
+});
+
+it('opens the English review in reading order when a link is missing', async () => {
+  app.locale = 'en';
+  try {
+    render(<Page />);
+    expect(screen.getByRole('main')).toHaveAttribute('dir', 'ltr');
+    expect(await screen.findByText('Open the review link you received in chat.')).toBeInTheDocument();
+  } finally { app.locale = 'he'; }
 });

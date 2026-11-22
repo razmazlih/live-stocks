@@ -24,7 +24,7 @@ vi.mock('@/components/charts/sparkline', () => ({ Sparkline: (props: ComponentPr
 } }));
 vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: mockPositionRows ?? [mockPositionRow], error: null }) }) }) }) }));
 
-type MockLot = { id: string; side: 'BUY' | 'SELL'; quantity: number; price: number; executed_at: string; has_commission: boolean; commission_amount: number };
+type MockLot = { id: string; side: 'BUY' | 'SELL'; quantity: number; price: number; executed_at: string; has_commission: boolean; commission_amount: number; commission_known?: boolean };
 let mockPositionRow: { id: string; symbol: string; display: string; location: string; quantity: number; entry_price: number; entry_date: string; position_lots: MockLot[] };
 let mockPositionRows: typeof mockPositionRow[] | undefined;
 let quotePrice: number;
@@ -63,6 +63,26 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('stock detail continuity', () => {
+  it('shows quotes and history for an unheld ticker and carries its symbol into a first purchase', async () => {
+    mockPositionRows = [];
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+    expect(screen.getByRole('heading', { name: 'Price history' })).toBeInTheDocument();
+    expect(screen.queryByText('Holding value')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Record trade' })).toHaveAttribute('href', '/positions?action=add&symbol=AAPL');
+    expect(screen.getByRole('link', { name: 'Back to Activity' })).toHaveAttribute('href', '/positions?q=apple');
+  });
+
+  it('preserves unknown fees and the selected stock source when recording another trade', async () => {
+    mockPositionRow.position_lots = [
+      { id: 'one', side: 'BUY', quantity: 2, price: 100, executed_at: '2025-01-01', has_commission: false, commission_amount: 0, commission_known: false },
+    ];
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+    expect(screen.getByText('Commission unknown')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Record trade' })).toHaveAttribute('href', '/positions?action=add&symbol=AAPL&source=bank_one');
+  });
+
   it('starts with every holding cycle, retains the latest rebuy and always shows the overall exit target', async () => {
     mockPositionRow.position_lots = [
       { id: 'first-buy', side: 'BUY', quantity: 2, price: 100, executed_at: '2025-01-01T12:00:00Z', has_commission: false, commission_amount: 0 },

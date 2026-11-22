@@ -89,6 +89,31 @@ describe('activity entry points', () => {
     expect(screen.getByText(/^Active positions: 1(?:\.0+)?$/)).toBeInTheDocument();
   });
 
+  it('requires a source choice for a held symbol shared across sources', async () => {
+    const user = userEvent.setup();
+    const rows = ['bank_one', 'bank_two'].map(location => ({
+      id: location, symbol: 'AAPL', display: 'Apple', quantity: 4, entry_price: 100, entry_date: '2026-01-01', location, image_url: '',
+    }));
+    from.mockImplementation(() => ({ select: () => ({ order: () => Promise.resolve({ data: rows, error: null }) }) }));
+    window.history.replaceState(null, '', '/positions?action=add&symbol=AAPL');
+    render(<PositionsPage />);
+    const sources = await screen.findByRole('dialog', { name: 'Choose investment source' });
+    await user.click(within(sources).getByRole('button', { name: /Pepper/ }));
+    const form = screen.getByRole('dialog');
+    expect(within(form).getByText(/Apple · Pepper/)).toBeInTheDocument();
+    expect(within(form).getByRole('radio', { name: 'Buy' })).toBeChecked();
+    expect(within(form).getByRole('spinbutton', { name: 'Price' })).toHaveValue(0);
+  });
+
+  it('starts a first purchase for the symbol from a watchlist-only detail', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ symbol: 'COIN', display: 'Coinbase', imageUrl: '' })))));
+    window.history.replaceState(null, '', '/positions?action=add&symbol=COIN');
+    render(<PositionsPage />);
+    const form = await screen.findByRole('dialog', { name: 'New position' });
+    expect(within(form).getByRole('combobox', { name: 'Symbol' })).toHaveValue('COIN');
+    expect(await within(form).findByDisplayValue('Coinbase')).toBeInTheDocument();
+  });
+
   it('shows activity without tabs or a plans query for a legacy plans URL', async () => {
     window.history.replaceState(null, '', '/positions?q=Apple&account=bank_two&view=plans');
     render(<PositionsPage />);
