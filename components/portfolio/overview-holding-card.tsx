@@ -169,9 +169,16 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
             <StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} />
             <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="holding-company mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
           </span>
-          <span className="flex shrink-0 items-center gap-2">
-            <span className="text-end"><span className="block text-xs text-slate-500">{he ? 'שווי' : 'Value'}</span><bdi className="block text-lg font-semibold tabular-nums tracking-tight text-slate-950">{money(value)}</bdi></span>
-            <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
+          <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />
+        </span>
+        <span className="mt-3 grid grid-cols-2 gap-3">
+          <span>
+            <span className="block text-xs text-slate-500">{he ? 'מחיר נוכחי' : 'Current price'}</span>
+            <bdi className="block text-xl font-semibold tracking-tight tabular-nums text-slate-950">{usd(m.currentPrice)}</bdi>
+          </span>
+          <span className="border-s border-slate-200 ps-3">
+            <span className="block text-xs text-slate-500">{he ? 'מחיר יעד' : 'Target price'}</span>
+            <bdi className="block text-xl font-semibold tracking-tight tabular-nums text-blue-700">{usd(target.salePrice)}</bdi>
           </span>
         </span>
         <span className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
@@ -188,9 +195,8 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
         toggleFromUser();
       }}>
         <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 px-3 py-3 sm:grid-cols-3">
-            <div><dt className="text-xs text-slate-500">{he ? 'מחיר מניה' : 'Share price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{usd(m.currentPrice)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'מחיר יעד' : 'Target price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></dd></div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 px-3 py-3 sm:grid-cols-4">
+            <div><dt className="text-xs text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(value)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'רווח/הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'מצטבר בכל החשבונות' : 'P/L across accounts'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><bdi>{usd(cumulativeProfit ?? undefined)}</bdi></dd></div>
