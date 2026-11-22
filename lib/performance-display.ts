@@ -26,7 +26,7 @@ export function getPerformanceTotals(summary: PortfolioSummary, currency: 'USD' 
   const actual = selectActual(beforeTax, afterTax, fees, options);
   const target = currency === 'ILS' ? summary.totalProjectedPnLIls : summary.totalProjectedPnLUsd;
   const value = currency === 'ILS' ? summary.totalValue * summary.usdToIlsRate : summary.totalValue;
-  return { actual, target, gap: actual - target, value };
+  return { actual, target, gap: Number.isFinite(target) ? actual - target : Number.NaN, value };
 }
 export function getPerformanceSeries(data: PortfolioTimelinePoint[], range: PerformanceRange, currency: 'USD' | 'ILS', options: PerformanceOptions = {}) {
   const sorted = data.filter((p) => Number.isFinite(p.timestamp)).slice().sort((a, b) => a.timestamp - b.timestamp);
@@ -61,6 +61,7 @@ function selectActual(beforeTax: number, afterTax: number, fees: number | undefi
   // Keep missing historical values unknown even if another basis happens to be present.
   if (!Number.isFinite(beforeTax)) return Number.NaN;
   const actual = options.includeTaxes === false ? beforeTax : afterTax;
+  if (!Number.isFinite(actual) || (options.includeFees === false && fees === null)) return Number.NaN;
   return actual + (options.includeFees === false ? fees ?? 0 : 0);
 }
 function finiteOrNull(value: number) { return Number.isFinite(value) ? value : null; }

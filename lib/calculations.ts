@@ -62,9 +62,9 @@ export function calculatePositionMetrics(
   annualGrowthRate: number = 0.05,
   dailyChange?: number,
   getFxRateAt: FxRateResolver = () => usdToIlsRate,
+  now: Date = new Date(),
 ): PositionMetrics {
   const lots = position.lots ?? [];
-  const now = new Date();
   const hasLots = lots.length > 0;
   const summary = hasLots ? summarizeLots(lots, now) : undefined;
 
