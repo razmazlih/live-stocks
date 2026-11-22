@@ -1,11 +1,13 @@
 'use client';
 
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
+import { translations } from '@/lib/translations';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type PerformanceView = 'history' | 'targets' | 'realized';
 
 export function PerformanceSkeleton({ view, locale = 'he' }: { view: PerformanceView; locale?: 'he' | 'en' }) {
+  const t = translations[locale];
   if (view === 'targets') return <div data-page-loading role="status" aria-label={locale === 'he' ? 'טוען נתוני ביצועים' : 'Loading performance data'}>
     <DashboardSurface>
       <div className="space-y-4">
@@ -38,22 +40,21 @@ export function PerformanceSkeleton({ view, locale = 'he' }: { view: Performance
   }[view];
 
   return (
-    <div data-page-loading role="status" className="space-y-6">
-      <span className="sr-only">{locale === 'he' ? 'טוען נתוני ביצועים' : 'Loading performance data'}</span>
+    <div data-page-loading role="status" aria-label={locale === 'he' ? 'טוען נתוני ביצועים' : 'Loading performance data'} className="space-y-6">
       <DashboardSurface>
         {view !== 'history' && <Skeleton className="mb-5 h-7 w-48 max-w-full" />}
         <div className={`grid gap-5 ${grid}`} aria-hidden="true">
           {Array.from({ length: view === 'realized' ? 4 : 3 }, (_, index) => (
             <div key={index}>
-              <Skeleton className={view === 'history' ? 'h-5 w-28 max-w-full' : 'h-4 w-28 max-w-full'} />
+              <Skeleton className="h-5 w-28 max-w-full" />
               <Skeleton className="mt-2 h-7 w-20 max-w-full" />
-              {view === 'realized' && <Skeleton className="mt-1 h-3 w-16" />}
+              {view === 'realized' && <Skeleton className="mt-1 h-4 w-16" />}
             </div>
           ))}
         </div>
         {view === 'history' ? <div className="mt-4 flex h-8 flex-col justify-around sm:h-4">
           <Skeleton className="h-2.5 w-11/12" /><Skeleton className="h-2.5 w-2/3 sm:hidden" />
-        </div> : <Skeleton className="mt-4 h-3 w-3/4" />}
+        </div> : <RealizedTaxNote locale={locale} />}
       </DashboardSurface>
       <DashboardSurface>
         {view === 'history' ? (
@@ -71,11 +72,11 @@ export function PerformanceSkeleton({ view, locale = 'he' }: { view: Performance
           </>
         ) : (
           <div className="divide-y">
-            <Skeleton className="mb-5 h-7 w-44 max-w-full" />
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><h2 className="text-xl font-semibold">{t.realized.bySymbolTitle}</h2><p className="text-sm text-slate-500">{t.realized.bySymbolSubtitle}</p></div>
             {[0, 1, 2].map((row) => (
-              <div key={row} className="flex items-center justify-between gap-4 py-5">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-5 w-16" />
+              <div key={row} className="grid grid-cols-2 items-center gap-3 py-4 sm:grid-cols-4">
+                <Skeleton className="h-5 w-20" />
+                {[0, 1, 2].map(metric => <div key={metric} className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-5 w-16" /><Skeleton className="h-4 w-12" /></div>)}
               </div>
             ))}
           </div>
@@ -83,4 +84,8 @@ export function PerformanceSkeleton({ view, locale = 'he' }: { view: Performance
       </DashboardSurface>
     </div>
   );
+}
+
+export function RealizedTaxNote({ locale }: { locale: 'he' | 'en' }) {
+  return <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-500">{locale === 'he' ? 'המס המוצג הוא אומדן לפי מודל החישוב של האפליקציה, ולא אישור מס ששולם.' : 'Tax is an estimate calculated by the app, not confirmation of tax paid.'}</p>;
 }

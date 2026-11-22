@@ -1,6 +1,6 @@
 'use client';
 
-import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
+import { PerformanceSkeleton, RealizedTaxNote } from '@/components/portfolio/performance-skeleton';
 
 import Link from 'next/link';
 import { reconciliationQuality } from '@/lib/reconciliation-quality';
@@ -145,7 +145,7 @@ export function RealizedPanel() {
           { label: t.realized.netProfitAfterTax, usd: netProfitUsd, ils: netProfitIls },
         ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className="mt-2 text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl"><bdi>{formatSignedCurrency(item.usd, 'USD', locale)}</bdi></dd><dd className="mt-1 text-xs tabular-nums text-slate-500"><bdi>{formatSignedCurrency(item.ils, 'ILS', locale)}</bdi></dd></div>)}
       </dl>
-      <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-500">{isHebrew ? 'המס המוצג הוא אומדן לפי מודל החישוב של האפליקציה, ולא אישור מס ששולם.' : 'Tax is an estimate calculated by the app, not confirmation of tax paid.'}</p>
+      <RealizedTaxNote locale={locale} />
     </DashboardSurface>
 
     <DashboardSurface>
