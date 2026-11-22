@@ -33,7 +33,7 @@ export function EntrySkeleton() {
     {stock ? <StockDetailSkeleton locale={locale} /> : <DashboardContainer>
       <div aria-hidden="true" className={styles.header}>
         <div className={styles.titleRow}>
-          <div><Skeleton className="h-7 w-36 sm:h-9" /><Skeleton className="mt-2 h-3 w-24" /></div>
+          <div><div className="flex h-[28.75px] items-center sm:h-[34.5px]"><Skeleton className="h-6 w-36" /></div><div className="mt-[7px] flex h-[1.4em] items-center text-[11px]"><Skeleton className="h-2.5 w-24" /></div></div>
           {overview && <Skeleton className="h-11 w-11 rounded-full" />}
         </div>
         <div className={styles.actions}><Skeleton className="h-11 rounded-full sm:w-32" /><Skeleton className="h-11 rounded-full sm:w-28" /></div>
