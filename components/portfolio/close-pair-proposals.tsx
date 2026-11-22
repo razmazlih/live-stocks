@@ -23,7 +23,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   const he = locale === 'he';
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(() => new Set());
   const panelId = useId();
-  const [showIdeas, setShowIdeas] = useState(false);
+  const [showIdeas, setShowIdeas] = useState(true);
   const proposals = useMemo(() => buildClosePairProposals(metrics, 3, Date.now(), settings.annualGrowthRate, positions), [metrics, positions, settings.annualGrowthRate]);
   const [copying, setCopying] = useState(false);
   const copyForAi = async () => {
@@ -44,7 +44,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
   return <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" aria-label={he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}>
     <h2>
       <button type="button" aria-expanded={showIdeas} aria-controls={panelId} onClick={() => setShowIdeas(open => !open)}
-        className="flex min-h-14 w-full items-center gap-2 px-4 py-3 text-start text-sm font-semibold text-slate-950 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5 sm:text-base">
+        className="flex min-h-14 w-full items-center gap-2 px-4 py-3 text-start text-base font-semibold text-slate-950 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5 sm:text-lg">
         <span>{he ? 'הצעות לסגירת החזקות' : 'Full-position exit ideas'}</span>{' '}
         <span className="text-sm font-normal tabular-nums text-slate-500">({proposals.length})</span>
         <ChevronDown aria-hidden className={`ms-auto h-4 w-4 text-slate-500 transition-transform motion-reduce:transition-none ${showIdeas ? 'rotate-180' : ''}`} />

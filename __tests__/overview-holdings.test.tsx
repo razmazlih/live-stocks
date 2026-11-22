@@ -22,11 +22,11 @@ describe('overview holdings continuity', () => {
   it('labels daily percentage separately from return since entry and leaves missing daily quotes unavailable', () => {
     render(<OverviewHoldings metrics={metrics} />);
     const card = within(screen.getByRole('button', { name: 'Expand AAPL details' }));
-    expect(card.getByText('Daily price change')).toBeInTheDocument();
+    expect(card.getByText('Day change')).toBeInTheDocument();
     expect(card.getByText('-2.50%')).toBeInTheDocument();
-    expect(card.getByText('Return since purchase')).toBeInTheDocument();
+    expect(card.getByText('Since purchase')).toBeInTheDocument();
     expect(card.getByText('+25.00%')).toBeInTheDocument();
-    expect(card.getByText('Holding value')).toBeInTheDocument();
+    expect(card.getByText('Value')).toBeInTheDocument();
     expect(within(screen.getByRole('button', { name: 'Expand MSFT details' })).getByText('—')).toBeInTheDocument();
     const table = within(screen.getByRole('table'));
     const apple = within(table.getByRole('row', { name: /AAPL/ }));

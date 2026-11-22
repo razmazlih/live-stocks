@@ -574,6 +574,8 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 
 /* Focused inline holding details keep the chart and the exit visible together. */
 .overview-holding-card { overflow-anchor: none; }
+.overview-holding-card .holding-trend-layer::after { display: none; }
+.overview-holding-card:not(.holding-card-open) .holding-trend-layer { opacity: .75; }
 .overview-holding-card .holding-toggle { transition: padding 240ms cubic-bezier(.22,1,.36,1); }
 .overview-holding-card .holding-summary-grid { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), gap 240ms cubic-bezier(.22,1,.36,1); }
 .overview-holding-card .holding-summary-grid > span > span:last-child { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), font-size 240ms cubic-bezier(.22,1,.36,1), line-height 240ms cubic-bezier(.22,1,.36,1); }

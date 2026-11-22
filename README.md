@@ -8,9 +8,9 @@ LiveStocks מרכז החזקות ועסקאות, מציג רווח והפסד ב
 
 [פתיחת האתר](https://razmaz-live-stocks.vercel.app) · [חיבור ל־ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6af9b5f79fe48191a12eaa9c67d6ae7b) · [התקנת ווידג׳ט Scriptable](output/widget/README.md)
 
-![סקירת התיק במחשב במצב כהה](docs/screenshots/overview-desktop-2026-11-21.jpg)
+![סקירת התיק במחשב במצב כהה](docs/screenshots/overview-desktop-2026-11-22.jpg)
 
-סקירת תיק עם נתוני דמו סינתטיים. [סקירה בנייד, כהה](docs/screenshots/overview-mobile-dark-2026-11-21.jpg) · [סקירה בנייד, בהיר](docs/screenshots/overview-mobile-light-2026-11-21.jpg) · [פירוט החזקה בנייד](docs/screenshots/holding-mobile-2026-11-21.jpg)
+הסקירה מציגה את הפער מהיעד המצטבר ומתחתיו את הרווח או ההפסד. הצעות הסגירה פתוחות מעל רשימת ההחזקות. הצילומים מציגים נתוני דמו. [סקירה בנייד, כהה](docs/screenshots/overview-mobile-dark-2026-11-22.jpg) · [סקירה בנייד, בהיר](docs/screenshots/overview-mobile-light-2026-11-22.jpg) · [פירוט החזקה בנייד](docs/screenshots/holding-mobile-2026-11-22.jpg)
 
 - ניהול קניות, מכירות ועמלות לפי מקורות השקעה, עם היסטוריית מנות רכישה ומימושים.
 - מעקב אחר מניות, שערי USD/ILS, ביצועים מול יעד והצעות לסגירת קבוצות.

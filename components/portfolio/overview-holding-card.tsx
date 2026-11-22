@@ -31,6 +31,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const cardRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const chartSlotRef = useRef<HTMLDivElement>(null);
+  const previewSlotRef = useRef<HTMLSpanElement>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const openRequested = useRef(false);
   const toggleFromUser = () => {
@@ -121,14 +122,15 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     const toggle = toggleRef.current;
     const slot = chartSlotRef.current;
     const graph = graphRef.current;
-    if (!card || !toggle || !slot || !graph) return;
+    const preview = previewSlotRef.current;
+    if (!card || !toggle || !slot || !graph || !preview) return;
     const measure = () => {
       const outer = card.getBoundingClientRect();
-      const target = (expanded ? slot : toggle).getBoundingClientRect();
-      const x = expanded ? target.left - outer.left - card.clientLeft : 0;
-      const y = expanded ? target.top - outer.top - card.clientTop : target.height * 0.40;
-      const width = expanded ? target.width : card.clientWidth;
-      const height = expanded ? target.height : target.height * 0.55;
+      const target = (expanded ? slot : preview).getBoundingClientRect();
+      const x = target.left - outer.left - card.clientLeft;
+      const y = target.top - outer.top - card.clientTop;
+      const width = target.width;
+      const height = target.height;
       graph.style.setProperty('--chart-x', `${x}px`);
       graph.style.setProperty('--chart-y', `${y}px`);
       graph.style.setProperty('--chart-w', `${width}px`);
@@ -140,6 +142,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(toggle);
+    observer.observe(preview);
     observer.observe(slot);
     return () => observer.disconnect();
   }, [expanded]);
@@ -168,14 +171,15 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
             <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="holding-company mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
-            <span className="text-end"><span className="block text-xs text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</span><bdi className="block text-lg font-semibold tabular-nums tracking-tight text-slate-950">{money(value)}</bdi></span>
+            <span className="text-end"><span className="block text-xs text-slate-500">{he ? 'שווי' : 'Value'}</span><bdi className="block text-lg font-semibold tabular-nums tracking-tight text-slate-950">{money(value)}</bdi></span>
             <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 text-slate-400" />
           </span>
         </span>
-        <span className="holding-summary-grid mt-3 grid grid-cols-2 gap-3">
-          <span><span className="block text-xs text-slate-500">{he ? 'שינוי מחיר יומי' : 'Daily price change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
-          <span><span className="block text-xs text-slate-500">{he ? 'תשואה מהקנייה' : 'Return since purchase'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(holdingReturn ?? 0)}`}><bdi>{percent(holdingReturn)}</bdi></span></span>
+        <span className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
+          <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
+          <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{he ? 'תשואה מהקנייה' : 'Since purchase'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(holdingReturn ?? 0)}`}><bdi>{percent(holdingReturn)}</bdi></span></span>
         </span>
+        <span ref={previewSlotRef} aria-hidden="true" className={expanded || !chartAvailable ? 'block h-0' : 'mt-2 block h-5'} />
       </span>
     </button>
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
@@ -185,13 +189,13 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
         toggleFromUser();
       }}>
         <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 pt-1 sm:grid-cols-3">
-            <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'מחיר כעת · USD' : 'Current price · USD'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{usd(m.currentPrice)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'מכירה ליעד · USD' : 'Sell for target · USD'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></dd></div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 px-3 py-3 sm:grid-cols-3">
+            <div><dt className="text-xs text-slate-500">{he ? 'מחיר מניה' : 'Share price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{usd(m.currentPrice)}</bdi></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'מחיר יעד' : 'Target price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{gapLabel(target.difference)}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></dd></div>
-            <div className="col-span-2 flex items-center justify-between gap-3 text-xs sm:col-span-1 sm:block"><dt className="text-slate-500">{he ? 'רווח / הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`font-medium tabular-nums sm:mt-1.5 sm:text-sm ${tone(pnl)}`}><bdi>{money(pnl)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'רווח מצטבר בכל החשבונות · USD' : 'Cumulative P/L across accounts · USD'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><bdi>{usd(cumulativeProfit ?? undefined)}</bdi></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'רווח/הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'מצטבר בכל החשבונות' : 'P/L across accounts'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><bdi>{usd(cumulativeProfit ?? undefined)}</bdi></dd></div>
           </dl>
           <p className="mt-2 text-xs text-slate-500">{he ? 'מחיר היעד להיום כולל מכירות קודמות.' : 'Today’s target includes previous sales.'}</p>
           <div className="holding-chart-detail mt-5">
