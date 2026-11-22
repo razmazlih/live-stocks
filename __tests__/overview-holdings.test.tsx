@@ -177,7 +177,7 @@ describe('overview holdings continuity', () => {
     { reducedMotion: false, closeFrom: 'footer' },
     { reducedMotion: false, closeFrom: 'details' },
     { reducedMotion: true, closeFrom: 'header' },
-  ])('preserves the viewport on open and close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
+  ])('fits the expanded card and preserves the viewport on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
     vi.useFakeTimers();
     let offset = 400;
     vi.stubGlobal('scrollY', offset);
@@ -203,23 +203,33 @@ describe('overview holdings continuity', () => {
     expect(scrollTo).not.toHaveBeenCalled();
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
-    expect(scrollTo).not.toHaveBeenCalled();
-    expect(card.getBoundingClientRect().top).toBe(600);
+    if (!reducedMotion) {
+      expect(scrollTo).not.toHaveBeenCalled();
+      const event = new Event('transitionend', { bubbles: true });
+      Object.defineProperty(event, 'propertyName', { value: 'grid-template-rows' });
+      fireEvent(panel, event);
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(20); });
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    if (!reducedMotion) expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    expect(card.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+    expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(902);
+    const fittedOffset = offset;
+    scrollTo.mockClear();
     if (closeFrom === 'details') fireEvent.click(within(panel).getByText('Purchase cost'));
     else fireEvent.click(closeFrom === 'footer' ? screen.getByRole('button', { name: 'Close card' }) : toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(scrollTo).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(scrollTo).not.toHaveBeenCalled();
-    expect(offset).toBe(400);
+    expect(offset).toBe(fittedOffset);
     expect(toggle).toHaveFocus();
   });
   it('keeps local open state during a data refresh without scrolling or persisting it in the URL', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('scrollY', 400);
     vi.stubGlobal('innerHeight', 902);
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 600, top: 600, left: 0, right: 360, bottom: 1100, width: 360, height: 500, toJSON() {} });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 80, top: 80, left: 0, right: 360, bottom: 580, width: 360, height: 500, toJSON() {} });
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
     window.history.replaceState(null, '', '/?holding=MSFT&chartRange=1Y');

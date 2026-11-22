@@ -32,6 +32,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const toggleRef = useRef<HTMLButtonElement>(null);
   const chartSlotRef = useRef<HTMLDivElement>(null);
   const previewSlotRef = useRef<HTMLSpanElement>(null);
+  const revealRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const topBeforeSwitch = useRef<number | null>(null);
   const toggleFromUser = () => {
@@ -54,6 +55,43 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
       const shift = cardRef.current.getBoundingClientRect().top - originalTop;
       if (Math.abs(shift) > 0.5) window.scrollBy({ top: shift, behavior: 'instant' });
     }
+  }, [expanded]);
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    const reveal = revealRef.current;
+    if (!expanded || !card || !reveal) return;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let pending = true;
+    const cancel = () => { pending = false; };
+    const fit = () => {
+      if (!pending) return;
+      cancel();
+      const bounds = card.getBoundingClientRect();
+      if (!bounds.height) return;
+      const viewport = window.visualViewport;
+      const top = (viewport?.offsetTop ?? 0) + 12;
+      const viewportEnd = top - 12 + (viewport?.height ?? window.innerHeight);
+      const nav = document.querySelector('nav.glass-navigation')?.getBoundingClientRect();
+      const bottom = Math.min(viewportEnd, nav && nav.height > 0 && nav.top > top ? nav.top : viewportEnd) - 12;
+      const delta = bounds.height > bottom - top || bounds.top < top
+        ? bounds.top - top : Math.max(0, bounds.bottom - bottom);
+      if (Math.abs(delta) > 1) window.scrollTo({ top: window.scrollY + delta, behavior: reducedMotion ? 'instant' : 'smooth' });
+    };
+    if (reducedMotion) { fit(); return; }
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === reveal && event.propertyName === 'grid-template-rows') fit();
+    };
+    reveal.addEventListener('transitionend', onEnd);
+    // A rapid reversal can coalesce both state changes without a transition event.
+    const fallback = window.setTimeout(fit, 450);
+    window.addEventListener('wheel', cancel, { passive: true });
+    window.addEventListener('touchmove', cancel, { passive: true });
+    return () => {
+      window.clearTimeout(fallback);
+      reveal.removeEventListener('transitionend', onEnd);
+      window.removeEventListener('wheel', cancel);
+      window.removeEventListener('touchmove', cancel);
+    };
   }, [expanded]);
   const money = (value: number) => Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
   const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
@@ -155,7 +193,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
         <span ref={previewSlotRef} aria-hidden="true" className={`holding-preview-slot block ${expanded || !chartAvailable ? 'h-0' : 'mt-3 h-20'}`} />
       </span>
     </button>
-    <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
+    <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { revealRef.current = element; if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
       <div className="min-h-0 cursor-pointer overflow-hidden" onClick={(event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (!expanded || target?.closest('a, button, input, select, textarea, [role="button"]') || window.getSelection()?.isCollapsed === false) return;
