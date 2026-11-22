@@ -53,3 +53,13 @@ describe('dashboard pre-entry chart context', () => {
     expect(body.candlesByKey[key].map((point: { close: number }) => point.close)).toEqual([105]);
   });
 });
+
+it('returns core values without waiting for holding charts or the benchmark', async () => {
+  const response = await GET(new NextRequest('http://localhost/api/portfolio/dashboard?part=core'));
+  expect(await response.json()).toMatchObject({ deferredHistory: true, quotes: { TEST: { c: 120 } }, candlesByKey: {} });
+  expect(mocks.candles.mock.calls.map(([symbol]) => symbol)).toEqual(['ILS=X']);
+  mocks.candles.mockClear();
+  const history = await GET(new NextRequest('http://localhost/api/portfolio/dashboard?part=history'));
+  expect(await history.json()).toHaveProperty('spyPoints');
+  expect(mocks.candles.mock.calls.map(([symbol]) => symbol).sort()).toEqual(['SPY', 'TEST']);
+});

@@ -8,6 +8,7 @@ import {
   ReactNode,
   useCallback,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import { Locale, Settings } from '@/types';
 import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -31,6 +32,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children, demo = false, initialDemoLocale }: { children: ReactNode; demo?: boolean; initialDemoLocale?: Locale }) {
+  const path = usePathname();
+  const portfolioScope = path === '/' ? 'overview' : path === '/portfolio' ? 'performance' : 'idle';
   const [locale, setLocale] = useState<Locale>(() => demo ? initialDemoLocale ?? 'he' : readPersonalLocale());
   const [settings, setSettings] = useState<Settings>({
     annualGrowthRate: parseFloat(process.env.DEFAULT_GROWTH_RATE || '0.05'),
@@ -153,7 +156,7 @@ export function AppProvider({ children, demo = false, initialDemoLocale }: { chi
         triggerRefresh,
       }}
     >
-      <InvestmentSourcesProvider><PortfolioDataProvider>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
+      <InvestmentSourcesProvider><PortfolioDataProvider scope={portfolioScope}>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
     </AppContext.Provider>
   );
 }

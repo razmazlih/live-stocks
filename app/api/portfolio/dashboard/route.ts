@@ -12,7 +12,8 @@ import {
 } from '@/lib/services/finnhub-cache';
 import { fetchYahooCandlesData } from '@/lib/services/yahoo-candles';
 import { requireApiPrincipal, authenticationResponse, PRIVATE_HEADERS } from '@/lib/auth/server';
-import { HistoricalPoint, Position } from '@/types';
+import type { HistoricalPoint, Position, StockQuote } from '@/types';
+import { fetchMarketMarks } from '@/lib/services/market-overview';
 
 const NO_STORE_HEADERS = PRIVATE_HEADERS;
 
@@ -97,6 +98,9 @@ function buildRangeInfo(position: Position): RangeInfo {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const part = searchParams.get('part') ?? 'all';
+    const includeCore = part === 'all' || part === 'core';
+    const includeHistory = part === 'all' || part === 'history';
     const forceQuoteRefresh = searchParams.get('forceQuoteRefresh') === '1';
 
     const principal = await requireApiPrincipal(request);
@@ -132,9 +136,10 @@ export async function GET(request: NextRequest) {
     const minFrom = validFroms.length > 0 ? Math.min(...validFroms) : 0;
     const maxTo = validTos.length > 0 ? Math.max(...validTos) : 0;
 
-    const usdToIlsPromise = getUsdToIlsRate({ allowFallback: false });
+    const usdToIlsPromise = includeCore ? getUsdToIlsRate({ allowFallback: false }) : Promise.resolve(Number.NaN);
 
     const fxHistoryPromise = (async (): Promise<HistoricalPoint[]> => {
+      if (!includeCore || !mappedPositions.length) return [];
       const allTimestamps = mappedPositions.flatMap(positionFxTimestamps);
       const activationBoundaries = activationPositions
         .flatMap((position) => [
@@ -162,7 +167,8 @@ export async function GET(request: NextRequest) {
       }
     })();
 
-    const quotesPromise = (async (): Promise<Record<string, { c?: number; d?: number }>> => {
+    const quotesPromise = (async (): Promise<Record<string, StockQuote>> => {
+      if (!includeCore && part !== 'market') return {};
       const normalizedSymbols = Array.from(
         new Set(mappedPositions.map((position) => position.symbol.trim().toUpperCase()).filter(Boolean)),
       );
@@ -185,7 +191,7 @@ export async function GET(request: NextRequest) {
         normalizedSymbols.map(async (symbol) => {
           try {
             const quote = await fetchFinnhubQuoteCached(symbol, token, { forceRefresh: forceQuoteRefresh });
-            return [symbol, { c: quote.c, d: quote.d }] as const;
+            return [symbol, quote] as const;
           } catch (error) {
             console.error(`Failed to fetch quote for ${symbol}:`, error);
             return [symbol, null] as const;
@@ -193,7 +199,7 @@ export async function GET(request: NextRequest) {
         }),
       );
 
-      const quotes: Record<string, { c?: number; d?: number }> = {};
+      const quotes: Record<string, StockQuote> = {};
       quotePairs.forEach(([symbol, quote]) => {
         if (quote) {
           quotes[symbol] = quote;
@@ -204,6 +210,7 @@ export async function GET(request: NextRequest) {
     })();
 
     const candlesByKeyPromise = (async () => {
+      if (!includeHistory) return { candlesByKey: {}, contextCandlesByKey: {} };
       const entries = await Promise.all(
         rangeInfoList.map(async (range) => {
           try {
@@ -238,7 +245,7 @@ export async function GET(request: NextRequest) {
     })();
 
     const spyPointsPromise = (async (): Promise<HistoricalPoint[]> => {
-      if (!(minFrom < Number.MAX_SAFE_INTEGER && maxTo > 0)) {
+      if (!includeHistory || !(minFrom < Number.MAX_SAFE_INTEGER && maxTo > 0)) {
         return [];
       }
 
@@ -259,8 +266,18 @@ export async function GET(request: NextRequest) {
       spyPointsPromise,
     ]);
 
+    if (part === 'market') {
+      const asOf = Date.now();
+      const marks = await fetchMarketMarks(mappedPositions, quotes, asOf);
+      return NextResponse.json({ marks, asOf }, { headers: NO_STORE_HEADERS });
+    }
+    if (part === 'history') {
+      return NextResponse.json({ ...candles, spyPoints }, { headers: NO_STORE_HEADERS });
+    }
+
     return NextResponse.json(
       {
+        ...(part === 'core' && { deferredHistory: true }),
         positions: mappedPositions,
         activationPositions,
         usdToIls,
