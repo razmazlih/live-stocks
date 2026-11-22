@@ -59,5 +59,9 @@ supabase.txt
 /.codex/
 /.env*
 /output/
-
 /.local/
+/docs/
+/plugins/
+/scripts/
+/supabase/
+/__tests__/
