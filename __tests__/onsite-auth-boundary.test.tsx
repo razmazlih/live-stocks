@@ -20,6 +20,15 @@ describe('on-site public auth and sign-out boundary', () => {
   beforeEach(() => { state.pathname = '/'; state.signOut.mockReset(); state.reset.mockReset(); state.configure.mockReset(); state.privateMount.mockReset(); });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
 
+  it.each(['/', '/portfolio', '/positions', '/watchlist', '/stock/AAPL', '/settings'])('shows placeholders on direct entry to %s while session verification is pending', (pathname) => {
+    state.pathname = pathname;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+    const { container } = render(<AuthProvider><PrivateAccount /></AuthProvider>);
+    expect(container.querySelector('[role="status"], [aria-busy="true"]')).toBeInTheDocument();
+    expect(screen.queryByText('LiveStocks · טוען / Loading…')).not.toBeInTheDocument();
+    expect(state.privateMount).not.toHaveBeenCalled();
+  });
+
   it('isolates owner confirmation from financial session bootstrap and private providers', async () => {
     state.pathname = '/account/owner-confirmation';
     vi.stubGlobal('fetch', vi.fn());

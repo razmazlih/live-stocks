@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useInvestmentSources } from "@/hooks/use-investment-sources";
 import { useApp } from "@/lib/context";
@@ -908,7 +909,7 @@ export default function PositionsPage() {
               </button>
               <div className="mb-3 mt-6"><h2 className="font-semibold text-slate-950">{locale === 'he' ? 'הוספה לפוזיציה קיימת' : 'Add to an existing position'}</h2><p className="mt-1 text-xs text-slate-500">{locale === 'he' ? 'בחרו פוזיציה כדי לרשום קנייה או מכירה.' : 'Choose a position to record a buy or sell.'}</p></div>
               <div className="relative"><Search aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input type="search" value={chooserSearch} onChange={(event) => setChooserSearch(event.target.value)} aria-label={locale === 'he' ? 'חיפוש פוזיציה קיימת' : 'Search existing positions'} placeholder={locale === 'he' ? 'חיפוש לפי סימול או שם מניה' : 'Search by symbol or company'} className="ps-9" /></div>
-              {loading && !hasLoaded ? <p role="status" className="py-7 text-center text-sm text-slate-500">{t.common.loading}</p> : loadError && !hasLoaded ? <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>{locale === 'he' ? 'לא הצלחנו לטעון פוזיציות קיימות.' : 'Unable to load existing positions.'}</p><Button variant="outline" size="sm" onClick={loadPositions} className="mt-3">{locale === 'he' ? 'ניסיון חוזר' : 'Try again'}</Button></div> : chooserItems.length ? <>
+              {loading && !hasLoaded ? <div aria-busy="true" aria-label={t.common.loading} className="space-y-3 py-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : loadError && !hasLoaded ? <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>{locale === 'he' ? 'לא הצלחנו לטעון פוזיציות קיימות.' : 'Unable to load existing positions.'}</p><Button variant="outline" size="sm" onClick={loadPositions} className="mt-3">{locale === 'he' ? 'ניסיון חוזר' : 'Try again'}</Button></div> : chooserItems.length ? <>
                 {!chooserSearch.trim() ? <p className="mb-1 mt-4 text-xs text-slate-400">{locale === 'he' ? 'פעילות אחרונה' : 'Recent activity'}</p> : null}
                 <div className="mt-3 space-y-2.5">{chooserItems.map(({ position }) => (
                   <button
@@ -1418,7 +1419,7 @@ export default function PositionsPage() {
                 </p>
               )
             ) : (
-              <p className="text-sm text-slate-500">{t.common.loading}</p>
+              <Skeleton aria-label={t.common.loading} aria-busy="true" className="h-12 w-full" />
             )}
             </div>
             {historyTarget && (
@@ -1448,7 +1449,12 @@ export default function PositionsPage() {
               {loading && !hasLoaded ? (
                 <Card>
                   <CardContent className="space-y-4 py-8" aria-label={t.common.loading} aria-busy="true">
-                    {[0, 1, 2].map((row) => <div key={row} className="h-24 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />)}
+                    <div className="grid gap-3 sm:grid-cols-3"><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-10 rounded-xl" /></div>
+                    {[0, 1, 2].map(row => <div key={row} className="flex items-center gap-3 rounded-xl border border-slate-100 p-4">
+                      <Skeleton className="h-10 w-10 rounded-xl" />
+                      <div className="flex-1 space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-3 w-24" /></div>
+                      <Skeleton className="h-4 w-16" />
+                    </div>)}
                   </CardContent>
                 </Card>
               ) : !hasLoaded && loadError ? null : positions.length === 0 ? (

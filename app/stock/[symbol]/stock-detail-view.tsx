@@ -22,6 +22,7 @@ import { DashboardContainer, DashboardMain, DashboardSurface } from '@/component
 import { useStockNavigationPreview, useStockNavigationReady } from '@/components/portfolio/stock-navigation';
 import type { SparklineEvent } from '@/components/charts/sparkline';
 import { StockDetailChart } from '@/components/portfolio/stock-detail-chart';
+import { StockChartSkeleton } from './stock-detail-skeleton';
 import styles from './stock-detail-view.module.css';
 
 import { getSupabaseClient } from '@/lib/supabase';
@@ -546,7 +547,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             <div className={styles.quote}>
               <p className="mb-1 text-[11px] text-slate-500">{locale === 'he' ? 'מחיר המניה · USD' : 'Share price · USD'}</p>
               {loading ? <Skeleton className="h-10 w-32" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(metrics?.currentPrice)}</bdi></p>}
-              <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}>{loading ? t.stock.detailView.states.loading : <><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></>}</p>
+              {loading ? <Skeleton className="mt-2 h-3 w-20" /> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></p>}
             </div>
           </div>
           <dl className={styles.metrics}>
@@ -554,13 +555,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               { label: locale === 'he' ? 'שווי ההחזקה' : 'Holding value', value: currentValue, helper: `${shareCount} ${locale === 'he' ? 'מניות פתוחות' : 'open shares'}`, color: 'text-slate-900' },
               { label: locale === 'he' ? 'רווח / הפסד פתוח' : 'Unrealized P/L', value: unrealized, helper: locale === 'he' ? 'בהחזקה הנוכחית' : 'Current holding', color: tone(unrealized) },
               { label: locale === 'he' ? 'רווח / הפסד מצטבר' : 'Cumulative P/L', value: cumulative, helper: hasRecordedHistory ? locale === 'he' ? 'כל הסבבים והמכירות הקודמות' : 'All cycles and previous sales' : locale === 'he' ? 'לפי נתוני ההחזקה הזמינים' : 'Available holding records', color: tone(cumulative) },
-            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="mt-2 h-6 w-20" /> : <bdi>{money(item.value)}</bdi>}</dd><p>{item.helper}</p></div>)}
+            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="mt-2 h-6 w-20" /> : <bdi>{money(item.value)}</bdi>}</dd>{loading ? <Skeleton className="mt-1 h-3 w-3/4 max-w-24" /> : <p>{item.helper}</p>}</div>)}
           </dl>
         </section>
 
         {error ? <div role="alert" className={styles.error}><span>{metrics ? locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.' : t.stock.detailView.states.error}</span><Button variant="ghost" size="sm" onClick={() => setReloadKey(value => value + 1)} disabled={refreshing}>{t.stock.detailView.states.retry}</Button></div> : null}
-        {loading ? <div className={styles.chartSkeleton}><Skeleton className="mb-4 h-8 w-40" /><Skeleton className="h-[280px] w-full" /></div> : position && metrics ? <>
-          <StockDetailChart chartData={chartData} historicalLoading={historicalLoading} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics.yearsHeld} baseline={averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
+        {loading ? <StockChartSkeleton /> : position && metrics ? <>
+          <StockDetailChart chartData={chartData} historicalLoading={historicalLoading || Boolean(historicalEntryDate && !displayedRange && !historicalError)} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics.yearsHeld} baseline={averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
 
           <section className={styles.records} aria-label={locale === 'he' ? 'החזקה ופעולות' : 'Holdings and activity'}>
             <details className={styles.record}>

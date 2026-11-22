@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { DashboardQuickAction } from './quick-actions';
@@ -10,6 +11,7 @@ export interface PageMetaBadge {
   key: string;
   icon?: LucideIcon;
   label: string;
+  loading?: boolean;
   className?: string;
   iconClassName?: string;
 }
@@ -36,7 +38,16 @@ export function PageHeader({ title, subtitle, metaBadges = [], quickActions = []
         <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
         {subtitle ? <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">{subtitle}</p> : null}
         {metaBadges.length > 0 ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-          {metaBadges.map((badge) => { const BadgeIcon = badge.icon; return <span key={badge.key} className="inline-flex items-center gap-1.5 tabular-nums">{BadgeIcon ? <BadgeIcon aria-hidden="true" className="h-3.5 w-3.5" /> : null}<span>{badge.label}</span></span>; })}
+          {metaBadges.map((badge) => {
+            const BadgeIcon = badge.icon;
+            return <div key={badge.key} className="inline-flex items-center gap-1.5 tabular-nums">
+              {BadgeIcon && <BadgeIcon aria-hidden className="h-3.5 w-3.5" />}
+              {badge.loading ? <div className="relative" aria-hidden>
+                <span className="invisible">{badge.label}</span>
+                <Skeleton className="absolute inset-0 my-auto h-3" />
+              </div> : <span>{badge.label}</span>}
+            </div>;
+          })}
         </div> : null}
       </div>
       {quickActions.length || actions ? <div className="flex flex-wrap items-center gap-2 sm:justify-end">

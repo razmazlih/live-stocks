@@ -27,7 +27,7 @@ export function OverviewHeader({ locale, lastUpdate, loading, refreshing, onRefr
     <div className={styles.titleRow}>
       <div className={styles.titleBlock}>
         <h1>{he ? 'סקירת התיק' : 'Portfolio overview'}</h1>
-        <p role="status" className={styles.status}><Clock3 aria-hidden="true" /><span>{status}</span></p>
+        <p role="status" className={styles.status}><Clock3 aria-hidden="true" /><span className="inline-flex items-center">{loading ? <><span className="sr-only">{status}</span><span aria-hidden="true" className="h-2.5 w-20 animate-pulse rounded bg-primary/10 motion-reduce:animate-none" /></> : status}</span></p>
       </div>
       <Button type="button" variant="ghost" size="icon" onClick={onRefresh} disabled={loading || refreshing}
         aria-label={he ? 'רענן' : 'Refresh'} title={he ? 'רענון נתוני התיק' : 'Refresh portfolio data'} className={styles.refresh}>

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useInvestmentSources } from '@/hooks/use-investment-sources';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import type { InvestmentSource } from '@/types';
 
@@ -39,7 +40,7 @@ export function InvestmentSourceSettings({ locale }: { locale: 'he' | 'en' }) {
   }
   return <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="investment-sources-title">
     <div><h2 id="investment-sources-title" className="font-semibold text-slate-950">{he ? 'מקורות השקעה' : 'Investment sources'}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{he ? 'בנק, בית השקעות או כל מקור אחר שבו מוחזקות המניות שלך. ארכוב שומר את כל ההיסטוריה.' : 'Banks, brokers, or any other place you hold investments. Archiving preserves all history.'}</p></div>
-    {loading ? <p role="status">{he ? 'טוען מקורות…' : 'Loading sources…'}</p> : null}
+    {loading && !sources.length && !error ? <Skeleton role="status" aria-label={he ? 'טוען מקורות' : 'Loading sources'} className="h-16 w-full rounded-xl" /> : null}
     {error ? <div role="alert"><p>{he ? 'טעינת המקורות נכשלה' : 'Unable to load sources'}</p><Button type="button" variant="outline" onClick={() => void refresh()}>{he ? 'ניסיון נוסף' : 'Retry'}</Button></div> : null}
     <ul className="space-y-3">{sources.map(source => <SourceRow key={source.id} source={source} locale={locale} />)}</ul>
     <form onSubmit={add} className="flex flex-wrap gap-2"><Input aria-label={he ? 'שם מקור חדש' : 'New source name'} placeholder={he ? 'למשל: בית ההשקעות שלי' : 'For example: My brokerage'} value={name} onChange={event => setName(event.target.value)} maxLength={80} required disabled={busy || loading || Boolean(error)} className="min-w-0 flex-1 basis-48" /><Button type="submit" disabled={busy || loading || Boolean(error) || !name.trim()}>{he ? 'הוספת מקור' : 'Add source'}</Button></form>

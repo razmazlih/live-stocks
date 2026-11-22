@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
 import { useAuth } from './auth-provider';
@@ -98,7 +99,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
     <DashboardSurface>
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void saveCredential(); }}>
         <h2 className="text-lg font-semibold">{he ? 'מפתח Finnhub אישי' : 'Personal Finnhub key'}</h2>
-        <p className="text-sm text-slate-500">{credentialConfigured === null ? (he ? 'טוען…' : 'Loading…') : credentialConfigured ? (he ? 'מפתח שמור בחשבון: ••••••••' : 'Saved in your account: ••••••••') : (he ? 'לא הוגדר מפתח לחשבון זה' : 'No key configured for this account')}</p>
+        {credentialConfigured === null ? !loadError && <Skeleton className="h-5 w-52 max-w-full" /> : <p className="text-sm text-slate-500">{credentialConfigured ? (he ? 'מפתח שמור בחשבון: ••••••••' : 'Saved in your account: ••••••••') : (he ? 'לא הוגדר מפתח לחשבון זה' : 'No key configured for this account')}</p>}
         <Label htmlFor="personal-finnhub-key">{credentialConfigured ? (he ? 'החלפת המפתח' : 'Replace key') : (he ? 'מפתח חדש' : 'New key')}</Label>
         <Input id="personal-finnhub-key" type="password" autoComplete="new-password" value={newCredential} onChange={(event) => setNewCredential(event.target.value)} placeholder={he ? 'הדבקת מפתח Finnhub' : 'Paste your Finnhub key'} dir="ltr" />
         <p className="text-xs text-slate-500">{he ? 'המפתח נשמר בשרת ואינו מוצג מחדש. ניתן לקבל מפתח באתר ' : 'Your key is saved on the server and is never displayed again. Get a key at '}<a href="https://finnhub.io" target="_blank" rel="noopener noreferrer" className="underline">Finnhub</a>.</p>
@@ -108,7 +109,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
     <DashboardSurface>
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">{he ? 'חיבור ל־ChatGPT' : 'ChatGPT connection'}</h2>
-        <p className="text-sm text-slate-500">{!connections ? (he ? 'טוען…' : 'Loading…') : !connections.mcp.enabled ? (he ? 'הגישה מ־ChatGPT מנותקת' : 'ChatGPT access is disconnected') : connections.mcp.connected ? (he ? 'מחובר לחשבון האישי שלך · קריאה בלבד' : 'Connected to your account · Read only') : (he ? 'ניתן לחבר את LiveStocks מתוך ChatGPT באמצעות התחברות לחשבון זה' : 'Connect LiveStocks from ChatGPT by signing in to this account')}</p>
+        {!connections ? !loadError && <Skeleton className="h-5 w-64 max-w-full" /> : <p className="text-sm text-slate-500">{!connections.mcp.enabled ? (he ? 'הגישה מ־ChatGPT מנותקת' : 'ChatGPT access is disconnected') : connections.mcp.connected ? (he ? 'מחובר לחשבון האישי שלך · קריאה בלבד' : 'Connected to your account · Read only') : (he ? 'ניתן לחבר את LiveStocks מתוך ChatGPT באמצעות התחברות לחשבון זה' : 'Connect LiveStocks from ChatGPT by signing in to this account')}</p>}
         {connections && <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => { void perform('mcp', async () => {
           await request('connections/mcp', { method: 'POST', body: JSON.stringify({ action: connections.mcp.enabled ? 'disconnect' : 'reconnect' }) });
           setConnections(await request<Connections>('connections'));

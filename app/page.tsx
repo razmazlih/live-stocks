@@ -6,7 +6,7 @@ import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shel
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { OverviewHeader } from '@/components/dashboard/overview-header';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { OverviewSkeleton } from '@/components/dashboard/overview-skeleton';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
 import { ClosePairProposals } from '@/components/portfolio/close-pair-proposals';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
@@ -59,7 +59,7 @@ export default function HomePage() {
     <DashboardContainer>
       <OverviewHeader locale={locale} lastUpdate={lastUpdate} loading={loading} refreshing={refreshing} onRefresh={reload} />
       <DashboardMain className="mt-5">
-        {loading ? <div aria-busy="true" aria-label={he ? 'טוען את התיק' : 'Loading portfolio'} className="space-y-5"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-80 rounded-xl" /></div> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <>
+        {loading ? <OverviewSkeleton locale={locale} /> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <div className="dashboard-content-enter space-y-6">
           <section aria-label={he ? 'תמונת מצב התיק' : 'Portfolio summary'} className="portfolio-summary overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <h2 className="sr-only">{he ? 'התיק במספרים' : 'Your portfolio at a glance'}</h2>
             <dl className="portfolio-summary-grid">
@@ -95,7 +95,7 @@ export default function HomePage() {
           </section>
           <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
-        </>}
+        </div>}
       </DashboardMain>
     </DashboardContainer>
   </DashboardRouteShell>;

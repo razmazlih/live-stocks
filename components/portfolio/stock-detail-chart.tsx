@@ -90,7 +90,7 @@ export function StockDetailChart({
       {STOCK_DETAIL_TIME_RANGES.map(option => <button key={option} type="button" aria-pressed={range === option} disabled={historicalLoading && range === option} onClick={() => onRangeChange(option)}>{timeRangeLabels[option]}</button>)}
     </div>
 
-    {(historicalLoading || historicalError) ? <div role="status" className={styles.status}>
+    {((historicalLoading && chartData.length > 0) || historicalError) ? <div role="status" className={styles.status}>
       {chartData.length > 0 && displayedRange ? <span>{he ? `מוצגים נתוני ${timeRangeLabels[displayedRange]}. ` : `Showing ${timeRangeLabels[displayedRange]} data. `}</span> : null}
       {historicalLoading ? <span>{he ? 'מעדכן את הגרף…' : 'Updating chart…'}</span> : <><span>{he ? 'הגרף לא התעדכן.' : 'Chart could not be updated.'}</span><button type="button" onClick={onRetry}><RotateCcw aria-hidden="true" className="h-3 w-3" />{he ? 'נסה שוב' : 'Try again'}</button></>}
     </div> : null}

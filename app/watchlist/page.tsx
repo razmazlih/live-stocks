@@ -15,6 +15,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboa
 import { CalendarDays, Eye, GripVertical, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { WatchlistSkeleton } from '@/components/watchlist/watchlist-skeleton';
 import { WatchlistGroupSelector } from '@/components/watchlist/watchlist-group-selector';
 import { TimeRangeTabs } from '@/components/watchlist/time-range-tabs';
 import { TickerRow, WATCHLIST_ROW_COLUMNS } from '@/components/watchlist/ticker-row';
@@ -923,7 +924,7 @@ export default function WatchlistPage() {
     return {
       ticker, quote: state?.quote, historical, range: state?.range ?? range,
       returnTo: sourceUrl || '/watchlist', lastUpdated: state?.lastUpdated, locale,
-      loading: state?.loading ?? loading, error: state?.error,
+      loading: state?.loading ?? !watchlistError, error: state?.error,
       onEdit: (item) => { previewTransitionRef.current = previewOpen; setPreviewOpen(false); openEditTickerDialog(item); },
       onDelete: handleDeleteTicker,
       onRefresh: (item) => { void fetchTickerData(item, { force: true, startDate: effectiveStartDate }); },
@@ -947,7 +948,7 @@ export default function WatchlistPage() {
         <main className="mt-5 space-y-5">
           <WatchlistGroupSelector groups={groups} selectedGroupId={selectedGroupId} onSelect={handleSelectGroup} onCreate={openCreateGroupDialog} onEdit={openEditGroupDialog} onDelete={handleDeleteGroup} isLoading={loading} isRefreshing={refreshing} title={t.watchlist.groups.title} addLabel={t.watchlist.actions.newGroup} emptyStateText={t.watchlist.groups.empty} loadingText={t.watchlist.groups.loading} renderTickerCount={renderTickerCount} editLabel={t.watchlist.actions.editGroup} deleteLabel={t.watchlist.actions.deleteGroup} />
           {watchlistError ? <Alert variant="destructive" className="rounded-xl border-amber-200 bg-amber-50 text-amber-900"><AlertTitle>{t.watchlist.status.errorTitle}</AlertTitle><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{t.watchlist.status.error}</span><Button variant="outline" onClick={handleRefreshAll}>{t.watchlist.actions.retry}</Button></AlertDescription></Alert> : null}
-          {loading && !selectedGroup ? <div aria-busy="true" className="min-h-[500px] animate-pulse rounded-2xl border border-slate-200 bg-white motion-reduce:animate-none"><p role="status" className="p-8 text-center text-sm text-slate-500">{t.watchlist.groups.loading}</p></div> : selectedGroup ? <section aria-label={isRtl ? 'מרחב המעקב' : 'Watchlist workspace'} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {loading && !selectedGroup ? <WatchlistSkeleton label={t.watchlist.groups.loading} /> : selectedGroup ? <section aria-label={isRtl ? 'מרחב המעקב' : 'Watchlist workspace'} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="space-y-4 border-b border-slate-200 bg-white p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div><h2 className="text-sm font-semibold text-slate-900">{isRtl ? 'טווח ההשוואה' : 'Comparison period'}</h2><p className="mt-1 text-xs leading-relaxed text-slate-500">{isRtl ? 'השינוי והגרפים בכל המניות לפי הטווח שבחרת' : 'Changes and charts across all stocks use this period'}</p></div>

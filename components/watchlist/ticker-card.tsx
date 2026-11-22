@@ -1,5 +1,6 @@
 'use client';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { useId, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Clock3, MoreVertical, Pencil, RefreshCw, Trash2, TrendingUp } from 'lucide-react';
@@ -101,7 +102,8 @@ export function TickerCard(props: TickerCardProps) {
     <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900"><TrendingUp aria-hidden className="h-4 w-4 text-slate-400" />{he ? 'תנועת המחיר' : 'Price history'}</h3><span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">{rangeLabel}</span></div>
     <div className="mt-2 min-h-[210px]">
 
-      {loading ? <p role="status" className="mb-2 text-xs text-slate-500">{seriesAvailable ? he ? 'מעדכן… מוצגים הנתונים האחרונים עד לסיום.' : 'Updating… Showing the last available data until ready.' : props.loadingLabel ?? (he ? 'טוען…' : 'Loading…')}</p> : null}
+      {loading && !seriesAvailable ? <Skeleton aria-label={props.loadingLabel} aria-busy="true" className="h-[200px] w-full" /> : null}
+      {loading && seriesAvailable ? <p role="status" className="mb-2 text-xs text-slate-500">{he ? 'מעדכן… מוצגים הנתונים האחרונים עד לסיום.' : 'Updating… Showing the last available data until ready.'}</p> : null}
       {error ? <p role="alert" className="mb-2 text-xs text-amber-700">{error || props.errorLabel}{seriesAvailable ? he ? ' מוצגים הנתונים האחרונים.' : ' Showing the last available data.' : ''}</p> : null}
       {seriesAvailable ? <div className="h-[200px] w-full" dir="ltr" role="img" aria-label={he ? `מחיר ${ticker.symbol} מ־${formatDate(new Date(data.history[0].timestamp), locale)} עד ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}` : `${ticker.symbol} prices from ${formatDate(new Date(data.history[0].timestamp), locale)} to ${formatDate(new Date(data.history[data.history.length - 1].timestamp), locale)}`}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>

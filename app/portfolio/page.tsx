@@ -1,5 +1,7 @@
 'use client';
 
+import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
+
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { reconciliationQuality } from '@/lib/reconciliation-quality';
@@ -21,8 +23,18 @@ import { DashboardContainer, DashboardMain, DashboardSurface } from '@/component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatLastUpdatedTime, formatSignedCurrency, getTrendTone } from '@/lib/utils/portfolio-display';
 
-const TargetsPanel = dynamic(() => import('@/components/portfolio/targets-panel').then((module) => module.TargetsPanel));
-const RealizedPanel = dynamic(() => import('@/components/portfolio/realized-panel').then((module) => module.RealizedPanel));
+function PendingTargets() {
+  const { locale } = useApp();
+  return <PerformanceSkeleton view="targets" locale={locale} />;
+}
+
+function PendingRealized() {
+  const { locale } = useApp();
+  return <PerformanceSkeleton view="realized" locale={locale} />;
+}
+
+const TargetsPanel = dynamic(() => import('@/components/portfolio/targets-panel').then((module) => module.TargetsPanel), { loading: PendingTargets });
+const RealizedPanel = dynamic(() => import('@/components/portfolio/realized-panel').then((module) => module.RealizedPanel), { loading: PendingRealized });
 const PortfolioVisualizations = dynamic(() => import('@/components/portfolio/portfolio-visualizations').then((module) => module.PortfolioVisualizations));
 const VIEWS = ['history', 'targets', 'realized'] as const;
 function parsePerformanceView(params: URLSearchParams) {
@@ -62,7 +74,7 @@ export default function PortfolioPage() {
             <TabsTrigger value="realized" className="min-h-11 px-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 sm:px-6">{isHebrew ? 'רווח ממומש' : 'Realized returns'}</TabsTrigger>
           </TabsList>
           <TabsContent value="history" className="mt-0 space-y-6">
-            {loading ? <DashboardSurface><p className="py-16 text-center text-slate-500">{t.common.loading}</p></DashboardSurface> : !summary || positions.length === 0 ? <DashboardSurface><div className="space-y-2 py-14 text-center"><h2 className="text-lg font-semibold">{t.portfolio.emptyTitle}</h2><p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p></div></DashboardSurface> : <>
+            {loading ? <PerformanceSkeleton view="history" locale={locale} /> : !summary || positions.length === 0 ? <DashboardSurface><div className="space-y-2 py-14 text-center"><h2 className="text-lg font-semibold">{t.portfolio.emptyTitle}</h2><p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p></div></DashboardSurface> : <>
               <DashboardSurface>
                 <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
                   {[

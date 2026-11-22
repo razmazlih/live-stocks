@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { AppProvider } from '@/lib/context';
 import { configureSupabaseUser, resetSupabaseClient } from '@/lib/supabase';
 import { StockNavigationProvider } from '@/components/portfolio/stock-navigation';
+import { EntrySkeleton } from '@/components/dashboard/entry-skeleton';
 import { SignIn } from './sign-in';
 import { isPublicAuthPath, isPublicInformationPath } from '@/lib/public-routes';
 import { authClient } from '@/lib/auth/better-auth-client';
@@ -170,7 +171,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
   if (signOutState !== 'idle') return <main className="flex min-h-screen items-center justify-center bg-[var(--color-page-bg)] p-5 text-foreground"><section className="max-w-md space-y-4 rounded-3xl border border-border bg-card p-7 text-card-foreground"><p role={signOutState === 'failed' ? 'alert' : 'status'}>{signOutState === 'failed' ? 'ההתנתקות לא הושלמה. יש לנסות שוב. / Sign-out did not complete. Please retry.' : 'מתנתק… / Signing out…'}</p>{signOutState === 'failed' && <Button onClick={() => { void signOut(); }}>ניסיון התנתקות נוסף / Retry sign-out</Button>}</section></main>;
   // Public auth forms remain usable during session checks; private providers never mount here.
   if (isPublicAuthPath(pathname) || pathname === '/oauth/consent' || pathname === '/account/sign-in-methods/complete' || pathname === '/account/owner-confirmation') return <>{children}</>;
-  if (!session) return <main className="flex min-h-screen items-center justify-center"><p role="status">LiveStocks · טוען / Loading…</p></main>;
+  if (!session) return <EntrySkeleton />;
   if (!session.user) return <SignIn {...(session.options ?? options)} configured={session.configured} error={error} verificationRequired={verificationRequired} returnTo={pathname} />;
   return <AuthContext.Provider value={{ user: session.user, signOut }}>
     <AppProvider key={`${session.user.id}:${generation}`} demo={session.user.id === DEMO_USER_ID}>

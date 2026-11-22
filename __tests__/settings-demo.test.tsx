@@ -70,8 +70,9 @@ describe('locally persisted demo settings', () => {
     let finish!: (response: Response) => void;
     computerFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
     const view = render(<SettingsPage />);
-    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
-    fireEvent.submit(view.container.querySelector('form')!);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument();
+    expect(view.container.querySelector('#growthRate')).toBeNull();
     expect(computerFetch).toHaveBeenCalledTimes(1);
     expect(mocks.setSettings).not.toHaveBeenCalled();
     finish(Response.json({ annualGrowthRate: 0.11, currency: 'ILS', refreshInterval: 60 }));

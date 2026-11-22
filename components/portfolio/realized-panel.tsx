@@ -1,5 +1,7 @@
 'use client';
 
+import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
+
 import Link from 'next/link';
 import { reconciliationQuality } from '@/lib/reconciliation-quality';
 import { useMemo } from 'react';
@@ -125,7 +127,7 @@ export function RealizedPanel() {
   const netProfitIls = totals.profitIls - taxSummary.taxIls;
 
   const isHebrew = locale === 'he';
-  if (loading) return <DashboardSurface><p className="py-12 text-center text-slate-500">{t.common.loading}</p></DashboardSurface>;
+  if (loading) return <PerformanceSkeleton view="realized" locale={locale} />;
   if (!hasSales) return <DashboardSurface><div className="flex flex-col items-center gap-3 py-14 text-center"><CircleDollarSign aria-hidden="true" className="h-7 w-7 text-blue-600" /><h2 className="text-lg font-semibold">{t.realized.emptyTitle}</h2><p className="text-sm text-slate-500">{historyIncomplete ? (locale === "he" ? "אין מכירות מתועדות. התאמת היתרה אינה מוכיחה שלא היו מכירות, ולכן הרווח הממומש הכולל אינו ידוע." : "No sales are recorded. A balance checkpoint does not establish that no sales occurred; complete realized profit is unknown.") : t.realized.emptyDescription}</p></div></DashboardSurface>;
 
   return <div className="space-y-6">

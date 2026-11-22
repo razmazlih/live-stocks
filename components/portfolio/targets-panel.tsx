@@ -1,12 +1,13 @@
 'use client';
 
+import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
+
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { AlertTriangle, ArrowUpLeft, RefreshCw, Target } from 'lucide-react';
+import { AlertTriangle, ArrowUpLeft, Target } from 'lucide-react';
 
 import {
   DashboardEmptyPanel,
-  DashboardLoading,
   DashboardSurface,
 } from '@/components/dashboard/page-primitives';
 import {
@@ -90,11 +91,11 @@ export function TargetsPanel() {
   ];
   const hasItems = sectionDetails.some((section) => section.items.length > 0);
 
+  if (loading) return <PerformanceSkeleton view="targets" locale={locale} />;
+
   return (
           <DashboardSurface>
-            {loading ? (
-              <DashboardLoading icon={<RefreshCw className="h-5 w-5 animate-spin text-blue-400" />} label={t.exceptions.loading} />
-            ) : !hasItems ? (
+            {!hasItems ? (
               <DashboardEmptyPanel>
                 <div className="rounded-full bg-blue-100 p-3 text-blue-600 shadow-inner"><Target className="h-6 w-6" /></div>
                 <div className="space-y-1">

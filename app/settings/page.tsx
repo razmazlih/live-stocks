@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useTranslation } from "@/lib/translations";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNasdaqTradingHours } from "@/lib/utils/trading-hours";
@@ -51,19 +52,21 @@ export default function SettingsPage() {
   const [resetting, setResetting] = useState(false);
   const marketOpen = isNasdaqTradingHours();
   const minutesLabel = locale === "he" ? "דקות" : "minutes";
-  const [tokenConfigured, setTokenConfigured] = useState(false);
+  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(isDemo ? false : null);
   const headerMetaBadges = [
     {
       key: "currency",
+      loading: loadingSettings,
       icon: CircleDollarSign,
-      label: `${t.settings.currency}: ${formData.currency}`,
+      label: settingsLoadError ? "—" : `${t.settings.currency}: ${formData.currency}`,
       className: "bg-blue-50 text-blue-600",
       iconClassName: "text-blue-500",
     },
     {
       key: "refresh",
+      loading: loadingSettings,
       icon: RefreshCw,
-      label: `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
+      label: settingsLoadError ? "—" : `${t.settings.refreshInterval}: ${formData.refreshInterval} ${minutesLabel}`,
       className: "bg-white/70 text-slate-600",
       iconClassName: "text-slate-500",
     },
@@ -81,7 +84,7 @@ export default function SettingsPage() {
     {
       key: "token",
       icon: KeyRound,
-      label: tokenConfigured
+      label: tokenConfigured === null ? "Finnhub" : tokenConfigured
         ? locale === "he"
           ? "מפתח Finnhub פעיל"
           : "Finnhub token connected"
@@ -233,6 +236,18 @@ export default function SettingsPage() {
           <AppearanceSettings locale={locale} demo={isDemo} />
           <InvestmentSourceSettings locale={locale} />
           <DashboardSurface>
+            {loadingSettings ? (
+              <div role="status" aria-label={t.common.loading} className="space-y-8">
+                {isDemo && <Skeleton className="h-16 w-full rounded-xl" />}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {[0, 1].map((field) => <div key={field} className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-full" /></div>)}
+                </div>
+                {[0, 1].map((field) => <div key={field} className="space-y-2"><Skeleton className="h-4 w-28" /><Skeleton className="h-10 w-full" /></div>)}
+                <div className="flex gap-3"><Skeleton className="h-10 w-20" /><Skeleton className="h-10 w-20" /></div>
+              </div>
+            ) : settingsLoadError ? (
+              <p role="alert">{locale === "he" ? "לא ניתן לטעון את ההגדרות. יש לרענן כדי לנסות שוב." : "Unable to load settings. Refresh to try again."}</p>
+            ) : (
               <form onSubmit={handleSubmit} className="space-y-8">
                 {isDemo && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">{demoMessage}</p>}
                 <div className="grid gap-6 md:grid-cols-2">
@@ -242,7 +257,6 @@ export default function SettingsPage() {
                     </Label>
                     <Input
                       id="growthRate"
-                      disabled={loadingSettings || settingsLoadError}
                       type="number"
                       step="0.01"
                       min="0"
@@ -265,7 +279,6 @@ export default function SettingsPage() {
                     <Label htmlFor="currency">{t.settings.currency}</Label>
                     <Select
                       value={formData.currency}
-                      disabled={loadingSettings || settingsLoadError}
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
@@ -324,7 +337,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button type="submit" disabled={saving || loadingSettings || settingsLoadError}>
+                  <Button type="submit" disabled={saving}>
                     {saving
                       ? locale === "he"
                         ? "שומר..."
@@ -336,6 +349,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </form>
+            )}
           </DashboardSurface>
           {isDemo && <DashboardSurface>
             <h2 className="text-lg font-semibold">{locale === "he" ? "איפוס חשבון הדמו" : "Reset demo account"}</h2>
