@@ -8,6 +8,7 @@ const data = vi.hoisted(() => ({ summary: { totalValue: 1000, totalNetPnLUsd: 80
 const reload = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/context', () => ({ useApp: () => ({locale: 'en', settings: {currency: 'USD'}}) }));
 vi.mock('@/hooks/use-portfolio-data', () => ({ usePortfolioData: () => ({loading: false, refreshing: false, ...data, metrics: [], sparklineData: {}, contextSparklineData: {}, lastUpdate: new Date('2026-11-12T10:00:00Z'), reload}) }));
+vi.mock('@/hooks/use-investment-sources', () => ({ useInvestmentSources: () => ({ sourceName: (id: string) => id }) }));
 vi.mock('@/hooks/use-return-context', () => ({ useReturnContext: () => {} }));
 vi.mock('@/components/dashboard/dashboard-route-shell', () => ({DashboardRouteShell: ({children}: {children: ReactNode}) => <div>{children}</div>}));
 vi.mock('@/components/portfolio/overview-holdings', () => ({OverviewHoldings: () => <section aria-label="Test holdings">Holdings</section>}));
@@ -23,7 +24,7 @@ describe('overview layout', () => {
     const holdings = screen.getByRole('region', {name: 'Test holdings'});
     expect(summary.nextElementSibling).toBe(ideas);
     expect(ideas.nextElementSibling).toBe(holdings);
-    expect(screen.getAllByText('Holdings value')[0].closest('.overview-stat')).toHaveClass('overview-stat-primary');
+    expect(screen.getByText('Latest available holdings value').parentElement).toHaveTextContent('$1,000.00');
     expect(screen.queryByRole('region', {name: 'Performance chart'})).not.toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Portfolio overview', level: 1})).toBeInTheDocument();
   });

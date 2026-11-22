@@ -7,8 +7,8 @@ import { transparencyInitScript } from '@/lib/appearance-preferences';
 import { getAuthPublicOptions } from '@/lib/auth/better-auth-config';
 
 export const metadata: Metadata = {
-  title: 'Stocks Status',
-  description: 'Advanced stock portfolio tracker with analytics',
+  title: 'LiveStocks',
+  description: 'Track your investment portfolio, transactions and performance against your personal target.',
   icons: {
     icon: [
       { url: '/brand/livestocks.svg', type: 'image/svg+xml' },

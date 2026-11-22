@@ -39,6 +39,7 @@ export const DashboardPageShell = React.forwardRef<
     return (
       <div
         ref={ref}
+        lang={locale}
         dir={direction}
         className={cn(
           "app-canvas relative min-h-[100dvh] overflow-x-clip text-[var(--text-primary)]",
@@ -46,6 +47,7 @@ export const DashboardPageShell = React.forwardRef<
         )}
         {...props}
       >
+        {hasNavigation && <a href="#dashboard-content" className="skip-content">{locale === 'he' ? 'דילוג לתוכן' : 'Skip to content'}</a>}
         <div className={cn("relative flex min-h-[100dvh]", hasNavigation ? "pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0" : undefined)}>
           {hasNavigation ? (
             <AppSidebar
@@ -55,7 +57,7 @@ export const DashboardPageShell = React.forwardRef<
             />
           ) : null}
 
-          <div className={cn("dashboard-content-enter flex min-w-0 flex-1 flex-col", contentClassName)}>
+          <div id="dashboard-content" tabIndex={-1} className={cn("dashboard-content-enter flex min-w-0 flex-1 flex-col", contentClassName)}>
             {hasNavigation ? <div className="flex items-center justify-between px-4 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))] lg:hidden">
               <Link href="/" className="flex items-center gap-2 min-h-[44px] text-base font-bold tracking-tight text-[var(--text-primary)]">
                 <Image src="/brand/livestocks.svg" alt="" width={28} height={28} className="h-7 w-7 shrink-0" />

@@ -31,7 +31,7 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, metaBadges = [], quickActions = [], actions, backHref, backLabel = 'Back', className }: PageHeaderProps) {
-  return <header className={cn('py-1', className)}>
+  return <header className={cn('workspace-page-heading py-1', className)}>
     {backHref ? <Button asChild variant="ghost" size="sm" className="mb-3 -ms-3 w-fit gap-2 text-slate-600"><Link href={backHref}><ArrowLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />{backLabel}</Link></Button> : null}
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
       <div className="min-w-0">

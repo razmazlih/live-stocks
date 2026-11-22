@@ -287,7 +287,8 @@ describe('overview holdings continuity', () => {
     await user.type(screen.getByRole('textbox', { name: 'Search holdings' }), 'Apple');
     const table = screen.getByRole('table');
     expect(within(table).getAllByRole('row')).toHaveLength(2);
-    const link = within(table).getByRole('link', { name: /AAPL/ });
+    const link = within(table).getByRole('link', { name: /^AAPL/ });
+    expect(within(table).getByRole('link', { name: 'Add transaction for AAPL' })).toHaveAttribute('href', '/positions?action=add&symbol=AAPL');
     expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y&q=Apple');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Filter holdings' }), 'ahead');
     expect(screen.getByText('No active holdings match your filters.')).toBeInTheDocument();
@@ -295,7 +296,7 @@ describe('overview holdings continuity', () => {
       window.history.replaceState(null, '', '/?filter=lagging&chartRange=1Y');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    expect(within(screen.getByRole('table')).getByRole('link', { name: /AAPL/ })).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByRole('link', { name: /^AAPL/ })).toBeInTheDocument();
   });
   it('keeps one price graph mounted while expanding and collapsing its card', async () => {
     const user = userEvent.setup();

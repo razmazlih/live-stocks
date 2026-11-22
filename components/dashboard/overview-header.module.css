@@ -8,18 +8,18 @@
 }
 .titleRow { display: flex; min-width: 0; align-items: center; gap: 14px; }
 .titleBlock { min-width: 0;  }
-.titleBlock h1 { color: var(--text-primary); font-size: 30px; font-weight: 700; line-height: 1.15; letter-spacing: -.04em; }
-.status { display: flex; min-height: 1.4em; align-items: center; gap: 5px; margin-top: 7px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.titleBlock h1 { color: var(--text-primary); font-size: clamp(1.8rem, 3vw, 2.5rem); font-weight: 700; line-height: 1.15; letter-spacing: -.04em; }
+.status { display: flex; min-height: 1.4em; align-items: center; gap: 5px; margin-top: 7px; color: var(--text-secondary); font-size: .78rem; line-height: 1.4; }
 .status svg { width: 12px; height: 12px; }
-.refresh { min-width: 44px; min-height: 44px; border: 1px solid transparent; border-radius: 999px; color: var(--text-secondary); transition: color 180ms, background-color 180ms, border-color 180ms; }
+.refresh { min-width: 44px; min-height: 44px; border: 1px solid transparent; border-radius: 12px; color: var(--text-secondary); transition: color 180ms, background-color 180ms, border-color 180ms; }
 .refresh:hover { color: var(--accent-color); background: var(--surface-muted); border-color: var(--border-subtle); }
 .actions { display: flex; align-items: stretch; gap: 8px; }
-.primary { min-height: 44px; padding-inline: 16px; border: 1px solid var(--control-strong); border-radius: 999px; background: var(--control-strong); color: #fff; box-shadow: 0 3px 8px rgb(37 99 235 / .12); transition: background-color 180ms, box-shadow 180ms, transform 180ms; }
+.primary { min-height: 44px; padding-inline: 16px; border: 1px solid var(--control-strong); border-radius: 12px; background: var(--control-strong); color: #fff; box-shadow: 0 3px 8px rgb(37 99 235 / .12); transition: background-color 180ms, box-shadow 180ms, transform 180ms; }
 .primary:hover { background: var(--control-strong); filter: brightness(1.08); box-shadow: 0 4px 12px rgb(37 99 235 / .2); }
 .primary:active { transform: scale(.98); }
 .primary svg { width: 17px; height: 17px; }
 .export { display: flex; }
-.export > button { min-height: 44px; border-color: var(--border-subtle); border-radius: 999px; background: var(--glass-bg); color: var(--text-secondary); box-shadow: none; transition: background-color 180ms, border-color 180ms, color 180ms; }
+.export > button { min-height: 44px; border-color: var(--border-subtle); border-radius: 12px; background: var(--glass-bg); color: var(--text-secondary); box-shadow: none; transition: background-color 180ms, border-color 180ms, color 180ms; }
 .export > button:hover { border-color: var(--border-subtle); background: var(--surface-muted); color: var(--accent-color); }
 .spinning { animation: spin 900ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

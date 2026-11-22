@@ -70,7 +70,7 @@ function EntryContent({ pathname, locale }: { pathname: string; locale: Locale }
 export function EntrySkeleton() {
   const pathname = usePathname();
   const locale = useSyncExternalStore(subscribe, browserLocale, defaultLocale);
-  if (pathname === '/positions/sync') return <SyncReviewEntrySkeleton />;
+  if (pathname === '/positions/sync') return <SyncReviewEntrySkeleton locale={locale} />;
   const items = createAppRouteItems(translations[locale]);
   const activeKey = items.find(item => item.href === pathname)?.key ?? (pathname === '/ai-prompts' ? 'dashboard' : 'portfolio');
 
