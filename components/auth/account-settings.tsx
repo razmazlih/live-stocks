@@ -115,6 +115,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">{he ? 'חיבור ל־ChatGPT' : 'ChatGPT connection'}</h2>
         {!connections ? !loadError && <Skeleton className="h-5 w-64 max-w-full" /> : <p className="text-sm text-slate-500">{!connections.mcp.enabled ? (he ? 'הגישה מ־ChatGPT מנותקת' : 'ChatGPT access is disconnected') : connections.mcp.connected ? (he ? 'מחובר לחשבון האישי שלך · קריאה בלבד' : 'Connected to your account · Read only') : (he ? 'ניתן לחבר את LiveStocks מתוך ChatGPT באמצעות התחברות לחשבון זה' : 'Connect LiveStocks from ChatGPT by signing in to this account')}</p>}
+        {!connections && !loadError && <Skeleton className="h-11 w-40" />}
         {connections && <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => { void perform('mcp', async () => {
           await request('connections/mcp', { method: 'POST', body: JSON.stringify({ action: connections.mcp.enabled ? 'disconnect' : 'reconnect' }) });
           setConnections(await request<Connections>('connections'));
@@ -140,7 +141,7 @@ export function AccountSettings({ locale, onCredentialChange }: { locale: 'he' |
           <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => { void navigator.clipboard.writeText(createdToken).then(() => toast.success(he ? 'הטוקן הועתק' : 'Token copied')).catch(() => toast.error(he ? 'יש לסמן ולהעתיק את הטוקן ידנית' : 'Select the token and copy it manually')); }}>{he ? 'העתקה' : 'Copy'}</Button><Button type="button" variant="ghost" onClick={() => setCreatedToken(null)}>{he ? 'סיום והסתרת הטוקן' : 'Done, hide token'}</Button></div>
         </div>}
         {connections?.widgets.length === 0 && <p className="text-sm text-slate-500">{he ? 'עדיין אין טוקנים לחשבון זה' : 'No tokens for this account yet'}</p>}
-        <ul className="divide-y divide-slate-200/40">{connections?.widgets.map((widget) => <li key={widget.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+        <ul className="divide-y divide-slate-200/40">{!connections && !loadError && <li aria-hidden="true" className="flex h-[68px] items-center justify-between"><Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-16" /></li>}{connections?.widgets.map((widget) => <li key={widget.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
           <div className="min-w-0 space-y-1"><p className="break-words text-sm font-medium">{widget.name}</p><p className="text-xs text-slate-500">{widget.revokedAt ? (he ? 'בוטל' : 'Revoked') : `${he ? 'תוקף עד' : 'Expires'} ${new Date(widget.expiresAt).toLocaleDateString(he ? 'he-IL' : 'en-US')}`}</p></div>
           {!widget.revokedAt && <Button size="sm" type="button" variant="outline" disabled={Boolean(busy)} onClick={() => { void perform(`revoke:${widget.id}`, async () => {
             await request(`widgets/${encodeURIComponent(widget.id)}`, { method: 'DELETE' });

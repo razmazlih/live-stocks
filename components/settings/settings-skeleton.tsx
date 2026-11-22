@@ -29,18 +29,18 @@ function AccountEntrySkeleton() {
       </div>
       <div className="mt-4 space-y-1"><Skeleton className="h-3 w-16" /><Skeleton className="h-4 w-48" /></div>
       <div className="mt-5 space-y-4 border-t pt-5"><Skeleton className="h-6 w-44" /><LinkingStatusSkeleton /></div>
-      <div className="mt-5 space-y-4 border-t pt-5"><Skeleton className="h-6 w-24" /><SignInMethodsSkeleton /></div>
+      <div className="mt-5 space-y-4 border-t pt-5"><Skeleton className="h-6 w-24" /><Skeleton className="h-12 w-full" /><SignInMethodsSkeleton /></div>
     </DashboardSurface>
     <DashboardSurface>
       <div className="space-y-4"><Skeleton className="h-7 w-36" /><Skeleton className="h-5 w-44" />
-        <FieldSkeleton /><Skeleton className="h-8 w-full" /><Skeleton className="h-11 w-28" /></div>
+        <div><Skeleton className="h-4 w-24" /><Skeleton className="mt-2 h-11 w-full" /></div><Skeleton className="h-8 w-full" /><Skeleton className="h-11 w-28" /></div>
     </DashboardSurface>
     <DashboardSurface>
       <div className="space-y-4"><Skeleton className="h-7 w-36" /><Skeleton className="h-5 w-2/3" /><Skeleton className="h-11 w-40" /></div>
     </DashboardSurface>
     <DashboardSurface>
       <div className="space-y-4"><Skeleton className="h-7 w-36" /><Skeleton className="h-10 w-4/5" />
-        <FieldSkeleton /><Skeleton className="h-11 w-28" /><Skeleton className="h-4 w-1/2" /></div>
+        <FieldSkeleton /><div className="flex h-[68px] items-center justify-between border-t"><Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-16" /></div></div>
     </DashboardSurface>
   </div>;
 }
@@ -63,7 +63,7 @@ export function SettingsEntryContent({ locale, demo = false }: { locale: 'he' | 
         {[0, 1, 2].map(item => <Skeleton key={item} className="h-20 rounded-2xl" />)}
       </div>
       <div className="mt-5 flex items-center justify-between gap-5 border-t pt-5">
-        <div className="space-y-2"><Skeleton className="h-5 w-28" /><Skeleton className="h-5 w-40" /></div>
+        <div><div className="h-6"><Skeleton className="h-5 w-28" /></div><Skeleton className="mt-1 h-[1.625em] w-40 text-xs" /></div>
         <Skeleton className="h-5 w-10 rounded-full" />
       </div>
     </DashboardSurface>

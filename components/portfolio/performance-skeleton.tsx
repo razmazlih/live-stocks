@@ -60,13 +60,13 @@ export function PerformanceSkeleton({ view, locale = 'he' }: { view: Performance
         {view === 'history' ? (
           <>
             <div className="flex items-start justify-between gap-3">
-              <div><Skeleton className="h-7 w-32" /><Skeleton className="mt-1 h-4 w-24" /></div>
+              <div><Skeleton className="h-7 w-32" /><Skeleton className="mt-1 h-[1lh] w-24 text-xs leading-relaxed" /></div>
               <Skeleton className="h-10 w-20 rounded-xl" />
             </div>
             <div className="my-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <Skeleton className="h-[52px] w-full rounded-xl sm:w-64" /><Skeleton className="h-4 w-28" />
+              <Skeleton className="h-[52px] w-full rounded-xl sm:w-64" /><Skeleton className="h-[1lh] w-28 text-[11px]" />
             </div>
-            <div className="mb-4 flex justify-between border-t pt-4"><Skeleton className="h-4 w-36" /><Skeleton className="h-4 w-16" /></div>
+            <div className="mb-4 flex justify-between border-t pt-4 text-[10px] sm:text-[11px]"><Skeleton className="h-[1lh] w-36" /><Skeleton className="h-[1lh] w-16" /></div>
             <Skeleton className="h-[280px] w-full rounded-xl sm:h-[360px]" />
             <div className="mt-4 flex h-11 items-center"><Skeleton className="h-3 w-40" /></div>
           </>
