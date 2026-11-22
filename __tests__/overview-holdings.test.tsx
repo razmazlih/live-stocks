@@ -19,14 +19,15 @@ const metrics = [metric('AAPL', -10), metric('MSFT', 20), metric('CLOSED', -30, 
 describe('overview holdings continuity', () => {
   beforeEach(() => window.history.replaceState(null, '', '/?chartRange=1Y'));
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-  it('labels daily percentage separately from return since entry and leaves missing daily quotes unavailable', () => {
+  it('shows daily change and directional target distance in the card summary', () => {
     render(<OverviewHoldings metrics={metrics} />);
     const card = within(screen.getByRole('button', { name: 'Expand AAPL details' }));
-    expect(card.getByText('Daily price change')).toBeInTheDocument();
+    expect(card.getByText('Day change')).toBeInTheDocument();
     expect(card.getByText('-2.50%')).toBeInTheDocument();
-    expect(card.getByText('Return since purchase')).toBeInTheDocument();
-    expect(card.getByText('+25.00%')).toBeInTheDocument();
-    expect(card.getByText('Holding value')).toBeInTheDocument();
+    expect(card.getByText('Rise to target')).toBeInTheDocument();
+    expect(card.getByText('10.00%')).toBeInTheDocument();
+    expect(card.getByText('Current price')).toBeInTheDocument();
+    expect(card.getByText('Target price')).toBeInTheDocument();
     expect(within(screen.getByRole('button', { name: 'Expand MSFT details' })).getByText('—')).toBeInTheDocument();
     const table = within(screen.getByRole('table'));
     const apple = within(table.getByRole('row', { name: /AAPL/ }));
@@ -47,7 +48,7 @@ describe('overview holdings continuity', () => {
     render(<OverviewHoldings metrics={[holding]} positions={[position]} sparklineData={{'fresh::activation-1': [latest]}} contextSparklineData={{'fresh::activation-1': [...context, latest]}} />);
     await userEvent.click(screen.getByRole('button', {name: 'Expand FRESH details'}));
     expect(screen.getByRole('img', {name: /FRESH price chart/})).toBeInTheDocument();
-    expect(screen.getByText('Share price · USD')).toBeVisible();
+    expect(screen.queryByText('Share price · USD')).not.toBeInTheDocument();
     expect(screen.getByText(/One week before entry in gray/)).toBeVisible();
     expect(screen.queryByText('Not enough price data to show a trend')).not.toBeInTheDocument();
     const stroke = document.querySelector('[data-price-stroke="true"]');
@@ -55,7 +56,7 @@ describe('overview holdings continuity', () => {
     expect(document.querySelector('[data-price-line="true"]')).toBeInTheDocument();
   });
 
-  it('shows a sale target recovering earlier partial losses in the expanded card', () => {
+  it('shows a sale target recovering earlier partial losses in the card header', () => {
     const asOf = new Date('2025-01-01T00:00:00Z');
     const position: Position = {
       id: 'TEST', symbol: 'TEST', display: 'Test Corp', imageUrl: '',
@@ -72,33 +73,36 @@ describe('overview holdings continuity', () => {
     fireEvent.click(button);
     const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(summary.getByText(formatCurrency(123.37, 'USD', 'en'))).toBeInTheDocument();
-    expect(summary.getByText(/23\.37%/)).toBeInTheDocument();
-    expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
+    expect(within(button).getByText(formatCurrency(100, 'USD', 'en'))).toBeInTheDocument();
+    expect(within(button).getByText(formatCurrency(123.37, 'USD', 'en'))).toBeInTheDocument();
+    expect(within(button).queryByText(formatCurrency(600, 'USD', 'en'))).not.toBeInTheDocument();
+    expect(summary.getByText('Holding value').nextElementSibling).toHaveTextContent(formatCurrency(600, 'USD', 'en'));
+    expect(within(button).getByText(/23\.37%/)).toBeInTheDocument();
+    expect(summary.queryByText(/23\.37%/)).not.toBeInTheDocument();
+    expect(within(button).queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
   });
   it('rounds the target upward to a tradable cent before comparing it with today’s price', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), requiredExitPrice: 100.001 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
-    fireEvent.click(button);
-    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
+    const summary = within(button);
     expect(summary.getByText(formatCurrency(100.01, 'USD', 'en'))).toBeInTheDocument();
-    expect(summary.getByText(/0\.01%/)).toBeInTheDocument();
+    expect(within(button).getByText(/0\.01%/)).toBeInTheDocument();
   });
   it('measures an already exceeded target relative to the target price', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), currentPrice: 125, requiredExitPrice: 100 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
     fireEvent.click(button);
-    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
+    const summary = within(button);
+    expect(summary.getByText('Above target')).toBeInTheDocument();
     expect(summary.getByText(/25\.00%/)).toBeInTheDocument();
     expect(summary.queryByText(/20\.00%/)).not.toBeInTheDocument();
   });
   it('leaves an unavailable full-history sale target unknown instead of using the open-lot target', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', -10), requiredExitPrice: undefined, projectedPrice: 110 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
-    fireEvent.click(button);
-    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
-    expect(summary.getAllByText('—').length).toBeGreaterThan(0);
-    expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
+    const summary = within(button);
+    expect(summary.getAllByText('—')).toHaveLength(2);
+    expect(within(button).queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
   });
   it('expands mobile details by keyboard, keeps a single card open, and restores stock return context', async () => {
     const user = userEvent.setup();
@@ -108,7 +112,7 @@ describe('overview holdings continuity', () => {
     const panel = document.getElementById(apple.getAttribute('aria-controls')!)!;
     expect(apple).toHaveAttribute('aria-expanded', 'false');
     expect(panel).toHaveAttribute('inert');
-    expect(screen.getByRole('link', { name: 'View AAPL details' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View AAPL details' })).not.toBeInTheDocument();
     apple.focus();
     await user.keyboard('{Enter}');
     expect(apple).toHaveAttribute('aria-expanded', 'true');
@@ -116,7 +120,7 @@ describe('overview holdings continuity', () => {
     expect(apple).toHaveFocus();
     expect(window.location.search).toBe('?chartRange=1Y');
     expect(within(apple).queryByText('Close', { exact: true })).not.toBeInTheDocument();
-    const link = screen.getByRole('link', { name: 'View AAPL details' });
+    const link = within(panel).getByRole('link', { name: 'View AAPL details' });
     expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y');
     // Prevent navigation in jsdom while exercising the return-context handler.
     link.addEventListener('click', event => event.preventDefault());
@@ -151,7 +155,7 @@ describe('overview holdings continuity', () => {
     window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');
     render(<OverviewHoldings metrics={metrics} />);
     expect(screen.getByRole('button', { name: 'Expand MSFT details' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('link', { name: 'View MSFT details' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View MSFT details' })).not.toBeInTheDocument();
     const query = new URLSearchParams(window.location.search);
     expect(query.get('holding')).toBeNull();
     expect(query.get('q')).toBe('Microsoft');
@@ -173,9 +177,10 @@ describe('overview holdings continuity', () => {
     { reducedMotion: false, closeFrom: 'footer' },
     { reducedMotion: false, closeFrom: 'details' },
     { reducedMotion: true, closeFrom: 'header' },
-  ])('follows opening immediately but never scrolls on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
+  ])('scrolls during expansion, fits the card and preserves the viewport on close ($closeFrom, reduced motion: $reducedMotion)', async ({ reducedMotion, closeFrom }) => {
     vi.useFakeTimers();
     let offset = 400;
+    let expandedHeight = reducedMotion ? 500 : 370;
     vi.stubGlobal('scrollY', offset);
     vi.stubGlobal('innerHeight', 902);
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: reducedMotion, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
@@ -187,7 +192,7 @@ describe('overview holdings continuity', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains('holding-card')) {
         const top = 1000 - offset;
-        const height = this.classList.contains('holding-card-open') ? 500 : 190;
+        const height = this.classList.contains('holding-card-open') ? expandedHeight : 190;
         return { x: 0, y: top, top, left: 0, right: 360, bottom: top + height, width: 360, height, toJSON() {} };
       }
       return { x: 0, y: 0, top: 0, left: 0, right: 360, bottom: 44, width: 360, height: 44, toJSON() {} };
@@ -196,17 +201,24 @@ describe('overview holdings continuity', () => {
     const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
     const card = toggle.closest('article')!;
     const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    // The dev server can serialize 360ms as .36s in the browser.
+    card.style.setProperty('--holding-duration', '.36s');
     expect(scrollTo).not.toHaveBeenCalled();
     fireEvent.click(toggle);
-    // No timer advance: following starts during the opening layout update.
-    expect(scrollTo).toHaveBeenCalled();
-    expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: reducedMotion ? 'auto' : 'instant' }));
-    // Normal motion starts with a small step rather than jumping to the final offset.
-    if (!reducedMotion) expect(Math.abs(offset - 400)).toBeLessThanOrEqual(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(280); });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    if (!reducedMotion) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+      const partialOffset = offset;
+      expect(partialOffset).toBeGreaterThan(400);
+      expect(partialOffset).toBeLessThan(610);
+      expandedHeight = 500;
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      expect(offset).toBeGreaterThan(partialOffset);
+    }
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
     expect(card.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(902);
-    const beforeClose = offset;
+    const fittedOffset = offset;
     scrollTo.mockClear();
     if (closeFrom === 'details') fireEvent.click(within(panel).getByText('Purchase cost'));
     else fireEvent.click(closeFrom === 'footer' ? screen.getByRole('button', { name: 'Close card' }) : toggle);
@@ -214,14 +226,41 @@ describe('overview holdings continuity', () => {
     expect(scrollTo).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(scrollTo).not.toHaveBeenCalled();
-    expect(offset).toBe(beforeClose);
+    expect(offset).toBe(fittedOffset);
     expect(toggle).toHaveFocus();
+  });
+  it('anchors the new header while the preceding open card shrinks over successive frames', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('scrollY', 600);
+    vi.stubGlobal('innerHeight', 904);
+    vi.spyOn(window, 'scrollTo').mockImplementation((options?: ScrollToOptions | number) => {
+      if (typeof options === 'object') vi.stubGlobal('scrollY', options.top);
+    });
+    render(<OverviewHoldings metrics={metrics} />);
+    const [upper, lower] = Array.from(document.querySelectorAll<HTMLElement>('.overview-holding-card'));
+    const button = (card: HTMLElement) => within(card).getByRole('button', { name: /details$/ });
+    fireEvent.click(button(upper));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    let upperHeight = 400;
+    vi.spyOn(lower, 'getBoundingClientRect').mockImplementation(() => {
+      const top = 400 + upperHeight - window.scrollY;
+      return new DOMRect(0, top, 440, 450);
+    });
+    const originalTop = lower.getBoundingClientRect().top;
+    fireEvent.click(button(lower));
+    expect(button(upper)).toHaveAttribute('aria-expanded', 'false');
+    expect(button(lower)).toHaveAttribute('aria-expanded', 'true');
+    for (const height of [360, 290, 200]) {
+      upperHeight = height;
+      await act(async () => { await vi.advanceTimersByTimeAsync(64); });
+      expect(lower.getBoundingClientRect().top).toBe(originalTop);
+    }
   });
   it('keeps local open state during a data refresh without scrolling or persisting it in the URL', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('scrollY', 400);
     vi.stubGlobal('innerHeight', 902);
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 600, top: 600, left: 0, right: 360, bottom: 1100, width: 360, height: 500, toJSON() {} });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 80, top: 80, left: 0, right: 360, bottom: 580, width: 360, height: 500, toJSON() {} });
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
     window.history.replaceState(null, '', '/?holding=MSFT&chartRange=1Y');
@@ -232,9 +271,8 @@ describe('overview holdings continuity', () => {
     expect(microsoft).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(microsoft);
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
-    expect(scrollTo).toHaveBeenCalled();
-    scrollTo.mockClear();
-    scrollBy.mockClear();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled();
     rerender(<OverviewHoldings metrics={metrics.map(item => ({ ...item, currentPrice: item.currentPrice + 1 }))} />);
     await act(async () => { await vi.advanceTimersByTimeAsync(280); });
     expect(screen.getByRole('button', { name: 'Collapse MSFT details' })).toHaveAttribute('aria-expanded', 'true');

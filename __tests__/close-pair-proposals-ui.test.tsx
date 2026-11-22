@@ -37,7 +37,6 @@ describe('close pair disclosure', () => {
     fixturePolicy.maxLosers = undefined;
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 160), metric('LOSS', 80), metric('MORE', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS \+ MORE details/ });
     expect(screen.getAllByRole('article')).toHaveLength(1);
     await user.click(toggle);
@@ -49,14 +48,17 @@ describe('close pair disclosure', () => {
   });
 
   beforeEach(() => { context.settings.annualGrowthRate = 0; fixturePolicy.maxLosers = 1; });
-  it('shows the count and opens the ideas with the keyboard', async () => {
+  it('shows the proposals immediately and supports collapsing and reopening with the keyboard', async () => {
     const user = userEvent.setup();
     context.locale = 'en';
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
     const toggle = screen.getByRole('button', { name: 'Full-position exit ideas (1)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('article')).toBeVisible();
+    toggle.focus();
+    await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
-    toggle.focus();
     await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Copy prompt for AI review'})).toBeVisible();
@@ -67,7 +69,6 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -90,8 +91,7 @@ describe('close pair disclosure', () => {
     expect(screen.getByTestId('close-pair-preview')).toHaveTextContent('+$20.00');
   });
 
-  it('excludes the CAPR pair when prior partial-sale losses outweigh current profits', async () => {
-    const user = userEvent.setup();
+  it('excludes the CAPR pair when prior partial-sale losses outweigh current profits', () => {
     context.locale = 'en';
     const capr: Position = { ...metric('CAPR', 10).position, quantity: 22, entryPrice: 20.3, entryDate: '2026-07-17', lots: [
       { type: 'BUY', quantity: 44, price: 20.3, executedAt: '2026-07-17', hasCommission: false, commissionAmount: 0 },
@@ -101,7 +101,6 @@ describe('close pair disclosure', () => {
     const caprOpenSlice = { ...capr, lots: [{ ...capr.lots![0], quantity: 22 }] };
     const metrics = [calculatePositionMetrics(cme, 316.9, 3.5), calculatePositionMetrics(caprOpenSlice, 10, 3.5)];
     render(<ClosePairProposals metrics={metrics} positions={[cme, capr]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
@@ -117,7 +116,6 @@ describe('close pair disclosure', () => {
     ] };
     const win = metric('WIN', 140);
     render(<ClosePairProposals metrics={[win, calculatePositionMetrics({ ...loss, lots: loss.lots!.slice(-1) }, 90, 3.5)]} positions={[win.position, loss]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     await user.click(screen.getByRole('button', { name: 'Expand WIN + LOSS details' }));
     expect(screen.getAllByText(/Previously realized/)).toHaveLength(2);
     const lossCard = screen.getByRole('link', { name: /^LOSS/ }).closest('li')!;
@@ -133,11 +131,9 @@ describe('close pair disclosure', () => {
     expect(snapshot.pairs[0].legs[1]).toMatchObject({realizedProfitUsd: -30, unrealizedProfitUsd: -20, cumulativeProfitUsd: -50});
   });
 
-  it('keeps the empty state concise without exposing the removed controls or filter paragraph', async () => {
-    const user = userEvent.setup();
+  it('keeps the empty state concise without exposing the removed controls or filter paragraph', () => {
     context.locale = 'en';
     render(<ClosePairProposals metrics={[metric('WIN', 110), metric('LOSS', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     expect(screen.getByRole('status')).toHaveTextContent('No qualifying exit groups');
     expect(screen.queryByText(/Loss filter:/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Losing stocks per proposal' })).not.toBeInTheDocument();
@@ -148,7 +144,6 @@ describe('close pair disclosure', () => {
     context.locale = 'he';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     await user.click(screen.getByRole('button', { name: /פתיחת פרטי WIN \+ LOSS/ }));
     expect(screen.getByText(/הדמיה בדולרים/)).toBeInTheDocument();
     expect(screen.getAllByText(/כל 2 המניות/)).toHaveLength(2);
@@ -158,7 +153,6 @@ describe('close pair disclosure', () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80), metric('OTHER', 95)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     expect(screen.getAllByRole('article')).toHaveLength(1);
     const toggle = screen.getByRole('button', { name: /Expand WIN \+ LOSS details/ });
     await user.click(screen.getByRole('button', { name: 'Copy prompt for AI review' }));
@@ -180,7 +174,6 @@ describe('close pair disclosure', () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Blocked')).mockResolvedValue();
     render(<ClosePairProposals metrics={[metric('WIN', 130), metric('LOSS', 80)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     const copy = screen.getByRole('button', { name: 'Copy prompt for AI review' });
     await user.click(copy);
     expect(toast.error).toHaveBeenCalledWith('Copy failed. Please try again.');
@@ -193,7 +186,6 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const user = userEvent.setup();
     render(<ClosePairProposals metrics={[metric('W1', 140), metric('W2', 130), metric('L1', 80), metric('L2', 90)]} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     const first = screen.getByRole('button', { name: 'Expand W1 + L1 details' });
     const second = screen.getByRole('button', { name: 'Expand W2 + L2 details' });
     await user.click(first);
@@ -217,7 +209,6 @@ describe('close pair disclosure', () => {
     context.locale = 'en';
     const positions = [metric('WIN', 130), metric('LOSS', 80)];
     const { rerender } = render(<ClosePairProposals metrics={positions} />);
-    await user.click(screen.getByRole('button', { name: /Full-position exit ideas|הצעות לסגירת החזקות/ }));
     expect(screen.getByText('Above personal target · USD')).toBeInTheDocument();
     expect(screen.getByText('Cumulative profit').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true');
     await user.click(screen.getByRole('button', {name: 'Expand WIN + LOSS details'}));

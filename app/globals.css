@@ -565,8 +565,7 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 .holding-detail-content a,
 .holding-detail-content details,
 .holding-detail-content dl,
-.holding-detail-content p,
-.holding-detail-content [data-chart-meta] { pointer-events: auto; }
+.holding-detail-content p { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
   .holding-card, .holding-monogram, .holding-chevron, .holding-reveal, .holding-detail-content, .holding-trend-layer, .holding-trend-layer::after { transition: none; }
   .holding-detail-content { transform: none; }
@@ -574,30 +573,63 @@ html[data-stock-navigation]::view-transition-new(root) { animation-duration: 160
 
 /* Focused inline holding details keep the chart and the exit visible together. */
 .overview-holding-card { overflow-anchor: none; }
-.overview-holding-card .holding-toggle { transition: padding 240ms cubic-bezier(.22,1,.36,1); }
-.overview-holding-card .holding-summary-grid { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), gap 240ms cubic-bezier(.22,1,.36,1); }
-.overview-holding-card .holding-summary-grid > span > span:last-child { transition: margin-top 240ms cubic-bezier(.22,1,.36,1), font-size 240ms cubic-bezier(.22,1,.36,1), line-height 240ms cubic-bezier(.22,1,.36,1); }
-.overview-holding-card .holding-summary-footer { transition: margin-top 240ms cubic-bezier(.22,1,.36,1); }
-.overview-holding-card-open .holding-toggle { padding-top: 12px; padding-bottom: 10px; }
-.overview-holding-card-open .holding-summary-grid { margin-top: 8px; gap: 8px; }
-.overview-holding-card-open .holding-summary-grid > span > span:last-child { margin-top: 2px; font-size: 14px; line-height: 20px; }
-.overview-holding-card-open .holding-summary-footer { margin-top: 6px; }
-.overview-holding-card-open .holding-detail-content { padding-bottom: 12px; }
-.overview-holding-card-open .holding-detail-content > dl { row-gap: 8px; }
-.overview-holding-card-open .holding-detail-content dd { margin-top: 3px; }
-.overview-holding-card-open .holding-chart-detail { margin-top: 12px; }
-.overview-holding-card-open .holding-chart-detail [data-chart-meta] { margin-bottom: 6px; }
-.overview-holding-card-open .holding-chart-slot { height: clamp(112px, calc(100dvh - 560px), 176px); }
-.overview-holding-card-open .holding-detail-footer { margin-top: 8px; gap: 4px; }
-.overview-holding-card-open .holding-detail-footer > p { width: 100%; font-size: 10px; line-height: 16px; }
-.overview-holding-card-open .holding-detail-actions { width: 100%; justify-content: space-between; }
-.overview-holding-card-open .stock-details-action { min-height: 44px; padding-inline: 12px; font-size: 12px; }
-.overview-holding-card-open .holding-close-action { pointer-events: auto; }
+.overview-holding-card::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0 8% auto;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #579aff 26%, #61d9ed 50%, #579aff 74%, transparent);
+  box-shadow: 0 2px 12px rgb(64 169 242 / 28%);
+  opacity: 0;
+  transform: scaleX(.12);
+}
+.overview-holding-card-open::before { opacity: 1; transform: scaleX(1); }
+.overview-holding-card .holding-trend-layer::after { display: none; }
+.overview-holding-card:not(.holding-card-open) .holding-trend-layer { opacity: .75; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .overview-holding-card {
+    --holding-duration: 260ms;
+    --holding-ease: cubic-bezier(.24,.78,.28,1);
+  }
+  /* Sibling cards exchange height at the same pace when switching holdings. */
+  :has(> .overview-holding-card-open) > .overview-holding-card { --holding-duration: 360ms; }
+  .overview-holding-card::before {
+    transition: opacity var(--holding-duration) ease, transform var(--holding-duration) var(--holding-ease);
+  }
+  .overview-holding-card .holding-preview-slot {
+    transition: height var(--holding-duration) var(--holding-ease), margin-top var(--holding-duration) var(--holding-ease);
+  }
+  .overview-holding-card .holding-reveal,
+  .overview-holding-card .holding-chevron {
+    transition-duration: var(--holding-duration);
+    transition-timing-function: var(--holding-ease);
+  }
+  .overview-holding-card .holding-detail-content > dl {
+    transform: translateY(-6px);
+    transition: transform var(--holding-duration) var(--holding-ease);
+  }
+  .overview-holding-card-open .holding-detail-content > dl { transform: translateY(0); }
+}
+.overview-holding-card .holding-detail-content { padding-bottom: 12px; }
+.overview-holding-card .holding-detail-content > dl { row-gap: 8px; }
+.overview-holding-card .holding-detail-content dd { margin-top: 3px; }
+.overview-holding-card .holding-chart-detail { margin-top: 12px; }
+.overview-holding-card .holding-chart-slot { height: clamp(112px, calc(100dvh - 560px), 176px); }
+.overview-holding-card .holding-detail-footer { margin-top: 8px; gap: 4px; }
+.overview-holding-card .holding-detail-footer > p { width: 100%; font-size: 10px; line-height: 16px; }
+.overview-holding-card .holding-detail-actions { width: 100%; justify-content: space-between; }
+.overview-holding-card .stock-details-action { min-height: 44px; padding-inline: 12px; font-size: 12px; }
+.overview-holding-card .holding-close-action { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
-  .overview-holding-card .holding-toggle,
-  .overview-holding-card .holding-summary-grid,
-  .overview-holding-card .holding-summary-grid > span > span:last-child,
-  .overview-holding-card .holding-summary-footer { transition: none; }
+  .overview-holding-card,
+  .overview-holding-card::before,
+  .overview-holding-card * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 /* Liquid Glass materials. Semantic colors work in cards, portals and SVG charts. */
