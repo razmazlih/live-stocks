@@ -48,6 +48,9 @@ export const PASSWORD_AUTH_PATHS = ['/sign-in/email', '/sign-up/email', '/reques
 export function isPasswordAuthPath(path: string): boolean { return PASSWORD_AUTH_PATHS.includes(path) || path.startsWith('/reset-password/'); }
 
 export function getAuthPublicOptions() {
+  if (process.env.LIVESTOCKS_REVIEW_DEMO === '1' && (process.env.VERCEL_ENV === 'preview' || process.env.NODE_ENV === 'development')) {
+    return { configured: true, reviewEnabled: true, demoEnabled: false, passwordEnabled: false, googleEnabled: false, emailDeliveryConfigured: false };
+  }
   let configured = false;
   try { betterAuthConfiguration(); configured = true; } catch { /* Public pages render while setup is incomplete. */ }
   return { configured, demoEnabled: process.env.NODE_ENV === 'development', passwordEnabled: isPasswordAuthEnabled(),

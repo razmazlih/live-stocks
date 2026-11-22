@@ -1,4 +1,5 @@
 import { DEMO_USER_ID } from '@/lib/demo/data';
+import { createReviewFetch, isReviewActive } from '@/lib/demo/review';
 import { demoRequest } from '@/lib/demo/client';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -18,7 +19,7 @@ export function resetSupabaseClient() {
       localStorage.removeItem('settings');
       // Old navigation and ticker caches can identify the previous user's holdings/watchlist.
       sessionStorage.removeItem('livestocks:return-context');
-      Object.keys(localStorage).filter((key) => key.startsWith('watchlist:ticker:'))
+      Object.keys(localStorage).filter((key) => key.startsWith('watchlist:ticker:') || key.startsWith('watchlist:quote:'))
         .forEach((key) => localStorage.removeItem(key));
     } catch { /* Storage may be disabled. */ }
   }
@@ -39,6 +40,7 @@ export function configureSupabaseUser(userId: string | null) {
 }
 
 export function getLocalDemoDashboard(signal?: AbortSignal) {
+  if (currentUserId === DEMO_USER_ID && isReviewActive()) return demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>('dashboard', { signal });
   return process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID
     && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
     ? demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>('dashboard', { signal }) : null;
@@ -50,6 +52,17 @@ export function getSupabaseClient(): SupabaseInstance {
   }
   if (!currentUserId) throw new Error('A signed-in account is required.');
   if (cachedClient) return cachedClient;
+
+  if (currentUserId === DEMO_USER_ID && isReviewActive()) {
+    const generation = sessionGeneration;
+    cachedClient = createClient(window.location.origin + '/api/review', 'synthetic-preview', {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: createReviewFetch(() => {
+        if (generation !== sessionGeneration || currentUserId !== DEMO_USER_ID) throw new Error('Preview session ended');
+      }) },
+    });
+    return cachedClient;
+  }
 
   if (process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
     const generation = sessionGeneration;

@@ -1,3 +1,4 @@
+import { isReviewActive, reviewRequest } from './review';
 import type { Settings } from '@/types';
 import { TRANSPARENCY_STORAGE_KEY } from '@/lib/appearance-preferences';
 
@@ -9,6 +10,7 @@ function browserBackup(key: string): string | null {
 }
 
 export async function demoRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isReviewActive()) return reviewRequest(path, init) as T;
   const response = await fetch(`/api/local-demo/${path}`, { ...init, credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...init?.headers } });
   if (!response.ok) {
@@ -44,6 +46,7 @@ export function saveDemoPreferences(preferences: DemoPreferences): Promise<DemoP
 
 export async function resetComputerDemo(): Promise<void> {
   await demoRequest('reset', { method: 'POST', body: JSON.stringify({ confirm: true }) });
+  if (isReviewActive()) return;
   for (const key of legacyKeys) {
     try { localStorage.removeItem(key); } catch { /* The reset disk account remains authoritative. */ }
   }

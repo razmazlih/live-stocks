@@ -22,6 +22,8 @@ vi.mock('@/components/dashboard/page-primitives', () => {
   return { DashboardContainer: Container, DashboardMain: Container, DashboardSurface: Container };
 });
 import SettingsPage from '@/app/settings/page';
+import { setReviewActive } from '@/lib/demo/review';
+import { resetComputerDemo } from '@/lib/demo/client';
 import { DEMO_SETTINGS_KEY } from '@/lib/demo/settings';
 let computerSettings = { annualGrowthRate: 0.05, currency: 'USD', refreshInterval: 60 };
 let failSave = false;
@@ -56,7 +58,7 @@ beforeEach(() => {
   mocks.insert.mockResolvedValue({ error: null });
   mocks.getClient.mockReturnValue({ from: vi.fn().mockReturnValue(chain) });
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { setReviewActive(false); sessionStorage.clear(); cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 async function openSettings() {
   const view = render(<SettingsPage />);
@@ -66,6 +68,21 @@ async function openSettings() {
 }
 
 describe('locally persisted demo settings', () => {
+  it('scopes review saves, reset copy and reset effects to the current tab', async () => {
+    setReviewActive(true);
+    localStorage.setItem(DEMO_SETTINGS_KEY, 'disk-demo-backup');
+    await openSettings();
+    expect(screen.getByText(/Changes to the sample portfolio are saved in this tab/)).toBeInTheDocument();
+    fireEvent.change(document.getElementById('growthRate')!, { target: { value: '0.08' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(mocks.success).toHaveBeenCalledWith('Sample settings saved in this tab'));
+    fireEvent.click(screen.getByRole('button', { name: /^Reset demo$/ }));
+    expect(screen.getByRole('dialog', { name: 'Reset the sample portfolio in this tab?' })).toBeInTheDocument();
+    await resetComputerDemo();
+    expect(localStorage.getItem(DEMO_SETTINGS_KEY)).toBe('disk-demo-backup');
+    expect(computerFetch).not.toHaveBeenCalled();
+  });
+
   it('does not allow saving defaults while the computer settings are loading', async () => {
     let finish!: (response: Response) => void;
     computerFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));

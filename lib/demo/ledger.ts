@@ -191,13 +191,13 @@ export function createDemoFetch(assertCurrentSession: () => void): typeof fetch 
   };
 }
 
-export function localDemoDashboard(ledger = readDemoLedger()) {
+export function localDemoDashboard(ledger = readDemoLedger(), asOf = Date.now()) {
   const positions = rowsFor(ledger, 'positions', new URLSearchParams()).map(row => mapPositionRow(row as unknown as Parameters<typeof mapPositionRow>[0]));
   const quotes = Object.fromEntries(positions.map(position => [position.symbol, demoQuote(position.symbol, position.entryPrice)]));
   const candlesByKey: Record<string, HistoricalPoint[]> = {};
   for (const position of positions) {
-    const first = Math.min(...(position.lots ?? []).map(lot => Date.parse(lot.executedAt)), Date.now());
-    const days = Math.min(370, Math.max(2, Math.ceil((Date.now() - first) / 86400000) + 1));
+    const first = Math.min(...(position.lots ?? []).map(lot => Date.parse(lot.executedAt)), asOf);
+    const days = Math.min(370, Math.max(2, Math.ceil((asOf - first) / 86400000) + 1));
     candlesByKey[position.id!] = Array.from({ length: days }, (_, index) => ({ timestamp: first + index * 86400000,
       close: position.entryPrice + (quotes[position.symbol].c - position.entryPrice) * index / (days - 1) }));
   }
@@ -207,7 +207,7 @@ export function localDemoDashboard(ledger = readDemoLedger()) {
     if (position.activationId) candlesByKey[position.activationId] = points;
     if (position.id) candlesByKey[position.id] = points;
   }
-  return { positions, activationPositions, quotes, candlesByKey, contextCandlesByKey: candlesByKey,
+  return { asOf, positions, activationPositions, quotes, candlesByKey, contextCandlesByKey: candlesByKey,
     usdToIls: 3.65, fxHistoryPoints: [{ timestamp: Date.UTC(2000, 0, 1), close: 3.65 }], spyPoints: [] as HistoricalPoint[] };
 }
 

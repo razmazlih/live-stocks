@@ -8,7 +8,7 @@ export function hasLocalDemoSession(request: NextRequest) {
   return localDemoEnabled() && isLoopbackHost(request.nextUrl.hostname) && request.cookies.get(DEMO_COOKIE)?.value === '1';
 }
 const headers = { 'Cache-Control': 'private, no-store' };
-export function demoApiResponse(request: NextRequest): NextResponse {
+export function demoApiResponse(request: NextRequest, review = false): NextResponse {
   const path = request.nextUrl.pathname;
   if (request.method !== 'GET') return NextResponse.json({ error: 'שינויים בדמו נשמרים בדפדפן בלבד, ולא בשרת. / Demo changes are saved only in your browser, never on the server.', message: 'שינויים בדמו נשמרים בדפדפן בלבד, ולא בשרת. / Demo changes are saved only in your browser, never on the server.', code: 'DEMO_READ_ONLY' }, { status: 403, headers });
   if (path === '/api/assets') {
@@ -40,7 +40,7 @@ export function demoApiResponse(request: NextRequest): NextResponse {
     const c = t.map((_, index) => price * (0.9 + index / 890));
     return NextResponse.json({ s: 'ok', t, c, o: c, h: c, l: c, v: c.map(() => 1000) }, { headers });
   }
-  if (path === '/api/account/session') return NextResponse.json({ configured: true, user: demoUser }, { headers });
+  if (path === '/api/account/session') return NextResponse.json({ configured: true, user: demoUser, ...(review && { review: true }) }, { headers });
   if (path === '/api/portfolio/dashboard') return NextResponse.json(demoDashboard(), { headers });
   if (path.startsWith('/api/local-demo/rest/v1/')) {
     const table = path.split('/').at(-1)!;

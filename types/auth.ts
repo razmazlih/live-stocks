@@ -1,6 +1,7 @@
 export type AuthPublicOptions = {
   configured: boolean;
   demoEnabled?: boolean;
+  reviewEnabled?: boolean;
   passwordEnabled: boolean;
   googleEnabled: boolean;
   emailDeliveryConfigured: boolean;

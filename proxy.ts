@@ -1,4 +1,4 @@
-import { hasLocalDemoSession, demoApiResponse } from '@/lib/demo/server';
+import { hasLocalDemoSession, demoApiResponse, isLoopbackHost } from '@/lib/demo/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBetterAuthSession } from '@/lib/auth/better-auth';
 import { isPublicInformationPath, isPublicAuthPath } from '@/lib/public-routes';
@@ -6,9 +6,20 @@ import { getPublicPublisher } from '@/lib/public-publisher';
 import { maintenanceResponse } from '@/lib/maintenance';
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const review = process.env.LIVESTOCKS_REVIEW_DEMO === '1'
+    && (process.env.VERCEL_ENV === 'preview' || (process.env.NODE_ENV === 'development' && isLoopbackHost(request.nextUrl.hostname)));
+  if (review) {
+    if (pathname.startsWith('/api/')) return demoApiResponse(request, true);
+    if (!['GET', 'HEAD'].includes(request.method) || pathname.startsWith('/account/') || pathname.startsWith('/oauth/') || pathname.startsWith('/.well-known/')) {
+      return new NextResponse(null, { status: 404 });
+    }
+    const response = NextResponse.next();
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
   const maintenance = maintenanceResponse(request);
   if (maintenance) return maintenance;
-  const pathname = request.nextUrl.pathname;
   if (hasLocalDemoSession(request) && pathname !== '/api/local-demo' && !pathname.startsWith('/api/local-demo/')) {
     if (pathname.startsWith('/api/')) return demoApiResponse(request);
     if (!pathname.startsWith('/oauth/') && !pathname.startsWith('/account/')) return NextResponse.next();

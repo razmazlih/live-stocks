@@ -12,7 +12,11 @@ export const demoAssets = [
 ];
 export function demoQuote(symbol: string, fallbackPrice = 100) {
   const price = demoAssets.find(asset => asset.symbol === symbol.toUpperCase())?.price ?? fallbackPrice;
-  return { c: price, d: 0, dp: 0, h: price, l: price, o: price, pc: price, t: 0 };
+  const changes: Record<string, number> = { AAPL: 2.5, MSFT: -1.75, NVDA: 4.25 };
+  const change = changes[symbol.toUpperCase()] ?? 0;
+  const previousClose = price - change;
+  return { c: price, d: change, dp: 100 * change / previousClose, h: Math.max(price, previousClose),
+    l: Math.min(price, previousClose), o: previousClose, pc: previousClose, t: 0 };
 }
 export function demoAsset(symbol: string) {
   const asset = demoAssets.find(asset => asset.symbol === symbol.toUpperCase());

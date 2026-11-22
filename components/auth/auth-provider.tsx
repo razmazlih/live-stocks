@@ -13,13 +13,14 @@ import { authNavigation, clearBrowserAccount } from '@/lib/auth/browser-session'
 import { mirrorDemoEntryLocale } from '@/lib/entry-locale';
 import type { Locale } from '@/types';
 import { DEMO_USER_ID } from '@/lib/demo/data';
+import { setReviewActive, isReviewActive } from '@/lib/demo/review';
 import { initializeComputerDemo } from '@/lib/demo/client';
 import { DemoAppearanceSync } from '@/components/settings/demo-appearance-sync';
 import { Button } from '@/components/ui/button';
 import type { AuthPublicOptions } from '@/types/auth';
 
 export type AccountUser = { id: string; email?: string; name?: string; emailVerified: boolean };
-type AccountSession = { user: AccountUser | null; configured: boolean; options?: AuthPublicOptions; demoLocale?: Locale };
+type AccountSession = { user: AccountUser | null; configured: boolean; options?: AuthPublicOptions; demoLocale?: Locale; review?: boolean };
 const AuthContext = createContext<{ user: AccountUser; signOut: () => void } | null>(null);
 const ACCOUNT_EVENT = 'livestocks:account-change';
 
@@ -98,6 +99,7 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
       const value = await response.json() as AccountSession;
       if (!isCurrent()) return;
       if (typeof value.configured !== 'boolean' || (value.user && !value.user.id)) throw new Error('Invalid session response');
+      setReviewActive(value.user?.id === DEMO_USER_ID && value.review === true);
       if (value.user?.id === DEMO_USER_ID) {
         const demoState = await initializeComputerDemo(controller.signal);
         value.demoLocale = demoState.preferences.locale;
@@ -160,6 +162,10 @@ function PrivateAuthProvider({ children, options }: { children: ReactNode; optio
     clearBrowserAccount('logout');
     acceptSession({ user: null, configured: true });
     try {
+      if (isDemo && isReviewActive()) {
+        authNavigation.assign('/sign-in');
+        return;
+      }
       if (process.env.NODE_ENV === 'development' && isDemo) {
         const response = await fetch('/api/local-demo', { method: 'DELETE', credentials: 'same-origin' });
         if (!response.ok) throw new Error('Demo sign-out failed');

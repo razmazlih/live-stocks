@@ -5,6 +5,7 @@ import { useApp } from "@/lib/context";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DEMO_USER_ID } from "@/lib/demo/data";
 import { readDemoSettings, saveDemoSettings } from "@/lib/demo/settings";
+import { isReviewActive } from "@/lib/demo/review";
 import { resetComputerDemo } from "@/lib/demo/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useTranslation } from "@/lib/translations";
@@ -34,7 +35,11 @@ export default function SettingsPage() {
   const { t } = useTranslation(locale);
   const { user, signOut } = useAuth();
   const isDemo = user.id === DEMO_USER_ID;
-  const demoMessage = locale === "he"
+  const review = isDemo && isReviewActive();
+  const he = locale === "he";
+  const demoMessage = review
+    ? (he ? "שינויים בתיק ההדגמה נשמרים בלשונית הזו ושורדים רענון של הדף." : "Changes to the sample portfolio are saved in this tab and survive page refreshes.")
+    : he
     ? "כל נתוני הדמו נשמרים בקובץ במחשב הזה ומשותפים לכל הדפדפנים, גם לאחר הפעלה מחדש. הם אינם נשלחים למסד הנתונים של החשבון האישי."
     : "Demo data is saved in a file on this computer, shared across browsers and retained after restarts. It never goes to your personal account database.";
   const [formData, setFormData] = useState(settings);
@@ -73,7 +78,7 @@ export default function SettingsPage() {
         if (active) {
           setSettingsLoadError(true);
           console.error("Error loading settings:", error);
-          if (isDemo) toast.error("לא ניתן לטעון את הגדרות הדמו מהמחשב / Could not load demo settings from this computer");
+          if (isDemo && !review) toast.error("לא ניתן לטעון את הגדרות הדמו מהמחשב / Could not load demo settings from this computer");
         }
       } finally {
         if (active) setLoadingSettings(false);
@@ -81,7 +86,7 @@ export default function SettingsPage() {
     }
     void loadSettings();
     return () => { active = false; };
-  }, [isDemo]);
+  }, [isDemo, review]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -99,7 +104,7 @@ export default function SettingsPage() {
       if (isDemo) {
         await saveDemoSettings(formData);
         setSettings(formData);
-        toast.success(locale === "he" ? "הגדרות הדמו נשמרו במחשב לכל הדפדפנים" : "Demo settings saved on this computer for all browsers");
+        toast.success(review ? (he ? "הגדרות ההדגמה נשמרו בלשונית הזו" : "Sample settings saved in this tab") : he ? "הגדרות הדמו נשמרו במחשב לכל הדפדפנים" : "Demo settings saved on this computer for all browsers");
         return;
       }
       const supabase = getSupabaseClient();
@@ -170,11 +175,12 @@ export default function SettingsPage() {
         <DashboardMain>
           {isDemo ? (
             <DashboardSurface>
-              <h2 className="text-lg font-semibold">{locale === "he" ? "חשבון דמו" : "Demo account"}</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{locale === "he"
-                ? "חשבון מקומי עם נתונים סינתטיים. עסקאות, מקורות השקעה, רשימות מעקב והגדרות נשמרים במחשב הזה. חיבורים לחשבון אישי ולשירותים חיצוניים אינם מופעלים בדמו."
+              <h2 className="text-lg font-semibold">{review ? (he ? "תיק הדגמה" : "Sample portfolio") : he ? "חשבון דמו" : "Demo account"}</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{review
+                ? (he ? "התיק מכיל מניות ועסקאות לדוגמה שאפשר לערוך כאן." : "This portfolio contains sample holdings and trades you can edit.")
+                : he ? "חשבון מקומי עם נתונים סינתטיים. עסקאות, מקורות השקעה, רשימות מעקב והגדרות נשמרים במחשב הזה. חיבורים לחשבון אישי ולשירותים חיצוניים אינם מופעלים בדמו."
                 : "A local account with synthetic data. Transactions, investment sources, watchlists and settings are saved on this computer. Personal account connections and external integrations remain unavailable in demo."}</p>
-              <Button type="button" variant="outline" className="mt-4" onClick={() => { void signOut(); }}>{locale === "he" ? "יציאה מהדמו" : "Sign out of demo"}</Button>
+              <Button type="button" variant="outline" className="mt-4" onClick={() => { void signOut(); }}>{review ? (he ? "חזרה למסך הכניסה להדגמה" : "Return to preview welcome") : he ? "יציאה מהדמו" : "Sign out of demo"}</Button>
             </DashboardSurface>
           ) : <AccountSettings locale={locale} onCredentialChange={setTokenConfigured} />}
           <AppearanceSettings locale={locale} demo={isDemo} />
@@ -290,13 +296,13 @@ export default function SettingsPage() {
           </DashboardSurface>
           {isDemo && <DashboardSurface>
             <h2 className="text-lg font-semibold">{locale === "he" ? "איפוס חשבון הדמו" : "Reset demo account"}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{locale === "he" ? "מחיקת השינויים בחשבון הדמו המשותף במחשב וחזרה לנתוני ההדגמה ההתחלתיים." : "Remove changes from this computer’s shared demo account and restore the initial sample data."}</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{review ? (he ? "שחזור תיק הדוגמה המקורי בלשונית הזו." : "Restore the original sample portfolio in this tab.") : he ? "מחיקת השינויים בחשבון הדמו המשותף במחשב וחזרה לנתוני ההדגמה ההתחלתיים." : "Remove changes from this computer’s shared demo account and restore the initial sample data."}</p>
             <Button type="button" variant="destructive" className="mt-4" onClick={() => setResetOpen(true)}>{locale === "he" ? "איפוס הדמו" : "Reset demo"}</Button>
             <Dialog open={resetOpen} onOpenChange={(open) => { if (!resetting) setResetOpen(open); }}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{locale === "he" ? "לאפס את חשבון הדמו במחשב?" : "Reset this computer’s demo account?"}</DialogTitle>
-                  <DialogDescription>{locale === "he" ? "כל העסקאות, ההחזקות, מקורות ההשקעה, רשימות המעקב וההגדרות בדמו יאופסו בכל הדפדפנים במחשב הזה. החשבון האישי לא ישתנה." : "All demo transactions, holdings, investment sources, watchlists and settings will reset across every browser on this computer. Your personal account will remain unchanged."}</DialogDescription>
+                  <DialogTitle>{review ? (he ? "לאפס את תיק ההדגמה בלשונית הזו?" : "Reset the sample portfolio in this tab?") : he ? "לאפס את חשבון הדמו במחשב?" : "Reset this computer’s demo account?"}</DialogTitle>
+                  <DialogDescription>{review ? (he ? "העסקאות, ההחזקות, מקורות ההשקעה, רשימות המעקב וההגדרות בלשונית הזו יחזרו לערכי ההדגמה ההתחלתיים." : "Trades, holdings, investment sources, watchlists and settings in this tab will return to their initial sample values.") : he ? "כל העסקאות, ההחזקות, מקורות ההשקעה, רשימות המעקב וההגדרות בדמו יאופסו בכל הדפדפנים במחשב הזה. החשבון האישי לא ישתנה." : "All demo transactions, holdings, investment sources, watchlists and settings will reset across every browser on this computer. Your personal account will remain unchanged."}</DialogDescription>
                 </DialogHeader>
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" disabled={resetting} onClick={() => setResetOpen(false)}>{locale === "he" ? "ביטול" : "Cancel"}</Button>
