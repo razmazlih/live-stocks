@@ -185,7 +185,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
           <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
         </span>
-        <span ref={previewSlotRef} aria-hidden="true" className={expanded || !chartAvailable ? 'block h-0' : 'mt-2 block h-5'} />
+        <span ref={previewSlotRef} aria-hidden="true" className={expanded || !chartAvailable ? 'block h-0' : 'mt-3 block h-20'} />
       </span>
     </button>
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
@@ -209,16 +209,16 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           {contextPriceMode ? <p className="mt-1 text-[10px] text-slate-400">{he ? 'שבוע לפני הכניסה באפור · הצבעים מתחילים בכניסה להחזקה הנוכחית' : 'One week before entry in gray · colors begin at the current holding’s entry'}</p> : null}
           <div className="holding-detail-footer mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p>
-            <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
+            <div className="holding-detail-actions flex flex-wrap items-center gap-2">
+              <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
+              </StockDetailsLink>
+              <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
+            </div>
           </div>
 
         </div>
       </div>
-    </div>
-    <div className="relative flex justify-end border-t border-slate-100 px-2 sm:px-3">
-      <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-        {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
-      </StockDetailsLink>
     </div>
   </article>;
 }

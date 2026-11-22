@@ -112,7 +112,7 @@ describe('overview holdings continuity', () => {
     const panel = document.getElementById(apple.getAttribute('aria-controls')!)!;
     expect(apple).toHaveAttribute('aria-expanded', 'false');
     expect(panel).toHaveAttribute('inert');
-    expect(screen.getByRole('link', { name: 'View AAPL details' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View AAPL details' })).not.toBeInTheDocument();
     apple.focus();
     await user.keyboard('{Enter}');
     expect(apple).toHaveAttribute('aria-expanded', 'true');
@@ -120,7 +120,7 @@ describe('overview holdings continuity', () => {
     expect(apple).toHaveFocus();
     expect(window.location.search).toBe('?chartRange=1Y');
     expect(within(apple).queryByText('Close', { exact: true })).not.toBeInTheDocument();
-    const link = screen.getByRole('link', { name: 'View AAPL details' });
+    const link = within(panel).getByRole('link', { name: 'View AAPL details' });
     expect(validateReturnTo(new URL(link.getAttribute('href')!, 'http://local.test').searchParams.get('returnTo'))).toBe('/?chartRange=1Y');
     // Prevent navigation in jsdom while exercising the return-context handler.
     link.addEventListener('click', event => event.preventDefault());
@@ -155,7 +155,7 @@ describe('overview holdings continuity', () => {
     window.history.replaceState(null, '', '/?holding=MSFT&q=Microsoft&chartRange=1Y');
     render(<OverviewHoldings metrics={metrics} />);
     expect(screen.getByRole('button', { name: 'Expand MSFT details' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('link', { name: 'View MSFT details' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View MSFT details' })).not.toBeInTheDocument();
     const query = new URLSearchParams(window.location.search);
     expect(query.get('holding')).toBeNull();
     expect(query.get('q')).toBe('Microsoft');
