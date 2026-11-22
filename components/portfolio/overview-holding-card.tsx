@@ -92,7 +92,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
   const tone = (value: number) => value > 0.01 ? 'text-emerald-700' : value < -0.01 ? 'text-rose-600' : 'text-slate-600';
   const percent = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? `${value > 0 ? '+' : ''}${formatPercent(value, locale)}` : '—';
-  const gapLabel = (difference: number) => !Number.isFinite(difference) ? (he ? 'עלייה ליעד' : 'Rise to target') : difference < -0.001 ? (he ? 'עלייה ליעד' : 'Rise to target') : difference > 0.001 ? (he ? 'מעל היעד' : 'Above target') : (he ? 'ביעד' : 'On target');
+  const gapLabel = (difference: number) => !Number.isFinite(difference) ? (he ? 'מרחק מהיעד' : 'Distance to target') : difference < -0.001 ? (he ? 'עלייה ליעד' : 'Rise to target') : difference > 0.001 ? (he ? 'מעל היעד' : 'Above target') : (he ? 'ביעד' : 'On target');
   const events = useMemo<SparklineEvent[]>(() => {
     const lots = m.position.lots ?? [];
     const recorded = lots.flatMap((lot, index) => {
@@ -153,7 +153,6 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
   const target = getHoldingTarget(m);
   const value = currency === 'ILS' ? m.currentValueIls : m.currentValue;
   const cost = value - pnl;
-  const holdingReturn = Number.isFinite(cost) && cost > 0 ? pnl / cost * 100 : undefined;
   const cumulativeProfit = profitPoints.at(-1)?.actual;
   const holdingTone = typeof cumulativeProfit !== 'number' || !Number.isFinite(cumulativeProfit) || Math.abs(cumulativeProfit) < 0.01 ? 'neutral' : cumulativeProfit > 0 ? 'profit' : 'loss';
   const allocation = Number.isFinite(value) && portfolioValue > 0 ? value / portfolioValue * 100 : undefined;
@@ -177,7 +176,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
         </span>
         <span className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
           <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
-          <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{he ? 'תשואה מהקנייה' : 'Since purchase'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(holdingReturn ?? 0)}`}><bdi>{percent(holdingReturn)}</bdi></span></span>
+          <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
         </span>
         <span ref={previewSlotRef} aria-hidden="true" className={expanded || !chartAvailable ? 'block h-0' : 'mt-2 block h-5'} />
       </span>
@@ -192,19 +191,11 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 px-3 py-3 sm:grid-cols-3">
             <div><dt className="text-xs text-slate-500">{he ? 'מחיר מניה' : 'Share price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{usd(m.currentPrice)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'מחיר יעד' : 'Target price'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{gapLabel(target.difference)}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'רווח/הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi></dd></div>
             <div><dt className="text-xs text-slate-500">{he ? 'מצטבר בכל החשבונות' : 'P/L across accounts'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><bdi>{usd(cumulativeProfit ?? undefined)}</bdi></dd></div>
           </dl>
-          <p className="mt-2 text-xs text-slate-500">{he ? 'מחיר היעד להיום כולל מכירות קודמות.' : 'Today’s target includes previous sales.'}</p>
           <div className="holding-chart-detail mt-5">
-            <div data-chart-meta="" className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500"><span>{contextPriceMode ? he ? 'מחיר המניה · USD' : 'Share price · USD' : he ? 'רווח מצטבר · USD' : 'Cumulative profit · USD'}</span>{historyRange ? <span className="text-[10px]"><bdi>{historyRange.start} – {historyRange.end}</bdi></span> : null}</div>
-            <div data-chart-meta="" className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[10px] text-slate-500">
-              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-rose-500" />{contextPriceMode ? he ? 'מתחת לעלות' : 'Below cost' : he ? 'הפסד' : 'Loss'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-blue-500" />{he ? 'מתחת ליעד' : 'Below target'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{he ? 'ביעד ומעלה' : 'At / above target'}</span></span>
-              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><i aria-hidden className="w-3 border-t border-dashed border-slate-400" />{contextPriceMode ? he ? 'עלות המניות' : 'Purchase cost' : he ? 'איזון (0)' : 'Break-even (0)'}</span><span className="inline-flex items-center gap-1"><i aria-hidden className="w-3 border-t border-dashed border-blue-400" />{contextPriceMode ? he ? 'יעד מחיר' : 'Price target' : he ? 'יעד רווח לפי יום' : 'Daily profit target'}</span></span>
-            </div>
-            <div data-chart-meta="" className="mb-2 flex items-center gap-3 text-[10px] text-slate-500"><span className="inline-flex items-center gap-1.5"><i aria-hidden className="h-2 w-2 rounded-full border-2 border-emerald-600 bg-white" />{he ? 'קנייה' : 'Buy'}</span><span className="inline-flex items-center gap-1.5"><i aria-hidden className="h-2 w-2 rounded-sm border-2 border-rose-600 bg-white" />{he ? 'מכירה' : 'Sell'}</span></div>
             <div ref={chartSlotRef} className="holding-chart-slot relative h-48 w-full sm:h-52" role={historyRange && chartAvailable ? 'img' : undefined} aria-label={historyRange && chartAvailable ? contextPriceMode ? (he ? `גרף מחיר ${m.position.symbol}, מ־${historyRange.start} עד ${historyRange.end}. לפני הכניסה אפור; צבעי הביצועים מתחילים בכניסה.` : `${m.position.symbol} price chart, ${historyRange.start} to ${historyRange.end}. Gray before entry; performance colors begin at entry.`) : (he ? `גרף רווח מצטבר של ${m.position.symbol} בדולר, מ־${historyRange.start} עד ${historyRange.end}. אדום בהפסד, כחול ברווח מתחת ליעד וירוק ביעד ומעלה. ${events.filter(event => event.type === 'BUY').length} עסקאות קנייה רשומות, ${events.filter(event => event.type === 'SELL').length} עסקאות מכירה רשומות.` : `${m.position.symbol} cumulative USD profit from ${historyRange.start} to ${historyRange.end}. Red in loss, blue in profit below target, green at or above target. ${events.filter(event => event.type === 'BUY').length} recorded buys, ${events.filter(event => event.type === 'SELL').length} recorded sells.`) : undefined}>
               {!chartAvailable ? <p className="flex h-full items-center text-xs text-slate-400">{historyRange ? (he ? 'אין מספיק היסטוריית עסקאות לחישוב הרווח' : 'Not enough transaction history to calculate profit') : (he ? 'אין מספיק נתוני מחיר להצגת מגמה' : 'Not enough price data to show a trend')}</p> : null}
             </div>

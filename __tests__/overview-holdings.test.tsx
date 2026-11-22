@@ -19,13 +19,13 @@ const metrics = [metric('AAPL', -10), metric('MSFT', 20), metric('CLOSED', -30, 
 describe('overview holdings continuity', () => {
   beforeEach(() => window.history.replaceState(null, '', '/?chartRange=1Y'));
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-  it('labels daily percentage separately from return since entry and leaves missing daily quotes unavailable', () => {
+  it('shows daily change and directional target distance in the card summary', () => {
     render(<OverviewHoldings metrics={metrics} />);
     const card = within(screen.getByRole('button', { name: 'Expand AAPL details' }));
     expect(card.getByText('Day change')).toBeInTheDocument();
     expect(card.getByText('-2.50%')).toBeInTheDocument();
-    expect(card.getByText('Since purchase')).toBeInTheDocument();
-    expect(card.getByText('+25.00%')).toBeInTheDocument();
+    expect(card.getByText('Rise to target')).toBeInTheDocument();
+    expect(card.getByText('10.00%')).toBeInTheDocument();
     expect(card.getByText('Value')).toBeInTheDocument();
     expect(within(screen.getByRole('button', { name: 'Expand MSFT details' })).getByText('—')).toBeInTheDocument();
     const table = within(screen.getByRole('table'));
@@ -47,7 +47,7 @@ describe('overview holdings continuity', () => {
     render(<OverviewHoldings metrics={[holding]} positions={[position]} sparklineData={{'fresh::activation-1': [latest]}} contextSparklineData={{'fresh::activation-1': [...context, latest]}} />);
     await userEvent.click(screen.getByRole('button', {name: 'Expand FRESH details'}));
     expect(screen.getByRole('img', {name: /FRESH price chart/})).toBeInTheDocument();
-    expect(screen.getByText('Share price · USD')).toBeVisible();
+    expect(screen.queryByText('Share price · USD')).not.toBeInTheDocument();
     expect(screen.getByText(/One week before entry in gray/)).toBeVisible();
     expect(screen.queryByText('Not enough price data to show a trend')).not.toBeInTheDocument();
     const stroke = document.querySelector('[data-price-stroke="true"]');
@@ -73,7 +73,8 @@ describe('overview holdings continuity', () => {
     const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(summary.getByText(formatCurrency(123.37, 'USD', 'en'))).toBeInTheDocument();
-    expect(summary.getByText(/23\.37%/)).toBeInTheDocument();
+    expect(within(button).getByText(/23\.37%/)).toBeInTheDocument();
+    expect(summary.queryByText(/23\.37%/)).not.toBeInTheDocument();
     expect(summary.queryByText(formatCurrency(110, 'USD', 'en'))).not.toBeInTheDocument();
   });
   it('rounds the target upward to a tradable cent before comparing it with today’s price', () => {
@@ -82,13 +83,14 @@ describe('overview holdings continuity', () => {
     fireEvent.click(button);
     const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
     expect(summary.getByText(formatCurrency(100.01, 'USD', 'en'))).toBeInTheDocument();
-    expect(summary.getByText(/0\.01%/)).toBeInTheDocument();
+    expect(within(button).getByText(/0\.01%/)).toBeInTheDocument();
   });
   it('measures an already exceeded target relative to the target price', () => {
     render(<OverviewHoldings metrics={[{ ...metric('AAPL', 0), currentPrice: 125, requiredExitPrice: 100 }]} />);
     const button = screen.getByRole('button', { name: 'Expand AAPL details' });
     fireEvent.click(button);
-    const summary = within(document.getElementById(button.getAttribute('aria-controls')!)!);
+    const summary = within(button);
+    expect(summary.getByText('Above target')).toBeInTheDocument();
     expect(summary.getByText(/25\.00%/)).toBeInTheDocument();
     expect(summary.queryByText(/20\.00%/)).not.toBeInTheDocument();
   });
