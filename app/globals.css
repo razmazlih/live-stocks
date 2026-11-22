@@ -518,7 +518,6 @@
 .holding-card-open .holding-trend-layer::after { opacity: 0; }
 .holding-status { text-shadow: none; }
 .holding-card-open .holding-summary-content { text-shadow: none; }
-.holding-toggle:active { background-color: rgb(219 234 254 / 35%); }
 .holding-monogram { transition: background-color 240ms ease, border-color 240ms ease, color 240ms ease; }
 
 .stock-details-action {
