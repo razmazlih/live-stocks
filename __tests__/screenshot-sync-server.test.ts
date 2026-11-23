@@ -34,7 +34,8 @@ describe('owner-bound screenshot proposal', () => {
   it('rejects wrong owner, tampering and expiry', async () => {
     const value = legacyProposal();
     expect(() => openScreenshotProposal(value, 'owner-two')).toThrow();
-    expect(() => openScreenshotProposal(`Z${value.slice(1)}`, 'owner-one')).toThrow();
+    const changedPrefix = value[0] === 'Z' ? 'Y' : 'Z';
+    expect(() => openScreenshotProposal(changedPrefix + value.slice(1), 'owner-one')).toThrow();
     vi.useFakeTimers(); vi.setSystemTime(Date.now() + 16 * 60 * 1000);
     expect(() => openScreenshotProposal(value, 'owner-one')).toThrow();
     vi.useRealTimers();
