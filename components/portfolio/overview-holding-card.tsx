@@ -175,14 +175,14 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggleFromUser(); }
   }}>
     <div ref={graphRef} aria-hidden="true" className="holding-trend-layer"><HoldingTrendBackground points={displayPoints} tone={holdingTone} expanded={expanded} baseline={m.position.entryPrice} targetPrice={target.salePrice} events={events} locale={locale} profitPoints={contextPriceMode ? undefined : profitPoints} references={priceReferences} activeFromTimestamp={activeFromTimestamp} /></div>
-    <button ref={toggleRef} id={id} type="button" aria-haspopup={inspect ? 'dialog' : undefined} aria-expanded={inspect ? undefined : expanded} aria-controls={inspect ? undefined : `${id}-details`} aria-describedby={`${id}-summary`} aria-label={inspect ? (he ? `פרטי מניית ${m.position.symbol}` : `Inspect ${m.position.symbol}`) : he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={event => { if (inspect) inspect({ symbol: m.position.symbol, source: m.position.location }, event.currentTarget); else toggleFromUser(); }} className="holding-toggle block w-full rounded-2xl px-4 pb-3 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
+    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={toggleFromUser} className="holding-toggle block w-full rounded-2xl px-4 pb-3 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
       <span id={`${id}-summary`} className="holding-summary-content">
         <span className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-3">
             <StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} />
             <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="holding-company mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
           </span>
-          {inspect ? <span aria-hidden className="w-11" /> : <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />}
+          <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />
         </span>
         <span className="mt-3 grid grid-cols-2 gap-3">
           <span>
@@ -201,10 +201,6 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
         <span ref={previewSlotRef} aria-hidden="true" className={`holding-preview-slot block ${expanded || !chartAvailable ? 'h-0' : 'mt-3 h-20'}`} />
       </span>
     </button>
-    {inspect && <button type="button" onClick={toggleFromUser} className="absolute end-3 top-3 z-10 grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-accent/50"
-      aria-expanded={expanded} aria-controls={`${id}-details`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} סיכום ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} summary`}>
-      <ChevronDown aria-hidden className="holding-chevron size-4" />
-    </button>}
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { revealRef.current = element; if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
       <div className="min-h-0 cursor-pointer overflow-hidden" onClick={(event) => {
         const target = event.target instanceof Element ? event.target : null;
@@ -227,10 +223,10 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           <div className="holding-detail-footer mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p>
             <div className="holding-detail-actions flex flex-wrap items-center gap-2">
-              <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={event => { if (!inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location })) rememberReturnContext(id); }} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              <StockDetailsLink aria-haspopup={inspect ? 'dialog' : undefined} preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={event => { if (!inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location })) rememberReturnContext(id); }} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                 {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
               </StockDetailsLink>
-              <Link onClick={event => { inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location, side: 'BUY' }); }} href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-700" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`}><Plus aria-hidden className="h-3.5 w-3.5" />{he ? 'הוספת עסקה' : 'Add transaction'}</Link>
+              <Link href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-700" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`}><Plus aria-hidden className="h-3.5 w-3.5" />{he ? 'הוספת עסקה' : 'Add transaction'}</Link>
               <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
             </div>
           </div>

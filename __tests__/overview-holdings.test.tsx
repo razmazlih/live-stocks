@@ -1,12 +1,14 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
+import { StockInspectorProvider } from '@/components/portfolio/stock-inspector';
 import type { Position, PositionMetrics } from '@/types';
 import { calculatePositionMetrics, calculateRequiredExitPrice, formatCurrency } from '@/lib/calculations';
 import { validateReturnTo } from '@/lib/navigation-context';
 
 vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { currency: 'USD', annualGrowthRate: 0.1 } }) }));
+vi.mock('next/dynamic', () => ({ default: () => () => null }));
 const metric = (symbol: string, gap: number, quantity = 1): PositionMetrics => ({
   position: { id: symbol, symbol, display: symbol === 'AAPL' ? 'Apple' : 'Microsoft', quantity },
   currentPrice: 100, currentValue: 100 * quantity, currentValueIls: 320 * quantity,
@@ -135,6 +137,30 @@ describe('overview holdings continuity', () => {
     await user.keyboard(' ');
     expect(microsoft).toHaveAttribute('aria-expanded', 'false');
     expect(new URLSearchParams(window.location.search).get('holding')).toBeNull();
+  });
+  it('opens the inspector only from stock details and returns focus to the link', async () => {
+    const user = userEvent.setup();
+    const apple = { ...metrics[0], position: { ...metrics[0].position, location: 'broker' } };
+    render(<StockInspectorProvider><OverviewHoldings metrics={[apple]} /></StockInspectorProvider>);
+    const toggle = screen.getByRole('button', { name: 'Expand AAPL details' });
+    const card = within(toggle.closest('article')!);
+    await user.click(within(toggle).getByText('AAPL'));
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const add = card.getByRole('link', { name: 'Add transaction for AAPL' });
+    expect(add).toHaveAttribute('href', '/positions?action=add&symbol=AAPL&source=broker');
+    add.addEventListener('click', event => event.preventDefault());
+    await user.click(add);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const details = card.getByRole('link', { name: 'View AAPL details' });
+    await user.click(details);
+    expect(screen.getByRole('dialog', { name: 'Stock details · AAPL' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(details).toHaveFocus());
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
   it('collapses from the expanded details and chart space while preserving the keyboard toggle', async () => {
     const user = userEvent.setup();
