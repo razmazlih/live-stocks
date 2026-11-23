@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowUpRight, Wallet } from 'lucide-react';
-import { formatCurrency } from '@/lib/calculations';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import { buildStockHref } from '@/lib/navigation-context';
 import { getCloseProposalLegs, type ClosePairProposal } from '@/lib/close-pair-proposals';
 import { StockLogo } from '@/components/ui/stock-logo';
@@ -10,8 +10,6 @@ import styles from './close-pair-details.module.css';
 
 export function ClosePairDetails({ proposal, locale }: { proposal: ClosePairProposal; locale: 'he' | 'en' }) {
   const he = locale === 'he';
-  const money = (value: number) => formatCurrency(value, 'USD', locale);
-  const signedMoney = (value: number) => `${value > 0 ? '+' : ''}${money(value)}`;
   const returnTo = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
 
   return <div className={styles.details}>
@@ -22,17 +20,17 @@ export function ClosePairDetails({ proposal, locale }: { proposal: ClosePairProp
     <div className={styles.equation} role="group" aria-label={he ? 'חישוב העודף מעל היעד' : 'Target surplus calculation'}>
       <dl className={styles.equationItem}>
         <dt>{he ? 'רווח מצטבר' : 'Cumulative profit'}</dt>
-        <dd><bdi>{money(proposal.netProfitUsd)}</bdi></dd>
+        <dd><AnimatedNumber value={proposal.netProfitUsd} locale={locale} /></dd>
       </dl>
       <span aria-hidden="true" className={styles.operator}>−</span>
       <dl className={styles.equationItem}>
         <dt>{he ? 'יעד להיום' : 'Target to date'}</dt>
-        <dd className={styles.target}><bdi>{money(proposal.targetProfitUsd)}</bdi></dd>
+        <dd className={styles.target}><AnimatedNumber value={proposal.targetProfitUsd} locale={locale} /></dd>
       </dl>
       <span aria-hidden="true" className={styles.operator}>=</span>
       <dl className={`${styles.equationItem} ${styles.result}`}>
         <dt>{he ? 'מעל היעד' : 'Above target'}</dt>
-        <dd><bdi>{money(proposal.surplusUsd)}</bdi></dd>
+        <dd><AnimatedNumber value={proposal.surplusUsd} locale={locale} /></dd>
       </dl>
     </div>
 
@@ -47,17 +45,17 @@ export function ClosePairDetails({ proposal, locale }: { proposal: ClosePairProp
             </Link>
             <div className={styles.contribution}>
               <p className="text-[10px] font-medium">{above ? he ? 'עודף מעל היעד' : 'Above target' : he ? 'חסר ליעד' : 'Below target'}</p>
-              <p className="mt-0.5 text-xl font-semibold leading-tight tracking-tight tabular-nums"><bdi>{signedMoney(leg.surplusUsd)}</bdi></p>
+              <p className="mt-0.5 text-xl font-semibold leading-tight tracking-tight tabular-nums"><AnimatedNumber value={leg.surplusUsd} locale={locale} signed /></p>
             </div>
           </div>
           <details className={styles.accounting}>
             <summary>{he ? 'פירוט הרווח והיעד' : 'Profit & target breakdown'}</summary>
-            <p className="mb-2 text-[11px] text-slate-500"><bdi>{money(leg.currentPrice)}</bdi> {he ? 'למניה כעת' : 'per share now'}</p>
+            <p className="mb-2 text-[11px] text-slate-500"><AnimatedNumber value={leg.currentPrice} locale={locale} /> {he ? 'למניה כעת' : 'per share now'}</p>
           <dl className={styles.breakdown}>
-            <div><dt>{he ? 'ממומש בעבר' : 'Previously realized'}</dt><dd><bdi>{signedMoney(leg.realizedPnlUsd ?? 0)}</bdi></dd></div>
-            <div><dt>{he ? 'בהחזקה הנוכחית' : 'Current unrealized'}</dt><dd><bdi>{signedMoney(leg.unrealizedPnlUsd ?? leg.pnlUsd)}</bdi></dd></div>
-            <div className={styles.total}><dt>{he ? 'רווח מצטבר' : 'Cumulative P/L'}</dt><dd><bdi>{signedMoney(leg.pnlUsd)}</bdi></dd></div>
-            <div><dt>{he ? 'יעד אישי לכל הסבבים' : 'Personal target · all cycles'}</dt><dd className={styles.target}><bdi>{money(leg.targetProfitUsd)}</bdi></dd></div>
+            <div><dt>{he ? 'ממומש בעבר' : 'Previously realized'}</dt><dd><AnimatedNumber value={leg.realizedPnlUsd ?? 0} locale={locale} signed /></dd></div>
+            <div><dt>{he ? 'בהחזקה הנוכחית' : 'Current unrealized'}</dt><dd><AnimatedNumber value={leg.unrealizedPnlUsd ?? leg.pnlUsd} locale={locale} signed /></dd></div>
+            <div className={styles.total}><dt>{he ? 'רווח מצטבר' : 'Cumulative P/L'}</dt><dd><AnimatedNumber value={leg.pnlUsd} locale={locale} signed /></dd></div>
+            <div><dt>{he ? 'יעד אישי לכל הסבבים' : 'Personal target · all cycles'}</dt><dd className={styles.target}><AnimatedNumber value={leg.targetProfitUsd} locale={locale} /></dd></div>
           </dl>
           </details>
         </li>;
@@ -69,7 +67,7 @@ export function ClosePairDetails({ proposal, locale }: { proposal: ClosePairProp
         <span aria-hidden className="hidden h-8 w-8 sm:flex shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-white"><Wallet className="h-4 w-4 text-blue-600" /></span>
         <div><p className="text-xs font-semibold text-slate-800">{he ? 'תמורת מכירה משוערת' : 'Estimated sale proceeds'}</p><p className="mt-0.5 text-[11px] text-slate-500">{he ? 'מהמניות שייסגרו עכשיו · ברוטו' : 'From shares sold now · gross'}</p></div>
       </div>
-      <p className="text-lg font-semibold tracking-tight text-slate-900 tabular-nums"><bdi>{money(proposal.proceedsUsd)}</bdi></p>
+      <p className="text-lg font-semibold tracking-tight text-slate-900 tabular-nums"><AnimatedNumber value={proposal.proceedsUsd} locale={locale} /></p>
     </div>
     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{he ? 'מימושי העבר כלולים ברווח, לא בתמורה החדשה. לפני מס ועלויות מכירה.' : 'Past sales count toward profit, not new proceeds. Before tax and exit costs.'}</p>
   </div>;

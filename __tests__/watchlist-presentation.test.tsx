@@ -32,7 +32,7 @@ describe('watchlist price presentation', () => {
   it('shows a flat focus panel with real history, separate change values and a contextual stock link', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     render(<TickerCard {...props} returnTo="/watchlist?group=tech&range=1M" />);
-    expect(screen.getByText('-1.50%')).toHaveClass('font-semibold');
+    expect(screen.getByText('-1.50%').closest('bdi')).toHaveClass('font-semibold');
     expect(screen.getByText('+20.00%')).toBeInTheDocument();
     expect(screen.getByText('Review next report')).toBeInTheDocument();
     expect(screen.getByText('Starting price')).toBeInTheDocument();

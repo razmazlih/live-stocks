@@ -1,12 +1,14 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { useId, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Clock3, MoreVertical, Pencil, RefreshCw, Trash2, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
-import { formatCurrency, formatDate, formatPercent } from '@/lib/calculations';
+import { formatCurrency, formatDate } from '@/lib/calculations';
 import { getWatchlistDisplayData, watchlistTrendColor, watchlistTrendTone } from '@/lib/watchlist-display';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,6 +20,8 @@ import type { HistoricalPoint, Locale, StockQuote, TimeRange, WatchlistTicker } 
 export interface TickerCardProps {
   ticker: WatchlistTicker;
   quote?: StockQuote | null;
+  extended?: boolean;
+  stale?: boolean;
   historical?: HistoricalPoint[] | null;
   range: TimeRange;
   returnTo?: string;
@@ -79,7 +83,6 @@ export function TickerCard(props: TickerCardProps) {
   const gradientId = `watchlist-focus-${useId().replace(/:/g, '')}`;
   const color = watchlistTrendColor(data.periodPercent);
   const money = (value: number | null) => value !== null ? formatCurrency(value, currency, locale) : '—';
-  const percent = (value: number | null) => value !== null ? `${value > 0 ? '+' : ''}${formatPercent(value, locale)}` : '—';
   const seriesAvailable = data.history.length > 1;
   const formatAxisDate = (timestamp: number) => new Date(timestamp).toLocaleDateString(he ? 'he-IL' : 'en-US', { month: 'short', day: 'numeric' });
   const validUpdated = typeof lastUpdated === 'number' && Number.isFinite(new Date(lastUpdated).getTime()) ? new Date(lastUpdated) : null;
@@ -92,10 +95,10 @@ export function TickerCard(props: TickerCardProps) {
 
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
       <p className="text-xs font-medium text-slate-600">{props.priceLabel ?? (he ? 'מחיר מניה נוכחי' : 'Current share price')}</p>
-      <p className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-950 sm:text-[42px]"><bdi>{money(data.currentPrice)}</bdi></p>
+      <p className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-950 sm:text-[42px]"><AnimatedNumber value={data.currentPrice} locale={locale} currency={currency} identity={ticker.symbol} /></p>
       <div className="mt-3 grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-3">
-        <div><p className="text-xs text-slate-500">{he ? 'שינוי יומי' : 'Daily change'}</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.dailyPercent))}><bdi className="font-semibold">{percent(data.dailyPercent)}</bdi></p><p className="mt-0.5 text-[11px] text-slate-500">{he ? 'לעומת סגירת המסחר הקודמת' : 'Since the previous close'}</p></div>
-        <div className="border-s border-slate-200/80 ps-4"><p className="text-xs text-slate-500">{props.changeLabel ?? (he ? 'שינוי בטווח' : 'Period change')} · <bdi>{rangeLabel}</bdi></p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.periodPercent))}><bdi>{percent(data.periodPercent)}</bdi></p><p className={cn('mt-0.5 text-[11px] tabular-nums', watchlistTrendTone(data.periodAbsolute))}><bdi>{data.periodAbsolute !== null ? `${data.periodAbsolute > 0 ? '+' : ''}${money(data.periodAbsolute)}` : '—'}</bdi> <span className="text-slate-500">{he ? 'למניה' : 'per share'}</span></p></div>
+        <div><p className="text-xs text-slate-500">{props.extended ? (he ? 'מאז הסגירה' : 'Since close') : (he ? 'שינוי יומי' : 'Daily change')}</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.dailyPercent))}><AnimatedNumber className="font-semibold" value={data.dailyPercent} locale={locale} kind="percent" signed identity={ticker.symbol} /></p><p className="mt-0.5 text-[11px] text-slate-500">{he ? 'לעומת סגירת המסחר הקודמת' : 'Since the previous close'}</p></div>
+        <div className="border-s border-slate-200/80 ps-4"><p className="text-xs text-slate-500">{props.changeLabel ?? (he ? 'שינוי בטווח' : 'Period change')} · <bdi>{rangeLabel}</bdi></p><p className={cn('mt-1 text-lg font-semibold tabular-nums', watchlistTrendTone(data.periodPercent))}><AnimatedNumber value={data.periodPercent} locale={locale} kind="percent" signed identity={ticker.symbol + props.range} /></p><p className={cn('mt-0.5 text-[11px] tabular-nums', watchlistTrendTone(data.periodAbsolute))}><AnimatedNumber value={data.periodAbsolute} locale={locale} currency={currency} signed identity={ticker.symbol + props.range} /> <span className="text-slate-500">{he ? 'למניה' : 'per share'}</span></p></div>
       </div>
     </div>
 
@@ -121,7 +124,7 @@ export function TickerCard(props: TickerCardProps) {
 
     <div className="mt-1 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm">
       <div><p className="text-[11px] text-slate-500">{props.basePriceLabel ?? (he ? 'מחיר בתחילת התקופה' : 'Starting price')}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{money(data.basePrice)}</bdi></p>{data.baseDate ? <p className="mt-1 text-[11px] text-slate-500">{formatDate(data.baseDate, locale)}</p> : null}</div>
-      <div className="border-s border-slate-200 ps-4"><p className="inline-flex items-center gap-1 text-[11px] text-slate-500"><Clock3 aria-hidden className="h-3 w-3" />{he ? 'רענון נתונים אחרון' : 'Last data refresh'}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{validUpdated ? validUpdated.toLocaleTimeString(he ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</bdi></p><p className="mt-1 text-[11px] text-slate-500">{he ? 'המחירים עשויים להיות מושהים' : 'Prices may be delayed'}</p></div>
+      <div className="border-s border-slate-200 ps-4"><p className="inline-flex items-center gap-1 text-[11px] text-slate-500"><Clock3 aria-hidden className="h-3 w-3" />{he ? 'עדכון מחיר אחרון' : 'Last price update'}</p><p className="mt-1 font-semibold tabular-nums text-slate-900"><bdi>{validUpdated ? validUpdated.toLocaleString(he ? 'he-IL' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</bdi></p><p className="mt-1 text-[11px] text-slate-500">{props.stale ? (he ? 'מוצג המחיר האחרון הזמין' : 'Showing the last available price') : (he ? 'המחירים עשויים להיות מושהים' : 'Prices may be delayed')}</p></div>
     </div>
 
     <div className="mt-3 flex items-start justify-between gap-3 border-t border-slate-100 pt-3"><div className="min-w-0"><p className="text-xs font-medium text-slate-600">{props.noteLabel ?? (he ? 'הערה אישית' : 'Personal note')}</p><p className="mt-1 break-words whitespace-pre-line text-sm leading-relaxed text-slate-500">{ticker.note || (he ? 'מה חשוב לך לזכור על המניה?' : 'What would you like to remember about this stock?')}</p></div>{onEdit ? <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => onEdit(ticker)} aria-label={he ? `עריכת הערה ${ticker.symbol}` : `Edit ${ticker.symbol} note`}><Pencil aria-hidden="true" className="h-4 w-4" /></Button> : null}</div>

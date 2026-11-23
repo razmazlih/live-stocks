@@ -5,7 +5,7 @@ import { ChevronDown, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildClosePairReviewPrompt } from '@/lib/close-pair-review-prompt';
 import { buildClosePairProposals, getCloseProposalLegs } from '@/lib/close-pair-proposals';
-import { formatCurrency } from '@/lib/calculations';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import { useInvestmentSources } from '@/hooks/use-investment-sources';
 import { useApp } from '@/lib/context';
 import type { ClosePairProposal } from '@/lib/close-pair-proposals';
@@ -37,7 +37,6 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
       setCopying(false);
     }
   };
-  const money = (value: number) => formatCurrency(value, 'USD', locale);
 
   const anyExpanded = proposals.some(proposal => expandedPairs.has(pairKey(proposal)));
 
@@ -73,7 +72,7 @@ export function ClosePairProposals({ metrics, positions, sparklineData = {} }: {
                 <span className="flex flex-wrap items-center gap-1.5" dir="ltr">{legs.map((leg, legIndex) => <span key={leg.position.symbol} className="inline-flex items-center gap-1.5">{legIndex > 0 && <span className="text-xs text-slate-400">+</span>}<span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold tracking-tight text-slate-950">{leg.position.symbol}</span></span>)}</span>
                 <span className="mt-1 block text-xs leading-4 text-slate-500">{[...new Set(legs.flatMap(leg => leg.locations ?? [leg.position.location]))].map(location => sourceName(location, locale)).join(' · ')}</span>
               </span>
-              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'מעל היעד האישי · USD' : 'Above personal target · USD'}</span><span className="mt-1 block text-2xl font-semibold leading-tight tracking-tight text-emerald-700"><bdi>+{money(proposal.surplusUsd)}</bdi></span></span>
+              <span className="min-w-0 text-end"><span className="block text-[11px] text-slate-500">{he ? 'מעל היעד האישי · USD' : 'Above personal target · USD'}</span><span className="mt-1 block text-2xl font-semibold leading-tight tracking-tight text-emerald-700"><AnimatedNumber value={proposal.surplusUsd} locale={locale} signed identity={key} /></span></span>
             </span>
           </div>
         <ClosePairChart proposal={proposal} sparklineData={sparklineData} locale={locale} compact={!expanded} />

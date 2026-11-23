@@ -1,9 +1,11 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { AlertTriangle, ArrowUpLeft, Target } from 'lucide-react';
 
 import {
@@ -12,14 +14,13 @@ import {
 } from '@/components/dashboard/page-primitives';
 import {
   calculateSymbolExceptionAssessment,
-  formatCurrency,
   formatPercent,
 } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import type { SymbolExceptionAssessment } from '@/types';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
-import { formatSignedCurrency, getTrendTone } from '@/lib/utils/portfolio-display';
+import { getTrendTone } from '@/lib/utils/portfolio-display';
 
 import { buildStockHref, rememberReturnContext } from '@/lib/navigation-context';
 
@@ -178,7 +179,7 @@ function AssessmentCard({ item, section, locale, labels }: { item: SymbolExcepti
   const value = section === 'open' ? item.currentGapUsd === undefined ? undefined : -item.currentGapUsd : item.profitGapUsd;
   const tone = getTrendTone(value ?? 0);
   return <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{item.display || item.symbol}</p><p className="text-xs text-slate-500">{item.symbol}</p></div><StatusBadge section={section} labels={labels} /></div>
-    {section === 'invalid' ? <p className="mt-4 flex gap-2 text-sm text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{getInvalidReason(item.invalidReason, labels)}</p> : <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><Metric label={section === 'open' ? labels.currentPrice : labels.realizedPnL} value={formatMoney(section === 'open' ? item.currentPrice : item.realizedProfitUsd, locale)} /><Metric label={section === 'open' ? labels.requiredExitPrice : labels.performanceVsTarget} value={formatMoney(section === 'open' ? item.requiredExitPrice : item.profitGapUsd, locale)} className={section === 'closed' ? tone.text : undefined} />{section === 'open' && <><Metric label={labels.weightedProjectedPrice} value={formatMoney(item.projectedPrice, locale)} /><Metric label={labels.openQuantity} value={item.openQuantity.toLocaleString(locale)} /><Metric label={labels.performanceVsTarget} value={value === undefined ? '—' : formatSignedCurrency(value, 'USD', locale)} className={tone.text} /></>}</div>}
+    {section === 'invalid' ? <p className="mt-4 flex gap-2 text-sm text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{getInvalidReason(item.invalidReason, labels)}</p> : <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><Metric label={section === 'open' ? labels.currentPrice : labels.realizedPnL} value={formatMoney(section === 'open' ? item.currentPrice : item.realizedProfitUsd, locale)} /><Metric label={section === 'open' ? labels.requiredExitPrice : labels.performanceVsTarget} value={formatMoney(section === 'open' ? item.requiredExitPrice : item.profitGapUsd, locale)} className={section === 'closed' ? tone.text : undefined} />{section === 'open' && <><Metric label={labels.weightedProjectedPrice} value={formatMoney(item.projectedPrice, locale)} /><Metric label={labels.openQuantity} value={item.openQuantity.toLocaleString(locale)} /><Metric label={labels.performanceVsTarget} value={value === undefined ? '—' : (<AnimatedNumber value={value} locale={locale} signed />)} className={tone.text} /></>}</div>}
     <DetailLink symbol={item.symbol} label={labels.viewDetails} variant="card" />
   </article>;
 }
@@ -188,14 +189,14 @@ function AssessmentRow({ item, section, locale, labels }: { item: SymbolExceptio
   const value = section === 'open' ? item.currentGapUsd === undefined ? undefined : -item.currentGapUsd : item.profitGapUsd;
   const tone = getTrendTone(value ?? 0);
   return <tr className="hover:bg-slate-50/70"><td className="px-4 py-4"><p className="font-semibold text-slate-900">{item.display || item.symbol}</p><p className="text-xs text-slate-500">{item.symbol}</p></td><td className="px-4 py-4"><StatusBadge section={section} labels={labels} /></td>
-    {section === 'open' && <><td className="px-4 py-4 text-end tabular-nums">{formatMoney(item.currentPrice, locale)}</td><td className="px-4 py-4 text-end tabular-nums">{formatMoney(item.projectedPrice, locale)}</td><td className="px-4 py-4 text-end font-semibold tabular-nums text-slate-900">{formatMoney(item.requiredExitPrice, locale)}</td><td className={`px-4 py-4 text-end font-semibold tabular-nums ${tone.text}`}><span className="block">{value === undefined ? '—' : formatSignedCurrency(value, 'USD', locale)}</span></td><td className="px-4 py-4 text-end tabular-nums">{item.openQuantity.toLocaleString(locale)}</td></>}
-    {section === 'closed' && <><td className="px-4 py-4 text-end tabular-nums">{formatSignedCurrency(item.realizedProfitUsd, 'USD', locale)}</td><td className={`px-4 py-4 text-end font-semibold tabular-nums ${tone.text}`}>{formatSignedCurrency(item.profitGapUsd, 'USD', locale)}</td></>}
+    {section === 'open' && <><td className="px-4 py-4 text-end tabular-nums">{formatMoney(item.currentPrice, locale)}</td><td className="px-4 py-4 text-end tabular-nums">{formatMoney(item.projectedPrice, locale)}</td><td className="px-4 py-4 text-end font-semibold tabular-nums text-slate-900">{formatMoney(item.requiredExitPrice, locale)}</td><td className={`px-4 py-4 text-end font-semibold tabular-nums ${tone.text}`}><span className="block">{value === undefined ? '—' : (<AnimatedNumber value={value} locale={locale} signed />)}</span></td><td className="px-4 py-4 text-end tabular-nums">{item.openQuantity.toLocaleString(locale)}</td></>}
+    {section === 'closed' && <><td className="px-4 py-4 text-end tabular-nums">{(<AnimatedNumber value={item.realizedProfitUsd} locale={locale} signed />)}</td><td className={`px-4 py-4 text-end font-semibold tabular-nums ${tone.text}`}>{(<AnimatedNumber value={item.profitGapUsd} locale={locale} signed />)}</td></>}
     {section === 'invalid' && <td className="px-4 py-4 text-amber-800"><span className="inline-flex items-center gap-2"><AlertTriangle className="h-4 w-4" />{getInvalidReason(item.invalidReason, labels)}</span></td>}
     <td className="px-4 py-4 text-end"><DetailLink symbol={item.symbol} label={labels.viewDetails} variant="row" /></td></tr>;
 }
 
-function Metric({ label, value, className = '' }: { label: string; value: string; className?: string }) { return <div><p className="text-xs font-medium text-slate-500">{label}</p><p className={`mt-0.5 font-semibold tabular-nums ${className || 'text-slate-800'}`}>{value}</p></div>; }
-function formatMoney(value: number | undefined, locale: 'he' | 'en') { return value === undefined || !Number.isFinite(value) ? '—' : formatCurrency(value, 'USD', locale); }
+function Metric({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) { return <div><p className="text-xs font-medium text-slate-500">{label}</p><p className={`mt-0.5 font-semibold tabular-nums ${className || 'text-slate-800'}`}>{value}</p></div>; }
+function formatMoney(value: number | undefined, locale: 'he' | 'en') { return <AnimatedNumber value={value} locale={locale} />; }
 function DetailLink({ symbol, label, variant }: { symbol: string; label: string; variant: 'card' | 'row' }) {
   return <Link id={`target-${variant}-${symbol}`} href={buildStockHref(symbol, '/portfolio?view=targets')} onClick={(event) => rememberReturnContext(event.currentTarget.id)} className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{label}<ArrowUpLeft aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-0 ltr:rotate-180" /></Link>;
 }

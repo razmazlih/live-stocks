@@ -1,5 +1,7 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
 
 import dynamic from 'next/dynamic';
@@ -10,7 +12,6 @@ import { ChevronDown } from 'lucide-react';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { getPerformanceTotals, parsePerformanceOptions, parsePerformanceView } from '@/lib/performance-display';
-import { formatCurrency } from '@/lib/calculations';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -21,7 +22,7 @@ import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shel
 import { PerformanceHeader, PerformanceTabsList } from '@/components/portfolio/performance-navigation';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { formatLastUpdatedTime, formatSignedCurrency, getTrendTone } from '@/lib/utils/portfolio-display';
+import { formatLastUpdatedTime, getTrendTone } from '@/lib/utils/portfolio-display';
 
 function PendingTargets() {
   const { locale } = useApp();
@@ -52,7 +53,6 @@ export default function PortfolioPage() {
   const actual = totals?.actual;
   const target = totals?.target;
   const gap = actual !== undefined && target !== undefined ? actual - target : undefined;
-  const money = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatSignedCurrency(value, currency, locale) : '—';
 
   return <DashboardRouteShell activeKey="portfolio" locale={locale}>
     <DashboardContainer>
@@ -71,7 +71,7 @@ export default function PortfolioPage() {
                     { label: isHebrew ? 'רווח והפסד בתצוגה' : 'Displayed profit / loss', value: actual },
                     { label: isHebrew ? 'יעד אישי להיום' : 'Personal target to date', value: target },
                     { label: isHebrew ? 'פער מהיעד' : 'Gap to target', value: gap },
-                  ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className={`mt-2 text-xl font-semibold tabular-nums sm:text-2xl ${getTrendTone(item.value ?? 0).text}`}><bdi>{money(item.value)}</bdi></dd></div>)}
+                  ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className={`mt-2 text-xl font-semibold tabular-nums sm:text-2xl ${getTrendTone(item.value ?? 0).text}`}><AnimatedNumber value={item.value} locale={locale} currency={currency} signed /></dd></div>)}
                 </dl>
                 <p className="mt-4 text-xs text-slate-500">{isHebrew ? 'הרווח כולל ממומש ולא ממומש, לפי בחירת הניכויים בגרף. היעד אישי ואינו תחזית שוק.' : 'P/L includes realized and unrealized results, using the deduction controls below. The personal target is not a market forecast.'}</p>
               </DashboardSurface>
@@ -80,11 +80,11 @@ export default function PortfolioPage() {
                 <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold"><span>{isHebrew ? 'פירוט מטבעות ואומדן מס' : 'Currency and estimated tax details'}</span><ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 text-slate-400" /></summary>
                 <dl className="grid grid-cols-2 gap-5 border-t border-slate-100 p-5 sm:grid-cols-3">
                   {[
-                    { label: isHebrew ? 'אומדן מס מלא' : 'Complete tax estimate', value: historyIncomplete ? '—' : formatCurrency(currency === 'ILS' ? summary.totalTaxesPaidIls : summary.totalTaxesPaidUsd, currency, locale) },
-                    { label: isHebrew ? 'רווח לאחר אומדן מס' : 'Profit after estimated tax', value: money(currency === 'ILS' ? summary.totalNetPnLIls : summary.totalNetPnLUsd) },
-                    { label: isHebrew ? 'שער דולר נוכחי' : 'Current USD rate', value: `1 USD ≈ ${formatCurrency(summary.usdToIlsRate, 'ILS', locale)}` },
-                    { label: t.portfolio.ilsHistoricalAdjustedLabel, value: formatSignedCurrency(historicalIlsNetPnL, 'ILS', locale) },
-                    { label: isHebrew ? 'רווח ממומש מתועד בשערים היסטוריים' : 'Recorded realized profit at historical FX', value: formatSignedCurrency(historicalIlsRealizedPnL, 'ILS', locale) },
+                    { label: isHebrew ? 'אומדן מס מלא' : 'Complete tax estimate', value: <AnimatedNumber value={historyIncomplete ? null : currency === 'ILS' ? summary.totalTaxesPaidIls : summary.totalTaxesPaidUsd} locale={locale} currency={currency} /> },
+                    { label: isHebrew ? 'רווח לאחר אומדן מס' : 'Profit after estimated tax', value: <AnimatedNumber value={currency === 'ILS' ? summary.totalNetPnLIls : summary.totalNetPnLUsd} locale={locale} currency={currency} signed /> },
+                    { label: isHebrew ? 'שער דולר נוכחי' : 'Current USD rate', value: <>1 USD ≈ <AnimatedNumber value={summary.usdToIlsRate} locale={locale} currency="ILS" /></> },
+                    { label: t.portfolio.ilsHistoricalAdjustedLabel, value: <AnimatedNumber value={historicalIlsNetPnL} locale={locale} currency="ILS" signed /> },
+                    { label: isHebrew ? 'רווח ממומש מתועד בשערים היסטוריים' : 'Recorded realized profit at historical FX', value: <AnimatedNumber value={historicalIlsRealizedPnL} locale={locale} currency="ILS" signed /> },
                   ].map((item) => <div key={item.label}><dt className="text-xs text-slate-500">{item.label}</dt><dd className="mt-1 text-sm font-semibold tabular-nums"><bdi>{item.value}</bdi></dd></div>)}
                 </dl>
               </details>

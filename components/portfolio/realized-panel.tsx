@@ -1,5 +1,7 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { PerformanceSkeleton, RealizedTaxNote } from '@/components/portfolio/performance-skeleton';
 
 import Link from 'next/link';
@@ -143,7 +145,7 @@ export function RealizedPanel() {
           { label: historyIncomplete ? (isHebrew ? 'רווח ממומש מתועד בלבד' : 'Recorded realized profit only') : t.realized.totalProfit, usd: totals.profitUsd, ils: totals.profitIls },
           { label: historyIncomplete ? (isHebrew ? 'אומדן מס למכירות מתועדות בלבד' : 'Recorded-sales tax subtotal') : (isHebrew ? 'אומדן מס' : 'Estimated tax'), usd: taxSummary.taxUsd, ils: taxSummary.taxIls },
           { label: t.realized.netProfitAfterTax, usd: netProfitUsd, ils: netProfitIls },
-        ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className="mt-2 text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl"><bdi>{formatSignedCurrency(item.usd, 'USD', locale)}</bdi></dd><dd className="mt-1 text-xs tabular-nums text-slate-500"><bdi>{formatSignedCurrency(item.ils, 'ILS', locale)}</bdi></dd></div>)}
+        ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className="mt-2 text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl"><AnimatedNumber value={item.usd} locale={locale} currency="USD" signed /></dd><dd className="mt-1 text-xs tabular-nums text-slate-500"><AnimatedNumber value={item.ils} locale={locale} currency="ILS" signed /></dd></div>)}
       </dl>
       <RealizedTaxNote locale={locale} />
     </DashboardSurface>
@@ -153,9 +155,9 @@ export function RealizedPanel() {
       <div className="divide-y divide-slate-100">
         {salesBySymbol.map((item) => <div key={item.symbol} className="grid grid-cols-2 items-center gap-3 py-4 sm:grid-cols-4">
           <StockLink symbol={item.symbol} display={item.display} kind="symbol" />
-          <div className="text-end"><p className="text-xs text-slate-500">{t.realized.totalProfit}</p><p className={`mt-1 font-semibold tabular-nums ${getTrendTone(item.profitUsd).text}`}><bdi>{formatSignedCurrency(item.profitUsd, 'USD', locale)}</bdi></p><p className="text-xs text-slate-500"><bdi>{formatSignedCurrency(item.profitIls, 'ILS', locale)}</bdi></p></div>
-          <div><p className="text-xs text-slate-500">{t.realized.totalProceeds}</p><p className="mt-1 text-sm tabular-nums"><bdi>{formatCurrency(item.proceedsUsd, 'USD', locale)}</bdi></p><p className="text-xs text-slate-500"><bdi>{formatCurrency(item.proceedsIls, 'ILS', locale)}</bdi></p></div>
-          <div><p className="text-xs text-slate-500">{t.realized.totalCost} · {t.realized.quantity}: <bdi>{item.quantity.toLocaleString(locale)}</bdi></p><p className="mt-1 text-sm tabular-nums"><bdi>{formatCurrency(item.costUsd, 'USD', locale)}</bdi></p><p className="text-xs text-slate-500"><bdi>{formatCurrency(item.costIls, 'ILS', locale)}</bdi></p></div>
+          <div className="text-end"><p className="text-xs text-slate-500">{t.realized.totalProfit}</p><p className={`mt-1 font-semibold tabular-nums ${getTrendTone(item.profitUsd).text}`}><AnimatedNumber value={item.profitUsd} locale={locale} currency="USD" signed /></p><p className="text-xs text-slate-500"><AnimatedNumber value={item.profitIls} locale={locale} currency="ILS" signed /></p></div>
+          <div><p className="text-xs text-slate-500">{t.realized.totalProceeds}</p><p className="mt-1 text-sm tabular-nums"><AnimatedNumber value={item.proceedsUsd} locale={locale} currency="USD" /></p><p className="text-xs text-slate-500"><AnimatedNumber value={item.proceedsIls} locale={locale} currency="ILS" /></p></div>
+          <div><p className="text-xs text-slate-500">{t.realized.totalCost} · {t.realized.quantity}: <bdi>{item.quantity.toLocaleString(locale)}</bdi></p><p className="mt-1 text-sm tabular-nums"><AnimatedNumber value={item.costUsd} locale={locale} currency="USD" /></p><p className="text-xs text-slate-500"><bdi>{formatCurrency(item.costIls, 'ILS', locale)}</bdi></p></div>
         </div>)}
       </div>
     </DashboardSurface>

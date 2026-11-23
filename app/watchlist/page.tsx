@@ -39,6 +39,8 @@ import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { formatDate, mapCandleDataToPoints } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
+import { useLiveQuotes } from '@/hooks/use-live-quotes';
+import { displayedQuote } from '@/lib/live-display-quote';
 import { useWatchlistQuotes } from '@/hooks/use-watchlist-quotes';
 import { useWatchlist } from '@/hooks/use-watchlist';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -352,6 +354,8 @@ export default function WatchlistPage() {
       ? visibleTickers : visibleTickers.filter(ticker => onScreen.has(getTickerKey(ticker)));
     return focusedTicker ? [focusedTicker, ...visible.filter(ticker => ticker !== focusedTicker)] : visible;
   }, [focusedTicker, visibleTickers, onScreen]);
+  const { ticks: watchTicks } = useLiveQuotes(priorityTickers.map(ticker => ticker.symbol), 'watchlist');
+  const { ticks: selectedTicks } = useLiveQuotes(focusedTicker ? [focusedTicker.symbol] : [], 'selected');
   const awaitingInitialTickers = loading || Boolean(focusedTicker && !focusedState?.lastUpdated && !focusedState?.error);
   const focusedKey = focusedTicker ? `${getTickerKey(focusedTicker)}:${focusedState?.range}:${focusedState?.from}:${focusedState?.lastUpdated}` : 'empty';
   useEffect(() => {
@@ -935,12 +939,13 @@ export default function WatchlistPage() {
     const historical = state?.historical ?? [];
     const first = historical[0];
     const last = historical[historical.length - 1];
-    const quoteState = quotes[ticker.symbol.toUpperCase()];
-    const quote = quoteState?.quote ?? state?.quote;
+    const symbol = ticker.symbol.toUpperCase();
+    const quoteState = quotes[symbol];
+    const {quote, timestamp, extended, stale} = displayedQuote(symbol, quoteState?.quote ?? state?.quote, selectedTicks[symbol] ?? watchTicks[symbol]);
     const quotePrice = quote?.c;
     return {
-      ticker, quote, historical, range: state?.range ?? range,
-      returnTo: sourceUrl || '/watchlist', lastUpdated: quoteState?.updated ?? state?.lastUpdated, locale,
+      ticker, quote, extended, stale, historical, range: state?.range ?? range,
+      returnTo: sourceUrl || '/watchlist', lastUpdated: timestamp ?? (!quote && last ? last.timestamp : null), locale,
       loading: state?.loading ?? !watchlistError, error: state?.error || (quoteState?.error ? chartErrorMessage : null),
       onEdit: (item) => { previewTransitionRef.current = previewOpen; setPreviewOpen(false); openEditTickerDialog(item); },
       onDelete: handleDeleteTicker,
@@ -978,7 +983,7 @@ export default function WatchlistPage() {
               <div ref={listRef} className="flex min-h-[430px] min-w-0 flex-col xl:min-h-[650px]">
                 <div className="px-4 pb-4 pt-5 sm:px-5"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{isRtl ? 'מניות במעקב' : 'Stocks on your radar'}</h2><span dir="ltr" className="text-xs text-slate-400">{visibleTickers.length} / {sortableTickers.length}</span></div><p className="mt-1 text-xs text-slate-500">{isRtl ? 'בחרו מניה לצפייה בגרף.' : 'Choose a stock to explore its chart.'}</p></div>
                 {visibleTickers.length ? <>
-                  <div className="hidden items-center gap-2 border-b border-slate-100 px-4 pb-3 text-xs font-medium text-slate-500 sm:flex"><div className="grid min-w-0 flex-1 gap-2" style={{gridTemplateColumns:WATCHLIST_ROW_COLUMNS}}>{[isRtl ? 'מניה' : 'Stock', isRtl ? 'מחיר' : 'Price', isRtl ? 'יומי' : 'Today', isRtl ? 'בטווח' : 'Period', isRtl ? 'מגמה' : 'Trend'].map((label, index) => <span key={label} className={index ? 'text-end' : undefined}>{label}</span>)}</div><span className="w-10 shrink-0" /></div>
+                  <div className="hidden items-center gap-2 border-b border-slate-100 px-4 pb-3 text-xs font-medium text-slate-500 sm:flex"><div className="grid min-w-0 flex-1 gap-2" style={{gridTemplateColumns:WATCHLIST_ROW_COLUMNS}}>{[isRtl ? 'מניה' : 'Stock', isRtl ? 'מחיר' : 'Price', isRtl ? 'מהסגירה' : 'From close', isRtl ? 'בטווח' : 'Period', isRtl ? 'מגמה' : 'Trend'].map((label, index) => <span key={label} className={index ? 'text-end' : undefined}>{label}</span>)}</div><span className="w-10 shrink-0" /></div>
                   <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}><SortableContext items={visibleTickers.map(getTickerKey)} strategy={verticalListSortingStrategy}>{visibleTickers.map((ticker) => <SortableTickerCard key={getTickerKey(ticker)} id={getTickerKey(ticker)} symbol={ticker.symbol} locale={locale} sorting={sorting} disabled={Boolean(normalizedSearch)} isActive={activeTickerId === getTickerKey(ticker)}><TickerRow {...presentationProps(ticker)} selected={getTickerKey(focusedTicker ?? ticker) === getTickerKey(ticker)} onSelect={() => selectTicker(ticker)} /></SortableTickerCard>)}</SortableContext></DndContext>
                 </> : <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-14 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search aria-hidden className="h-5 w-5" /></div><p className="text-sm text-slate-500">{normalizedSearch ? isRtl ? 'לא נמצאו מניות שמתאימות לחיפוש.' : 'No stocks match your search.' : t.watchlist.status.noTickers}</p><Button variant={normalizedSearch ? 'outline' : 'default'} onClick={() => normalizedSearch ? patchUrl({ q: null }) : openCreateTickerDialog()}>{normalizedSearch ? isRtl ? 'ניקוי החיפוש' : 'Clear search' : t.watchlist.actions.newTicker}</Button></div>}
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3"><p role="status" className="text-xs text-slate-400">{normalizedSearch ? isRtl ? `${visibleTickers.length} מתוך ${sortableTickers.length} מניות · הסדר נשמר בזמן חיפוש` : `${visibleTickers.length} of ${sortableTickers.length} stocks · Reordering paused during search` : selectedGroup.description || ''}</p><Button variant="ghost" size="sm" disabled={Boolean(normalizedSearch) || sortableTickers.length < 2} aria-pressed={sorting} onClick={() => setSorting((value) => !value)} className="gap-2 text-slate-500"><GripVertical aria-hidden className="h-4 w-4" />{sorting ? isRtl ? 'סיום סידור' : 'Done reordering' : isRtl ? 'סידור הרשימה' : 'Reorder list'}</Button></div>
