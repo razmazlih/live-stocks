@@ -2,11 +2,11 @@
   position: relative;
   display: inline-grid;
   max-inline-size: 100%;
-  vertical-align: baseline;
+  vertical-align: middle;
   font-variant-numeric: tabular-nums;
 }
 .number::before, .settled, .frame { grid-area: 1 / 1; min-inline-size: 0; }
-.number::before { content: attr(data-reserve); visibility: hidden; pointer-events: none; height: 0; }
+.number::before { content: attr(data-reserve); visibility: hidden; pointer-events: none; white-space: pre; }
 .frame { display: none; }
 .number[data-move] > .settled { opacity: 0; }
 .number[data-move] > .frame { display: inline; }
