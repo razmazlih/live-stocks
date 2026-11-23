@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -104,6 +103,7 @@ export function TransactionComposer({ target: transactionTarget, initial, curren
   const { locale } = useApp();
   const { t } = useTranslation(locale);
   const isRtl = locale === 'he';
+  const typeGroupName = useId();
   const [transactionForm, setTransactionForm] = useState(initial);
   const [savingTransaction, setSavingTransaction] = useState(false);
   const transactionSaveLock = useRef(false);
@@ -241,31 +241,24 @@ export function TransactionComposer({ target: transactionTarget, initial, curren
     {transactionForm.replacesCheckpoint && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       {locale === "he" ? "התאמת יתרה אינה עסקה. כאן ניתן להחליף אותה בקנייה או במכירה שבוצעה בפועל. יש להזין מחיר, כמות ותאריך ביצוע אמיתיים ולציין עמלה. אין להעתיק יתרה מצטברת כקנייה נוספת. אם היו כמה עסקאות, יש לרשום את כולן בנפרד." : "A balance checkpoint is not a transaction. Replace it only with an actual executed buy or sell: enter its execution price, quantity, date and fee. Do not treat a cumulative balance as another purchase. Multiple executions must be recorded separately."}
     </div>}
-    <section className="space-y-3">
-      <div>
-        <Label>{t.positions.transactionType}</Label>
-        <p className="mt-1 text-xs text-slate-500">{locale === "he" ? "בחר את הפעולה שמתבצעת כעת." : "Choose the action you are recording."}</p>
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-medium">{t.positions.transactionType}</legend>
+      <p className="text-xs text-slate-500">{locale === "he" ? "בחר את הפעולה שמתבצעת כעת." : "Choose the action you are recording."}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {(["BUY", "SELL"] as const).map(type => (
+          <label key={type} className={cn(
+            "relative flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring",
+            transactionForm.type !== type && "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            transactionForm.type === type && (type === "BUY" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800"),
+          )}>
+            <input type="radio" name={typeGroupName} value={type} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              checked={transactionForm.type === type}
+              onChange={() => setTransactionForm(previous => ({ ...previous, type }))} />
+            {type === "BUY" ? t.positions.buy : t.positions.sell}
+          </label>
+        ))}
       </div>
-      <RadioGroup
-        value={transactionForm.type}
-        onValueChange={(value) =>
-          setTransactionForm({
-            ...transactionForm,
-            type: value as PositionLotType,
-          })
-        }
-        className="grid grid-cols-2 gap-3"
-      >
-        <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "BUY" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "BUY" }))}>
-          <RadioGroupItem value="BUY" id="transaction-buy" className="sr-only min-h-0 min-w-0" />
-          {t.positions.buy}
-        </label>
-        <label className={cn("flex h-12 cursor-pointer items-center justify-center rounded-xl border-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring", transactionForm.type === "SELL" ? "border-rose-500 bg-rose-50 text-rose-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")} onClick={() => setTransactionForm((previous) => ({ ...previous, type: "SELL" }))}>
-          <RadioGroupItem value="SELL" id="transaction-sell" className="sr-only min-h-0 min-w-0" />
-          {t.positions.sell}
-        </label>
-      </RadioGroup>
-    </section>
+    </fieldset>
     <section className="space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-900">{locale === "he" ? "פרטי העסקה" : "Transaction details"}</p>

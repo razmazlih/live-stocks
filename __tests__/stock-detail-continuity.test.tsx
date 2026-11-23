@@ -12,19 +12,22 @@ vi.mock('@/hooks/use-investment-sources', () => {
 import type { ComponentProps, ReactNode } from 'react';
 import type { Sparkline } from '@/components/charts/sparkline';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reviewClock, setReviewActive } from '@/lib/demo/review';
 import { createDefaultTransactionForm } from '@/components/portfolio/transaction-composer';
 import { StockDetailView } from '@/app/stock/[symbol]/stock-detail-view';
 
-vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { annualGrowthRate: 0.08, finnhubToken: 'test-token' } }) }));
+vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', triggerRefresh: vi.fn(), settings: { annualGrowthRate: 0.08, finnhubToken: 'test-token' } }) }));
 vi.mock('@/components/dashboard/dashboard-route-shell', () => ({ DashboardRouteShell: ({ children, activeKey }: { children: ReactNode; activeKey: string }) => <div data-testid="route-shell" data-active={activeKey}>{children}</div> }));
 vi.mock('@/components/dashboard/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 vi.mock('@/components/charts/sparkline', () => ({ Sparkline: (props: ComponentProps<typeof Sparkline>) => {
   latestChartProps = props;
   return <div data-testid="stock-chart">{props.points.map((point) => point.close).join(',')}</div>;
 } }));
-vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: mockPositionRows ?? [mockPositionRow], error: null }) }) }) }) }));
+vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ from: () => ({ insert: mockInsertLot, select: () => ({ eq: async () => ({ data: mockPositionRows ?? [mockPositionRow], error: null }) }) }) }) }));
+
+const mockInsertLot = vi.fn(async () => ({ error: null }));
 
 type MockLot = { id: string; side: 'BUY' | 'SELL'; quantity: number; price: number; executed_at: string; has_commission: boolean; commission_amount: number; commission_known?: boolean };
 let mockPositionRow: { id: string; symbol: string; display: string; location: string; quantity: number; entry_price: number; entry_date: string; position_lots: MockLot[] };
@@ -44,6 +47,7 @@ let failQuotes: boolean;
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/stock/AAPL?returnTo=%2Fpositions%3Fq%3Dapple');
+  mockInsertLot.mockClear();
   nextCandleRequests = [];
   failQuotes = false;
   missingQuote = false;
@@ -98,6 +102,36 @@ describe('stock detail continuity', () => {
     expect(within(form).getByRole('radio', { name: 'Sell' })).toBeChecked();
     expect(save).toBeEnabled();
     expect(window.location.search).toBe('?q=apple');
+  });
+
+  it.each([
+    { start: 'Record purchase', other: 'Sell', side: 'SELL' },
+    { start: 'Record sale', other: 'Buy', side: 'BUY' },
+  ])('saves the final selection after switching from $start in the inspector', async ({ start, other, side }) => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    const user = userEvent.setup();
+    mockPositionRows = [mockPositionRow, { ...mockPositionRow, id: 'two', location: 'bank_two' }];
+    render(<StockDetailView symbol="AAPL" inspector={{ source: 'bank_two', expand: vi.fn(), setSaving: vi.fn() }} />);
+    await user.click(await screen.findByRole('button', { name: start }));
+    const form = within(screen.getByRole('region', { name: 'Record trade' }));
+    const price = form.getByRole('spinbutton', { name: 'Price' });
+    const quantity = form.getByRole('spinbutton', { name: 'Quantity' });
+    fireEvent.change(price, { target: { value: 101 } });
+    fireEvent.change(quantity, { target: { value: 1 } });
+
+    for (const label of [other, other === 'Buy' ? 'Sell' : 'Buy', other]) {
+      await user.click(form.getByText(label, { exact: true }));
+      expect(form.getByRole('radio', { name: label })).toBeChecked();
+      expect(Boolean(form.queryByText(/available quantity/i))).toBe(label === 'Sell');
+    }
+    expect(price).toHaveValue(101);
+    expect(quantity).toHaveValue(1);
+    expect(form.getByRole('combobox')).toHaveValue('bank_two');
+    await user.click(form.getByRole('button', { name: 'Save transaction' }));
+    expect(mockInsertLot).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      position_id: 'two', side, quantity: 1, price: 101,
+    }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Record trade' })).not.toBeInTheDocument());
   });
 
   it('shows quotes and history for an unheld ticker and carries its symbol into a first purchase', async () => {
