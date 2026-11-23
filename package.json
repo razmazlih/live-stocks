@@ -1,6 +1,6 @@
 {
   "name": "livestocks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -52,6 +52,7 @@
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
+    "ws": "8.19.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -61,6 +62,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
+    "@types/ws": "8.18.1",
     "jsdom": "^27.0.1",
     "vitest": "^3.2.4"
   }
