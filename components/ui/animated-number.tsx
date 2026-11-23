@@ -81,7 +81,16 @@ export function AnimatedNumber({ value, locale, kind = 'currency', currency = 'U
   const transition = useRef<Transition>({ id: group, shown: target, from: 0, to: 0, pending: 0, start: 0 });
   useLayoutEffect(() => {
     const state = transition.current;
-    return () => { state.stop?.(); clearTimeout(state.signalTimer); };
+    const node = root.current;
+    return () => {
+      state.stop?.();
+      state.stop = undefined;
+      clearTimeout(state.signalTimer);
+      if (node) {
+        delete node.dataset.move;
+        delete node.dataset.signal;
+      }
+    };
   }, []);
   useLayoutEffect(() => {
     const node = root.current;

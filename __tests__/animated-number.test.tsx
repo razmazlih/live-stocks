@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnimatedNumber } from '@/components/ui/animated-number';
@@ -43,6 +44,22 @@ describe('animated financial values', () => {
     expect(node.dataset.move).toBeUndefined();
     expect(node).toHaveTextContent('+$20.00');
     expect(drawn.textContent).toBe('');
+  });
+  it('resumes an interrupted animation after its view is revealed', () => {
+    const pending = new Promise<void>(() => {});
+    function Quote({ value, hidden }: { value: number; hidden: boolean }) {
+      if (hidden) throw pending;
+      return number(value);
+    }
+    const view = (value: number, hidden = false) => <Suspense fallback={null}><Quote value={value} hidden={hidden} /></Suspense>;
+    const { container, rerender } = render(view(100));
+    rerender(view(200));
+    step(100);
+    rerender(view(200, true));
+    rerender(view(210));
+    step(700);
+    expect(container.querySelector('bdi')?.dataset.move).toBeUndefined();
+    expect(container.querySelector('bdi')).toHaveTextContent('+$210.00');
   });
   it('passes zero once on a sign crossing and resets on currency, identity and missing values', () => {
     const {container, rerender} = render(number(-100));
