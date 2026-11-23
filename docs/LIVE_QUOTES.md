@@ -6,7 +6,9 @@ The server opens Finnhub's trade WebSocket using the account's encrypted credent
 
 Selected stocks take precedence over holdings, followed by watchlist stocks. The relay subscribes up to 50 symbols per key and tracks up to 150 requested symbols. In regular hours, one fallback REST request per six seconds per key rotates among symbols lacking a recent update. This budget applies to the stream. Initial dashboard loads and explicit refresh actions use the dashboard's existing quote cache. Retries honor provider rate-limit delays. Missing credentials or unavailable coordination leave the persisted portfolio and existing price snapshots accessible.
 
-The closing summary still uses verified regular closing data. Finnhub trade messages provide a price and timestamp. Extended-hour coverage depends on the provider. Overnight prices require explicit overnight evidence. The local and preview demos simulate changes privately using the synthetic fixture and the selected session. They never connect to Finnhub.
+The browser reconnects if it receives neither data nor a heartbeat for 30 seconds. The closing summary still uses verified regular closing data. Finnhub trade messages provide a price and timestamp. Extended-hour coverage depends on the provider. Overnight prices require explicit overnight evidence.
+
+The local and preview demos simulate changes privately using the synthetic fixture and the selected session, including when the browser is offline. In a fixed scenario, prices keep updating after the simulated clock reaches the last instant of the selected trading phase. Changing the scenario starts the newly selected session immediately.
 
 ## Database and verification
 

@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { demoAsset, demoQuote } from '@/lib/demo/assets';
-import { reviewClock } from '@/lib/demo/review';
+import { DEMO_SCENARIO_EVENT, demoScenarioClock, readLocalMarketMode, reviewClock } from '@/lib/demo/review';
 import { getMarketClock } from '@/lib/utils/trading-hours';
 import {
   admissibleTick,
@@ -40,7 +40,7 @@ export function syntheticTicks(symbols: string[], base: number, elapsed: number)
     const swing = Math.sin(step * 0.65 + seed) - Math.sin(seed);
     const price = Number((start + start * 0.0018 * swing).toFixed(2));
     const tick = admissibleTick(symbol, price, timestamp, timestamp, 'demo');
-    return tick ? [tick] : [];
+    return tick ? [{ ...tick, demoStep: step }] : [];
   });
 }
 
@@ -94,6 +94,7 @@ export class LiveQuoteStore {
     window.addEventListener('offline', this.wake);
     window.addEventListener('pageshow', this.wake);
     window.addEventListener('focus', this.wake);
+    if (this.mode !== 'account') window.addEventListener(DEMO_SCENARIO_EVENT, this.wake);
     this.reconcile(true);
     return () => {
       this.active = false;
@@ -102,6 +103,7 @@ export class LiveQuoteStore {
       window.removeEventListener('offline', this.wake);
       window.removeEventListener('pageshow', this.wake);
       window.removeEventListener('focus', this.wake);
+      if (this.mode !== 'account') window.removeEventListener(DEMO_SCENARIO_EVENT, this.wake);
       this.stopRun();
       this.demandKey = '';
       this.quoteSession = '';
@@ -122,22 +124,26 @@ export class LiveQuoteStore {
   private reconcile(force = false) {
     if (!this.active) return;
     const demands = mergeDemand(this.wants.values()).slice(0, MAX_STREAM_DEMAND);
-    const clockNow = this.mode === 'review' ? reviewClock() : Date.now();
+    let fixedClock: number | null = null;
+    if (this.mode === 'review' && readLocalMarketMode() !== 'realtime') fixedClock = reviewClock();
+    if (this.mode === 'demo') fixedClock = demoScenarioClock();
+    const clockNow = fixedClock ?? Date.now();
     const clock = getMarketClock(clockNow);
-    const enabled = demands.length > 0 && !document.hidden && navigator.onLine !== false;
-    const id = [enabled, clock.phase, clock.date, ...demands.map((d) => d.priority + d.symbol)].join('|');
+    const enabled = demands.length > 0 && !document.hidden && (this.mode !== 'account' || navigator.onLine !== false);
+    const session = [clock.date, clock.phase, fixedClock ?? 'realtime'].join(':');
+    const id = [enabled, session, ...demands.map((d) => d.priority + d.symbol)].join('|');
     if (!force && id === this.demandKey) return;
     this.demandKey = id;
     this.stopRun();
     const epoch = this.epoch;
     const symbols = new Set(demands.map((d) => d.symbol));
-    const session = [clock.date, clock.phase, this.mode === 'review' ? clockNow : ''].join(':');
     const retained =
       session === this.quoteSession
         ? Object.values(this.state.ticks).filter((tick) => symbols.has(tick.symbol))
         : [];
+    if (session !== this.quoteSession) this.simulation = undefined;
     this.quoteSession = session;
-    if (this.mode !== 'review' && demands.length && clock.nextTransition) {
+    if (fixedClock === null && demands.length && clock.nextTransition) {
       this.wakeTimer = setTimeout(this.wake, Math.max(50, clock.nextTransition - clockNow + 20));
     }
     if (!demands.length || clock.phase === 'closed' || clock.phase === 'unknown') {
@@ -152,11 +158,8 @@ export class LiveQuoteStore {
       );
       return;
     }
-    const simulationId = [this.mode, clock.date, clock.phase, this.mode === 'review' ? clockNow : ''].join(
-      ':',
-    );
-    if (this.mode !== 'account' && this.simulation?.id !== simulationId) {
-      this.simulation = { id: simulationId, base: clockNow, start: Date.now() };
+    if (this.mode !== 'account' && this.simulation?.id !== session) {
+      this.simulation = { id: session, base: clockNow, start: Date.now() };
     }
     const sim = this.simulation;
     this.update('connecting', retained, true);
@@ -194,14 +197,19 @@ export class LiveQuoteStore {
       if (list.length) params.set(['selected', 'holding', 'watchlist'][n], list.join(','));
     }
     const wanted = new Set(demands.map((d) => d.symbol));
-    this.controller = new AbortController();
+    const controller = new AbortController();
+    this.controller = controller;
+    // The server sends a heartbeat every 12 seconds. A stalled radio or proxy
+    // may leave fetch pending without notifying the browser that it went offline.
+    const abortStalledRead = () => controller.abort();
+    let heartbeatDeadline = setTimeout(abortStalledRead, 30_000);
     let retry = true;
     let complete = false;
     try {
       const response = await fetch('/api/quotes/stream?' + params, {
         credentials: 'same-origin',
         cache: 'no-store',
-        signal: this.controller.signal,
+        signal: controller.signal,
       });
       if (!response.ok || !response.body) {
         if ([400, 401, 403, 409].includes(response.status)) retry = false;
@@ -217,6 +225,8 @@ export class LiveQuoteStore {
           complete = true;
           break;
         }
+        clearTimeout(heartbeatDeadline);
+        heartbeatDeadline = setTimeout(abortStalledRead, 30_000);
         buffer += decoder.decode(value, { stream: true });
         if (buffer.length > 150_000) throw new Error('Invalid stream frame');
         let boundary: number;
@@ -255,8 +265,9 @@ export class LiveQuoteStore {
           true,
         );
     } finally {
+      clearTimeout(heartbeatDeadline);
       if (epoch === this.epoch) {
-        this.controller?.abort();
+        controller.abort();
         if (retry) {
           const delay = complete ? 300 : this.retryMs + Math.floor(Math.random() * 500);
           if (!complete) this.retryMs = Math.min(this.retryMs * 2, 60_000);

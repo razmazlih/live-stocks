@@ -18,6 +18,7 @@ it('keeps regular, extended, late, future and older marks separate', () => {
   expect(admissibleTick('AMD', 151, now + 1000, now, 'trade')).toBeNull();
   expect(admissibleTick('AMD', 151, now - 16 * 60_000, now, 'trade')).toBeNull();
   expect(newerTick(tick, { ...tick, timestamp: now - 1 })).toBe(false);
+  expect(newerTick(tick, { ...tick, price: 151, demoStep: 1 })).toBe(false);
   const after = Date.parse('2026-11-20T22:00Z');
   expect(admissibleTick('AMD', 151, after, after, 'quote')).toBeNull();
   expect(admissibleTick('AMD', 151, after, after, 'trade')?.phase).toBe('post');

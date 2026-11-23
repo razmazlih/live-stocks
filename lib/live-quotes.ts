@@ -9,6 +9,8 @@ export interface LiveQuoteTick {
   timestamp: number;
   phase: LiveQuotePhase;
   source: 'trade' | 'quote' | 'demo';
+  /** Orders simulated observations when a fixed scenario reaches its last instant. */
+  demoStep?: number;
   /** A previously accepted observation retained while waiting for a new print. */
   stale?: boolean;
 }
@@ -92,6 +94,9 @@ export function newerTick(prior: LiveQuoteTick | undefined, next: LiveQuoteTick)
   return (
     !prior ||
     next.timestamp > prior.timestamp ||
-    (next.timestamp === prior.timestamp && prior.source === 'quote' && next.source === 'trade')
+    (next.timestamp === prior.timestamp && (
+      (prior.source === 'quote' && next.source === 'trade') ||
+      (prior.source === 'demo' && next.source === 'demo' && (next.demoStep ?? -1) > (prior.demoStep ?? -1))
+    ))
   );
 }
