@@ -38,6 +38,19 @@ async function handler(request: NextRequest, context: Context) {
     }
     if (endpoint === 'settings') {
       if (request.method === 'GET') return json((await readDemoState() ?? seedDemoState()).settings);
+      if (request.method === 'PATCH') {
+        if (!body || typeof body !== 'object' || !('annualGrowthRate' in body) || Object.keys(body).length !== 1) {
+          return json({ error: 'Expected an annual growth rate' }, 400);
+        }
+        const rate = body.annualGrowthRate;
+        const saved = await updateDemoState(state => {
+          const settings = { ...state.settings, annualGrowthRate: rate };
+          validateDemoSettings(settings);
+          state.settings = settings;
+          return settings;
+        });
+        return json(saved);
+      }
       if (request.method === 'PUT') {
         validateDemoSettings(body);
         await updateDemoState(state => { state.settings = body; });

@@ -244,7 +244,7 @@ export function buildMarketOverview(positions: Position[], marks: Record<string,
   };
 }
 
-export function demoMarketOverview(positions: Position[], quotes: Record<string, Pick<StockQuote, 'c' | 'd'>>, now: number, annualGrowthRate = 0.05, usdToIls = 3.65) {
+export function demoMarketBasis(positions: Position[], quotes: Record<string, Pick<StockQuote, 'c' | 'd'>>, now: number, usdToIls = 3.65) {
   const clock = getMarketClock(now);
   const day = clock.phase === 'regular' ? clock.session : clock.closing;
   const prior = day && adjacentSession(day.date, -1);
@@ -259,9 +259,14 @@ export function demoMarketOverview(positions: Position[], quotes: Record<string,
     if (clock.phase === 'pre' || clock.phase === 'post') stock.extended = { price: price + change * 0.4, asOf: now - 60_000 };
     marks[symbol] = stock;
   }
-  return buildMarketOverview(positions, marks, now, {annualGrowthRate, usdToIls, fxHistoryPoints: [
+  return { marks, fxHistoryPoints: [
     ...positions.flatMap(p => [p.entryDate, ...(p.lots ?? []).map(lot => lot.executedAt)].map(date => ({timestamp: Date.parse(date), close: usdToIls}))),
     {timestamp: Date.parse(day?.date ?? clock.date), close: usdToIls},
     ...(clock.closing ? [0, -1].map(offset => ({timestamp: Date.parse(clock.closing!.date) + offset * DAY, close: usdToIls})) : []),
-  ]});
+  ] };
+}
+
+export function demoMarketOverview(positions: Position[], quotes: Record<string, Pick<StockQuote, 'c' | 'd'>>, now: number, annualGrowthRate = 0.05, usdToIls = 3.65) {
+  const { marks, fxHistoryPoints } = demoMarketBasis(positions, quotes, now, usdToIls);
+  return buildMarketOverview(positions, marks, now, { annualGrowthRate, usdToIls, fxHistoryPoints });
 }

@@ -1,6 +1,8 @@
 // A review deployment keeps its synthetic account and clock in each browser tab.
 // No request made by this adapter can read or write a server-side account.
 import { executeDemoOperation, localDemoDashboard, seedDemoLedger, type DemoLedger } from './ledger';
+import { localDateParam } from '@/lib/list-url-state';
+import { easternDate } from '@/lib/utils/trading-hours';
 import type { Settings } from '@/types';
 import type { DemoPreferences } from './client';
 
@@ -24,6 +26,15 @@ export function reviewClock() {
   return clocks[selected] ?? clocks.regular;
 }
 
+/** The preview shares one session date across charts, metrics and transaction entry. */
+export function portfolioNow(): number {
+  return isReviewActive() ? reviewClock() : Date.now();
+}
+
+export function portfolioToday(): string {
+  return isReviewActive() ? easternDate(reviewClock()) : localDateParam(new Date())!;
+}
+
 function readState(): ReviewState {
   const saved = sessionStorage.getItem(reviewKey);
   if (saved) return JSON.parse(saved);
@@ -44,7 +55,7 @@ export function reviewRequest(path: string, init?: RequestInit): unknown {
   if (path !== 'settings' && path !== 'preferences') throw new Error('Unknown preview operation');
   if (init?.body) {
     const data = JSON.parse(String(init.body));
-    if (path === 'settings') state.settings = data;
+    if (path === 'settings') state.settings = init.method === 'PATCH' ? { ...state.settings, ...data } : data;
     else state.preferences = { ...state.preferences, ...data };
     sessionStorage.setItem(reviewKey, JSON.stringify(state));
   }

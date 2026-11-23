@@ -193,7 +193,7 @@ export function createDemoFetch(assertCurrentSession: () => void): typeof fetch 
 
 export function localDemoDashboard(ledger = readDemoLedger(), asOf = Date.now()) {
   const positions = rowsFor(ledger, 'positions', new URLSearchParams()).map(row => mapPositionRow(row as unknown as Parameters<typeof mapPositionRow>[0]));
-  const quotes = Object.fromEntries(positions.map(position => [position.symbol, demoQuote(position.symbol, position.entryPrice)]));
+  const quotes = Object.fromEntries(positions.map(position => [position.symbol, { ...demoQuote(position.symbol, position.entryPrice), t: Math.floor(asOf / 1000) }]));
   const candlesByKey: Record<string, HistoricalPoint[]> = {};
   for (const position of positions) {
     const first = Math.min(...(position.lots ?? []).map(lot => Date.parse(lot.executedAt)), asOf);

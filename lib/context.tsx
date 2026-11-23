@@ -12,6 +12,9 @@ import { usePathname } from 'next/navigation';
 import { Locale, Settings } from '@/types';
 import { PortfolioDataProvider } from '@/hooks/use-portfolio-data';
 import { getSupabaseClient } from '@/lib/supabase';
+import { LiveQuoteProvider } from '@/hooks/use-live-quotes';
+import { isReviewActive } from '@/lib/demo/review';
+import { persistAnnualTarget } from '@/lib/portfolio-settings';
 import { getNasdaqRefreshInterval } from '@/lib/utils/trading-hours';
 import { InvestmentSourcesProvider } from '@/hooks/use-investment-sources';
 import { readDemoSettings } from '@/lib/demo/settings';
@@ -25,6 +28,7 @@ interface AppContextType {
   settings: Settings;
   setSettings: (settings: Settings) => void;
   settingsReady: boolean;
+  saveAnnualTarget: (rate: number) => Promise<void>;
   refreshTrigger: number;
   triggerRefresh: () => void;
 }
@@ -116,6 +120,11 @@ export function AppProvider({ children, demo = false, initialDemoLocale }: { chi
     });
   }, [demo, locale]);
 
+  const saveAnnualTarget = useCallback(async (annualGrowthRate: number) => {
+    await persistAnnualTarget(annualGrowthRate, demo);
+    setSettings(current => ({ ...current, annualGrowthRate }));
+  }, [demo]);
+
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
@@ -151,12 +160,15 @@ export function AppProvider({ children, demo = false, initialDemoLocale }: { chi
         setLocale: changeLocale,
         settings,
         setSettings,
+        saveAnnualTarget,
         settingsReady,
         refreshTrigger,
         triggerRefresh,
       }}
     >
-      <InvestmentSourcesProvider><PortfolioDataProvider scope={portfolioScope}>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
+      <LiveQuoteProvider mode={demo ? (isReviewActive() ? 'review' : 'demo') : 'account'}>
+        <InvestmentSourcesProvider><PortfolioDataProvider scope={portfolioScope}>{children}</PortfolioDataProvider></InvestmentSourcesProvider>
+      </LiveQuoteProvider>
     </AppContext.Provider>
   );
 }

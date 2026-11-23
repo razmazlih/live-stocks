@@ -48,6 +48,14 @@ describe('disk demo API boundaries', () => {
     expect(response.headers.get('cache-control')).toContain('no-store');
   });
 
+  it('changes only the annual target and rejects out-of-range or unrelated edits', async () => {
+    await call('settings', 'PUT', { annualGrowthRate: 0.05, currency: 'ILS', refreshInterval: 15 });
+    expect((await call('settings', 'PATCH', { annualGrowthRate: 1.2 })).ok).toBe(false);
+    expect((await call('settings', 'PATCH', { annualGrowthRate: 0.2, currency: 'USD' })).ok).toBe(false);
+    const saved = await call('settings', 'PATCH', { annualGrowthRate: 0.125 });
+    expect(await saved.json()).toEqual({ annualGrowthRate: 0.125, currency: 'ILS', refreshInterval: 15 });
+  });
+
   it('persists sources, watchlists, plans and transactions in the shared local file', async () => {
     await call('import', 'POST', {});
     const sourceResponse = await call('rest/v1/investment_sources', 'POST', { name: 'Second local source' });

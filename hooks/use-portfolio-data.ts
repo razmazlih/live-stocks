@@ -1,36 +1,23 @@
 'use client';
 
-import { createContext, createElement, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, createElement, useContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useApp } from '@/lib/context';
-import { isReviewActive } from '@/lib/demo/review';
+import { useLiveQuotes } from '@/hooks/use-live-quotes';
+import { applySessionTicks, repricePortfolio, valuePortfolio, type PortfolioValuation } from '@/lib/portfolio-valuation';
+import { isReviewActive, portfolioNow } from '@/lib/demo/review';
 import { getMarketClock } from '@/lib/utils/trading-hours';
-import { buildMarketOverview, demoMarketOverview, type MarketOverview, type SymbolMarketData } from '@/lib/market-overview';
+import { buildMarketOverview, demoMarketBasis, type MarketOverview, type SymbolMarketData } from '@/lib/market-overview';
 import { getLocalDemoDashboard } from '@/lib/supabase';
-import {
-  computeRealizedSalesWithFx,
-  expandPositionActivations,
-} from '@/lib/positions';
-import {
-  buildPortfolioTimelinePointFromSummary,
-  calculatePortfolioSummary,
-  calculatePositionMetrics,
-  calculateRequiredExitPrice,
-  calculateRealizedPortfolioTotals,
-  calculateRealizedTaxLiability,
-  enrichPortfolioSummaryWithRealized,
-  normalizeOpenPortfolioSummary,
-} from '@/lib/calculations';
+import { expandPositionActivations } from '@/lib/positions';
+import { buildPortfolioTimelinePointFromSummary } from '@/lib/calculations';
 import {
   HistoricalPoint,
   Position,
-  PositionMetrics,
-  PortfolioSummary,
   PortfolioTimelinePoint,
   RealizedSale,
 } from '@/types';
 import { buildPositionTimeline } from '@/lib/portfolio-timeline';
-import { buildUsdIlsRateResolver } from '@/lib/services/historical-fx';
 
 interface SparklineResult {
   key: string;
@@ -193,9 +180,8 @@ function usePortfolioDataState(scope: PortfolioScope) {
   const requestRef = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
   const [refreshingCount, setRefreshingCount] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [metrics, setMetrics] = useState<PositionMetrics[]>([]);
-  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [openSummary, setOpenSummary] = useState<PortfolioSummary | null>(null);
+  const [valuation, setValuation] = useState<PortfolioValuation | null>(null);
+  const [marketBasis, setMarketBasis] = useState<{ marks: Record<string, SymbolMarketData>; asOf: number; fxHistoryPoints: HistoricalPoint[] } | null>(null);
   const [contextSparklineData, setContextSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [sparklineData, setSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
@@ -367,210 +353,124 @@ function usePortfolioDataState(scope: PortfolioScope) {
         ? (payload.usdToIls as number)
         : Number.NaN;
       const fxHistoryPoints = Array.isArray(payload.fxHistoryPoints) ? payload.fxHistoryPoints : [];
-      const getFxRateAt = buildUsdIlsRateResolver(fxHistoryPoints, rate, { allowFallback: false });
       const batchedQuotes = payload.quotes ?? {};
 
-        const quoteEntries = mappedPositions.map((position) => {
-          const normalizedSymbol = position.symbol.trim().toUpperCase();
-          const quoteData = batchedQuotes[normalizedSymbol];
-          return {
-            symbol: normalizedSymbol,
-            currentPrice: typeof quoteData?.c === 'number' && Number.isFinite(quoteData.c) && quoteData.c > 0
-              ? quoteData.c
-              : Number.NaN,
-            dailyChange: quoteData?.d,
-          };
-        });
+      const nextValuation = valuePortfolio({ positions: mappedPositions, activationPositions, quotes: batchedQuotes,
+        fxHistoryPoints, rate, valuationTime }, settings.annualGrowthRate);
+      const { getFxRateAt, summary: enrichedSummary, realizedTotals, taxSummary, sales: realizedSalesWithFx } = nextValuation;
+      const annualGrowthRate = nextValuation.growthRate;
+      setValuation(nextValuation);
 
-        const quoteMap = new Map<string, { currentPrice: number; dailyChange?: number }>();
-        quoteEntries.forEach((entry) => {
-          quoteMap.set(entry.symbol, {
-            currentPrice: entry.currentPrice,
-            dailyChange: entry.dailyChange,
-          });
-        });
+      hasDataRef.current = true;
+      setHasData(true);
+      setPositions(mappedPositions);
+      setUsdToIls(rate);
+      setHistoricalIlsRealizedPnL(realizedTotals.profitIls);
+      setHistoricalIlsNetPnL(enrichedSummary.totalNetPnLIls);
+      setRealizedSales(realizedSalesWithFx);
+      setLastUpdate(new Date(payload.asOf ?? Date.now()));
+      setLoading(false);
 
-        const positionsBySymbol = new Map<string, Position[]>();
-        mappedPositions.forEach((position) => {
-          const symbol = position.symbol.trim().toUpperCase();
-          const group = positionsBySymbol.get(symbol);
-          if (group) {
-            group.push(position);
-          } else {
-            positionsBySymbol.set(symbol, [position]);
+      const loadMarket = async () => {
+        if (scope !== 'overview') return;
+        if (localPayload) {
+          const basis = demoMarketBasis(mappedPositions, localPayload.quotes, valuationTime, rate);
+          setMarketBasis({ ...basis, asOf: valuationTime });
+          setMarketOverview(buildMarketOverview(mappedPositions, basis.marks, valuationTime, { annualGrowthRate, usdToIls: rate, fxHistoryPoints: basis.fxHistoryPoints }));
+        } else if (payload.deferredHistory && mappedPositions.length) {
+          const accounting = { annualGrowthRate, usdToIls: rate, fxHistoryPoints };
+          // While marks arrive, keep the closing value pending and retain the correct session layout.
+          setMarketOverview(previous => previous ?? buildMarketOverview(mappedPositions, {}, valuationTime, accounting));
+          const result = await fetchDashboard('market', controller.signal);
+          if (isCurrent() && result.marks && result.asOf) {
+            setMarketBasis({ marks: result.marks, asOf: result.asOf, fxHistoryPoints });
+            setMarketOverview(buildMarketOverview(mappedPositions, result.marks, result.asOf, accounting));
           }
-        });
-        const requiredExitPriceBySymbol = new Map(
-          Array.from(positionsBySymbol.entries()).map(([symbol, symbolPositions]) => [
-            symbol,
-            calculateRequiredExitPrice(symbolPositions, settings.annualGrowthRate, new Date(valuationTime)),
-          ]),
-        );
-
-        const calculatedMetrics = activationPositions.map((position) => {
-          const quote = quoteMap.get(position.symbol.trim().toUpperCase());
-          const currentPrice = quote?.currentPrice ?? Number.NaN;
-          const dailyChange = quote?.dailyChange;
-
-          const metrics = calculatePositionMetrics(
-            position,
-            // Closed activations have no market exposure; missing quotes must not turn zero value into NaN.
-            position.quantity <= 0 && !Number.isFinite(currentPrice) ? 0 : currentPrice,
-            rate,
-            settings.annualGrowthRate,
-            dailyChange,
-            getFxRateAt,
-            new Date(valuationTime),
-          );
-          return {
-            ...metrics,
-            currentPrice,
-            requiredExitPrice: position.quantity > 0
-              ? requiredExitPriceBySymbol.get(position.symbol.trim().toUpperCase())
-              : undefined,
-          };
-        });
-        const portfolioSummary = calculatePortfolioSummary(calculatedMetrics, rate);
-        const openMetrics = calculatedMetrics.filter((metric) => metric.position.quantity > 0);
-        const openSummaryBase = calculatePortfolioSummary(openMetrics, rate);
-        const realizedSalesWithFx = mappedPositions.flatMap((position) =>
-          computeRealizedSalesWithFx(position, getFxRateAt),
-        );
-        const annualGrowthRate = Number.isFinite(settings.annualGrowthRate)
-          ? settings.annualGrowthRate
-          : 0;
-
-        const realizedTotals = calculateRealizedPortfolioTotals(
-          realizedSalesWithFx,
-          annualGrowthRate,
-          rate,
-          getFxRateAt,
-        );
-
-        const chronologicalSales = realizedSalesWithFx
-          .slice()
-          .sort((a, b) => new Date(a.sellDate).getTime() - new Date(b.sellDate).getTime());
-
-        const taxSummary = calculateRealizedTaxLiability(
-          chronologicalSales.map((sale) => ({
-            profitUsd: sale.profitUsd,
-            profitIls: sale.profitIls ?? sale.profitUsd * rate,
-            timestamp: new Date(sale.sellDate).getTime(),
-          }))
-        );
-
-        const normalizedOpenSummary = normalizeOpenPortfolioSummary(openSummaryBase);
-        const enrichedSummary = enrichPortfolioSummaryWithRealized(portfolioSummary, realizedTotals, taxSummary);
-
-        hasDataRef.current = true;
-        setHasData(true);
-        setPositions(mappedPositions);
-        setUsdToIls(rate);
-        setMetrics(calculatedMetrics);
-        setSummary(enrichedSummary);
-        setOpenSummary(normalizedOpenSummary);
-        setHistoricalIlsRealizedPnL(realizedTotals.profitIls);
-        setHistoricalIlsNetPnL(enrichedSummary.totalNetPnLIls);
-        setRealizedSales(realizedSalesWithFx);
-        setLastUpdate(new Date(payload.asOf ?? Date.now()));
-        setLoading(false);
-
-        const loadMarket = async () => {
-          if (scope !== 'overview') return;
-          if (localPayload) {
-            setMarketOverview(demoMarketOverview(mappedPositions, localPayload.quotes, payload.asOf ?? Date.now(), annualGrowthRate, rate));
-          } else if (payload.deferredHistory && mappedPositions.length) {
-            const accounting = { annualGrowthRate, usdToIls: rate, fxHistoryPoints };
-            // While marks arrive, keep the closing value pending and retain the correct session layout.
-            setMarketOverview(previous => previous ?? buildMarketOverview(mappedPositions, {}, valuationTime, accounting));
-            const result = await fetchDashboard('market', controller.signal);
-            if (isCurrent() && result.marks && result.asOf) {
-              setMarketOverview(buildMarketOverview(mappedPositions, result.marks, result.asOf, accounting));
-            }
-          } else {
-            setMarketOverview(payload.marketOverview ?? null);
-          }
-        };
-        const loadHistory = async () => {
-          const history = payload.deferredHistory && mappedPositions.length
-            ? await fetchDashboard('history', controller.signal)
-            : payload;
-          if (!isCurrent()) return;
-          const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
-            await loadSparklines(activationPositions, getFxRateAt, {
-              candlesByKey: history.candlesByKey ?? {},
-              spyPoints: history.spyPoints ?? [],
-              valuationTime,
-            });
-
-          const taxTimeline = taxSummary.timeline
-            .slice()
-            .sort((a, b) => a.timestamp - b.timestamp);
-
-          let currentTaxUsd = 0;
-          let currentTaxIls = 0;
-          let taxIndex = 0;
-
-          const adjustedTimeline = nextPortfolioTimeline.map((point) => {
-            while (taxIndex < taxTimeline.length && taxTimeline[taxIndex].timestamp <= point.timestamp) {
-              currentTaxUsd = taxTimeline[taxIndex].cumulativeTaxUsd;
-              currentTaxIls = taxTimeline[taxIndex].cumulativeTaxIls;
-              taxIndex += 1;
-            }
-
-            const netPnLUsdBeforeTax = point.netPnLUsd;
-            const netPnLIlsBeforeTax = point.netPnLIls;
-            const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
-            const expectedNetPnLIlsBeforeTax = point.expectedNetPnLIls;
-            const spyNetPnLUsd = point.spyNetPnLUsd;
-            const spyNetPnLIls = point.spyNetPnLIls;
-
-            return {
-              ...point,
-              // Keep historical actual P/L on the same realized + unrealized basis as today's summary.
-              totalPnLUsd: netPnLUsdBeforeTax,
-              totalPnLIls: netPnLIlsBeforeTax,
-              netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
-              netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
-              expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,
-              expectedNetPnLIls: expectedNetPnLIlsBeforeTax,
-              spyNetPnLUsd,
-              spyNetPnLIls,
-            };
-          });
-
-          const startOfTodayMs = toUtcDayStart(valuationTime);
-          const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
-
-          const timelineWithoutToday = adjustedTimeline.filter(
-            (point) => point.timestamp < startOfTodayMs || point.timestamp > endOfTodayMs
-          );
-
-          const todayPoint = buildPortfolioTimelinePointFromSummary(
-            enrichedSummary,
+        } else {
+          setMarketBasis(null);
+          setMarketOverview(payload.marketOverview ?? null);
+        }
+      };
+      const loadHistory = async () => {
+        const history = payload.deferredHistory && mappedPositions.length
+          ? await fetchDashboard('history', controller.signal)
+          : payload;
+        if (!isCurrent()) return;
+        const { sparklineData: nextSparklineData, portfolioTimeline: nextPortfolioTimeline } =
+          await loadSparklines(activationPositions, getFxRateAt, {
+            candlesByKey: history.candlesByKey ?? {},
+            spyPoints: history.spyPoints ?? [],
             valuationTime,
-            timelineWithoutToday[timelineWithoutToday.length - 1],
-          );
+          });
 
-          const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
-            (a, b) => a.timestamp - b.timestamp
-          );
-          const earliestActivityTimestamp =
-            nextPortfolioTimeline.length > 0
-              ? resolveEarliestPortfolioActivityTimestamp(activationPositions)
-              : null;
-          const continuousTimeline = buildContinuousTimeline(finalTimeline, earliestActivityTimestamp);
+        const taxTimeline = taxSummary.timeline
+          .slice()
+          .sort((a, b) => a.timestamp - b.timestamp);
 
-          if (!isCurrent()) return;
-          setSparklineData(nextSparklineData);
-          setContextSparklineData(history.contextCandlesByKey ?? {});
-          setPortfolioTimeline(continuousTimeline);
-          setHistoricalIlsNetPnL(continuousTimeline.at(-1)?.netPnLIls ?? enrichedSummary.totalNetPnLIls);
-        };
-        await Promise.all([
-          loadMarket().catch(() => { /* Known observations retain their original session date and source time. */ }),
-          loadHistory().catch(() => { /* Keep the previous chart on a temporary history outage. */ }),
-        ]);
+        let currentTaxUsd = 0;
+        let currentTaxIls = 0;
+        let taxIndex = 0;
+
+        const adjustedTimeline = nextPortfolioTimeline.map((point) => {
+          while (taxIndex < taxTimeline.length && taxTimeline[taxIndex].timestamp <= point.timestamp) {
+            currentTaxUsd = taxTimeline[taxIndex].cumulativeTaxUsd;
+            currentTaxIls = taxTimeline[taxIndex].cumulativeTaxIls;
+            taxIndex += 1;
+          }
+
+          const netPnLUsdBeforeTax = point.netPnLUsd;
+          const netPnLIlsBeforeTax = point.netPnLIls;
+          const expectedNetPnLUsdBeforeTax = point.expectedNetPnLUsd;
+          const expectedNetPnLIlsBeforeTax = point.expectedNetPnLIls;
+          const spyNetPnLUsd = point.spyNetPnLUsd;
+          const spyNetPnLIls = point.spyNetPnLIls;
+
+          return {
+            ...point,
+            // Keep historical actual P/L on the same realized + unrealized basis as today's summary.
+            totalPnLUsd: netPnLUsdBeforeTax,
+            totalPnLIls: netPnLIlsBeforeTax,
+            netPnLUsd: netPnLUsdBeforeTax - currentTaxUsd,
+            netPnLIls: netPnLIlsBeforeTax - currentTaxIls,
+            expectedNetPnLUsd: expectedNetPnLUsdBeforeTax,
+            expectedNetPnLIls: expectedNetPnLIlsBeforeTax,
+            spyNetPnLUsd,
+            spyNetPnLIls,
+          };
+        });
+
+        const startOfTodayMs = toUtcDayStart(valuationTime);
+        const endOfTodayMs = startOfTodayMs + 24 * 60 * 60 * 1000 - 1;
+
+        const timelineWithoutToday = adjustedTimeline.filter(
+          (point) => point.timestamp < startOfTodayMs || point.timestamp > endOfTodayMs
+        );
+
+        const todayPoint = buildPortfolioTimelinePointFromSummary(
+          enrichedSummary,
+          valuationTime,
+          timelineWithoutToday[timelineWithoutToday.length - 1],
+        );
+
+        const finalTimeline = [...timelineWithoutToday, todayPoint].sort(
+          (a, b) => a.timestamp - b.timestamp
+        );
+        const earliestActivityTimestamp =
+          nextPortfolioTimeline.length > 0
+            ? resolveEarliestPortfolioActivityTimestamp(activationPositions)
+            : null;
+        const continuousTimeline = buildContinuousTimeline(finalTimeline, earliestActivityTimestamp);
+
+        if (!isCurrent()) return;
+        setSparklineData(nextSparklineData);
+        setContextSparklineData(history.contextCandlesByKey ?? {});
+        setPortfolioTimeline(continuousTimeline);
+        setHistoricalIlsNetPnL(continuousTimeline.at(-1)?.netPnLIls ?? enrichedSummary.totalNetPnLIls);
+      };
+      await Promise.all([
+        loadMarket().catch(() => { /* Known observations retain their original session date and source time. */ }),
+        loadHistory().catch(() => { /* Keep the previous chart on a temporary history outage. */ }),
+      ]);
       } catch (error) {
         if (!controller.signal.aborted && generation === generationRef.current) {
           console.error('Error loading portfolio data:', error);
@@ -646,6 +546,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
         generationRef.current += 1;
         setRefreshingCount(0);
         const clock = getMarketClock();
+        setMarketBasis(null);
         setMarketOverview(previous => {
           if (!previous) return null;
           const closeDate = clock.closing?.date ?? previous.closeDate;
@@ -671,21 +572,54 @@ function usePortfolioDataState(scope: PortfolioScope) {
 
   const reload = useCallback(() => loadData({ background: true, forceQuoteRefresh: true }), [loadData]);
 
+  const symbols = useMemo(() => scope === 'idle' ? [] : positions.filter(p => p.quantity > 0).map(p => p.symbol), [positions, scope]);
+  const { ticks, status: streamStatus } = useLiveQuotes(symbols, 'holding');
+  const latestTick = useMemo(() => Object.values(ticks).reduce((max, tick) => Math.max(max, tick.timestamp), 0), [ticks]);
+  const basisTime = Math.max(valuation?.basis.valuationTime ?? 0, marketBasis?.asOf ?? 0);
+  const asOf = useMemo(() => Math.max(portfolioNow(), basisTime, latestTick), [basisTime, latestTick]);
+  const priced = useMemo(() => valuation && latestTick ? repricePortfolio(valuation, ticks, asOf) : valuation,
+    [valuation, latestTick, ticks, asOf]);
+  const liveMarks = useMemo(() => marketBasis && latestTick ? applySessionTicks(marketBasis.marks, ticks, asOf) : marketBasis?.marks,
+    [marketBasis, latestTick, ticks, asOf]);
+  const observedMarket = useMemo(() => {
+    if (!marketBasis || !valuation || !liveMarks || liveMarks === marketBasis.marks) return marketOverview;
+    const observed = buildMarketOverview(positions, liveMarks, asOf, { annualGrowthRate: valuation.growthRate, usdToIls, fxHistoryPoints: marketBasis.fxHistoryPoints });
+    if (observed.phase === 'regular' && Object.values(ticks).some(tick => tick.stale)) {
+      return { ...observed, daily: { ...observed.daily, delayed: true } };
+    }
+    return observed;
+  }, [marketBasis, valuation, liveMarks, marketOverview, positions, asOf, ticks, usdToIls]);
+  const previewTarget = useCallback((annualGrowthRate: number) => {
+    if (!valuation) return null;
+    if (observedMarket && ((observedMarket.phase !== 'regular' && observedMarket.phase !== 'unknown') || observedMarket.daily.previousSession)) {
+      if (!marketBasis || !liveMarks) return null;
+      return buildMarketOverview(positions, liveMarks, asOf, { annualGrowthRate, usdToIls,
+        fxHistoryPoints: marketBasis.fxHistoryPoints }).closingSummary;
+    }
+    return valuePortfolio(valuation.basis, annualGrowthRate).summary;
+  }, [valuation, observedMarket, positions, liveMarks, asOf, marketBasis, usdToIls]);
+  const liveTimeline = useMemo(() => {
+    if (!priced || priced === valuation || !portfolioTimeline.length) return portfolioTimeline;
+    const last = portfolioTimeline[portfolioTimeline.length - 1];
+    if (last.timestamp !== priced.basis.valuationTime) return portfolioTimeline;
+    return [...portfolioTimeline.slice(0, -1), buildPortfolioTimelinePointFromSummary(priced.summary, last.timestamp, last)];
+  }, [priced, valuation, portfolioTimeline]);
   return {
-    marketOverview,
+    marketOverview: observedMarket,
+    streamStatus, previewTarget,
     loading,
     error,
     hasData,
     refreshing: refreshingCount > 0,
     positions,
-    metrics,
-    summary,
-    openSummary,
+    metrics: priced?.metrics ?? [],
+    summary: priced?.summary ?? null,
+    openSummary: priced?.openSummary ?? null,
     sparklineData,
     contextSparklineData,
-    portfolioTimeline,
+    portfolioTimeline: liveTimeline,
     usdToIls,
-    historicalIlsNetPnL,
+    historicalIlsNetPnL: priced && priced !== valuation ? priced.summary.totalNetPnLIls : historicalIlsNetPnL,
     historicalIlsRealizedPnL,
     realizedSales,
     lastUpdate,
