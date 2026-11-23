@@ -24,6 +24,17 @@ function call(path: string, method = 'GET', body?: unknown, extraHeaders: Record
 }
 
 describe('disk demo API boundaries', () => {
+  it('accepts only named snapshot clocks inside the local account boundary', async () => {
+    const preset = await (await call('dashboard?scenario=extended')).json();
+    expect(preset.asOf).toBe(Date.parse('2026-11-20T22:00:00Z'));
+    expect(preset.quotes.AAPL.t).toBe(preset.asOf / 1000);
+    const real = await (await call('dashboard?scenario=2035-01-01')).json();
+    expect(Math.abs(real.asOf - Date.now())).toBeLessThan(2000);
+    expect((await call('dashboard?scenario=regular', 'GET', undefined, { cookie: '' })).status).toBe(404);
+    vi.stubEnv('NODE_ENV', 'production');
+    expect((await call('dashboard?scenario=regular')).status).toBe(404);
+  });
+
   it('requires a loopback development demo session before reading state', async () => {
     expect((await call('state', 'GET', undefined, { cookie: '' })).status).toBeGreaterThanOrEqual(400);
     expect((await call('state', 'GET', undefined, {}, 'https://foreign.example')).status).toBe(404);

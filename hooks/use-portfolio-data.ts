@@ -6,6 +6,7 @@ import { useApp } from '@/lib/context';
 import { useLiveQuotes } from '@/hooks/use-live-quotes';
 import { applySessionTicks, repricePortfolio, valuePortfolio, type PortfolioValuation } from '@/lib/portfolio-valuation';
 import { isReviewActive, portfolioNow } from '@/lib/demo/review';
+import { useLocalMarketMode } from '@/hooks/use-local-market-mode';
 import { getMarketClock } from '@/lib/utils/trading-hours';
 import { buildMarketOverview, demoMarketBasis, type MarketOverview, type SymbolMarketData } from '@/lib/market-overview';
 import { getLocalDemoDashboard } from '@/lib/supabase';
@@ -170,6 +171,7 @@ async function fetchDashboard(part: 'core' | 'market' | 'history', signal: Abort
 
 function usePortfolioDataState(scope: PortfolioScope) {
   const { settings, settingsReady, refreshTrigger } = useApp();
+  const localMarketMode = useLocalMarketMode();
 
   const [marketOverview, setMarketOverview] = useState<MarketOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -507,7 +509,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
       requestRef.current = null;
       generationRef.current += 1;
     };
-  }, [loadData, refreshTrigger, settingsReady]);
+  }, [loadData, refreshTrigger, settingsReady, localMarketMode]);
 
   useEffect(() => {
     if (!settingsReady) {
@@ -534,7 +536,8 @@ function usePortfolioDataState(scope: PortfolioScope) {
   }, [loadData, settings.refreshInterval, settingsReady]);
 
   useEffect(() => {
-    if (!settingsReady || scope !== 'overview' || isReviewActive()) return;
+    const fixedClock = localMarketMode === null ? isReviewActive() : localMarketMode !== 'realtime';
+    if (!settingsReady || scope !== 'overview' || fixedClock) return;
     let timer: number | undefined;
     let next = getMarketClock().nextTransition;
     const reschedule = () => {
@@ -568,7 +571,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', reschedule);
     };
-  }, [loadData, scope, settingsReady]);
+  }, [loadData, scope, settingsReady, localMarketMode]);
 
   const reload = useCallback(() => loadData({ background: true, forceQuoteRefresh: true }), [loadData]);
 

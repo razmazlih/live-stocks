@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shell';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { OverviewHeader } from '@/components/dashboard/overview-header';
+import { LocalMarketSwitcher } from '@/components/dashboard/local-market-switcher';
 import { Button } from '@/components/ui/button';
 import { OverviewSkeleton } from '@/components/dashboard/overview-skeleton';
 import { OverviewHoldings } from '@/components/portfolio/overview-holdings';
@@ -36,6 +37,7 @@ export default function HomePage() {
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
         </div>}
       </DashboardMain>
+      <LocalMarketSwitcher locale={locale} />
     </DashboardContainer>
   </DashboardRouteShell></StockInspectorProvider>;
 }

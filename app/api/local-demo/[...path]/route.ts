@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hasLocalDemoSession, localDemoOriginAllowed } from '@/lib/demo/server';
 import { executeDemoOperation, localDemoDashboard } from '@/lib/demo/ledger';
+import { scenarioTime } from '@/lib/demo/market-scenarios';
 import { readDemoState, migrateDemoState, updateDemoState, resetDemoState, seedDemoState,
   validateDemoSettings, validateDemoPreferences, type DemoImport } from '@/lib/demo/store';
 
@@ -65,7 +66,11 @@ async function handler(request: NextRequest, context: Context) {
         return json(preferences);
       }
     }
-    if (endpoint === 'dashboard' && request.method === 'GET') return json(localDemoDashboard((await readDemoState() ?? seedDemoState()).ledger));
+    if (endpoint === 'dashboard' && request.method === 'GET') {
+      const ledger = (await readDemoState() ?? seedDemoState()).ledger;
+      const asOf = scenarioTime(request.nextUrl.searchParams.get('scenario')) ?? Date.now();
+      return json(localDemoDashboard(ledger, asOf));
+    }
     if (parts[0] === 'rest' && parts[1] === 'v1' && parts.length >= 3) {
       const resource = parts.slice(2).join('/');
       if (resource === 'settings') {

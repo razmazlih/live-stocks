@@ -1,5 +1,5 @@
 import { DEMO_USER_ID } from '@/lib/demo/data';
-import { createReviewFetch, isReviewActive } from '@/lib/demo/review';
+import { canChooseLocalMarketMode, createReviewFetch, isReviewActive, readLocalMarketMode, setDemoAccountActive } from '@/lib/demo/review';
 import { demoRequest } from '@/lib/demo/client';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -31,19 +31,22 @@ export function resetSupabaseClient() {
   tokenRequest = null;
   tokenCache = null;
   currentUserId = null;
+  setDemoAccountActive(false);
 }
 
 export function configureSupabaseUser(userId: string | null) {
   if (userId === currentUserId) return;
   resetSupabaseClient();
   currentUserId = userId;
+  setDemoAccountActive(userId === DEMO_USER_ID);
 }
 
 export function getLocalDemoDashboard(signal?: AbortSignal) {
   if (currentUserId === DEMO_USER_ID && isReviewActive()) return demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>('dashboard', { signal });
-  return process.env.NODE_ENV === 'development' && currentUserId === DEMO_USER_ID
-    && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
-    ? demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>('dashboard', { signal }) : null;
+  if (!canChooseLocalMarketMode()) return null;
+  const mode = readLocalMarketMode();
+  const path = mode === 'realtime' ? 'dashboard' : 'dashboard?scenario=' + mode;
+  return demoRequest<ReturnType<typeof import('@/lib/demo/ledger').localDemoDashboard>>(path, { signal });
 }
 
 export function getSupabaseClient(): SupabaseInstance {
