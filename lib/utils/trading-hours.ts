@@ -45,9 +45,8 @@ const earlyCloses = new Set([
   '2026-11-27','2026-12-24','2027-11-26','2028-07-03','2028-11-24',
 ]);
 
-function supported(date: string) {
-  return date >= '2024-01-01' && date <= '2028-12-31';
-}
+export const tradingCalendarRange = { start: '2024-01-01', end: '2028-12-31' };
+function supported(date: string) { return date >= tradingCalendarRange.start && date <= tradingCalendarRange.end; }
 
 export function tradingSession(date: string): TradingSession | null {
   const midnight = Date.parse(date + 'T00:00:00Z');

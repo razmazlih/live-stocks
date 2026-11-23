@@ -5,6 +5,8 @@ const scenarioTimes = {
 };
 
 export type LocalMarketMode = 'realtime' | keyof typeof scenarioTimes;
+export const diskMarketModeKey = 'livestocks:local-demo:market-mode';
+export const reviewMarketModeKey = 'livestocks:preview:v1:scenario';
 
 export function isFixedScenario(value: string | null): value is keyof typeof scenarioTimes {
   return value !== null && Object.hasOwn(scenarioTimes, value);

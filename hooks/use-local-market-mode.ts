@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { canChooseLocalMarketMode, DEMO_SCENARIO_EVENT, readLocalMarketMode } from '@/lib/demo/review';
 
-function subscribe(onChange: () => void) {
+export function subscribeLocalMarketMode(onChange: () => void) {
   window.addEventListener(DEMO_SCENARIO_EVENT, onChange);
   window.addEventListener('popstate', onChange);
   return () => {
@@ -16,5 +16,5 @@ const getSnapshot = () => canChooseLocalMarketMode() ? readLocalMarketMode() : n
 const getServerSnapshot = () => null;
 
 export function useLocalMarketMode() {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useSyncExternalStore(subscribeLocalMarketMode, getSnapshot, getServerSnapshot);
 }

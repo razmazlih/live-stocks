@@ -1,6 +1,6 @@
 import type { Locale } from '@/types';
 
-const demoLocaleKey = 'livestocks:demo:entry-locale';
+export const demoLocaleKey = 'livestocks:demo:entry-locale';
 
 export function readDemoEntryLocale(): Locale | null {
   if (process.env.NODE_ENV === 'production') return null;

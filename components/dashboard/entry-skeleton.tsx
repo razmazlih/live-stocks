@@ -17,6 +17,7 @@ import { translations } from '@/lib/translations';
 import type { Locale } from '@/types';
 import { createAppRouteItems } from './navigation';
 import { OverviewHeader } from './overview-header';
+import { LocalMarketFooterSkeleton } from './local-market-switcher';
 import { OverviewSkeleton } from './overview-skeleton';
 import { DashboardContainer, DashboardMain } from './page-primitives';
 import { DashboardPageShell } from './page-shell';
@@ -64,6 +65,7 @@ function EntryContent({ pathname, locale }: { pathname: string; locale: Locale }
   return <DashboardContainer>
     <OverviewHeader locale={locale} lastUpdate={null} loading refreshing={false} />
     <DashboardMain className="mt-5"><OverviewSkeleton locale={locale} /></DashboardMain>
+    <LocalMarketFooterSkeleton />
   </DashboardContainer>;
 }
 

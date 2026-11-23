@@ -4,6 +4,7 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { transparencyInitScript } from '@/lib/appearance-preferences';
+import { initialOverviewLayout } from '@/lib/overview-layout-init';
 import { getAuthPublicOptions } from '@/lib/auth/better-auth-config';
 
 export const metadata: Metadata = {
@@ -26,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: transparencyInitScript }} /></head>
+      <head><script dangerouslySetInnerHTML={{ __html: transparencyInitScript + ';' + initialOverviewLayout }} /></head>
       <body className="font-sans">
         <ThemeProvider>
           <AuthProvider options={getAuthPublicOptions()}>{children}</AuthProvider>

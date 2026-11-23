@@ -2,13 +2,13 @@
 // No request made by this adapter can read or write a server-side account.
 import { executeDemoOperation, localDemoDashboard, seedDemoLedger, type DemoLedger } from './ledger';
 import { localDateParam } from '@/lib/list-url-state';
-import { easternDate } from '@/lib/utils/trading-hours';
+import { easternDate, getMarketClock } from '@/lib/utils/trading-hours';
+import { readDemoEntryLocale } from '@/lib/entry-locale';
 import type { Settings } from '@/types';
 import type { DemoPreferences } from './client';
-import { isFixedScenario, scenarioTime, type LocalMarketMode } from './market-scenarios';
+import { diskMarketModeKey, isFixedScenario, reviewMarketModeKey, scenarioTime, type LocalMarketMode } from './market-scenarios';
 
 const reviewKey = 'livestocks:preview:v1';
-const localModeKey = 'livestocks:local-demo:market-mode';
 export const DEMO_SCENARIO_EVENT = 'livestocks:demo-market-mode';
 
 type ReviewState = { ledger: DemoLedger; settings: Settings; preferences: DemoPreferences };
@@ -20,9 +20,31 @@ export function setReviewActive(active: boolean) { reviewActive = active; }
 export function isReviewActive() { return reviewActive; }
 export function setDemoAccountActive(active: boolean) { demoAccountActive = active; }
 
-export function canChooseLocalMarketMode() {
-  return process.env.NODE_ENV === 'development' && demoAccountActive && typeof window !== 'undefined'
+function localDevelopmentBrowser() {
+  return process.env.NODE_ENV === 'development' && typeof window !== 'undefined'
     && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+}
+
+export function canChooseLocalMarketMode() { return demoAccountActive && localDevelopmentBrowser(); }
+
+/** Presentation hint for the unauthenticated entry skeleton; never used by the financial clock. */
+export function hasLocalDemoLayoutHint() {
+  return localDevelopmentBrowser() && (demoAccountActive || readDemoEntryLocale() !== null || document.documentElement.dataset.localMarketFooter === 'true');
+}
+
+export function readMarketLayoutPhase() {
+  let time = portfolioNow();
+  if (!demoAccountActive && !reviewActive && typeof document !== 'undefined') {
+    const initial = document.documentElement.dataset.initialDemoMarketLayout ?? null;
+    if (isFixedScenario(initial)) return initial === 'extended' ? 'post' : initial;
+  }
+  if (!demoAccountActive && !reviewActive && hasLocalDemoLayoutHint()) {
+    const linked = new URLSearchParams(window.location.search).get('scenario');
+    const mode = isFixedScenario(linked) ? linked : storedMode(diskMarketModeKey) ?? storedMode(reviewMarketModeKey);
+    time = scenarioTime(mode) ?? time;
+  }
+  const phase = getMarketClock(time).phase;
+  return phase === 'overnight' ? 'closed' : phase;
 }
 
 function storedMode(key: string) {
@@ -37,7 +59,7 @@ function storeMode(key: string, value: LocalMarketMode) {
 export function readLocalMarketMode(): LocalMarketMode {
   if (!reviewActive && !canChooseLocalMarketMode()) return 'realtime';
   if (typeof window === 'undefined') return reviewActive ? 'regular' : 'realtime';
-  const key = reviewActive ? reviewKey + ':scenario' : localModeKey;
+  const key = reviewActive ? reviewMarketModeKey : diskMarketModeKey;
   const selected = storedMode(key);
   if (reviewActive) {
     const linked = new URLSearchParams(window.location.search).get('scenario');
@@ -61,7 +83,7 @@ export function selectLocalMarketMode(mode: LocalMarketMode) {
       window.history.replaceState(window.history.state, '', url);
     }
   }
-  storeMode(reviewActive ? reviewKey + ':scenario' : localModeKey, mode);
+  storeMode(reviewActive ? reviewMarketModeKey : diskMarketModeKey, mode);
   window.dispatchEvent(new Event(DEMO_SCENARIO_EVENT));
 }
 
