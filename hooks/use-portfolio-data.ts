@@ -596,8 +596,10 @@ function usePortfolioDataState(scope: PortfolioScope) {
       return buildMarketOverview(positions, liveMarks, asOf, { annualGrowthRate, usdToIls,
         fxHistoryPoints: marketBasis.fxHistoryPoints }).closingSummary;
     }
-    return valuePortfolio(valuation.basis, annualGrowthRate).summary;
-  }, [valuation, observedMarket, positions, liveMarks, asOf, marketBasis, usdToIls]);
+    if (annualGrowthRate === valuation.growthRate) return priced?.summary ?? null;
+    const projection = valuePortfolio(valuation.basis, annualGrowthRate);
+    return repricePortfolio(projection, ticks, asOf).summary;
+  }, [valuation, priced, ticks, observedMarket, positions, liveMarks, asOf, marketBasis, usdToIls]);
   const liveTimeline = useMemo(() => {
     if (!priced || priced === valuation || !portfolioTimeline.length) return portfolioTimeline;
     const last = portfolioTimeline[portfolioTimeline.length - 1];

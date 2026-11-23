@@ -50,7 +50,7 @@ function getInvalidReason(
 export function TargetsPanel() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, positions, metrics } = usePortfolioData();
+  const { loading, positions, metrics, lastUpdate } = usePortfolioData();
 
   const assessments = useMemo(() => {
     const positionsBySymbol = new Map<string, typeof positions>();
@@ -63,16 +63,18 @@ export function TargetsPanel() {
 
     metrics.forEach((metric) => {
       const symbol = metric.position.symbol.trim().toUpperCase();
-      if (Number.isFinite(metric.currentPrice)) priceBySymbol.set(symbol, metric.currentPrice);
+      if (metric.position.quantity > 0 && Number.isFinite(metric.currentPrice)) {
+        priceBySymbol.set(symbol, metric.currentPrice);
+      }
     });
 
     return Array.from(positionsBySymbol.entries())
       .map(([symbol, symbolPositions]) =>
-        calculateSymbolExceptionAssessment(symbolPositions, priceBySymbol.get(symbol), settings.annualGrowthRate),
+        calculateSymbolExceptionAssessment(symbolPositions, priceBySymbol.get(symbol), settings.annualGrowthRate, lastUpdate ?? undefined),
       )
       .filter((assessment): assessment is SymbolExceptionAssessment => Boolean(assessment))
       .sort((left, right) => getAssessmentMagnitude(right) - getAssessmentMagnitude(left));
-  }, [metrics, positions, settings.annualGrowthRate]);
+  }, [metrics, positions, settings.annualGrowthRate, lastUpdate]);
 
   const sections = useMemo(() => {
     const open = assessments.filter((item) => item.status === 'open');

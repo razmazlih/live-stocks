@@ -1,6 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PortfolioDataProvider, usePortfolioData } from '@/hooks/use-portfolio-data';
+import { LiveQuoteProvider } from '@/hooks/use-live-quotes';
+import { getPerformanceSeries, getPerformanceTotals } from '@/lib/performance-display';
 import { PortfolioFeedback } from '@/components/dashboard/portfolio-feedback';
 import type { PortfolioTimelinePoint, Position } from '@/types';
 
@@ -28,10 +30,70 @@ const read = (label = 'first') => JSON.parse(screen.getByTestId(label).textConte
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.useRealTimers();
   appState.refreshTrigger = 0;
 });
 
 describe('shared portfolio data', () => {
+  it('updates performance and target previews with regular ticks while preserving historical and realized results', async () => {
+    vi.useFakeTimers();
+    const asOf = Date.parse('2026-11-20T20:00:00Z');
+    vi.setSystemTime(asOf);
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const entryDate = '2026-11-16';
+    const position: Position = {
+      id: 'apple', symbol: 'AAPL', display: 'Apple', imageUrl: '', location: 'bank_one',
+      entryDate, entryPrice: 180, quantity: 2,
+      lots: [
+        { type: 'BUY', quantity: 3, price: 180, executedAt: entryDate, hasCommission: true, commissionAmount: 3 },
+        { type: 'SELL', quantity: 1, price: 195, executedAt: '2026-11-18', hasCommission: true, commissionAmount: 1 },
+      ],
+    };
+    const priceHistory = [{ timestamp: Date.parse(entryDate), close: 180 }, { timestamp: Date.parse('2026-11-19'), close: 200 }];
+    const dashboard = {
+      asOf, positions: [position], activationPositions: [position], usdToIls: 3.5,
+      fxHistoryPoints: [{ timestamp: Date.parse(entryDate), close: 3.6 }], quotes: { AAPL: { c: 212, t: asOf / 1000 } },
+      candlesByKey: { apple: priceHistory },
+    };
+    let feed!: ReadableStreamDefaultController<Uint8Array>;
+    const fetch = vi.fn(async (url: string) => url.startsWith('/api/quotes/stream?')
+      ? new Response(new ReadableStream<Uint8Array>({ start(controller) { feed = controller; } }))
+      : Response.json(dashboard));
+    vi.stubGlobal('fetch', fetch);
+    const { result, unmount } = renderHook(usePortfolioData, {
+      wrapper: ({ children }) => <LiveQuoteProvider mode="account"><PortfolioDataProvider scope="performance">{children}</PortfolioDataProvider></LiveQuoteProvider>,
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    const before = result.current;
+    expect(before.portfolioTimeline.length).toBeGreaterThan(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+      const tick = { symbol: 'AAPL', price: 215, timestamp: Date.now(), phase: 'regular', source: 'trade' };
+      feed.enqueue(new TextEncoder().encode('data:' + JSON.stringify({ status: 'streaming', ticks: [tick] }) + '\n\n'));
+    });
+    const after = result.current;
+    expect(after.summary!.totalValue).not.toBe(before.summary!.totalValue);
+    expect(after.realizedSales).toBe(before.realizedSales);
+    expect(after.portfolioTimeline.slice(0, -1)).toEqual(before.portfolioTimeline.slice(0, -1));
+    for (const currency of ['USD', 'ILS'] as const) {
+      for (const options of [{ includeTaxes: true, includeFees: true }, { includeTaxes: false, includeFees: false }]) {
+        const totals = getPerformanceTotals(after.summary!, currency, options);
+        const old = getPerformanceTotals(before.summary!, currency, options);
+        const plotted = getPerformanceSeries(after.portfolioTimeline, 'All', currency, options).at(-1)!;
+        expect(totals.actual).not.toBe(old.actual);
+        expect(totals.target).toBe(old.target);
+        expect(totals.gap - old.gap).toBeCloseTo(totals.actual - old.actual);
+        expect(plotted).toMatchObject({ actual: totals.actual, target: totals.target });
+        const preview = getPerformanceTotals(after.previewTarget(0.12)!, currency, options);
+        expect(preview.actual).toBe(totals.actual);
+        expect(preview.target).toBeGreaterThan(totals.target);
+      }
+    }
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/api/portfolio/dashboard?part=core', '/api/quotes/stream?holding=AAPL']);
+    unmount();
+    feed.close();
+  });
+
   it('shares one request across consumers and retains data when consumers change', async () => {
     const fetch = vi.fn().mockResolvedValue(successful());
     vi.stubGlobal('fetch', fetch);

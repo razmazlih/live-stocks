@@ -4,9 +4,14 @@ import { TargetsPanel } from '@/components/portfolio/targets-panel';
 import type { Position } from '@/types';
 import { formatSignedCurrency } from '@/lib/utils/portfolio-display';
 
-const fixture = vi.hoisted(() => ({ positions: [] as Position[], prices: {} as Record<string, number>, annualGrowthRate: 0.1 }));
+const fixture = vi.hoisted(() => ({
+  positions: [] as Position[], prices: {} as Record<string, number>, annualGrowthRate: 0.1, lastUpdate: null as Date | null,
+}));
 vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { annualGrowthRate: fixture.annualGrowthRate } }) }));
-vi.mock('@/hooks/use-portfolio-data', () => ({ usePortfolioData: () => ({ loading: false, positions: fixture.positions, metrics: fixture.positions.filter((position) => fixture.prices[position.symbol] !== undefined).map((position) => ({ position, currentPrice: fixture.prices[position.symbol] })) }) }));
+vi.mock('@/hooks/use-portfolio-data', () => ({ usePortfolioData: () => ({
+  loading: false, positions: fixture.positions, lastUpdate: fixture.lastUpdate,
+  metrics: fixture.positions.map(position => ({ position, currentPrice: fixture.prices[position.id ?? position.symbol] ?? fixture.prices[position.symbol] })),
+}) }));
 
 const position = (symbol = 'TEST'): Position => ({
   id: symbol, symbol, display: `${symbol} company`, imageUrl: '', entryPrice: 100, quantity: 1,
@@ -19,6 +24,7 @@ beforeEach(() => {
   fixture.positions = [];
   fixture.prices = {};
   fixture.annualGrowthRate = 0.1;
+  fixture.lastUpdate = null;
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-01-01T06:00:00.000Z')); // Exactly 365.25 days since the open buy.
 });
@@ -61,6 +67,23 @@ describe('personal target details', () => {
     const gap = within(stockRow('TEST')).getAllByRole('cell')[5];
     expect(gap).toHaveTextContent(formatSignedCurrency(40, 'USD', 'en'));
     expect(gap).toHaveClass('text-emerald-600');
+  });
+
+  it('uses the open price even when a later closed activation still has the original snapshot', () => {
+    const closed = { ...position(), id: 'closed-test', quantity: 0 };
+    closed.lots!.push({ type: 'SELL', price: 100, quantity: 1, executedAt: '2025-01-01T00:00:00.000Z', hasCommission: false, commissionAmount: 0 });
+    fixture.positions = [position(), closed];
+    fixture.lastUpdate = new Date('2025-01-01T00:00:00Z');
+    fixture.prices = { TEST: 110, 'closed-test': 110 };
+    const view = render(<TargetsPanel />);
+    const cells = within(stockRow('TEST')).getAllByRole('cell');
+    expect(cells[3]).toHaveTextContent('$100.00');
+    expect(cells[5]).toHaveTextContent(formatSignedCurrency(10, 'USD', 'en'));
+    fixture.prices.TEST = 115;
+    view.rerender(<TargetsPanel />);
+    expect(cells[2]).toHaveTextContent('$115.00');
+    expect(cells[3]).toHaveTextContent('$100.00');
+    expect(cells[5]).toHaveTextContent(formatSignedCurrency(15, 'USD', 'en'));
   });
 
   it('keeps missing prices and live target gaps unavailable and retains lot warnings', () => {
