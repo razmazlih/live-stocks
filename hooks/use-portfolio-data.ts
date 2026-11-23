@@ -173,6 +173,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
   const { settings, settingsReady, refreshTrigger } = useApp();
   const localMarketMode = useLocalMarketMode();
 
+  const [marketLoad, setMarketLoad] = useState<'idle' | 'pending' | 'settled'>('idle');
   const [marketOverview, setMarketOverview] = useState<MarketOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -383,6 +384,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
           const accounting = { annualGrowthRate, usdToIls: rate, fxHistoryPoints };
           // While marks arrive, keep the closing value pending and retain the correct session layout.
           setMarketOverview(previous => previous ?? buildMarketOverview(mappedPositions, {}, valuationTime, accounting));
+          setMarketLoad(previous => previous === 'settled' ? previous : 'pending');
           const result = await fetchDashboard('market', controller.signal);
           if (isCurrent() && result.marks && result.asOf) {
             setMarketBasis({ marks: result.marks, asOf: result.asOf, fxHistoryPoints });
@@ -470,13 +472,15 @@ function usePortfolioDataState(scope: PortfolioScope) {
         setHistoricalIlsNetPnL(continuousTimeline.at(-1)?.netPnLIls ?? enrichedSummary.totalNetPnLIls);
       };
       await Promise.all([
-        loadMarket().catch(() => { /* Known observations retain their original session date and source time. */ }),
+        loadMarket().catch(() => { /* Known observations retain their original session date and source time. */ })
+          .finally(() => { if (isCurrent() && scope === 'overview') setMarketLoad('settled'); }),
         loadHistory().catch(() => { /* Keep the previous chart on a temporary history outage. */ }),
       ]);
       } catch (error) {
         if (!controller.signal.aborted && generation === generationRef.current) {
           console.error('Error loading portfolio data:', error);
           setError('portfolio_load_failed');
+          setMarketLoad(previous => previous === 'pending' ? 'idle' : previous);
         }
       } finally {
         if (generation !== generationRef.current) return;
@@ -610,6 +614,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
     return [...portfolioTimeline.slice(0, -1), buildPortfolioTimelinePointFromSummary(priced.summary, last.timestamp, last)];
   }, [priced, valuation, portfolioTimeline]);
   return {
+    marketPending: scope === 'overview' && marketLoad === 'pending',
     marketOverview: observedMarket,
     streamStatus, previewTarget,
     loading,

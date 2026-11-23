@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { Activity, Clock3, Plus, RefreshCw } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ResearchExportButton } from '@/components/portfolio/research-export-button';
+import { ResearchExportButton, ResearchExportTrigger } from '@/components/portfolio/research-export-button';
 import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 import styles from './overview-header.module.css';
 
@@ -39,8 +38,9 @@ export function OverviewHeader({ locale, lastUpdate, loading, refreshing, onRefr
       </Button>
     </div>
     <div className={styles.actions}>
-      {onRefresh ? <><Button asChild className={styles.primary}><Link href="/positions?action=add"><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></Link></Button>
-      <div className={styles.export}><ResearchExportButton /></div></> : <><Skeleton className="h-11 rounded-full sm:w-32" /><Skeleton className="h-11 rounded-full sm:w-28" /></>}
+      {onRefresh ? <Button asChild className={styles.primary}><Link href="/positions?action=add"><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></Link></Button>
+        : <Button disabled className={styles.primary}><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></Button>}
+      <div className={styles.export}>{onRefresh ? <ResearchExportButton /> : <ResearchExportTrigger locale={locale} />}</div>
     </div>
   </header>;
 }

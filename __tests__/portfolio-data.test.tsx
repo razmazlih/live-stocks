@@ -16,7 +16,7 @@ vi.mock('@/lib/context', () => ({ useApp: () => appState }));
 function Consumer({ label }: { label: string }) {
   const data = usePortfolioData();
   return <div>
-    <output data-testid={label}>{JSON.stringify({ loading: data.loading, refreshing: data.refreshing, hasData: data.hasData, error: data.error, updated: data.lastUpdate?.toISOString(), rate: data.usdToIls })}</output>
+    <output data-testid={label}>{JSON.stringify({ loading: data.loading, marketPending: data.marketPending, refreshing: data.refreshing, hasData: data.hasData, error: data.error, updated: data.lastUpdate?.toISOString(), rate: data.usdToIls })}</output>
     <button onClick={() => void data.reload()}>Reload {label}</button>
   </div>;
 }
@@ -263,19 +263,23 @@ describe('shared portfolio data', () => {
 });
 
 it('publishes the summary while historical charts are still loading', async () => {
+  let finishMarket!: (value: unknown) => void;
   let finishHistory!: (value: unknown) => void;
   const position = { id: 'one', symbol: 'TEST', display: 'Test', quantity: 1, location: 'bank',
     entryDate: '2026-01-01', entryPrice: 100, lots: [], plans: [] };
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const part = new URL(url, 'http://localhost').searchParams.get('part');
     if (part === 'history') return new Promise(resolve => { finishHistory = resolve; });
-    if (part === 'market') return Promise.resolve(successful());
+    if (part === 'market') return new Promise(resolve => { finishMarket = resolve; });
     return Promise.resolve({ ok: true, json: async () => ({ deferredHistory: true, usdToIls: 3.7,
       positions: [position], quotes: { TEST: { c: 110 } } }) });
   }));
   render(<PortfolioDataProvider><Consumer label="first" /></PortfolioDataProvider>);
   await waitFor(() => expect(read().hasData).toBe(true));
   expect(read().loading).toBe(false);
+  expect(read().marketPending).toBe(true);
+  await act(async () => finishMarket({ ok: false, status: 503 }));
+  expect(read().marketPending).toBe(false);
   await act(async () => finishHistory({ ok: false, status: 503 }));
   expect(read()).toMatchObject({ hasData: true, error: null });
 });
