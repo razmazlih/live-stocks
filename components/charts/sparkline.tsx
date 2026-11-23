@@ -80,6 +80,8 @@ interface SparklineProps {
   timeFormatter?: (timestamp: number) => string;
   hoverDetails?: (point: SparklineHoverPoint) => SparklineHoverDetail[];
   interactive?: boolean;
+  /** Enables persistent point selection and keyboard navigation for a detail chart. */
+  exploreLabel?: string;
   onHoverPoint?: (point: SparklineHoverPoint | null) => void;
 }
 
@@ -178,6 +180,7 @@ export function Sparkline({
     }),
   hoverDetails,
   interactive = false,
+  exploreLabel,
   onHoverPoint,
 }: SparklineProps) {
   const gradientId = useId();
@@ -188,7 +191,7 @@ export function Sparkline({
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredTime, setHoveredTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -608,7 +611,7 @@ export function Sparkline({
 
   const handleWrapperLeave = () => {
     setHoveredEventId(null);
-    setHoveredIndex(null);
+    if (!exploreLabel) setHoveredTime(null);
   };
 
   const renderSkeleton = (
@@ -628,10 +631,8 @@ export function Sparkline({
   const projectionPoints = normalized?.projectionPoints ?? null;
   const normalizedEvents = normalized?.events ?? [];
 
-  const effectiveHoveredPoint =
-    interactive && hoveredIndex !== null && normalizedPoints.length
-      ? normalizedPoints[Math.min(Math.max(hoveredIndex, 0), normalizedPoints.length - 1)]
-      : null;
+  const hoveredIndex = hoveredTime === null ? -1 : normalizedPoints.findIndex(point => point.timestamp === hoveredTime);
+  const effectiveHoveredPoint = interactive && hoveredIndex >= 0 ? normalizedPoints[hoveredIndex] : null;
   const hoveredPriceText = effectiveHoveredPoint ? priceFormatter(effectiveHoveredPoint.close) : null;
   const hoveredTimeText = effectiveHoveredPoint ? timeFormatter(effectiveHoveredPoint.timestamp) : null;
   const hoveredDetailRows = effectiveHoveredPoint && hoverDetails
@@ -742,7 +743,7 @@ export function Sparkline({
     });
 
     if (hoveredIndex !== nearestIndex) {
-      setHoveredIndex(nearestIndex);
+      setHoveredTime(normalized.points[nearestIndex].timestamp);
     }
   };
 
@@ -866,6 +867,19 @@ export function Sparkline({
           onTouchMove={handleTouchMove}
           role="presentation"
         >
+          {interactive && exploreLabel && lastPoint && <div role="slider" tabIndex={0} aria-label={exploreLabel}
+            aria-valuemin={1} aria-valuemax={normalizedPoints.length} aria-valuenow={(hoveredIndex < 0 ? normalizedPoints.length - 1 : hoveredIndex) + 1}
+            aria-valuetext={`${timeFormatter((effectiveHoveredPoint ?? lastPoint).timestamp)} · ${priceFormatter((effectiveHoveredPoint ?? lastPoint).close)}`}
+            className="pointer-events-none absolute inset-0 z-10 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+            onFocus={() => { if (hoveredIndex < 0 && lastPoint) setHoveredTime(lastPoint.timestamp); }}
+            onKeyDown={event => {
+              const current = hoveredIndex < 0 ? normalizedPoints.length - 1 : hoveredIndex;
+              const moves: Record<string, number> = { ArrowLeft: current - 1, ArrowDown: current - 1, ArrowRight: current + 1, ArrowUp: current + 1, Home: 0, End: normalizedPoints.length - 1 };
+              if (!(event.key in moves)) return;
+              event.preventDefault();
+              const index = Math.max(0, Math.min(normalizedPoints.length - 1, moves[event.key]));
+              setHoveredTime(normalizedPoints[index].timestamp);
+            }} />}
           <svg
             width={chartWidth}
             height={height}

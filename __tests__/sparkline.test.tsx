@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Sparkline } from '@/components/charts/sparkline';
@@ -120,4 +120,31 @@ describe('Sparkline historical holding colors', () => {
     expect(colorAt(container, 1.5 / 7)).toBe('#888');
     expect(colorAt(container, 6 / 7)).toBe('#00f');
   });
+});
+
+it('keeps a keyboard-selected timestamp stable when the series shifts on a quote update', () => {
+  const props = { width: 320, interactive: true, exploreLabel: 'Explore historical prices', timeFormatter: String, priceFormatter: String };
+  const { rerender } = render(<Sparkline {...props} points={points} />);
+  const slider = screen.getByRole('slider', { name: props.exploreLabel });
+  fireEvent.focus(slider);
+  fireEvent.keyDown(slider, { key: 'Home' });
+  expect(slider).toHaveAttribute('aria-valuetext', points[0].timestamp + ' · 100');
+  rerender(<Sparkline {...props} points={[{ timestamp: points[0].timestamp - 100, close: 99 }, ...points, { timestamp: points[1].timestamp + 100, close: 112 }]} />);
+  expect(slider).toHaveAttribute('aria-valuetext', points[0].timestamp + ' · 100');
+  expect(slider).toHaveAttribute('aria-valuenow', '2');
+  fireEvent.keyDown(slider, { key: 'ArrowRight' });
+  expect(slider).toHaveAttribute('aria-valuetext', points[1].timestamp + ' · 110');
+  fireEvent.touchEnd(slider.parentElement!);
+  expect(slider).toHaveAttribute('aria-valuenow', '3');
+});
+
+it('lets a detail chart be explored by pointer or touch and retains the chosen close on touch end', () => {
+  render(<Sparkline points={points} width={320} interactive exploreLabel="Price history" priceFormatter={String} timeFormatter={String} />);
+  const slider = screen.getByRole('slider', { name: 'Price history' });
+  const plot = slider.parentElement!;
+  fireEvent(plot, new MouseEvent('pointermove', { bubbles: true, clientX: 315 }));
+  expect(slider).toHaveAttribute('aria-valuetext', points[1].timestamp + ' · 110');
+  fireEvent.touchStart(plot, { touches: [{ clientX: 0 }] });
+  fireEvent.touchEnd(plot);
+  expect(slider).toHaveAttribute('aria-valuetext', points[0].timestamp + ' · 100');
 });

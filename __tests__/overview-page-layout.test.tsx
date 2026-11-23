@@ -6,8 +6,8 @@ import HomePage from '@/app/page';
 
 const data = vi.hoisted(() => ({ summary: { totalValue: 1000, totalNetPnLUsd: 80, totalCurrentPnLUsd: 100, totalProjectedPnLUsd: 150 }, positions: [{symbol: 'AAPL', lots: [] as Array<{type: string; executedAt: string}>}] }));
 const reload = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/context', () => ({ useApp: () => ({locale: 'en', settings: {currency: 'USD'}}) }));
-vi.mock('@/hooks/use-portfolio-data', () => ({ usePortfolioData: () => ({loading: false, refreshing: false, ...data, metrics: [], sparklineData: {}, contextSparklineData: {}, lastUpdate: new Date('2026-11-12T10:00:00Z'), reload}) }));
+vi.mock('@/lib/context', () => ({ useApp: () => ({locale: 'en', settings: {currency: 'USD', annualGrowthRate: 0.05}, saveAnnualTarget: vi.fn()}) }));
+vi.mock('@/hooks/use-portfolio-data', () => ({ usePortfolioData: () => ({loading: false, refreshing: false, ...data, metrics: [], sparklineData: {}, contextSparklineData: {}, previewTarget: () => data.summary, lastUpdate: new Date('2026-11-12T10:00:00Z'), reload}) }));
 vi.mock('@/hooks/use-investment-sources', () => ({ useInvestmentSources: () => ({ sourceName: (id: string) => id }) }));
 vi.mock('@/hooks/use-return-context', () => ({ useReturnContext: () => {} }));
 vi.mock('@/components/dashboard/dashboard-route-shell', () => ({DashboardRouteShell: ({children}: {children: ReactNode}) => <div>{children}</div>}));
@@ -29,14 +29,16 @@ describe('overview layout', () => {
     expect(screen.getByRole('heading', {name: 'Portfolio overview', level: 1})).toBeInTheDocument();
   });
 
-  it('opens the cumulative target using the same deduction settings', () => {
+  it('opens the target editor and retains deduction settings for the full targets view', async () => {
     window.history.replaceState(null, '', '/?includeTaxes=0');
     try {
       render(<HomePage />);
-      const link = screen.getByRole('link', { name: /below cumulative target/i });
+      const link = screen.getByRole('button', { name: /below cumulative target/i });
       expect(link).toHaveTextContent('$50.00');
       expect(screen.getByText('Cumulative profit').parentElement).toHaveTextContent('$100.00');
-      const url = new URL(link.getAttribute('href')!, window.location.origin);
+      await userEvent.click(link);
+      expect(screen.getByRole('dialog', { name: 'My annual target' })).toBeVisible();
+      const url = new URL(screen.getByRole('link', {name: 'View all targets'}).getAttribute('href')!, window.location.origin);
       expect(url.pathname).toBe('/portfolio');
       expect(url.searchParams.get('view')).toBe('targets');
       expect(url.searchParams.get('includeTaxes')).toBe('0');

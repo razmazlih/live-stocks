@@ -13,27 +13,29 @@ import { usePortfolioData } from '@/hooks/use-portfolio-data';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useReturnContext } from '@/hooks/use-return-context';
 import { useApp } from '@/lib/context';
+import { StockInspectorProvider } from '@/components/portfolio/stock-inspector';
 import { MarketOverviewSurface } from '@/components/portfolio/market-overview-surface';
 import { useInvestmentSources } from '@/hooks/use-investment-sources';
 import { parsePerformanceOptions } from '@/lib/performance-display';
 
 export default function HomePage() {
-  const { locale, settings } = useApp();
+  const { locale, settings, saveAnnualTarget } = useApp();
   const he = locale === 'he';
-  const { loading, refreshing, summary, marketOverview, metrics, positions, sparklineData, contextSparklineData, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, summary, marketOverview, previewTarget, streamStatus, metrics, positions, sparklineData, contextSparklineData, lastUpdate, reload } = usePortfolioData();
   useReturnContext(!loading);
   const { sourceName } = useInvestmentSources();
   const [performanceOptions] = useUrlState(parsePerformanceOptions);
-  return <DashboardRouteShell activeKey="dashboard" locale={locale}>
+  return <StockInspectorProvider><DashboardRouteShell activeKey="dashboard" locale={locale}>
     <DashboardContainer>
-      <OverviewHeader locale={locale} lastUpdate={lastUpdate} loading={loading} refreshing={refreshing} onRefresh={reload} />
+      <OverviewHeader locale={locale} lastUpdate={lastUpdate} loading={loading} refreshing={refreshing} onRefresh={reload} streamStatus={streamStatus} />
       <DashboardMain className="mt-5">
         {loading ? <OverviewSkeleton locale={locale} /> : positions.length === 0 ? <DashboardSurface><div className="flex flex-col items-center gap-4 py-16 text-center"><h2 className="text-xl font-semibold">{he ? 'התיק שלך מתחיל כאן' : 'Your portfolio starts here'}</h2><p className="max-w-md text-sm text-slate-500">{he ? 'הוסף את העסקה הראשונה כדי לראות את ההחזקות והביצועים מול היעד האישי.' : 'Add your first transaction to see your holdings and performance against your personal target.'}</p><Button asChild><Link href="/positions?action=add"><Plus aria-hidden />{he ? 'הוספת עסקה' : 'Add transaction'}</Link></Button></div></DashboardSurface> : <div className="dashboard-content-enter space-y-6">
-          <MarketOverviewSurface marketOverview={marketOverview} summary={summary} positions={positions} currency={settings.currency} locale={locale} options={performanceOptions} sourceName={sourceName} />
+          <MarketOverviewSurface marketOverview={marketOverview} summary={summary} positions={positions} currency={settings.currency} locale={locale} options={performanceOptions} sourceName={sourceName}
+            targetControls={{ rate: settings.annualGrowthRate, project: previewTarget, save: saveAnnualTarget }} />
           <ClosePairProposals metrics={metrics} positions={positions} sparklineData={sparklineData} />
           <OverviewHoldings metrics={metrics} sparklineData={sparklineData} contextSparklineData={contextSparklineData} positions={positions} />
         </div>}
       </DashboardMain>
     </DashboardContainer>
-  </DashboardRouteShell>;
+  </DashboardRouteShell></StockInspectorProvider>;
 }

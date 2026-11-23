@@ -1,5 +1,7 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { ChevronDown, Info, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Sparkline, type SparklineEvent } from '@/components/charts/sparkline';
@@ -83,7 +85,7 @@ export function StockDetailChart({
     {!marketOnly && <div className={styles.references} data-count={references.length}>
       {references.map(reference => <div key={reference.label} className={reference.tone}>
         <span className={styles.referenceLabel}><i aria-hidden="true" />{reference.label}</span>
-        <bdi className={styles.referenceValue}>{typeof reference.value === 'number' && Number.isFinite(reference.value) ? priceFormatter(reference.value) : '—'}</bdi>
+        <AnimatedNumber value={reference.value} locale={locale} className={styles.referenceValue} />
       </div>)}
     </div>}
 
@@ -109,7 +111,8 @@ export function StockDetailChart({
         activeFromTimestamp={entryTimestamp} inactiveBeforeColor="var(--color-slate-400)"
         annualGrowthRate={annualGrowthRate} yearsHeld={yearsHeld}
         events={events} includeEventsInDomain holdingPeriods={holdingCycles} holdingReferences={holdingReferences}
-        className="h-full w-full" showYAxis yAxisWidth={72} priceFormatter={priceFormatter} timeFormatter={date} interactive
+        className="h-full w-full" showYAxis yAxisWidth={72} priceFormatter={priceFormatter} timeFormatter={timestamp => new Date(timestamp).toLocaleString(he ? 'he-IL' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+        exploreLabel={he ? 'חקירת מחיר המניה לאורך זמן' : 'Explore historical prices'} interactive
       />
     </div>}
     {start !== undefined && end !== undefined ? <div className={styles.dates} dir="ltr"><span>{date(start)}</span><span>{date(end)}</span></div> : null}

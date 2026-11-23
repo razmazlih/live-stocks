@@ -110,3 +110,10 @@
   .moverIdentity { margin-block-start: .45rem; }
 }
 @media (prefers-reduced-motion: reduce) { .targetLink svg { transition: none; } }
+
+.stockAction, .metricAction { color: inherit; font: inherit; text-align: inherit; border-radius: .3rem; }
+.stockAction { padding-block: .25rem; text-decoration: underline; text-decoration-color: var(--border-subtle); text-underline-offset: .22em; }
+.stockAction:hover { color: var(--accent-text); text-decoration-color: currentColor; }
+.metricAction:hover { opacity: .85; }
+.comparison i, .diverging i { transition: left 350ms ease-out, width 350ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .comparison i, .diverging i { transition: none; } }

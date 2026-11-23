@@ -11,8 +11,10 @@ vi.mock('@/hooks/use-investment-sources', () => {
 });
 import type { ComponentProps, ReactNode } from 'react';
 import type { Sparkline } from '@/components/charts/sparkline';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { reviewClock, setReviewActive } from '@/lib/demo/review';
+import { createDefaultTransactionForm } from '@/components/portfolio/transaction-composer';
 import { StockDetailView } from '@/app/stock/[symbol]/stock-detail-view';
 
 vi.mock('@/lib/context', () => ({ useApp: () => ({ locale: 'en', settings: { annualGrowthRate: 0.08, finnhubToken: 'test-token' } }) }));
@@ -60,9 +62,44 @@ beforeEach(() => {
     return new Response(JSON.stringify({ usdToIls: 3.7 }), { status: 200 });
   }));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { setReviewActive(false); vi.unstubAllGlobals(); });
 
 describe('stock detail continuity', () => {
+  it.each([['regular', '2026-11-20'], ['extended', '2026-11-20'], ['closed', '2026-11-21']])('anchors review candle requests and new trade dates to the %s scenario', async (scenario, day) => {
+    window.history.replaceState(null, '', '/?scenario=' + scenario);
+    setReviewActive(true);
+    expect(createDefaultTransactionForm().executedAt).toBe(day);
+    render(<StockDetailView symbol="AAPL" />);
+    await screen.findByTestId('stock-chart');
+    const candlesUrl = vi.mocked(fetch).mock.calls.map(([url]) => String(url)).find(url => url.startsWith('/api/candles?symbol=AAPL'));
+    expect(candlesUrl).toBeDefined();
+    expect(Number(new URL(candlesUrl!, 'http://localhost').searchParams.get('to'))).toBe(Math.floor(reviewClock() / 1000));
+  });
+
+  it('opens the inline composer, requires a source and keeps entered values during a quote refresh', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    window.history.replaceState(null, '', '/?q=apple');
+    mockPositionRows = [mockPositionRow, { ...mockPositionRow, id: 'two', location: 'bank_two' }];
+    render(<StockDetailView symbol="AAPL" inspector={{ expand: vi.fn(), setSaving: vi.fn() }} />);
+    await screen.findByTestId('stock-chart');
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    const form = screen.getByRole('region', { name: 'Record trade' });
+    const source = within(form).getByRole('combobox', { name: 'Investment source' });
+    expect(source).toHaveValue('');
+    const save = within(form).getByRole('button', { name: 'Save transaction' });
+    expect(save).toBeDisabled();
+    fireEvent.change(source, { target: { value: 'bank_two' } });
+    fireEvent.change(within(form).getByRole('spinbutton', { name: 'Price' }), { target: { value: 101 } });
+    fireEvent.change(within(form).getByRole('spinbutton', { name: 'Quantity' }), { target: { value: 1 } });
+    quotePrice = 140;
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    await waitFor(() => expect(within(form).getByRole('button', { name: /Use market quote/ })).toHaveTextContent('140'));
+    expect(within(form).getByRole('spinbutton', { name: 'Price' })).toHaveValue(101);
+    expect(within(form).getByRole('radio', { name: 'Sell' })).toBeChecked();
+    expect(save).toBeEnabled();
+    expect(window.location.search).toBe('?q=apple');
+  });
+
   it('shows quotes and history for an unheld ticker and carries its symbol into a first purchase', async () => {
     mockPositionRows = [];
     render(<StockDetailView symbol="AAPL" />);

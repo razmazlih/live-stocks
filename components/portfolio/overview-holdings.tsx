@@ -1,10 +1,12 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Circle, Plus, Search } from 'lucide-react';
+import { inspectLink, useStockInspector } from './stock-inspector';
 import { useApp } from '@/lib/context';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
 import { useUrlState } from '@/hooks/use-url-state';
 import { buildStockHref, buildTransactionHref, rememberReturnContext } from '@/lib/navigation-context';
 import { DashboardSurface } from '@/components/dashboard/page-primitives';
@@ -23,6 +25,7 @@ function parseHoldings(params: URLSearchParams) {
 
 export function OverviewHoldings({ metrics, sparklineData = {}, contextSparklineData = {}, positions }: { metrics: PositionMetrics[]; sparklineData?: Record<string, HistoricalPoint[]>; contextSparklineData?: Record<string, HistoricalPoint[]>; positions?: Position[] }) {
   const { locale, settings } = useApp();
+  const inspect = useStockInspector();
   const he = locale === 'he';
   const [state, patch, sourceUrl] = useUrlState(parseHoldings);
   const [expandedHolding, setExpandedHolding] = useState<string | null>(null);
@@ -54,10 +57,7 @@ export function OverviewHoldings({ metrics, sparklineData = {}, contextSparkline
   const currency = settings.currency;
   const activeValues = metrics.filter((metric) => metric.position.quantity > 0).map((metric) => currency === 'ILS' ? metric.currentValueIls : metric.currentValue);
   const portfolioValue = activeValues.every(Number.isFinite) ? activeValues.reduce((sum, value) => sum + value, 0) : Number.NaN;
-  const money = (value: number) => Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
-  const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
   const tone = (value: number) => value > 0.01 ? 'text-emerald-700' : value < -0.01 ? 'text-rose-600' : 'text-slate-600';
-  const percent = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? `${value > 0 ? '+' : ''}${formatPercent(value, locale)}` : '—';
   const gapLabel = (difference: number) => !Number.isFinite(difference) ? (he ? 'עלייה ליעד' : 'Rise to target') : difference < -0.001 ? (he ? 'עלייה ליעד' : 'Rise to target') : difference > 0.001 ? (he ? 'מעל היעד' : 'Above target') : (he ? 'ביעד' : 'On target');
   const columns = he ? ['מניה', 'מחיר כעת · USD', 'מכירה ליעד · USD', 'מרחק מהיעד', 'שווי', 'רווח / הפסד', 'מגמת המחיר'] : ['Stock', 'Current · USD', 'Sell for target · USD', 'Distance to target', 'Value', 'Profit / loss', 'Price trend'];
   return <DashboardSurface className="rounded-xl p-4 sm:p-5">
@@ -68,7 +68,12 @@ export function OverviewHoldings({ metrics, sparklineData = {}, contextSparkline
         const id = `overview-${m.position.activationId ?? m.position.id ?? m.position.symbol}`;
         const pnl = currency === 'ILS' ? m.positionPnLIls : m.positionPnLUsd;
         const target = getHoldingTarget(m);
-        return <tr key={id} className="hover:bg-slate-50/70"><td className="px-3 py-3"><Link id={id} href={buildStockHref(m.position.symbol, returnUrl)} onClick={() => rememberReturnContext(id)} className="inline-flex min-h-[44px] items-center gap-2.5 rounded text-start"><StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} className="h-9 w-9 rounded-lg" /><span className="flex min-w-0 flex-col"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></span></Link></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{usd(m.currentPrice)}</bdi><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end font-semibold tabular-nums text-blue-700"><bdi>{usd(target.salePrice)}</bdi></td><td className={`px-3 py-3 text-end font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi><span className="mt-1 block text-xs font-normal">{gapLabel(target.difference)}</span></td><td className="px-3 py-3 text-end tabular-nums"><bdi>{money(currency === 'ILS' ? m.currentValueIls : m.currentValue)}</bdi></td><td className={`px-3 py-3 text-end tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi><span className="mt-1 block text-xs"><bdi>{percent(m.roiPercent)}</bdi> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact targetPrice={target.salePrice ?? null} /></td><td className="text-end"><Link href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-700 hover:bg-blue-50" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`} title={he ? 'הוספת עסקה' : 'Add transaction'}><Plus aria-hidden className="h-4 w-4" /></Link></td></tr>;
+        return <tr key={id} className={inspect ? 'cursor-pointer hover:bg-slate-50/70' : 'hover:bg-slate-50/70'}
+          onClick={event => {
+            if (!inspect || (event.target as Element).closest('a,button')) return;
+            const trigger = event.currentTarget.querySelector<HTMLElement>('[data-inspect-stock]');
+            if (trigger) inspect({ symbol: m.position.symbol, source: m.position.location }, trigger);
+          }}><td className="px-3 py-3"><Link id={id} data-inspect-stock href={buildStockHref(m.position.symbol, returnUrl)} onClick={event => { if (!inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location })) rememberReturnContext(id); }} className="inline-flex min-h-[44px] items-center gap-2.5 rounded text-start"><StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} className="h-9 w-9 rounded-lg" /><span className="flex min-w-0 flex-col"><span className="font-semibold text-slate-950" dir="ltr">{m.position.symbol}</span><span className="text-xs text-slate-500">{m.position.display}</span></span></Link></td><td className="px-3 py-3 text-end tabular-nums"><AnimatedNumber value={m.currentPrice} locale={locale}  identity={id} /><span className={`mt-1 block text-xs ${tone(m.dailyChangePercent ?? 0)}`}><AnimatedNumber value={m.dailyChangePercent} locale={locale} kind="percent" signed identity={id} /> <span className="text-slate-400">{he ? 'יומי' : 'today'}</span></span></td><td className="px-3 py-3 text-end font-semibold tabular-nums text-blue-700"><AnimatedNumber value={target.salePrice} locale={locale}  identity={id} /></td><td className={`px-3 py-3 text-end font-semibold tabular-nums ${tone(target.difference)}`}><AnimatedNumber value={target.distancePercent} locale={locale} kind="percent" identity={id} /><span className="mt-1 block text-xs font-normal">{gapLabel(target.difference)}</span></td><td className="px-3 py-3 text-end tabular-nums"><AnimatedNumber value={currency === 'ILS' ? m.currentValueIls : m.currentValue} locale={locale} currency={currency} identity={id} /></td><td className={`px-3 py-3 text-end tabular-nums ${tone(pnl)}`}><AnimatedNumber value={pnl} locale={locale} currency={currency} identity={id} /><span className="mt-1 block text-xs"><AnimatedNumber value={m.roiPercent} locale={locale} kind="percent" signed identity={id} /> <span className="font-normal text-slate-400">{he ? 'מהקנייה' : 'since entry'}</span></span></td><td className="w-36 px-3 py-3"><StockMiniChart metric={m} points={sparklineData[m.position.activationId ?? m.position.id ?? m.position.symbol] ?? []} compact targetPrice={target.salePrice ?? null} /></td><td className="text-end"><Link onClick={event => { inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location, side: 'BUY' }); }} href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-700 hover:bg-blue-50" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`} title={he ? 'הוספת עסקה' : 'Add transaction'}><Plus aria-hidden className="h-4 w-4" /></Link></td></tr>;
       })}</tbody></table>
       <div className="space-y-2 xl:hidden">{filtered.map((metric) => {
         const key = metric.position.activationId ?? metric.position.id ?? metric.position.symbol;

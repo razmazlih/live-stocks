@@ -1,11 +1,14 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+
 import Link from 'next/link';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { StockDetailsLink } from './stock-navigation';
 import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
+import { inspectLink, useStockInspector } from './stock-inspector';
 import { useApp } from '@/lib/context';
-import { formatCurrency, formatPercent } from '@/lib/calculations';
+import { formatPercent } from '@/lib/calculations';
 import { buildStockHref, buildTransactionHref, rememberReturnContext } from '@/lib/navigation-context';
 import { getHoldingTarget } from '@/lib/holding-display';
 import { buildHoldingChartReferences, buildHoldingPerformanceHistory } from '@/lib/holding-chart-history';
@@ -27,6 +30,7 @@ interface OverviewHoldingCardProps {
 
 export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded, onToggle, sourceUrl, portfolioValue, historyPositions }: OverviewHoldingCardProps) {
   const { locale, settings } = useApp();
+  const inspect = useStockInspector();
   const he = locale === 'he';
   const currency = settings.currency;
   const cardRef = useRef<HTMLElement>(null);
@@ -94,10 +98,7 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
       window.removeEventListener('touchmove', cancel);
     };
   }, [expanded]);
-  const money = (value: number) => Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
-  const usd = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? formatCurrency(value, 'USD', locale) : '—';
   const tone = (value: number) => value > 0.01 ? 'text-emerald-700' : value < -0.01 ? 'text-rose-600' : 'text-slate-600';
-  const percent = (value: number | undefined) => value !== undefined && Number.isFinite(value) ? `${value > 0 ? '+' : ''}${formatPercent(value, locale)}` : '—';
   const gapLabel = (difference: number) => !Number.isFinite(difference) ? (he ? 'מרחק מהיעד' : 'Distance to target') : difference < -0.001 ? (he ? 'עלייה ליעד' : 'Rise to target') : difference > 0.001 ? (he ? 'מעל היעד' : 'Above target') : (he ? 'ביעד' : 'On target');
   const events = useMemo<SparklineEvent[]>(() => {
     const lots = m.position.lots ?? [];
@@ -174,32 +175,36 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
     if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggleFromUser(); }
   }}>
     <div ref={graphRef} aria-hidden="true" className="holding-trend-layer"><HoldingTrendBackground points={displayPoints} tone={holdingTone} expanded={expanded} baseline={m.position.entryPrice} targetPrice={target.salePrice} events={events} locale={locale} profitPoints={contextPriceMode ? undefined : profitPoints} references={priceReferences} activeFromTimestamp={activeFromTimestamp} /></div>
-    <button ref={toggleRef} id={id} type="button" aria-expanded={expanded} aria-controls={`${id}-details`} aria-describedby={`${id}-summary`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={toggleFromUser} className="holding-toggle block w-full rounded-2xl px-4 pb-3 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
+    <button ref={toggleRef} id={id} type="button" aria-haspopup={inspect ? 'dialog' : undefined} aria-expanded={inspect ? undefined : expanded} aria-controls={inspect ? undefined : `${id}-details`} aria-describedby={`${id}-summary`} aria-label={inspect ? (he ? `פרטי מניית ${m.position.symbol}` : `Inspect ${m.position.symbol}`) : he ? `${expanded ? 'סגירת' : 'פתיחת'} פרטי ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} details`} onClick={event => { if (inspect) inspect({ symbol: m.position.symbol, source: m.position.location }, event.currentTarget); else toggleFromUser(); }} className="holding-toggle block w-full rounded-2xl px-4 pb-3 pt-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5">
       <span id={`${id}-summary`} className="holding-summary-content">
         <span className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-3">
             <StockLogo symbol={m.position.symbol} display={m.position.display} imageUrl={m.position.imageUrl} />
             <span className="min-w-0"><span className="block truncate text-base font-semibold tracking-tight text-slate-950" dir="ltr">{m.position.symbol}</span><span className="holding-company mt-0.5 block truncate text-xs text-slate-500">{m.position.display}</span></span>
           </span>
-          <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />
+          {inspect ? <span aria-hidden className="w-11" /> : <ChevronDown aria-hidden="true" className="holding-chevron h-4 w-4 shrink-0 text-slate-400" />}
         </span>
         <span className="mt-3 grid grid-cols-2 gap-3">
           <span>
             <span className="block text-xs text-slate-500">{he ? 'מחיר נוכחי' : 'Current price'}</span>
-            <bdi className="block text-xl font-semibold tracking-tight tabular-nums text-slate-950">{usd(m.currentPrice)}</bdi>
+            <AnimatedNumber className="block text-xl font-semibold tracking-tight tabular-nums text-slate-950" value={m.currentPrice} locale={locale}  identity={key} />
           </span>
           <span className="border-s border-slate-200 ps-3">
             <span className="block text-xs text-slate-500">{he ? 'מחיר יעד' : 'Target price'}</span>
-            <bdi className="block text-xl font-semibold tracking-tight tabular-nums text-blue-700">{usd(target.salePrice)}</bdi>
+            <AnimatedNumber className="block text-xl font-semibold tracking-tight tabular-nums text-blue-700" value={target.salePrice} locale={locale}  identity={key} />
           </span>
         </span>
         <span ref={summaryGridRef} className="holding-summary-grid mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-2">
-          <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><bdi>{percent(m.dailyChangePercent)}</bdi></span></span>
-          <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><bdi>{target.distancePercent !== undefined ? formatPercent(target.distancePercent, locale) : '—'}</bdi></span></span>
+          <span><span className="block text-xs text-slate-500">{he ? 'שינוי יומי' : 'Day change'}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(m.dailyChangePercent ?? 0)}`}><AnimatedNumber value={m.dailyChangePercent} locale={locale} kind="percent" signed identity={key} /></span></span>
+          <span className="border-s border-slate-200 ps-3"><span className="block text-xs text-slate-500">{gapLabel(target.difference)}</span><span className={`mt-1 block text-base font-semibold tabular-nums ${tone(target.difference)}`}><AnimatedNumber value={target.distancePercent} locale={locale} kind="percent" identity={key} /></span></span>
         </span>
         <span ref={previewSlotRef} aria-hidden="true" className={`holding-preview-slot block ${expanded || !chartAvailable ? 'h-0' : 'mt-3 h-20'}`} />
       </span>
     </button>
+    {inspect && <button type="button" onClick={toggleFromUser} className="absolute end-3 top-3 z-10 grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-accent/50"
+      aria-expanded={expanded} aria-controls={`${id}-details`} aria-label={he ? `${expanded ? 'סגירת' : 'פתיחת'} סיכום ${m.position.symbol}` : `${expanded ? 'Collapse' : 'Expand'} ${m.position.symbol} summary`}>
+      <ChevronDown aria-hidden className="holding-chevron size-4" />
+    </button>}
     <div id={`${id}-details`} aria-hidden={!expanded} ref={(element) => { revealRef.current = element; if (expanded) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }} className="holding-reveal">
       <div className="min-h-0 cursor-pointer overflow-hidden" onClick={(event) => {
         const target = event.target instanceof Element ? event.target : null;
@@ -208,10 +213,10 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
       }}>
         <div className="holding-detail-content px-4 pb-4 sm:px-5 sm:pb-5">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 px-3 py-3 sm:grid-cols-4">
-            <div><dt className="text-xs text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(value)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><bdi>{money(cost)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'רווח/הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(pnl)}`}><bdi>{money(pnl)}</bdi></dd></div>
-            <div><dt className="text-xs text-slate-500">{he ? 'מצטבר בכל החשבונות' : 'P/L across accounts'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><bdi>{usd(cumulativeProfit ?? undefined)}</bdi></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'שווי ההחזקה' : 'Holding value'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><AnimatedNumber value={value} locale={locale} currency={currency} identity={key} /></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'עלות הקנייה' : 'Purchase cost'}</dt><dd className="mt-1.5 text-sm font-medium tabular-nums text-slate-900"><AnimatedNumber value={cost} locale={locale} currency={currency} identity={key} /></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'רווח/הפסד פתוח' : 'Unrealized P/L'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(pnl)}`}><AnimatedNumber value={pnl} locale={locale} currency={currency} identity={key} /></dd></div>
+            <div><dt className="text-xs text-slate-500">{he ? 'מצטבר בכל החשבונות' : 'P/L across accounts'}</dt><dd className={`mt-1.5 text-sm font-medium tabular-nums ${tone(cumulativeProfit ?? 0)}`}><AnimatedNumber value={cumulativeProfit ?? undefined} locale={locale}  identity={key} /></dd></div>
           </dl>
           <div className="holding-chart-detail mt-5">
             <div ref={chartSlotRef} className="holding-chart-slot relative h-48 w-full sm:h-52" role={historyRange && chartAvailable ? 'img' : undefined} aria-label={historyRange && chartAvailable ? contextPriceMode ? (he ? `גרף מחיר ${m.position.symbol}, מ־${historyRange.start} עד ${historyRange.end}. לפני הכניסה אפור; צבעי הביצועים מתחילים בכניסה.` : `${m.position.symbol} price chart, ${historyRange.start} to ${historyRange.end}. Gray before entry; performance colors begin at entry.`) : (he ? `גרף רווח מצטבר של ${m.position.symbol} בדולר, מ־${historyRange.start} עד ${historyRange.end}. אדום בהפסד, כחול ברווח מתחת ליעד וירוק ביעד ומעלה. ${events.filter(event => event.type === 'BUY').length} עסקאות קנייה רשומות, ${events.filter(event => event.type === 'SELL').length} עסקאות מכירה רשומות.` : `${m.position.symbol} cumulative USD profit from ${historyRange.start} to ${historyRange.end}. Red in loss, blue in profit below target, green at or above target. ${events.filter(event => event.type === 'BUY').length} recorded buys, ${events.filter(event => event.type === 'SELL').length} recorded sells.`) : undefined}>
@@ -222,10 +227,10 @@ export function OverviewHoldingCard({ metric: m, points, contextPoints, expanded
           <div className="holding-detail-footer mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500"><bdi>{Number.isFinite(m.position.quantity) ? m.position.quantity.toLocaleString(he ? 'he-IL' : 'en-US', { maximumFractionDigits: 6 }) : '—'}</bdi> {he ? 'מניות' : 'shares'} · {allocation !== undefined ? formatPercent(allocation, locale) : '—'} {he ? 'מהתיק' : 'of portfolio'} <span className="mx-1 text-slate-300">·</span> {he ? 'מאז' : 'Since'} {entryLabel}</p>
             <div className="holding-detail-actions flex flex-wrap items-center gap-2">
-              <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={() => rememberReturnContext(id)} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              <StockDetailsLink preview={{ symbol: m.position.symbol, display: m.position.display, imageUrl: m.position.imageUrl }} href={buildStockHref(m.position.symbol, sourceUrl || '/')} onClick={event => { if (!inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location })) rememberReturnContext(id); }} aria-label={he ? `לפרטי ${m.position.symbol}` : `View ${m.position.symbol} details`} className="stock-details-action inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                 {he ? 'פרטי המניה' : 'Stock details'}<ArrowLeft aria-hidden className="h-3.5 w-3.5 ltr:rotate-180" />
               </StockDetailsLink>
-              <Link href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-700" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`}><Plus aria-hidden className="h-3.5 w-3.5" />{he ? 'הוספת עסקה' : 'Add transaction'}</Link>
+              <Link onClick={event => { inspectLink(event, inspect, { symbol: m.position.symbol, source: m.position.location, side: 'BUY' }); }} href={buildTransactionHref(m.position.symbol, m.position.location)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-700" aria-label={he ? `הוספת עסקה עבור ${m.position.symbol}` : `Add transaction for ${m.position.symbol}`}><Plus aria-hidden className="h-3.5 w-3.5" />{he ? 'הוספת עסקה' : 'Add transaction'}</Link>
               <button type="button" onClick={toggleFromUser} className="holding-close-action inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{he ? 'סגירת הכרטיס' : 'Close card'}<ChevronDown aria-hidden className="h-3.5 w-3.5 rotate-180" /></button>
             </div>
           </div>

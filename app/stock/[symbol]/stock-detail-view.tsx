@@ -1,5 +1,9 @@
 'use client';
 
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { useLiveQuotes } from '@/hooks/use-live-quotes';
+import { displayedQuote } from '@/lib/live-display-quote';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -22,11 +26,13 @@ import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shel
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { useStockNavigationPreview, useStockNavigationReady } from '@/components/portfolio/stock-navigation';
 import type { SparklineEvent } from '@/components/charts/sparkline';
+import { InspectorTrade } from '@/components/portfolio/inspector-trade';
 import { StockDetailChart } from '@/components/portfolio/stock-detail-chart';
 import { StockChartSkeleton, StockRecordsSkeleton } from './stock-detail-skeleton';
 import styles from './stock-detail-view.module.css';
 
 import { getSupabaseClient } from '@/lib/supabase';
+import { portfolioNow } from '@/lib/demo/review';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
 import { buildUsdIlsRateResolver, fetchUsdIlsHistoricalPoints } from '@/lib/services/historical-fx';
@@ -38,7 +44,6 @@ import {
   hasMaterialExitPriceGap,
   formatDate,
   formatNumber,
-  formatPercent,
   mapCandleDataToPoints,
 } from '@/lib/calculations';
 import { computeOpenLots, mapPositionRow, summarizeLots } from '@/lib/positions';
@@ -166,7 +171,7 @@ type CandleResponse = CandleData & { error?: string };
 type QuoteResponse = StockQuote & { error?: string };
 
 function getRangeParams(range: TimeRange, entryDate?: string) {
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(portfolioNow() / 1000);
   switch (range) {
     case '1D':
       return { from: now - DAY_SECONDS, resolution: '60' };
@@ -179,7 +184,7 @@ function getRangeParams(range: TimeRange, entryDate?: string) {
     case '6M':
       return { from: now - 180 * DAY_SECONDS, resolution: 'D' };
     case 'YTD': {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+      const startOfYear = new Date(new Date(now * 1000).getFullYear(), 0, 1).getTime() / 1000;
       return { from: Math.floor(startOfYear), resolution: 'D' };
     }
     case '1Y':
@@ -198,11 +203,12 @@ function getRangeParams(range: TimeRange, entryDate?: string) {
 
 interface StockDetailViewProps {
   symbol: string;
+  inspector?: { requestId?: number; source?: string; side?: 'BUY' | 'SELL'; expand(): void; setSaving(value: boolean): void };
 }
 
-export function StockDetailView({ symbol }: StockDetailViewProps) {
+export function StockDetailView({ symbol, inspector }: StockDetailViewProps) {
   const normalizedSymbol = symbol.toUpperCase();
-  const { locale, settings } = useApp();
+  const { locale, settings, triggerRefresh } = useApp();
   const { t } = useTranslation(locale);
 
   const [routeState, patchParams] = useUrlState((params) => ({
@@ -210,19 +216,23 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     range: STOCK_DETAIL_TIME_RANGES.includes(params.get('range') as TimeRange)
       ? params.get('range') as TimeRange : 'All' as TimeRange,
   }));
-  const { returnTo, range } = routeState;
+  const [inspectorRange, setInspectorRange] = useState<TimeRange>('1M');
+  const { returnTo } = routeState;
+  const range = inspector ? inspectorRange : routeState.range;
   const sourceRoute = createAppRouteItems(t).find((route) => route.href === returnTo.split('?')[0]);
   const loadedSymbol = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [historicalError, setHistoricalError] = useState(false);
   const [displayedRange, setDisplayedRange] = useState<TimeRange | null>(null);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [metrics, setMetrics] = useState<PositionMetrics | null>(null);
-  const [quote, setQuote] = useState<StockQuote | null>(null);
+  const [snapshot, setQuote] = useState<{symbol: string; data: StockQuote} | null>(null);
+  const { ticks } = useLiveQuotes([normalizedSymbol], 'selected');
+  const {quote, timestamp, extended, stale} = displayedQuote(normalizedSymbol, snapshot?.symbol === normalizedSymbol ? snapshot.data : null, ticks[normalizedSymbol]);
+  const lastUpdated = useMemo(() => timestamp === null ? null : new Date(timestamp), [timestamp]);
   const [marketSymbol, setMarketSymbol] = useState('');
   const [marketProfile, setMarketProfile] = useState<{ symbol: string; display: string; imageUrl: string } | null>(null);
   const marketOnly = marketSymbol === normalizedSymbol;
@@ -232,7 +242,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const holdingCycles = useMemo(() => buildStockHoldingCycles(positions), [positions]);
   const currentCycleStart = holdingCycles.filter((cycle) => cycle.current).reduce<number | undefined>((start, cycle) => start === undefined ? cycle.start : Math.min(start, cycle.start), undefined);
   const navigationPreview = useStockNavigationPreview(normalizedSymbol);
-  useStockNavigationReady(!loading || Boolean(navigationPreview));
+  useStockNavigationReady(!inspector && (!loading || Boolean(navigationPreview)));
   const position = useMemo(() => combinePositions(positions), [positions]);
   const locationBreakdowns = useMemo(() => buildLocationBreakdowns(positions), [positions]);
   const openLots = useMemo(() => positions.flatMap((source) => computeOpenLots(source.lots ?? [])), [positions]);
@@ -271,7 +281,6 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         setPositions([]);
         setMetrics(null);
         setQuote(null);
-        setLastUpdated(null);
         setHistorical([]);
         setDisplayedRange(null);
       }
@@ -307,9 +316,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           const data = response.ok ? await response.json() as QuoteResponse : null;
           if (!data || !Number.isFinite(data.c) || data.c <= 0) throw new Error('Quote unavailable');
           if (!cancelled) {
-            setQuote(data);
+            setQuote({symbol: normalizedSymbol, data});
             loadedSymbol.current = normalizedSymbol;
-            setLastUpdated(new Date());
           }
           return;
         }
@@ -318,13 +326,13 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           new Date(position.entryDate).getTime(),
           ...(position.lots ?? []).map((lot) => new Date(lot.executedAt).getTime()),
         ]).filter(Number.isFinite);
-        const earliestActivity = activityTimestamps.length ? Math.min(...activityTimestamps) : Date.now();
+        const earliestActivity = activityTimestamps.length ? Math.min(...activityTimestamps) : portfolioNow();
         const [quoteResponse, rateResponse, fxHistory] = await Promise.all([
           quoteUrl ? fetch(quoteUrl) : Promise.resolve<null | Response>(null),
           fetch('/api/exchange-rate'),
           fetchUsdIlsHistoricalPoints(
             Math.max(0, Math.floor(earliestActivity / 1000) - 10 * DAY_SECONDS),
-            Math.floor(Date.now() / 1000),
+            Math.floor(portfolioNow() / 1000),
           ).catch(() => []),
         ]);
 
@@ -363,10 +371,11 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           settings.annualGrowthRate,
           dailyChange,
           buildUsdIlsRateResolver(fxHistory, rate, { allowFallback: false }),
+          new Date(portfolioNow()),
         );
         const computedMetrics = {
           ...baseMetrics,
-          requiredExitPrice: calculateRequiredExitPrice(mappedPositions, settings.annualGrowthRate),
+          requiredExitPrice: calculateRequiredExitPrice(mappedPositions, settings.annualGrowthRate, new Date(portfolioNow())),
         };
 
         if (cancelled) {
@@ -374,10 +383,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
         }
 
         setPositions(mappedPositions);
-        setQuote(fetchedQuote);
+        setQuote(fetchedQuote ? {symbol: normalizedSymbol, data: fetchedQuote} : null);
         setMetrics(computedMetrics);
         loadedSymbol.current = normalizedSymbol;
-        setLastUpdated(new Date());
       } catch (err) {
         console.error('Failed to load stock data:', err);
         if (!cancelled) {
@@ -400,7 +408,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
 
   const fetchHistorical = useCallback(
     async (selectedRange: TimeRange, entryDate: string | undefined, signal: AbortSignal) => {
-      const now = Math.floor(Date.now() / 1000);
+      const now = Math.floor(portfolioNow() / 1000);
       const { from, resolution } = getRangeParams(selectedRange, entryDate);
       const params = new URLSearchParams({ symbol: normalizedSymbol, resolution, from: String(from), to: String(now) });
       const response = await fetch(`/api/candles?${params}`, { signal });
@@ -478,7 +486,7 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
           return events;
         }
 
-        if (timestamp < rangeStart || timestamp > Math.max(rangeEnd, Date.now())) {
+        if (timestamp < rangeStart || timestamp > Math.max(rangeEnd, portfolioNow())) {
           return events;
         }
 
@@ -506,14 +514,15 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
     : undefined, [positions, chartData, sparklineEvents, settings.annualGrowthRate]);
 
   const assessment = useMemo(() => positions.some(source => source.lots?.length)
-    ? calculateSymbolExceptionAssessment(positions, quote?.c, settings.annualGrowthRate, lastUpdated ?? new Date())
+    ? calculateSymbolExceptionAssessment(positions, quote?.c, settings.annualGrowthRate, new Date(Math.min(lastUpdated?.getTime() ?? Infinity, portfolioNow())))
     : undefined, [positions, quote?.c, settings.annualGrowthRate, lastUpdated]);
   const hasRecordedHistory = positions.some(source => source.lots?.length);
   const legacyPositions = positions.filter(source => !source.lots?.length);
   const quantity = openLots.reduce((sum, lot) => sum + lot.quantity, 0) + legacyPositions.reduce((sum, source) => sum + Math.max(source.quantity, 0), 0);
   const cost = openLots.reduce((sum, lot) => sum + lot.totalCost, 0) + legacyPositions.reduce((sum, source) => sum + Math.max(source.quantity, 0) * source.entryPrice, 0);
   const averageCost = quantity > 0 ? cost / quantity : metrics?.position.entryPrice ?? 0;
-  const currentValue = quantity === 0 ? 0 : Number.isFinite(metrics?.currentPrice) ? quantity * metrics!.currentPrice : undefined;
+  const currentPrice = quote?.c ?? metrics?.currentPrice;
+  const currentValue = quantity === 0 ? 0 : Number.isFinite(currentPrice) ? quantity * currentPrice! : undefined;
   const unrealized = currentValue === undefined ? undefined : currentValue - cost;
   const cumulative = assessment?.status === 'closed' ? assessment.actualProfitUsd : assessment?.status === 'open' && assessment.currentPrice !== undefined
     ? assessment.actualProfitUsd : !hasRecordedHistory ? unrealized : undefined;
@@ -526,20 +535,20 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
   const identity = (position?.symbol.toUpperCase() === normalizedSymbol ? position : null) ?? marketProfile ?? navigationPreview ?? { symbol: normalizedSymbol, display: normalizedSymbol, imageUrl: '' };
 
   const awaitingInitialChart = Boolean(position && metrics && historicalEntryDate && !displayedRange && !historicalError);
-  return <DashboardRouteShell activeKey={sourceRoute?.key ?? 'portfolio'} locale={locale} portfolioFeedback={false}>
-    <DashboardContainer className={`stock-detail-arrival ${styles.page}`}>
+  const Main = inspector ? 'div' : DashboardMain;
+  const body = <>
       <div className={styles.toolbar}>
-        <Link href={returnTo} scroll={false} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+        {inspector ? <Link href={`/stock/${encodeURIComponent(normalizedSymbol)}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`} className="inline-flex min-h-11 items-center text-xs font-semibold text-primary">{locale === 'he' ? 'פתיחה בדף מלא' : 'Open full page'}</Link> : <Link href={returnTo} scroll={false} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
           <ArrowLeft aria-hidden className="h-4 w-4 rtl:rotate-180" />
           {locale === 'he' ? `חזרה ל${sourceRoute?.label ?? t.portfolio.title}` : `Back to ${sourceRoute?.label ?? t.portfolio.title}`}
-        </Link>
+        </Link>}
         <div className="flex items-center gap-3">
-          <span role="status" className="text-[11px] text-slate-400">{lastUpdated ? `${t.app.updated} ${lastUpdated.toLocaleTimeString(locale === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-          {!loading && (position || marketOnly) && <Button asChild size="sm" className="h-11 gap-1.5 rounded-xl"><Link href={buildTransactionHref(normalizedSymbol, positions.length === 1 ? positions[0].location : undefined)}><Plus aria-hidden className="h-4 w-4" />{locale === 'he' ? 'רישום עסקה' : 'Record trade'}</Link></Button>}
+          <span aria-live="off" className="text-[11px] text-slate-400">{lastUpdated ? `${stale ? (locale === 'he' ? 'מחיר אחרון זמין' : 'Last available price') : t.app.updated} ${lastUpdated.toLocaleString(locale === 'he' ? 'he-IL' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+          {!inspector && !loading && (position || marketOnly) && <Button asChild size="sm" className="h-11 gap-1.5 rounded-xl"><Link href={buildTransactionHref(normalizedSymbol, positions.length === 1 ? positions[0].location : undefined)}><Plus aria-hidden className="h-4 w-4" />{locale === 'he' ? 'רישום עסקה' : 'Record trade'}</Link></Button>}
           <Button variant="ghost" size="icon" aria-label={t.watchlist.actions.refreshTicker} title={t.watchlist.actions.refreshTicker} disabled={loading || refreshing} onClick={() => setReloadKey(value => value + 1)} className="h-11 w-11 rounded-xl text-slate-500"><RefreshCcw aria-hidden className={cn('h-4 w-4', refreshing && 'animate-spin')} /></Button>
         </div>
       </div>
-      <DashboardMain className={styles.main}>
+      <Main className={styles.main}>
         <section className={`stock-detail-destination ${styles.hero}`} aria-busy={loading || refreshing} data-page-loading={loading || awaitingInitialChart || undefined}>
           <div className={styles.heroTop}>
             <div className="flex min-w-0 items-center gap-3">
@@ -548,8 +557,8 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </div>
             <div className={styles.quote}>
               <p className="mb-1 text-[11px] text-slate-500">{locale === 'he' ? 'מחיר המניה · USD' : 'Share price · USD'}</p>
-              {loading ? <Skeleton className="h-[30px] w-32 sm:h-9" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><bdi>{money(quote?.c ?? metrics?.currentPrice)}</bdi></p>}
-              {loading ? <div className="mt-2 flex h-4 items-center"><Skeleton className="h-3 w-20" /></div> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><bdi>{money(quote?.d)}</bdi> <bdi>{quote?.dp !== undefined ? formatPercent(quote.dp, locale) : '—'}</bdi> <span className="font-normal text-slate-500">{locale === 'he' ? 'היום' : 'today'}</span></p>}
+              {loading ? <Skeleton className="h-[30px] w-32 sm:h-9" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><AnimatedNumber value={currentPrice} locale={locale} identity={normalizedSymbol} /></p>}
+              {loading ? <div className="mt-2 flex h-4 items-center"><Skeleton className="h-3 w-20" /></div> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><AnimatedNumber value={quote?.d} locale={locale} identity={normalizedSymbol} /> <AnimatedNumber value={quote?.dp} locale={locale} kind="percent" identity={normalizedSymbol} /> <span className="font-normal text-slate-500">{extended ? (locale === 'he' ? 'מאז הסגירה' : 'since close') : (locale === 'he' ? 'שינוי יומי' : 'daily change')}</span></p>}
             </div>
           </div>
           {!marketOnly && <dl className={styles.metrics}>
@@ -557,13 +566,16 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
               { label: locale === 'he' ? 'שווי ההחזקה' : 'Holding value', value: currentValue, helper: `${shareCount} ${locale === 'he' ? 'מניות פתוחות' : 'open shares'}`, color: 'text-slate-900' },
               { label: locale === 'he' ? 'רווח / הפסד פתוח' : 'Unrealized P/L', value: unrealized, helper: locale === 'he' ? 'בהחזקה הנוכחית' : 'Current holding', color: tone(unrealized) },
               { label: locale === 'he' ? 'רווח / הפסד מצטבר' : 'Cumulative P/L', value: cumulative, helper: hasRecordedHistory ? locale === 'he' ? 'כל הסבבים והמכירות הקודמות' : 'All cycles and previous sales' : locale === 'he' ? 'לפי נתוני ההחזקה הזמינים' : 'Available holding records', color: tone(cumulative) },
-            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="h-[1.5em] w-2/3 max-w-[5rem]" /> : <bdi>{money(item.value)}</bdi>}</dd>{loading ? <p><span aria-hidden="true" className="inline-block h-[.8em] w-3/4 max-w-[6rem] rounded bg-slate-400/20" /></p> : <p>{item.helper}</p>}</div>)}
+            ].map(item => <div key={item.label}><dt>{item.label}</dt><dd className={item.color}>{loading ? <Skeleton className="h-[1.5em] w-2/3 max-w-[5rem]" /> : <AnimatedNumber value={item.value} locale={locale} identity={normalizedSymbol} />}</dd>{loading ? <p><span aria-hidden="true" className="inline-block h-[.8em] w-3/4 max-w-[6rem] rounded bg-slate-400/20" /></p> : <p>{item.helper}</p>}</div>)}
           </dl>}
         </section>
 
+        {inspector && !loading && (position || marketOnly) && <InspectorTrade key={inspector.requestId} positions={positions} asset={identity}
+          source={inspector.source} initialSide={inspector.side} quote={quote?.c} onExpand={inspector.expand}
+          onSavingChange={inspector.setSaving} onSaved={() => { triggerRefresh(); setReloadKey(value => value + 1); }} />}
         {error ? <div role="alert" className={styles.error}><span>{metrics || quote ? locale === 'he' ? 'העדכון נכשל. הנתונים האחרונים נשמרו.' : 'Refresh failed. Showing the last available data.' : t.stock.detailView.states.error}</span><Button variant="ghost" size="sm" onClick={() => setReloadKey(value => value + 1)} disabled={refreshing}>{t.stock.detailView.states.retry}</Button></div> : null}
         {loading ? <><StockChartSkeleton /><StockRecordsSkeleton /></> : (position && metrics) || marketOnly ? <>
-          <StockDetailChart marketOnly={marketOnly} chartData={chartData} historicalLoading={historicalLoading || awaitingInitialChart} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => patchParams({ range: option })} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics?.yearsHeld ?? 0} baseline={marketOnly ? undefined : averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
+          <StockDetailChart marketOnly={marketOnly} chartData={chartData} historicalLoading={historicalLoading || awaitingInitialChart} historicalError={historicalError} displayedRange={displayedRange} range={range} locale={locale} timeRangeLabels={t.timeRange} onRangeChange={option => { if (inspector) setInspectorRange(option); else patchParams({ range: option }); }} onRetry={() => setReloadKey(value => value + 1)} scope={holdingScope} onScopeChange={setHoldingScope} holdingCycles={holdingCycles} holdingReferences={holdingReferences} events={sparklineEvents} entryTimestamp={entryTimestamp} annualGrowthRate={settings.annualGrowthRate} yearsHeld={metrics?.yearsHeld ?? 0} baseline={marketOnly ? undefined : averageCost} projectedPrice={currentTarget} requiredExitPrice={visibleRequiredExitPrice} priceFormatter={formatUsdCurrency} />
 
           {!marketOnly && <section className={styles.records} aria-label={locale === 'he' ? 'החזקה ופעולות' : 'Holdings and activity'}>
             <details className={styles.record}>
@@ -594,7 +606,9 @@ export function StockDetailView({ symbol }: StockDetailViewProps) {
             </details>
           </section>}
         </> : !loading && !error ? <DashboardSurface><p className="text-center text-sm text-slate-500">{t.stock.detailView.states.empty}</p></DashboardSurface> : null}
-      </DashboardMain>
-    </DashboardContainer>
+      </Main>
+    </>;
+  return inspector ? body : <DashboardRouteShell activeKey={sourceRoute?.key ?? 'portfolio'} locale={locale} portfolioFeedback={false}>
+    <DashboardContainer className={`stock-detail-arrival ${styles.page}`}>{body}</DashboardContainer>
   </DashboardRouteShell>;
 }
