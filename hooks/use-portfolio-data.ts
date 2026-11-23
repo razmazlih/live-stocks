@@ -19,6 +19,7 @@ import {
   RealizedSale,
 } from '@/types';
 import { buildPositionTimeline } from '@/lib/portfolio-timeline';
+import type { PerformanceHistoryStatus } from '@/lib/performance-display';
 
 interface SparklineResult {
   key: string;
@@ -188,6 +189,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
   const [contextSparklineData, setContextSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [sparklineData, setSparklineData] = useState<Record<string, HistoricalPoint[]>>({});
   const [portfolioTimeline, setPortfolioTimeline] = useState<PortfolioTimelinePoint[]>([]);
+  const [historyStatus, setHistoryStatus] = useState<PerformanceHistoryStatus>('pending');
   const [usdToIls, setUsdToIls] = useState(3.7);
   const [historicalIlsNetPnL, setHistoricalIlsNetPnL] = useState(0);
   const [historicalIlsRealizedPnL, setHistoricalIlsRealizedPnL] = useState(0);
@@ -396,6 +398,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
         }
       };
       const loadHistory = async () => {
+        setHistoryStatus(previous => previous === 'ready' ? previous : 'pending');
         const history = payload.deferredHistory && mappedPositions.length
           ? await fetchDashboard('history', controller.signal)
           : payload;
@@ -469,12 +472,15 @@ function usePortfolioDataState(scope: PortfolioScope) {
         setSparklineData(nextSparklineData);
         setContextSparklineData(history.contextCandlesByKey ?? {});
         setPortfolioTimeline(continuousTimeline);
+        setHistoryStatus('ready');
         setHistoricalIlsNetPnL(continuousTimeline.at(-1)?.netPnLIls ?? enrichedSummary.totalNetPnLIls);
       };
       await Promise.all([
         loadMarket().catch(() => { /* Known observations retain their original session date and source time. */ })
           .finally(() => { if (isCurrent() && scope === 'overview') setMarketLoad('settled'); }),
-        loadHistory().catch(() => { /* Keep the previous chart on a temporary history outage. */ }),
+        loadHistory().catch(() => {
+          if (isCurrent()) setHistoryStatus(previous => previous === 'ready' ? previous : 'unavailable');
+        }),
       ]);
       } catch (error) {
         if (!controller.signal.aborted && generation === generationRef.current) {
@@ -628,6 +634,7 @@ function usePortfolioDataState(scope: PortfolioScope) {
     sparklineData,
     contextSparklineData,
     portfolioTimeline: liveTimeline,
+    historyStatus,
     usdToIls,
     historicalIlsNetPnL: priced && priced !== valuation ? priced.summary.totalNetPnLIls : historicalIlsNetPnL,
     historicalIlsRealizedPnL,

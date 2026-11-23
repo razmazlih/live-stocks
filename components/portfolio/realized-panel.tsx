@@ -2,7 +2,8 @@
 
 import { AnimatedNumber } from '@/components/ui/animated-number';
 
-import { PerformanceSkeleton, RealizedTaxNote } from '@/components/portfolio/performance-skeleton';
+import { RealizedSummary } from './performance-summary';
+import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
 
 import Link from 'next/link';
 import { reconciliationQuality } from '@/lib/reconciliation-quality';
@@ -137,18 +138,9 @@ export function RealizedPanel() {
       ? 'הסכומים כאן הם סכומי ביניים של המכירות המתועדות בלבד. התאמת יתרה אינה מכירה ואינה ממציאה רווח. עסקאות חסרות עשויות לשנות את הרווח הכולל ואת אומדן המס.'
       : 'These are subtotals of recorded sales only. A balance reconciliation is not a sale and creates no realized profit. Missing executions can change lifetime profit and tax.'}</p></DashboardSurface>}
 
-    <DashboardSurface>
-      <h2 className="mb-5 text-xl font-semibold">{t.realized.summaryTitle}</h2>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 xl:grid-cols-4">
-        {[
-          { label: t.realized.totalProceeds, usd: totals.proceedsUsd, ils: totals.proceedsIls },
-          { label: historyIncomplete ? (isHebrew ? 'רווח ממומש מתועד בלבד' : 'Recorded realized profit only') : t.realized.totalProfit, usd: totals.profitUsd, ils: totals.profitIls },
-          { label: historyIncomplete ? (isHebrew ? 'אומדן מס למכירות מתועדות בלבד' : 'Recorded-sales tax subtotal') : (isHebrew ? 'אומדן מס' : 'Estimated tax'), usd: taxSummary.taxUsd, ils: taxSummary.taxIls },
-          { label: t.realized.netProfitAfterTax, usd: netProfitUsd, ils: netProfitIls },
-        ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className="mt-2 text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl"><AnimatedNumber value={item.usd} locale={locale} currency="USD" signed /></dd><dd className="mt-1 text-xs tabular-nums text-slate-500"><AnimatedNumber value={item.ils} locale={locale} currency="ILS" signed /></dd></div>)}
-      </dl>
-      <RealizedTaxNote locale={locale} />
-    </DashboardSurface>
+    <RealizedSummary locale={locale} incomplete={historyIncomplete} amounts={{
+      ...totals, taxUsd: taxSummary.taxUsd, taxIls: taxSummary.taxIls, netUsd: netProfitUsd, netIls: netProfitIls,
+    }} />
 
     <DashboardSurface>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><h2 className="text-xl font-semibold">{t.realized.bySymbolTitle}</h2><p className="text-sm text-slate-500">{t.realized.bySymbolSubtitle}</p></div>

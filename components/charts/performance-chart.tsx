@@ -5,11 +5,16 @@ import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from '@/lib/context';
 import { formatCurrency } from '@/lib/calculations';
+import { PerformanceChartHeading, PerformanceChartLegend } from './performance-chart-labels';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { PerformanceHistoryStatus } from '@/lib/performance-display';
 import { getPerformanceColor, getPerformanceColorStops, getPerformanceSeries, parsePerformanceOptions, parsePerformanceRange, PERFORMANCE_RANGES } from '@/lib/performance-display';
 import { useUrlState } from '@/hooks/use-url-state';
 import type { PortfolioSummary, PortfolioTimelinePoint } from '@/types';
 
-export function PerformanceChart({ data, summary, compact = false }: { data: PortfolioTimelinePoint[]; summary: PortfolioSummary; compact?: boolean }) {
+export function PerformanceChart({ data, summary, compact = false, historyStatus = 'ready' }: {
+  data: PortfolioTimelinePoint[]; summary: PortfolioSummary; compact?: boolean; historyStatus?: PerformanceHistoryStatus;
+}) {
   const { locale, settings } = useApp();
   const he = locale === 'he';
   const currency = settings.currency;
@@ -24,6 +29,7 @@ export function PerformanceChart({ data, summary, compact = false }: { data: Por
   const money = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) ? formatCurrency(value, currency, locale) : '—';
   const basis = includeFees && includeTaxes ? (he ? 'לאחר עמלות ואומדן מס' : 'After fees & estimated tax') : !includeFees && !includeTaxes ? (he ? 'לפני ניכויים' : 'Before deductions') : includeFees ? (he ? 'לאחר עמלות בלבד' : 'After fees only') : (he ? 'לאחר אומדן מס בלבד' : 'After estimated tax only');
   const latestPoint = series.at(-1);
+  const plotSize = compact ? 'h-[250px] w-full sm:h-[300px]' : 'h-[280px] w-full sm:h-[360px]';
   const fillColor = latestPoint?.actual !== null && latestPoint?.actual !== undefined ? getPerformanceColor(latestPoint.actual, latestPoint.target) : 'var(--text-secondary)';
   const rangeLabels = he ? { '1M': 'חודש', '3M': '3 ח׳', '6M': '6 ח׳', YTD: 'השנה', '1Y': 'שנה', All: 'הכל' } : null;
   const deductions = [
@@ -31,10 +37,7 @@ export function PerformanceChart({ data, summary, compact = false }: { data: Por
     { key: 'includeTaxes', enabled: includeTaxes, label: he ? 'אומדן מס' : 'Estimated tax', detail: he ? 'על רווחים שמומשו' : 'On realized profits' },
   ];
   return <section aria-label={he ? 'ביצועים מול היעד' : 'Performance vs. target'} className="space-y-4" dir={he ? 'rtl' : 'ltr'}>
-    <header className="flex items-start justify-between gap-3">
-      <div className="min-w-0"><h2 className="text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">{he ? 'ביצועים מול היעד' : 'Performance vs. target'}</h2><p className="mt-1 text-xs leading-relaxed text-slate-500">{he ? 'רווח והפסד מצטבר' : 'Cumulative profit & loss'} <span className="mx-1 text-slate-300">·</span> {currency}</p></div>
-      <button aria-label={he ? 'אפשרויות חישוב' : 'Calculation options'} aria-expanded={optionsOpen} aria-controls={`${id}-options`} onClick={() => setOptionsOpen(open => !open)} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${optionsOpen ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}><SlidersHorizontal aria-hidden className="h-3.5 w-3.5" /><span>{he ? 'חישוב' : 'Calculation'}</span><ChevronDown aria-hidden className={`h-3 w-3 transition-transform motion-reduce:transition-none ${optionsOpen ? 'rotate-180' : ''}`} /></button>
-    </header>
+    <PerformanceChartHeading locale={locale} currency={currency} optionsOpen={optionsOpen} optionsId={`${id}-options`} onToggle={() => setOptionsOpen(open => !open)} />
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div role="group" aria-label={he ? 'טווח הגרף' : 'Chart range'} className="flex w-full rounded-xl bg-slate-100/80 p-1 sm:w-auto">
         {PERFORMANCE_RANGES.map((item) => <button key={item} aria-pressed={range === item} onClick={() => patch({ chartRange: item })} className={`min-h-[44px] min-w-0 flex-1 whitespace-nowrap rounded-lg border px-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:flex-none ${range === item ? 'border-slate-200 bg-white text-slate-950 shadow-sm' : 'border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-900'}`}>{rangeLabels?.[item] ?? (item === 'All' ? 'All' : item)}</button>)}
@@ -53,11 +56,8 @@ export function PerformanceChart({ data, summary, compact = false }: { data: Por
         {deductions.map(({ key, enabled, label, detail }) => <button key={key} role="switch" aria-checked={enabled} aria-label={label} onClick={() => patch({ [key]: enabled ? '0' : '1' })} className={`flex min-h-[58px] items-center justify-between gap-3 rounded-xl border px-3 py-2 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${enabled ? 'border-blue-200 bg-white shadow-sm' : 'border-slate-200/80 bg-white/40'}`}><span><span className={`block text-xs font-semibold ${enabled ? 'text-slate-900' : 'text-slate-500'}`}>{label}</span><span className="mt-0.5 block text-[11px] text-slate-500">{detail}</span></span><span aria-hidden className={`flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors ${enabled ? 'bg-blue-600' : 'bg-slate-300'}`} dir="ltr"><span className={`flex h-4 w-4 items-center justify-center rounded-full bg-[#fff] shadow-sm transition-transform motion-reduce:transition-none ${enabled ? 'translate-x-4' : 'translate-x-0'}`}>{enabled ? <Check className="h-2.5 w-2.5 text-blue-600" /> : null}</span></span></button>)}
       </div>
     </div>
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-[10px] text-slate-500 sm:text-[11px]">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><span className="font-medium text-slate-600">{he ? 'רווח / הפסד' : 'Profit / loss'}</span><span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-600" />{he ? 'הפסד' : 'Loss'}</span><span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-blue-600" />{he ? 'מתחת ליעד' : 'Below target'}</span><span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-600" />{he ? 'מעל היעד' : 'Above target'}</span></div>
-      <span className="inline-flex items-center gap-1.5"><span aria-hidden className="w-4 border-t-2 border-dashed border-slate-400" />{he ? 'יעד אישי' : 'Personal target'}</span>
-    </div>
-    {enoughHistory ? <div className={compact ? 'h-[250px] w-full sm:h-[300px]' : 'h-[280px] w-full sm:h-[360px]'} dir="ltr">
+    <PerformanceChartLegend locale={locale} />
+    {historyStatus === 'pending' ? <Skeleton role="status" aria-label={he ? 'טוען היסטוריית ביצועים' : 'Loading performance history'} className={plotSize} /> : enoughHistory ? <div className={plotSize} dir="ltr">
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <ComposedChart data={series} margin={{ top: 12, right: 8, left: -10, bottom: 0 }} accessibilityLayer>
           <defs>
@@ -82,7 +82,9 @@ export function PerformanceChart({ data, summary, compact = false }: { data: Por
           {Number.isFinite(summary.totalProjectedPnLUsd) ? <Line type="linear" dataKey="target" name={he ? 'יעד אישי' : 'Personal target'} stroke="var(--text-tertiary)" strokeWidth={1.5} strokeDasharray="4 5" dot={false} isAnimationActive={false} connectNulls={false} /> : null}
         </ComposedChart>
       </ResponsiveContainer>
-    </div> : <div className="flex min-h-[230px] items-center justify-center text-center text-sm text-slate-500">{he ? 'אין מספיק נתונים להצגת גרף בטווח שנבחר.' : 'Not enough data to chart this period.'}</div>}
+    </div> : <div className={`${plotSize} flex items-center justify-center text-center text-sm text-slate-500`}>{historyStatus === 'unavailable'
+      ? (he ? 'לא ניתן לטעון את היסטוריית הביצועים.' : 'Performance history could not be loaded.')
+      : (he ? 'אין מספיק נתונים להצגת גרף בטווח שנבחר.' : 'Not enough data to chart this period.')}</div>}
     <details className="group text-[11px] leading-relaxed text-slate-500"><summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-1.5 font-medium"><ChevronDown aria-hidden className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />{he ? 'איך מחושבים הנתונים?' : 'How are these values calculated?'}</summary><p className="mt-1 max-w-3xl">{he ? 'היסטוריה לפי נתוני סוף יום. ביום ללא מסחר משמש המחיר האחרון הזמין; היום מתעדכן בנתונים הזמינים כעת. העמלות הן הסכומים שהוזנו בעסקאות, והמס הוא אומדן על רווחים שמומשו, לא מס ששולם בפועל. היעד האישי אינו משתנה עם מתגי הניכויים. נתונים חסרים מוצגים כפער בגרף.' : 'History uses daily closing data. Non-trading days carry the last available price; today uses currently available data. Fees are the amounts recorded in transactions. Tax is an estimate on realized gains, not actual tax paid. Deduction controls do not change your personal target. Missing data appears as a gap.'}</p></details>
   </section>;
 }

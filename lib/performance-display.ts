@@ -7,6 +7,7 @@ export function parsePerformanceView(params: Pick<URLSearchParams, 'get'>) {
 
 export const PERFORMANCE_RANGES = ['1M', '3M', '6M', 'YTD', '1Y', 'All'] as const;
 export type PerformanceRange = typeof PERFORMANCE_RANGES[number];
+export type PerformanceHistoryStatus = 'pending' | 'ready' | 'unavailable';
 export function parsePerformanceRange(params: URLSearchParams): PerformanceRange {
   const value = params.get('chartRange');
   return PERFORMANCE_RANGES.includes(value as PerformanceRange) ? value as PerformanceRange : '3M';

@@ -20,6 +20,16 @@ const summary = { totalProjectedPnLUsd: 90 } as PortfolioSummary;
 
 beforeEach(() => { window.history.replaceState(null, '', '/'); });
 describe('performance deduction controls', () => {
+  it('reserves the plot while history is in flight and distinguishes an outage from an empty range', () => {
+    const view = render(<PerformanceChart data={[]} summary={summary} historyStatus="pending" />);
+    const plot = screen.getByRole('status', { name: 'טוען היסטוריית ביצועים' });
+    expect(plot).toHaveClass('h-[280px]', 'sm:h-[360px]');
+    expect(screen.queryByText(/אין מספיק נתונים/)).not.toBeInTheDocument();
+    view.rerender(<PerformanceChart data={[]} summary={summary} historyStatus="unavailable" />);
+    expect(screen.getByText('לא ניתן לטעון את היסטוריית הביצועים.')).toHaveClass('h-[280px]', 'sm:h-[360px]');
+    view.rerender(<PerformanceChart data={[point]} summary={summary} historyStatus="ready" />);
+    expect(screen.getByText(/אין מספיק נתונים/)).toHaveClass('h-[280px]', 'sm:h-[360px]');
+  });
   it('defaults to net, independently excludes fees and estimated taxes, and restores net', () => {
     render(<PerformanceChart data={[point, { ...point, timestamp: point.timestamp + 86400000 }]} summary={summary} />);
     const options = screen.getByRole('button', { name: 'אפשרויות חישוב' });

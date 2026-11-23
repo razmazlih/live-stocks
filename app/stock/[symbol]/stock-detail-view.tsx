@@ -557,7 +557,7 @@ export function StockDetailView({ symbol, inspector }: StockDetailViewProps) {
             </div>
             <div className={styles.quote}>
               <p className="mb-1 text-[11px] text-slate-500">{locale === 'he' ? 'מחיר המניה · USD' : 'Share price · USD'}</p>
-              {loading ? <Skeleton className="h-[30px] w-32 sm:h-9" /> : <p className="text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:text-4xl"><AnimatedNumber value={currentPrice} locale={locale} identity={normalizedSymbol} /></p>}
+              {loading ? <Skeleton className="h-[30px] w-32 sm:h-9" /> : <p className="flex items-center text-3xl font-semibold leading-none tracking-tight text-slate-950 sm:justify-end sm:text-4xl sm:leading-none"><AnimatedNumber value={currentPrice} locale={locale} identity={normalizedSymbol} /></p>}
               {loading ? <div className="mt-2 flex h-4 items-center"><Skeleton className="h-3 w-20" /></div> : <p className={cn('mt-2 text-xs font-medium tabular-nums', tone(quote?.d))}><AnimatedNumber value={quote?.d} locale={locale} identity={normalizedSymbol} /> <AnimatedNumber value={quote?.dp} locale={locale} kind="percent" identity={normalizedSymbol} /> <span className="font-normal text-slate-500">{extended ? (locale === 'he' ? 'מאז הסגירה' : 'since close') : (locale === 'he' ? 'שינוי יומי' : 'daily change')}</span></p>}
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { AnimatedNumber } from '@/components/ui/animated-number';
 
+import { TargetsSummary, TargetSectionHeading } from './targets-summary';
 import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
 
 import Link from 'next/link';
@@ -14,7 +15,6 @@ import {
 } from '@/components/dashboard/page-primitives';
 import {
   calculateSymbolExceptionAssessment,
-  formatPercent,
 } from '@/lib/calculations';
 import { useApp } from '@/lib/context';
 import { useTranslation } from '@/lib/translations';
@@ -108,15 +108,8 @@ export function TargetsPanel() {
               </DashboardEmptyPanel>
             ) : (
               <div className="space-y-8">
-                <section className="space-y-4">
-                  <h2 className="text-xl font-semibold text-slate-900">{locale === 'he' ? 'ביצועים מול היעד האישי' : 'Performance against your personal target'}</h2>
-                  <p className="text-sm text-slate-500">{t.exceptions.annualTarget}: {formatPercent(settings.annualGrowthRate * 100, locale)} · {locale === 'he' ? 'יעד תשואה אישי, לא תחזית שוק.' : 'A personal return target, not a market forecast.'}</p>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <SummaryCard label={t.exceptions.openCount} value={sections.open.length} tone="blue" />
-                    <SummaryCard label={t.exceptions.closedCount} value={sections.closed.length} tone="emerald" />
-                    <SummaryCard label={t.exceptions.warningCount} value={sections.invalid.length} tone="amber" />
-                  </div>
-                </section>
+                <TargetsSummary locale={locale} growthRate={settings.annualGrowthRate}
+                  counts={[sections.open.length, sections.closed.length, sections.invalid.length]} />
 
                 {sectionDetails.map((section) => section.items.length > 0 && (
                   <AssessmentSectionView key={section.key} section={section.key} title={section.title} description={section.description} items={section.items} locale={locale} labels={t.exceptions} />
@@ -125,15 +118,6 @@ export function TargetsPanel() {
             )}
           </DashboardSurface>
   );
-}
-
-function SummaryCard({ label, value, tone }: { label: string; value: number; tone: 'blue' | 'emerald' | 'amber' }) {
-  const colors = {
-    blue: 'border-blue-100 bg-blue-50 text-blue-700',
-    emerald: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-    amber: 'border-amber-100 bg-amber-50 text-amber-700',
-  };
-  return <div className={`rounded-xl border p-4 ${colors[tone]}`}><p className="text-sm font-medium opacity-80">{label}</p><p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p></div>;
 }
 
 function AssessmentSectionView({
@@ -148,10 +132,7 @@ function AssessmentSectionView({
 }) {
   return (
     <section className="space-y-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div><h2 className="text-xl font-semibold text-slate-900">{title}</h2><p className="text-sm text-slate-500">{description}</p></div>
-        <span className="text-sm font-medium text-slate-500">{items.length.toLocaleString(locale)}</span>
-      </div>
+      <TargetSectionHeading title={title} description={description} count={items.length.toLocaleString(locale)} />
       <div className="grid gap-3 lg:hidden">
         {items.map((item) => <AssessmentCard key={item.symbol} item={item} section={section} locale={locale} labels={labels} />)}
       </div>
@@ -197,8 +178,8 @@ function AssessmentRow({ item, section, locale, labels }: { item: SymbolExceptio
     <td className="px-4 py-4 text-end"><DetailLink symbol={item.symbol} label={labels.viewDetails} variant="row" /></td></tr>;
 }
 
-function Metric({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) { return <div><p className="text-xs font-medium text-slate-500">{label}</p><p className={`mt-0.5 font-semibold tabular-nums ${className || 'text-slate-800'}`}>{value}</p></div>; }
+function Metric({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) { return <div><p className="text-xs font-medium text-slate-500">{label}</p><p className={`mt-0.5 flex min-h-[1lh] items-center font-semibold tabular-nums ${className || 'text-slate-800'}`}>{value}</p></div>; }
 function formatMoney(value: number | undefined, locale: 'he' | 'en') { return <AnimatedNumber value={value} locale={locale} />; }
 function DetailLink({ symbol, label, variant }: { symbol: string; label: string; variant: 'card' | 'row' }) {
-  return <Link id={`target-${variant}-${symbol}`} href={buildStockHref(symbol, '/portfolio?view=targets')} onClick={(event) => rememberReturnContext(event.currentTarget.id)} className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{label}<ArrowUpLeft aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-0 ltr:rotate-180" /></Link>;
+  return <Link id={`target-${variant}-${symbol}`} href={buildStockHref(symbol, '/portfolio?view=targets')} onClick={(event) => rememberReturnContext(event.currentTarget.id)} className={`${variant === 'card' ? 'mt-4 flex w-fit' : 'inline-flex'} min-h-[44px] items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900`}>{label}<ArrowUpLeft aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-0 ltr:rotate-180" /></Link>;
 }

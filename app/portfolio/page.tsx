@@ -2,6 +2,7 @@
 
 import { AnimatedNumber } from '@/components/ui/animated-number';
 
+import { PerformanceSummary } from '@/components/portfolio/performance-summary';
 import { PerformanceSkeleton } from '@/components/portfolio/performance-skeleton';
 
 import dynamic from 'next/dynamic';
@@ -22,7 +23,7 @@ import { DashboardRouteShell } from '@/components/dashboard/dashboard-route-shel
 import { PerformanceHeader, PerformanceTabsList } from '@/components/portfolio/performance-navigation';
 import { DashboardContainer, DashboardMain, DashboardSurface } from '@/components/dashboard/page-primitives';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { formatLastUpdatedTime, getTrendTone } from '@/lib/utils/portfolio-display';
+import { formatLastUpdatedTime } from '@/lib/utils/portfolio-display';
 
 function PendingTargets() {
   const { locale } = useApp();
@@ -40,7 +41,7 @@ const PortfolioVisualizations = dynamic(() => import('@/components/portfolio/por
 export default function PortfolioPage() {
   const { locale, settings } = useApp();
   const { t } = useTranslation(locale);
-  const { loading, refreshing, positions, metrics, summary, openSummary, portfolioTimeline, historicalIlsNetPnL, historicalIlsRealizedPnL, lastUpdate, reload } = usePortfolioData();
+  const { loading, refreshing, positions, metrics, summary, openSummary, portfolioTimeline, historyStatus, historicalIlsNetPnL, historicalIlsRealizedPnL, lastUpdate, reload } = usePortfolioData();
   const [view, patchUrl] = useUrlState(parsePerformanceView);
   useReturnContext(!loading);
   const isHebrew = locale === 'he';
@@ -49,10 +50,7 @@ export default function PortfolioPage() {
   const quickActions = useMemo(() => createCommonQuickActions(t, { overrides: { reload: { onClick: reload, disabled: loading || refreshing, iconClassName: loading || refreshing ? 'animate-spin' : undefined } } }), [t, reload, loading, refreshing]);
   const currency = settings.currency;
   const [performanceOptions] = useUrlState(parsePerformanceOptions);
-  const totals = summary ? getPerformanceTotals(summary, currency, performanceOptions) : null;
-  const actual = totals?.actual;
-  const target = totals?.target;
-  const gap = actual !== undefined && target !== undefined ? actual - target : undefined;
+  const totals = summary ? getPerformanceTotals(summary, currency, performanceOptions) : undefined;
 
   return <DashboardRouteShell activeKey="portfolio" locale={locale}>
     <DashboardContainer>
@@ -65,17 +63,8 @@ export default function PortfolioPage() {
           <PerformanceTabsList locale={locale} />
           <TabsContent value="history" className="mt-0 space-y-6">
             {loading ? <PerformanceSkeleton view="history" locale={locale} /> : !summary || positions.length === 0 ? <DashboardSurface><div className="space-y-2 py-14 text-center"><h2 className="text-lg font-semibold">{t.portfolio.emptyTitle}</h2><p className="text-sm text-slate-500">{t.portfolio.emptyDescription}</p></div></DashboardSurface> : <>
-              <DashboardSurface>
-                <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-                  {[
-                    { label: isHebrew ? 'רווח והפסד בתצוגה' : 'Displayed profit / loss', value: actual },
-                    { label: isHebrew ? 'יעד אישי להיום' : 'Personal target to date', value: target },
-                    { label: isHebrew ? 'פער מהיעד' : 'Gap to target', value: gap },
-                  ].map((item) => <div key={item.label}><dt className="text-sm text-slate-500">{item.label}</dt><dd className={`mt-2 text-xl font-semibold tabular-nums sm:text-2xl ${getTrendTone(item.value ?? 0).text}`}><AnimatedNumber value={item.value} locale={locale} currency={currency} signed /></dd></div>)}
-                </dl>
-                <p className="mt-4 text-xs text-slate-500">{isHebrew ? 'הרווח כולל ממומש ולא ממומש, לפי בחירת הניכויים בגרף. היעד אישי ואינו תחזית שוק.' : 'P/L includes realized and unrealized results, using the deduction controls below. The personal target is not a market forecast.'}</p>
-              </DashboardSurface>
-              <DashboardSurface><PerformanceChart data={portfolioTimeline} summary={summary} /></DashboardSurface>
+              <PerformanceSummary locale={locale} currency={currency} totals={totals} />
+              <DashboardSurface><PerformanceChart data={portfolioTimeline} summary={summary} historyStatus={historyStatus} /></DashboardSurface>
               <details className="summary-details rounded-xl border border-slate-200 bg-white">
                 <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold"><span>{isHebrew ? 'פירוט מטבעות ואומדן מס' : 'Currency and estimated tax details'}</span><ChevronDown aria-hidden="true" className="summary-chevron h-4 w-4 text-slate-400" /></summary>
                 <dl className="grid grid-cols-2 gap-5 border-t border-slate-100 p-5 sm:grid-cols-3">

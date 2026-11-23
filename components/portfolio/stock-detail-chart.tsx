@@ -115,7 +115,8 @@ export function StockDetailChart({
         exploreLabel={he ? 'חקירת מחיר המניה לאורך זמן' : 'Explore historical prices'} interactive
       />
     </div>}
-    {start !== undefined && end !== undefined ? <div className={styles.dates} dir="ltr"><span>{date(start)}</span><span>{date(end)}</span></div> : null}
+    {start !== undefined && end !== undefined ? <div className={styles.dates} dir="ltr"><span>{date(start)}</span><span>{date(end)}</span></div>
+      : historicalLoading && <div className={`${styles.dates} h-[1.5em]`} aria-hidden="true"><Skeleton className="h-2.5 w-12" /><Skeleton className="h-2.5 w-12" /></div>}
 
     {holdingCycles.length > 1 ? <ol className={styles.cycles} aria-label={he ? 'ציר סבבי ההחזקה' : 'Holding cycle timeline'}>
       {holdingCycles.map((cycle, index) => <li key={cycle.id} data-current={cycle.current}>

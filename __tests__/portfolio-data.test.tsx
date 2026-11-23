@@ -16,7 +16,7 @@ vi.mock('@/lib/context', () => ({ useApp: () => appState }));
 function Consumer({ label }: { label: string }) {
   const data = usePortfolioData();
   return <div>
-    <output data-testid={label}>{JSON.stringify({ loading: data.loading, marketPending: data.marketPending, refreshing: data.refreshing, hasData: data.hasData, error: data.error, updated: data.lastUpdate?.toISOString(), rate: data.usdToIls })}</output>
+    <output data-testid={label}>{JSON.stringify({ loading: data.loading, historyStatus: data.historyStatus, marketPending: data.marketPending, refreshing: data.refreshing, hasData: data.hasData, error: data.error, updated: data.lastUpdate?.toISOString(), rate: data.usdToIls })}</output>
     <button onClick={() => void data.reload()}>Reload {label}</button>
   </div>;
 }
@@ -280,6 +280,16 @@ it('publishes the summary while historical charts are still loading', async () =
   expect(read().marketPending).toBe(true);
   await act(async () => finishMarket({ ok: false, status: 503 }));
   expect(read().marketPending).toBe(false);
+  expect(read().historyStatus).toBe('pending');
   await act(async () => finishHistory({ ok: false, status: 503 }));
-  expect(read()).toMatchObject({ hasData: true, error: null });
+  expect(read()).toMatchObject({ hasData: true, error: null, historyStatus: 'unavailable' });
+  fireEvent.click(screen.getByText('Reload first'));
+  await waitFor(() => expect(read().historyStatus).toBe('pending'));
+  await act(async () => finishHistory(successful()));
+  expect(read().historyStatus).toBe('ready');
+  await act(async () => finishMarket(successful()));
+  fireEvent.click(screen.getByText('Reload first'));
+  await waitFor(() => expect(read().refreshing).toBe(true));
+  await act(async () => { finishHistory({ ok: false, status: 503 }); finishMarket(successful()); });
+  expect(read().historyStatus).toBe('ready');
 });
