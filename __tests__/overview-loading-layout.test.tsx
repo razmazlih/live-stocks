@@ -5,7 +5,7 @@ import { MarketOverviewSkeleton, OverviewSkeleton } from '@/components/dashboard
 import { LocalMarketFooterSkeleton } from '@/components/dashboard/local-market-switcher';
 import { overviewLayoutInitScript } from '@/lib/overview-layout-init';
 import { diskMarketModeKey, reviewMarketModeKey } from '@/lib/demo/market-scenarios';
-import { demoLocaleKey } from '@/lib/entry-locale';
+import { demoLocaleKey, entryLocaleInitScript } from '@/lib/entry-locale';
 import { demoScenarioClock, readMarketLayoutPhase } from '@/lib/demo/review';
 import { getMarketClock } from '@/lib/utils/trading-hours';
 
@@ -21,10 +21,25 @@ afterEach(() => {
   sessionStorage.clear();
   localStorage.clear();
   window.history.replaceState({}, '', '/');
-  for (const key of ['loadingMarketPhase', 'initialDemoMarketLayout', 'localMarketFooter']) delete document.documentElement.dataset[key];
+  for (const key of ['loadingMarketPhase', 'initialDemoMarketLayout', 'localMarketFooter', 'entryLocale']) delete document.documentElement.dataset[key];
 });
 
 describe('overview entry and partial market placeholders', () => {
+  it('chooses the remembered account language and reading direction before hydration', () => {
+    localStorage.setItem('locale', 'en');
+    localStorage.setItem(demoLocaleKey, 'he');
+    window.Function(entryLocaleInitScript(false))();
+    expect(document.documentElement.dataset.entryLocale).toBe('en');
+    window.Function(entryLocaleInitScript(true))();
+    expect(document.documentElement.dataset.entryLocale).toBe('he');
+    localStorage.setItem(demoLocaleKey, 'en');
+    window.Function(entryLocaleInitScript(true))();
+    expect(document.documentElement.dataset.entryLocale).toBe('en');
+    const markup = renderToStaticMarkup(<OverviewSkeleton locale="he" initialLocale />);
+    expect(markup).toContain('Full-position exit ideas');
+    expect(markup).toContain('מה כלול?');
+  });
+
   it('selects the correct frame before hydration at session boundaries, including previous UTC date, holidays and early close', () => {
     for (const time of [
       '2026-11-20T08:59:00Z', '2026-11-20T09:00:00Z', '2026-11-20T14:30:00Z',

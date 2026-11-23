@@ -2,6 +2,12 @@ import type { Locale } from '@/types';
 
 export const demoLocaleKey = 'livestocks:demo:entry-locale';
 
+// Let static entry shells pick the correct reading direction before hydration.
+export function entryLocaleInitScript(development: boolean) {
+  return `(()=>{try{const demo=${development ? "localStorage.getItem('" + demoLocaleKey + "')" : 'null'};
+    document.documentElement.dataset.entryLocale=(demo==='he'||demo==='en'?demo:localStorage.getItem('locale'))==='en'?'en':'he'}catch{}})();`;
+}
+
 export function readDemoEntryLocale(): Locale | null {
   if (process.env.NODE_ENV === 'production') return null;
   try {

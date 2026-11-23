@@ -23,7 +23,7 @@ import { DashboardContainer, DashboardMain } from './page-primitives';
 import { DashboardPageShell } from './page-shell';
 
 const subscribe = () => () => {};
-const defaultLocale = () => 'he' as const;
+const defaultLocale = () => null;
 const browserLocale = () => readDemoEntryLocale() ?? readPersonalLocale();
 const serverIsDemo = () => false;
 const browserIsDemo = () => readDemoEntryLocale() !== null;
@@ -52,7 +52,7 @@ function SettingsEntry({ locale }: { locale: Locale }) {
   </DashboardContainer>;
 }
 
-function EntryContent({ pathname, locale }: { pathname: string; locale: Locale }) {
+function EntryContent({ pathname, locale, initialLocale }: { pathname: string; locale: Locale; initialLocale: boolean }) {
   if (pathname.startsWith('/stock/')) return <StockDetailSkeleton locale={locale} />;
   if (pathname === '/portfolio') return <RequestedPerformanceEntry locale={locale} />;
   if (pathname === '/realized') return <PerformanceEntry view="realized" locale={locale} />;
@@ -63,21 +63,24 @@ function EntryContent({ pathname, locale }: { pathname: string; locale: Locale }
   if (pathname === '/settings') return <SettingsEntry locale={locale} />;
 
   return <DashboardContainer>
-    <OverviewHeader locale={locale} lastUpdate={null} loading refreshing={false} />
-    <DashboardMain className="mt-5"><OverviewSkeleton locale={locale} /></DashboardMain>
+    {initialLocale ? (['he', 'en'] as const).map(language => <div key={language} data-entry-variant={language} lang={language}>
+      <OverviewHeader locale={language} lastUpdate={null} loading refreshing={false} />
+    </div>) : <OverviewHeader locale={locale} lastUpdate={null} loading refreshing={false} />}
+    <DashboardMain className="mt-5"><OverviewSkeleton locale={locale} initialLocale={initialLocale} /></DashboardMain>
     <LocalMarketFooterSkeleton />
   </DashboardContainer>;
 }
 
 export function EntrySkeleton() {
   const pathname = usePathname();
-  const locale = useSyncExternalStore(subscribe, browserLocale, defaultLocale);
+  const browserChoice = useSyncExternalStore(subscribe, browserLocale, defaultLocale);
+  const locale = browserChoice ?? 'he';
   if (pathname === '/positions/sync') return <SyncReviewEntrySkeleton locale={locale} />;
   const items = createAppRouteItems(translations[locale]);
   const activeKey = items.find(item => item.href === pathname)?.key ?? (pathname === '/ai-prompts' ? 'dashboard' : 'portfolio');
 
   return <DashboardPageShell direction={locale === 'he' ? 'rtl' : 'ltr'} locale={locale}
-    navigationItems={items} activeKey={activeKey} aria-busy="true" data-page-loading>
-    <EntryContent pathname={pathname} locale={locale} />
+    navigationItems={items} initialEnglishNavigation={browserChoice === null ? createAppRouteItems(translations.en) : undefined} activeKey={activeKey} aria-busy="true" data-page-loading>
+    <EntryContent pathname={pathname} locale={locale} initialLocale={browserChoice === null} />
   </DashboardPageShell>;
 }

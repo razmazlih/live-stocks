@@ -13,6 +13,7 @@ export interface DashboardPageShellProps
   direction?: "ltr" | "rtl";
   contentClassName?: string;
   navigationItems?: AppRouteItem[];
+  initialEnglishNavigation?: AppRouteItem[];
   activeKey?: AppRouteKey;
   locale?: "he" | "en";
 }
@@ -27,6 +28,7 @@ export const DashboardPageShell = React.forwardRef<
       className,
       contentClassName,
       navigationItems,
+      initialEnglishNavigation,
       activeKey,
       locale = "he",
       children,
@@ -41,6 +43,7 @@ export const DashboardPageShell = React.forwardRef<
         ref={ref}
         lang={locale}
         dir={direction}
+        data-entry-shell={initialEnglishNavigation ? true : undefined}
         className={cn(
           "app-canvas relative min-h-[100dvh] overflow-x-clip text-[var(--text-primary)]",
           className,
@@ -49,7 +52,10 @@ export const DashboardPageShell = React.forwardRef<
       >
         {hasNavigation && <a href="#dashboard-content" className="skip-content">{locale === 'he' ? 'דילוג לתוכן' : 'Skip to content'}</a>}
         <div className={cn("relative flex min-h-[100dvh]", hasNavigation ? "pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0" : undefined)}>
-          {hasNavigation ? (
+          {initialEnglishNavigation && activeKey ? <>
+            <div data-entry-variant="he" lang="he"><AppSidebar items={navigationItems ?? []} activeKey={activeKey} locale="he" /></div>
+            <div data-entry-variant="en" lang="en"><AppSidebar items={initialEnglishNavigation} activeKey={activeKey} locale="en" /></div>
+          </> : hasNavigation ? (
             <AppSidebar
               items={navigationItems ?? []}
               activeKey={activeKey as AppRouteKey}

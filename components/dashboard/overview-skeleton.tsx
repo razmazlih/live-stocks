@@ -10,6 +10,13 @@ import { DashboardSurface } from './page-primitives';
 import loadingStyles from './overview-skeleton.module.css';
 
 type Locale = 'he' | 'en';
+type SkeletonLocale = { locale: Locale; initialLocale?: boolean };
+
+function MaskedLabel({ he, en, locale, initialLocale }: SkeletonLocale & { he: string; en: string }) {
+  return <span><span className={loadingStyles.masked}>{initialLocale ? <>
+    <span data-entry-variant="he">{he}</span><span data-entry-variant="en">{en}</span>
+  </> : locale === 'he' ? he : en}</span></span>;
+}
 
 // Preserve each label or figure's real typographic line box across viewport sizes.
 function Line({ width, numeric = false }: { width: string; numeric?: boolean }) {
@@ -74,23 +81,34 @@ function MarketWorkspace({ session, initial = false }: { session: MarketPhase; i
   </div>;
 }
 
-function MarketShape({ phase }: { phase?: MarketPhase }) {
+function MarketShape({ phase, ...language }: SkeletonLocale & { phase?: MarketPhase }) {
   const expectedPhase = useSyncExternalStore(subscribeLocalMarketMode, readMarketLayoutPhase, serverPhase);
   const session = phase ?? expectedPhase;
   return <div aria-hidden="true" className={styles.surface + ' ' + loadingStyles.market} data-market-skeleton>
     <div className={styles.balance}><span className="w-[1.15rem]"><Line width="100%" /></span><Line width="7rem" /><bdi><Line width="6rem" /></bdi></div>
     {session ? <MarketWorkspace session={session} /> : initialPhases.map(value => <MarketWorkspace key={value} session={value} initial />)}
-    <div className={styles.basis}><span className={loadingStyles.basisRow}><Line width="11rem" /><Line width="5rem" /></span></div>
+    <div className={styles.basis}><span className={loadingStyles.basisRow}>
+      <span><i /><MaskedLabel {...language} he="מצטבר · לאחר עמלות · לאחר אומדן מס" en="Cumulative · After fees · after estimated tax" /></span>
+      <span><MaskedLabel {...language} he="מה כלול?" en="What’s included?" /><i /></span>
+    </span></div>
   </div>;
 }
 
 export function MarketOverviewSkeleton({ locale, phase }: { locale: Locale; phase?: MarketPhase }) {
-  return <div role="status"><span className="sr-only">{locale === 'he' ? 'טוען את נתוני המסחר' : 'Loading market data'}</span><MarketShape phase={phase} /></div>;
+  return <div role="status"><span className="sr-only">{locale === 'he' ? 'טוען את נתוני המסחר' : 'Loading market data'}</span><MarketShape phase={phase} locale={locale} /></div>;
 }
 
-function ProposalSkeleton() {
+function ProposalSkeleton(language: SkeletonLocale) {
   return <div aria-hidden="true" className="overflow-hidden rounded-[var(--panel-radius)] border border-slate-200 bg-white">
-    <div className="flex min-h-12 items-center justify-between gap-2 px-4 py-3 text-base sm:px-5 sm:text-lg"><Line width="10rem" /><Line width="3.5rem" /></div>
+    <div className="flex items-center gap-2 pe-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-base font-semibold sm:px-5 sm:text-lg">
+        <MaskedLabel {...language} he="הצעות לסגירת החזקות" en="Full-position exit ideas" />
+        <span className="text-sm"><Line width="1rem" /></span><span className="ms-auto w-4"><Line width="100%" /></span>
+      </div>
+      <div className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border border-slate-100 px-3 text-xs font-semibold">
+        <span className="w-3.5"><Line width="100%" /></span><MaskedLabel {...language} he="בדיקת AI" en="AI review" />
+      </div>
+    </div>
     <div className="grid items-start gap-2 border-t border-slate-100 p-2 sm:px-3">
       <div className="holding-card">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pb-1 pt-2.5 sm:px-5">
@@ -134,9 +152,9 @@ function HoldingsSkeleton() {
   </DashboardSurface>;
 }
 
-export function OverviewSkeleton({ locale }: { locale: Locale }) {
+export function OverviewSkeleton({ locale, initialLocale }: SkeletonLocale) {
   return <div data-page-loading role="status" className="flex flex-col gap-6">
     <span className="sr-only">{locale === 'he' ? 'טוען את התיק' : 'Loading portfolio'}</span>
-    <MarketShape /><ProposalSkeleton /><HoldingsSkeleton />
+    <MarketShape locale={locale} initialLocale={initialLocale} /><ProposalSkeleton locale={locale} initialLocale={initialLocale} /><HoldingsSkeleton />
   </div>;
 }

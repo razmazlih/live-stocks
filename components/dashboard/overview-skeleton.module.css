@@ -11,6 +11,12 @@
   background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
 }
 .line[data-number] { display: inline-grid; vertical-align: middle; }
+.masked {
+  color: transparent;
+  background: linear-gradient(transparent 18%, color-mix(in srgb, var(--text-secondary) 18%, transparent) 18% 80%, transparent 80%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
 .basisRow {
   display: flex;
   align-items: center;
@@ -20,6 +26,8 @@
   padding: .5rem clamp(1rem, 3vw, 2rem);
   font-size: .77rem;
 }
+.basisRow > span { display: inline-flex; align-items: center; gap: .4rem; }
+.basisRow i { display: inline-block; flex: none; width: .87rem; height: .87rem; border-radius: .25rem; background: var(--surface-muted); }
 .market > [data-entry-phase] { display: none; }
 .initialFooter { display: none; }
 :global(html[data-local-market-footer="true"]) .initialFooter { display: block; }

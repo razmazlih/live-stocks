@@ -4,6 +4,13 @@
 
 html { scrollbar-gutter: stable; }
 
+/* The static entry shell carries both short navigation/header translations until hydration. */
+[data-entry-variant="he"] { display: contents; }
+[data-entry-variant="en"] { display: none; }
+html[data-entry-locale="en"] [data-entry-shell] { direction: ltr; }
+html[data-entry-locale="en"] [data-entry-variant="he"] { display: none; }
+html[data-entry-locale="en"] [data-entry-variant="en"] { display: contents; }
+
 /* Applies on first paint and releases as soon as the last initial placeholder unmounts. */
 html:has([data-page-loading]),
 html:has([data-page-loading]) body {
