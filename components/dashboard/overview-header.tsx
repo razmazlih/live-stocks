@@ -18,6 +18,7 @@ interface OverviewHeaderProps {
 
 export function OverviewHeader({ locale, lastUpdate, loading, refreshing, onRefresh, streamStatus }: OverviewHeaderProps) {
   const he = locale === 'he';
+  const addTransaction = <><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></>;
   const updated = formatLastUpdatedTime(lastUpdate, locale);
   const status = loading ? he ? 'טוען את התיק…' : 'Loading portfolio…'
     : refreshing ? he ? 'מעדכן נתונים…' : 'Updating…'
@@ -38,8 +39,8 @@ export function OverviewHeader({ locale, lastUpdate, loading, refreshing, onRefr
       </Button>
     </div>
     <div className={styles.actions}>
-      {onRefresh ? <Button asChild className={styles.primary}><Link href="/positions?action=add"><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></Link></Button>
-        : <Button disabled className={styles.primary}><Plus aria-hidden="true" /><span>{he ? 'הוספת עסקה' : 'Add transaction'}</span></Button>}
+      {onRefresh ? <Button asChild className={styles.primary}><Link href="/positions?action=add">{addTransaction}</Link></Button>
+        : <Button disabled className={styles.primary}>{addTransaction}</Button>}
       <div className={styles.export}>{onRefresh ? <ResearchExportButton /> : <ResearchExportTrigger locale={locale} />}</div>
     </div>
   </header>;
