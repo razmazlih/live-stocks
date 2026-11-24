@@ -497,7 +497,9 @@ function renderTarget(w, m, state) {
     const body = stack(w, false);
     targetStats(stack(body), m);
     body.addSpacer();
-    targetHero(stack(body), m);
+    const hero = stack(body);
+    if (m.forecastGap === null) hero.size = new Size(146, 0);
+    targetHero(hero, m);
   } else {
     targetHero(w, m);
     if (SMALL) w.addSpacer(); else rule(w, 6);
