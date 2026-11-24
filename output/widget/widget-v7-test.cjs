@@ -18,7 +18,7 @@ function fingerprint(value) {
  for(const char of value){a=Math.imul(a^char.charCodeAt(0),16777619)>>>0;b=Math.imul(b^char.charCodeAt(0),2246822519)>>>0;}
  return a.toString(16).padStart(8,'0')+b.toString(16).padStart(8,'0');
 }
-async function run(payload=fixture,{family='large',currency='ILS',mode='value',offline=false,cached=false,token=TOKEN,baseUrl=HOST,status=200,invalidJSON=false,runsInWidget=true,alerts=[],savedAt=new Date(Date.now()-60000).toISOString(),storage:newStorage,keys:newKeys,parameter=''}={}){
+async function run(payload=fixture,{family='large',currency='ILS',mode,offline=false,cached=false,token=TOKEN,baseUrl=HOST,status=200,invalidJSON=false,runsInWidget=true,alerts=[],savedAt=new Date(Date.now()-60000).toISOString(),storage:newStorage,keys:newKeys,parameter=''}={}){
  const storage=newStorage||new Map(), keys=newKeys||new Map(),requests=[],shownAlerts=[];
  const key='livestocks.widget.v1:'+baseUrl;
  if(token&&!newKeys)keys.set(key,token);
@@ -26,7 +26,7 @@ async function run(payload=fixture,{family='large',currency='ILS',mode='value',o
  const noop=class {constructor(...args){this.args=args;}};
  const draw=new Proxy(class {getImage(){return {}}},{construct(T,args){return new Proxy(new T(...args),{get(o,k){return k in o?o[k]:()=>{}}})}});
  class Color{constructor(hex,alpha){this.hex=hex;this.alpha=alpha;}static dynamic(a,b){return a;}}
- const context={config:{widgetFamily:family,runsInWidget},args:{widgetParameter:`currency=${currency};mode=${mode};baseurl=${baseUrl};${parameter}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path:class {move(){}addLine(){}},DrawContext:draw,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,
+ const context={config:{widgetFamily:family,runsInWidget},args:{widgetParameter:`currency=${currency};${mode ? 'mode='+mode+';' : ''}baseurl=${baseUrl};${parameter}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path:class {move(){}addLine(){}},DrawContext:draw,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,
  Request:class {constructor(url){this.url=url;requests.push(this)}async loadJSON(){if(offline)throw Error('offline');this.response={statusCode:status};if(invalidJSON)throw Error('invalid JSON');return payload}},
  Keychain:{contains:key=>keys.has(key),get:key=>{if(!keys.has(key))throw Error('Missing key');return keys.get(key)},set:(key,value)=>keys.set(key,value),remove:key=>keys.delete(key)},
  Alert:class {constructor(){this.mock=alerts.shift()||{choice:-1};this.actions=[];shownAlerts.push(this)}addAction(text){this.actions.push(text)}addDestructiveAction(text){this.actions.push(text)}addCancelAction(){}addSecureTextField(){this.secure=true}textFieldValue(){return this.mock.token||''}async presentAlert(){return this.mock.choice}async presentSheet(){return this.mock.choice}},
@@ -34,6 +34,71 @@ async function run(payload=fixture,{family='large',currency='ILS',mode='value',o
  const api=await vm.runInNewContext(`(async()=>{${source}\nreturn {normalize,cash,gapLabel,load,options,httpsOrigin,fingerprint,credentialKey,cacheLocation,setupCredential,disconnect};})()`,context);
  assert(context.widget); const rendered=texts(context.widget);assert(!rendered.some(s=>/NaN|Infinity|undefined/.test(s)));
  return {api,model:api.normalize(payload),rendered,storage,keys,requests,shownAlerts,widget:context.widget};
+}
+function stockLinks(node) {
+ const own = typeof node.url === 'string' && node.url.includes('/stock/') ? [node.url] : [];
+ return own.concat(node.children.flatMap(stockLinks));
+}
+
+function linkedSection(node, heading) {
+ for (const child of node.children) {
+  const found = linkedSection(child, heading);
+  if (found) return found;
+ }
+ const links = stockLinks(node);
+ return links.length && texts(node).includes(heading) ? links : null;
+}
+
+async function targetTests() {
+ for (const family of ['small','medium','large','extraLarge']) {
+  for (const currency of ['ILS','USD']) {
+   for (const cached of [false,true]) {
+    const {rendered,api} = await run(fixture,{family,currency,cached,offline:cached});
+    const view = rendered.join(' ');
+    assert.equal(api.options('').mode,'target');
+    assert.match(view,/היעד האישי להיום/);
+    assert.match(view,/מעל היעד/);
+    assert(view.includes(currency==='ILS'?'₪187':'$60'),`unsigned target gap absent for ${family} ${currency}`);
+    assert.match(view,/שווי התיק/);
+    assert(view.includes(currency==='ILS'?'₪3,700':'$1,000'));
+    assert.match(view,/2\.0%/);
+    assert.equal(/נטו/.test(view),family!=='small');
+    if(family!=='small') assert(view.includes(currency==='ILS'?'₪+15':'$+4'));
+    if(cached) assert.match(view,/שמור/);
+   }
+  }
+ }
+ for(const [gap,direction] of [[-31,'מתחת ליעד'],[0,'בדיוק ביעד'],[-0.3,'בדיוק ביעד']]){
+  const payload=structuredClone(fixture);
+  payload.summary.totalForecastGapIls=gap;
+  const {rendered}=await run(payload,{family:'small',mode:'target'});
+  assert(rendered.join(' ').includes(direction));
+  if(gap===-31) assert(rendered.join(' ').includes('₪31'));
+ }
+ const incomplete=structuredClone(fixture);
+ incomplete.summary.totalNetPnLIls=null;
+ incomplete.summary.totalForecastGapIls=null;
+ incomplete.dataQuality={completeTransactionHistory:false};
+ const missing=await run(incomplete,{family:'medium'});
+ assert.match(missing.rendered.join(' '),/היסטורי/);
+ assert.doesNotMatch(missing.rendered.join(' '),/מעל היעד|מתחת ליעד|בדיוק ביעד/);
+
+ const many=structuredClone(fixture);
+ many.stocks=[1,-9,3,8,5,-7,2,null].map((dailyChange,i)=>({
+  ...fixture.stocks[0],symbol:'S'+i,dailyChange,quantity:1,totalValueUsd:100-i,
+  totalValueIls:(100-i)*3.7,
+ }));
+ for(const [family,count] of [['large',3],['extraLarge',6]]){
+  const out=await run(many,{family});
+  const ranked=['S1','S3','S5','S4','S2','S6'].slice(0,count);
+  const urls=symbols=>symbols.map(symbol=>HOST+'/stock/'+symbol);
+  assert.deepEqual(linkedSection(out.widget,'מה הזיז את התיק היום'),urls(ranked));
+  if(family==='extraLarge') assert.deepEqual(linkedSection(out.widget,'ההחזקות הגדולות'),urls(['S0','S1','S2']));
+  assert(out.rendered.includes('כיסוי 7/8'));
+ }
+ const partial=await run(many,{family:'medium'});
+ assert.match(partial.rendered.join(' '),/שינוי יומי · אין נתון מלא/);
+ console.log('PASS target layouts, directions, incomplete data, cache and contribution links.');
 }
 async function regressionTests(){
  let assertions=0,renders=0;
@@ -65,6 +130,7 @@ async function regressionTests(){
   if(cached){assert(out.rendered.some(t=>t.includes('שמור')));assertions++;}
  }
  for(const family of ['small','medium','large','extraLarge']){const out=await run(fixture,{family,offline:true});assert(out.rendered.includes('לא ניתן לטעון את התיק'));assertions++;renders++;}
+ await targetTests();
  console.log(`PASS ${assertions} assertions, ${renders} family/currency/mode/cache renders plus targeted normalization scenarios.`);
 }
 module.exports={run,fixture,TOKEN,HOST,fingerprint};

@@ -2,9 +2,9 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-green; icon-glyph: chart-line;
 
-/** LiveStocks • Personal portfolio glance, v8.0
+/** LiveStocks • Personal portfolio glance, v9.0
  * Native small / medium / large / extraLarge layouts for Scriptable.
- * Parameters: currency=ILS|USD; mode=value|pnl; baseurl=https://your-host
+ * Parameters: currency=ILS|USD; mode=target|value|pnl; baseurl=https://your-host
  * Run in Scriptable to store a personal read-only token in native Keychain.
  * Never put a token in script source, widget parameters, or iCloud files.
  * Daily change is the latest quoted holding movement, not a live account return.
@@ -24,14 +24,14 @@ function httpsOrigin(value) {
   return `https://${match[1].toLowerCase()}${match[2] && +match[2] !== 443 ? ":" + Number(match[2]) : ""}`;
 }
 function options(raw) {
-  const out = { baseUrl: httpsOrigin(args.queryParameters && args.queryParameters.baseurl || SETTINGS.baseUrl), currency: "ILS", mode: "value" };
+  const out = { baseUrl: httpsOrigin(args.queryParameters && args.queryParameters.baseurl || SETTINGS.baseUrl), currency: "ILS", mode: "target" };
   String(raw || "").split(/[;\n]/).forEach(part => {
     const i = part.indexOf("=");
     if (i < 1) return;
     const k = part.slice(0, i).trim().toLowerCase(), v = part.slice(i + 1).trim();
     if (["baseurl", "host", "url"].includes(k)) out.baseUrl = httpsOrigin(v);
     if (k === "currency" && /^(ILS|USD)$/i.test(v)) out.currency = v.toUpperCase();
-    if (k === "mode" && /^(pnl|value)$/i.test(v)) out.mode = v.toLowerCase();
+    if (k === "mode" && /^(target|pnl|value)$/i.test(v)) out.mode = v.toLowerCase();
   });
   return out;
 }
@@ -116,6 +116,7 @@ function normalize(payload) {
   const largest = stocks.slice().sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
   return { value, pnl, projected, forecastGap, daily, dailyPercent: daily !== null && base > 0 ? daily / base * 100 : null,
     stocks, ranked, known: known.length, full, fx, largest,
+    incompleteHistory: payload.dataQuality && payload.dataQuality.completeTransactionHistory === false,
     concentration: full && stocks.every(r => r.value !== null && r.value >= 0) && largest && largest.value !== null && value > 0 ? largest.value / value * 100 : null,
     winners: known.filter(r => r.daily > 0).length, losers: known.filter(r => r.daily < 0).length };
 }
@@ -420,11 +421,112 @@ function renderXL(w, m, state) {
   summary.addSpacer();
   footer(w, m, state);
 }
+function targetHero(parent, m) {
+  const gap = m.forecastGap;
+  text(parent, "היעד האישי להיום", SMALL ? 11 : 13, C.muted, "medium");
+  parent.addSpacer(SMALL ? 2 : 4);
+  if (gap === null) {
+    const message = text(parent, m.incompleteHistory ? "חסרה היסטוריית עסקאות" : "אין מספיק נתונים לחישוב היעד", SMALL ? 15 : 20, C.ink, "bold");
+    message.lineLimit = 2;
+    return;
+  }
+  if (Math.round(Math.abs(gap)) === 0) {
+    text(parent, "בדיוק ביעד", SMALL ? 22 : 28, C.ink, "bold");
+    return;
+  }
+  const compact = SMALL || FAMILY === "medium" || Math.abs(gap) >= 1e8;
+  const amount = text(parent, cash(Math.abs(gap), compact), SMALL ? 29 : LARGE ? 40 : 32, tone(gap), "bold");
+  amount.minimumScaleFactor = 0.72;
+  text(parent, gap > 0 ? "מעל היעד" : "מתחת ליעד", SMALL ? 13 : 16, tone(gap), "medium");
+}
+function targetStats(parent, m) {
+  if (LARGE) {
+    const row = stack(parent, false);
+    const movement = stack(row);
+    text(movement, "שינוי יומי", 10, C.muted);
+    text(movement, m.daily === null ? "אין נתון מלא" : cash(m.daily, true, true) + " · " + pct(m.dailyPercent), 14, C.ink, "medium");
+    row.addSpacer();
+    const balance = stack(row);
+    text(balance, "שווי התיק", 10, C.muted);
+    text(balance, cash(m.value, true), 16, C.ink, "medium");
+    return;
+  }
+  text(parent, "שווי התיק", 10, C.muted);
+  text(parent, cash(m.value, true), SMALL ? 14 : 18, C.ink, "medium");
+  parent.addSpacer(2);
+  const change = SMALL ? pct(m.dailyPercent) : cash(m.daily, true, true) + " · " + pct(m.dailyPercent);
+  text(parent, m.daily === null ? "שינוי יומי · אין נתון מלא" : "שינוי יומי " + change, SMALL ? 10 : 11, C.muted);
+}
+function targetMovers(parent, m) {
+  const title = stack(parent, false);
+  if (m.known < m.stocks.length) text(title, `כיסוי ${m.known}/${m.stocks.length}`, 10, C.muted);
+  title.addSpacer();
+  text(title, "מה הזיז את התיק היום", 12, C.ink, "bold");
+  const contributors = m.ranked.filter(r => r.daily !== null).slice(0, XL ? 6 : 3);
+  if (!contributors.length) text(parent, m.stocks.length ? "אין נתוני שינוי יומי" : "אין החזקות פעילות", 11, C.muted);
+  for (const stock of contributors) {
+    parent.addSpacer(4);
+    const row = stack(parent, false);
+    row.url = `${OPTIONS.baseUrl}/stock/${encodeURIComponent(stock.symbol)}`;
+    text(row, cash(stock.daily, true, true), 12, C.muted, "medium", true);
+    row.addSpacer();
+    text(row, ltr(stock.symbol), 12, C.ink, "medium", true);
+  }
+}
+function targetHoldings(parent, m) {
+  text(parent, "ההחזקות הגדולות", 12, C.ink, "bold");
+  if (m.concentration === null) {
+    text(parent, m.stocks.length ? "אין נתוני משקל מלאים" : "אין החזקות פעילות", 11, C.muted);
+    return;
+  }
+  for (const stock of [...m.stocks].sort((a, b) => b.value - a.value).slice(0, 3)) {
+    parent.addSpacer(4);
+    const row = stack(parent, false);
+    row.url = `${OPTIONS.baseUrl}/stock/${encodeURIComponent(stock.symbol)}`;
+    text(row, ltr(number(stock.value / m.value * 100, 1) + "%"), 12, C.muted);
+    row.addSpacer();
+    text(row, ltr(stock.symbol), 12, C.ink, "medium", true);
+  }
+}
+function renderTarget(w, m, state) {
+  const stamp = stack(w, false);
+  text(stamp, (state.stale ? "שמור · " : "") + age(state.savedAt), 9, C.muted);
+  stamp.addSpacer();
+  w.addSpacer(SMALL ? 3 : 6);
+  if (FAMILY === "medium") {
+    const body = stack(w, false);
+    targetStats(stack(body), m);
+    body.addSpacer();
+    targetHero(stack(body), m);
+  } else {
+    targetHero(w, m);
+    if (SMALL) w.addSpacer(); else rule(w, 6);
+    targetStats(w, m);
+  }
+  if (SMALL) return;
+  if (LARGE) {
+    rule(w, 6);
+    if (XL) {
+      const columns = stack(w, false);
+      columns.topAlignContent();
+      const holdings = stack(columns);
+      holdings.size = new Size(230, 0);
+      targetHoldings(holdings, m);
+      columns.addSpacer(36);
+      targetMovers(stack(columns), m);
+    } else {
+      targetMovers(w, m);
+    }
+  }
+  w.addSpacer();
+  const label = m.pnl === null ? "רווח / הפסד נטו מצטבר" : m.pnl < 0 ? "הפסד נטו מצטבר" : "רווח נטו מצטבר";
+  text(w, label + " " + cash(m.pnl === null ? null : Math.abs(m.pnl), true), 11, C.muted);
+}
 async function main() {
   if (!config.runsInWidget) await setupCredential();
   const state = await load(), w = new ListWidget();
   w.backgroundColor = C.bg;
-  const gradient = new LinearGradient(); gradient.colors = [Color.dynamic(new Color("E2ECFF"), new Color("20365A")), C.bg, C.bg]; gradient.locations = [0, 0.65, 1]; gradient.startPoint = new Point(0, 0); gradient.endPoint = new Point(1, 1); w.backgroundGradient = gradient;
+  const gradient = new LinearGradient(); gradient.colors = [Color.dynamic(new Color("E2ECFF"), new Color("20365A")), C.bg, C.bg]; gradient.locations = [0, 0.65, 1]; gradient.startPoint = new Point(0, 0); gradient.endPoint = new Point(1, 1); if (OPTIONS.mode !== "target") w.backgroundGradient = gradient;
   w.url = state.reconnect ? "scriptable:///run?scriptName=" + encodeURIComponent(Script.name()) + (OPTIONS.baseUrl ? "&baseurl=" + encodeURIComponent(OPTIONS.baseUrl) : "") : `${OPTIONS.baseUrl}/`; const pad = SMALL ? 11 : XL ? 18 : 13; w.setPadding(pad, pad, pad, pad);
   w.refreshAfterDate = new Date(Date.now() + (state.stale || !state.payload ? 7 : SETTINGS.refresh) * 60000);
   if (!state.payload) {
@@ -432,8 +534,12 @@ async function main() {
     text(w, state.reconnect ? "נדרש חיבור אישי" : "לא ניתן לטעון את התיק", SMALL ? 13 : 18, C.ink, "bold"); w.addSpacer(8);
     text(w, state.reconnect ? "הקש להגדרת טוקן ב־Scriptable ↗" : "הקש לפתיחת LiveStocks ↗", 11, C.accent); w.addSpacer();
   } else {
-    const m = normalize(state.payload); header(w, state);
-    if (SMALL) renderSmall(w, m); else if (FAMILY === "medium") renderMedium(w, m, state); else if (XL) renderXL(w, m, state); else renderLarge(w, m, state);
+    const m = normalize(state.payload);
+    if (OPTIONS.mode === "target") renderTarget(w, m, state);
+    else {
+      header(w, state);
+      if (SMALL) renderSmall(w, m); else if (FAMILY === "medium") renderMedium(w, m, state); else if (XL) renderXL(w, m, state); else renderLarge(w, m, state);
+    }
   }
   Script.setWidget(w);
   if (!config.runsInWidget) {
