@@ -1,4 +1,4 @@
-# LiveStocks personal widget — 2026-11-24
+# LiveStocks personal widget — 2026-11-26
 
 The personal-account backend and `POST /api/widget/summary` are live. [25 production API checks](../../docs/verification/widget-production-api-2026-11-15.json) passed, including valid, revoked and expired credentials, restricted scope, cleanup and financial data preservation. This source distribution has not been installed or verified on the user's physical iPhone by this work; device setup, iCloud sync and native rendering remain separate.
 
@@ -17,18 +17,20 @@ The widget caches portfolio data locally for up to one hour and no later than to
 
 המספר הגדול מציג את המרחק מיעד הצמיחה האישי שנצבר עד היום. בדוגמה הכהה התיק נמצא ₪1,250 מעל היעד גם אחרי ירידה יומית של ₪189. בדוגמה הבהירה חסרים ₪340 ליעד ביום שבו התיק עלה ב־₪189.
 
+הקו שמתחת לסכום מציג את הפער לאורך 30 הימים האחרונים במטבע שבחרתם. קוראים אותו משמאל לימין. טבעת בקצה הימני מסמנת את הנתון של היום כשהוא זמין. בגדלים הגדול והגדול במיוחד מופיע גם סמל מטרה בעל עומק ליד סכום הפער. קו האפס מייצג עמידה ביעד ומוצג כשהוא נמצא בטווח הגרף. ימים שחסרים בהם נתונים משאירים הפסקה בקו. כאשר יש פחות משתי נקודות תקפות מופיעה הודעה קצרה.
+
 <p>
   <img src="preview-dark.png" width="280" alt="וידג׳ט גדול כהה המציג ₪1,250 מעל היעד ביום ירידות">
   <img src="preview-light.png" width="280" alt="וידג׳ט גדול בהיר המציג ₪340 מתחת ליעד ביום עליות">
 </p>
 
-[הדמיה מקומית עם בחירת מצב בהיר או כהה, מטבע ותרחיש](preview.html) — הורידו ופתחו את הקובץ בדפדפן. ארבעת הגדלים מוצגים יחד. ההדמיות הופקו מקוד הווידג׳ט עם נתוני דוגמה. הריווח והגופנים ב־Scriptable עשויים להשתנות לפי המכשיר.
+כדי לפתוח את ההדמיה במחשב, הריצו `node widget-v7-preview.cjs` מתוך התיקייה הזאת ופתחו את `preview.html` שנוצר. ארבעת הגדלים מוצגים יחד, וניתן לבחור תרחיש, מטבע ומצב בהיר או כהה. ההדמיות הופקו מקוד הווידג׳ט עם נתוני דוגמה. הריווח והגופנים ב־Scriptable עשויים להשתנות לפי המכשיר.
 
 | גודל | פרטים נוספים בתצוגת היעד |
 | --- | --- |
-| קטן | שווי התיק והשינוי היומי באחוזים |
-| בינוני | שווי, שינוי יומי בסכום ובאחוזים, ורווח או הפסד נטו בתחתית |
-| גדול | עד שלוש המניות בעלות ההשפעה הכספית היומית הגדולה ביותר. לחיצה על מניה פותחת את העמוד שלה |
+| קטן | גרף חודשי קטן, שווי התיק והשינוי היומי באחוזים |
+| בינוני | הפער מהיעד מימין והגרף משמאל. מתחתיהם שווי, שינוי יומי ורווח או הפסד נטו |
+| גדול | גרף חודשי לרוחב התצוגה ועד שלוש מניות לפי השפעתן על היום. אורך כל פס יחסי לתרומה הגדולה ביותר בערך מוחלט. לחיצה על מניה פותחת את העמוד שלה |
 | גדול במיוחד | עד שש מניות לפי תרומה יומית, לצד שלוש ההחזקות הגדולות לפי משקלן בתיק |
 
 ## Display and verification
@@ -47,6 +49,6 @@ node widget-auth-test.cjs
 node widget-v7-preview.cjs
 ```
 
-The browser preview covers four sizes, two themes and two currencies. Its scenarios include opposite daily and target directions, a rounded zero, incomplete history and large values. The final check for native text spacing, taps and iCloud installation takes place on an iPhone running Scriptable.
+The browser preview draws the paths produced by the Scriptable widget against synthetic monthly history. It covers four sizes, two themes and two currencies, including a zero crossing, a flat month, missing days, a single sample, an unavailable history, large amounts and daily movement in the opposite direction to the target gap. The final check for native text spacing, taps and iCloud installation takes place on an iPhone running Scriptable.
 
 Broker-balance reconciliation keeps current USD holdings/value and open profit available, while incomplete lifetime profit and target gaps remain unavailable. The API includes `dataQuality.completeTransactionHistory` and `reconciledSymbols`. Missing ILS open P/L is never reconstructed by converting USD P/L at today's FX because the historic currency basis can be unknown.

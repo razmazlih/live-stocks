@@ -5,8 +5,9 @@ class Node {
  constructor(){this.children=[];}
  addStack(){const x=new Node();this.children.push(x);return x;}
  addText(text){const x=new Node();x.text=text;this.children.push(x);return x;}
- addImage(){const x=new Node();this.children.push(x);return x;}
- addSpacer(){} layoutVertically(){} layoutHorizontally(){} centerAlignContent(){} topAlignContent(){} rightAlignText(){} setPadding(){}
+ addImage(image){const x=new Node();x.image=image;this.children.push(x);return x;}
+ addSpacer(length){const x=new Node();x.spacer=true;x.length=length;this.children.push(x);}
+ layoutVertically(){this.vertical=true;} layoutHorizontally(){this.vertical=false;} centerAlignContent(){} topAlignContent(){} rightAlignText(){} setPadding(){}
  async presentSmall(){} async presentMedium(){} async presentLarge(){} async presentExtraLarge(){}
 }
 const TOKEN='lst_widget_'+ 'a'.repeat(43);
@@ -24,9 +25,24 @@ async function run(payload=fixture,{family='large',currency='ILS',mode,offline=f
  if(token&&!newKeys)keys.set(key,token);
  if(cached)storage.set(`stocks-glance-v4-${fingerprint(baseUrl)}-${fingerprint(token)}.json`,JSON.stringify({origin:baseUrl,identity:fingerprint(token),payload,expiresAt:payload.widgetTokenExpiresAt,savedAt}));
  const noop=class {constructor(...args){this.args=args;}};
- const draw=new Proxy(class {getImage(){return {}}},{construct(T,args){return new Proxy(new T(...args),{get(o,k){return k in o?o[k]:()=>{}}})}});
+ class Path {
+  constructor(){this.points=[];}
+  move(point){this.points.push(['move',...point.args]);}
+  addLine(point){this.points.push(['line',...point.args]);}
+ }
+ class DrawContext {
+  constructor(){this.strokes=[];this.dots=[];this.fills=[];}
+  setLineWidth(){} strokeEllipse(){}
+  setFillColor(color){this.fill=color;}
+  setStrokeColor(color){this.color=color;}
+  addPath(path){this.path=path;}
+  fillPath(){this.fills.push({color:this.fill,points:this.path.points});}
+  strokePath(){this.strokes.push({color:this.color,points:this.path.points});}
+  fillEllipse(rect){this.dots.push({color:this.fill,rect:rect.args});}
+  getImage(){return {strokes:this.strokes,dots:this.dots,fills:this.fills};}
+ }
  class Color{constructor(hex,alpha){this.hex=hex;this.alpha=alpha;}static dynamic(a,b){return a;}}
- const context={config:{widgetFamily:family,runsInWidget},args:{widgetParameter:`currency=${currency};${mode ? 'mode='+mode+';' : ''}baseurl=${baseUrl};${parameter}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path:class {move(){}addLine(){}},DrawContext:draw,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,
+ const context={config:{widgetFamily:family,runsInWidget},args:{widgetParameter:`currency=${currency};${mode ? 'mode='+mode+';' : ''}baseurl=${baseUrl};${parameter}`},Color,Font:new Proxy({},{get:()=>()=>({})}),Size:noop,Point:noop,Rect:noop,LinearGradient:noop,Path,DrawContext,SFSymbol:{named:()=>({image:{}})},ListWidget:Node,
  Request:class {constructor(url){this.url=url;requests.push(this)}async loadJSON(){if(offline)throw Error('offline');this.response={statusCode:status};if(invalidJSON)throw Error('invalid JSON');return payload}},
  Keychain:{contains:key=>keys.has(key),get:key=>{if(!keys.has(key))throw Error('Missing key');return keys.get(key)},set:(key,value)=>keys.set(key,value),remove:key=>keys.delete(key)},
  Alert:class {constructor(){this.mock=alerts.shift()||{choice:-1};this.actions=[];shownAlerts.push(this)}addAction(text){this.actions.push(text)}addDestructiveAction(text){this.actions.push(text)}addCancelAction(){}addSecureTextField(){this.secure=true}textFieldValue(){return this.mock.token||''}async presentAlert(){return this.mock.choice}async presentSheet(){return this.mock.choice}},
@@ -97,8 +113,66 @@ async function targetTests() {
   assert(out.rendered.includes('כיסוי 7/8'));
  }
  const partial=await run(many,{family:'medium'});
- assert.match(partial.rendered.join(' '),/שינוי יומי · אין נתון מלא/);
+ assert.match(partial.rendered.join(' '),/שינוי יומי אין נתון מלא/);
  console.log('PASS target layouts, directions, incomplete data, cache and contribution links.');
+}
+function nodes(root) {
+ return [root,...root.children.flatMap(nodes)];
+}
+
+async function chartTests() {
+ const day=86400000;
+ const asOf=Date.UTC(2025,6,29,14);
+ const point=(index,gapIls,gapUsd=12)=>({timestamp:asOf-(29-index)*day,gapIls,gapUsd});
+ const payload={...fixture,timestamp:new Date(asOf).toISOString(),targetHistory:[
+  point(-1,987),point(2,-4),point(3,-2),point(4,null),point(6,-1),
+  point(28,3),point(29,6),point(30,999),
+ ]};
+ for (const family of ['small','medium','large','extraLarge']) {
+  const out=await run(payload,{family});
+  assert.deepEqual(JSON.parse(out.requests[0].body),{targetCurrency:'ILS',includeTargetHistory:true});
+  const tree=nodes(out.widget);
+  const image=tree.find(node=>node.image?.strokes && node.imageSize?.args[0]>100);
+  assert(image, family+' chart is missing');
+  assert.equal(image.image.strokes.length,3,'zero baseline, under-stroke and trend');
+  const [axis,underStroke,line]=image.image.strokes;
+  assert.deepEqual(underStroke.points,line.points,'dimensional stroke cannot offset the data');
+  const [[,left,zero],[,right,zero2]]=axis.points;
+  assert.equal(zero,zero2);
+  assert(right>left);
+  assert.deepEqual(line.points.map(p=>p[0]),['move','line','move','move','line'],'break line at omitted or null dates');
+  assert(line.points[0][1]>left,'first observation must retain its calendar position');
+  assert.equal(line.points.at(-1)[1],right,'today is the last horizontal coordinate');
+  assert(line.points[0][2]>zero && line.points.at(-1)[2]<zero);
+  assert.equal(image.image.dots.length,4,'one isolated observation and a three-layer endpoint');
+  assert(image.image.fills.length>0);
+  for(const area of image.image.fills){
+   const xs=area.points.map(p=>p[1]);
+   assert(Math.max(...xs)-Math.min(...xs)<=(right-left)/29+0.001,'area fill must respect the break in history');
+  }
+  assert.notEqual(image.image.dots.at(-1).color.hex,line.color.hex);
+  const headerRow=tree.find(node=>node.children.some(child=>child.text==='היעד האישי להיום'));
+  assert.equal(headerRow.vertical,false);
+  assert(headerRow.children.at(-2).spacer && headerRow.children.at(-2).length===undefined);
+ }
+ const usd=await run(payload,{currency:'USD',family:'large'});
+ const graph=nodes(usd.widget).find(node=>node.image?.strokes && node.imageSize?.args[0]>100).image;
+ assert.equal(graph.strokes.length,2,'wholly positive USD series does not show zero axis');
+ assert(!usd.rendered.some(t=>t.includes('─ היעד')));
+ assert(graph.strokes[1].points.every(p=>p[2]===graph.strokes[1].points[0][2]),'constant series stays flat');
+ for(const history of [undefined,[],[point(29,0)], [point(2,null),point(29,null)]]) {
+  const out=await run({...payload,targetHistory:history});
+  assert(!nodes(out.widget).some(node=>node.image?.strokes && node.imageSize?.args[0]>100));
+  assert(out.rendered.includes('אין מספיק היסטוריה לגרף'));
+ }
+ const offline=await run(payload,{offline:true,cached:true});
+ assert(nodes(offline.widget).some(node=>node.image?.strokes && node.imageSize?.args[0]>100));
+ for (const mode of ['value','pnl']) {
+  const legacy=await run(payload,{mode});
+  assert.deepEqual(JSON.parse(legacy.requests[0].body),{targetCurrency:'ILS'});
+  assert(!legacy.rendered.includes('הפער מהיעד · 30 יום'));
+ }
+ console.log('PASS dated chart geometry, RTL placement, currency isolation, request opt-in and offline history.');
 }
 async function regressionTests(){
  let assertions=0,renders=0;
@@ -131,6 +205,7 @@ async function regressionTests(){
  }
  for(const family of ['small','medium','large','extraLarge']){const out=await run(fixture,{family,offline:true});assert(out.rendered.includes('לא ניתן לטעון את התיק'));assertions++;renders++;}
  await targetTests();
+ await chartTests();
  console.log(`PASS ${assertions} assertions, ${renders} family/currency/mode/cache renders plus targeted normalization scenarios.`);
 }
 module.exports={run,fixture,TOKEN,HOST,fingerprint};
