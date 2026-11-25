@@ -272,10 +272,23 @@ describe('isolated widget summary access', () => {
     expect(JSON.stringify(payload)).not.toMatch(/private-|user_id|lots|settings|plans|auth0\|/);
     expect(response.headers.get('cache-control')).toContain('no-store');
   });
-  it('withholds a snapshot when the widget is revoked while market quotes are loading', async () => {
+  it('opts into target history only with the boolean flag and returns it inside the fenced response', async () => {
+    const targetHistory = [{ timestamp: now.getTime(), gapIls: -12, gapUsd: -3 }];
+    mocks.buildPortfolio.mockImplementation(async () => Response.json({ summary: {}, targetHistory }));
+    const snapshot = { user_id: userId, expires_at: widgetRow.expires_at, positions: [], position_lots: [], settings: null,
+      sources: [], encrypted_credential: null, credential_aad_subject: userId };
+    mocks.rpc.mockImplementation(async (name: string) => ({ data: name === 'server_widget_snapshot' ? snapshot : widgetRow, error: null }));
+    for (const flag of [true, false, 'true']) {
+      const response = await widgetSummary(request('POST', { includeTargetHistory: flag }, { authorization: `Bearer ${widgetToken}` }));
+      expect(response.status).toBe(200);
+      expect((await response.json()).targetHistory).toEqual(flag === true ? targetHistory : undefined);
+      expect(mocks.buildPortfolio.mock.lastCall?.[0].includeTargetHistory).toBe(flag === true ? true : undefined);
+    }
+  });
+  it('withholds the summary and requested history when the widget is revoked while valuation is loading', async () => {
     mocks.rpc.mockResolvedValueOnce({ data: { user_id: userId, expires_at: widgetRow.expires_at, positions: [], position_lots: [], settings: null,
       sources: [], encrypted_credential: null, credential_aad_subject: userId }, error: null }).mockResolvedValueOnce({ data: null, error: null });
-    const response = await widgetSummary(request('POST', {}, { authorization: `Bearer ${widgetToken}` }));
+    const response = await widgetSummary(request('POST', { includeTargetHistory: true }, { authorization: `Bearer ${widgetToken}` }));
     expect(response.status).toBe(401);
     expect(mocks.buildPortfolio).toHaveBeenCalledOnce();
     expect(await response.text()).not.toContain('totalCurrentPnLUsd');

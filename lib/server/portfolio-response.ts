@@ -1,6 +1,7 @@
 import { readSourceCatalog, type SourceCatalog } from '@/lib/server/investment-source-catalog';
 import { reconciliationQuality, RECONCILIATION_HISTORY_WARNING, positionFxTimestamps, UNKNOWN_COMMISSION_WARNING, withCommissionQuality } from '@/lib/reconciliation-quality';
 import 'server-only';
+import { buildWidgetTargetHistory } from '@/lib/server/widget-target-history';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { PRIVATE_HEADERS } from '@/lib/auth/server';
@@ -77,7 +78,7 @@ function calculateWeightedPortfolioPrices(metrics: PositionMetrics[]): WeightedP
 }
 
 export async function buildPortfolioResponse(
-  context: { supabase: SupabaseClient; userId: string; finnhubToken: string | null; snapshot?: PortfolioSourceSnapshot },
+  context: { supabase: SupabaseClient; userId: string; finnhubToken: string | null; snapshot?: PortfolioSourceSnapshot; includeTargetHistory?: true },
   body: PortfolioRequestBody = {},
 ): Promise<Response> {
   try {
@@ -284,8 +285,9 @@ export async function buildPortfolioResponse(
     });
     const topStocks = mappedStocks.filter(stock => stock.completeCommissionHistory).slice(0, 3);
 
+    const asOf = Date.now();
     const responsePayload: Record<string, unknown> = {
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(asOf).toISOString(),
       usdToIlsRate,
       targetCurrency,
       sources,
@@ -298,6 +300,15 @@ export async function buildPortfolioResponse(
       topStocks,
       realizedSalesCount: realizedSales.length,
     };
+
+    if (context.includeTargetHistory && context.snapshot) {
+      const today = { timestamp: asOf,
+        gapUsd: isFiniteNumber(summary.totalForecastGapUsd) ? summary.totalForecastGapUsd : null,
+        gapIls: isFiniteNumber(summary.totalForecastGapIls) ? summary.totalForecastGapIls : null };
+      responsePayload.targetHistory = historyQuality.completeCommissionHistory && historyQuality.completeTransactionHistory
+        ? await buildWidgetTargetHistory({ positions: activationPositions, annualGrowthRate, getFxRateAt,
+          taxTimeline: taxSummary.timeline, today }).catch(() => [today]) : [today];
+    }
 
     if (includeWeightedPrice && historyQuality.completeCommissionHistory) {
       const weightedPrices = calculateWeightedPortfolioPrices(metrics);

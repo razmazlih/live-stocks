@@ -9,8 +9,9 @@ vi.mock('@/lib/services/yahoo-candles', () => ({ fetchYahooCandlesData: mocks.ca
 import { buildPortfolioResponse } from '@/lib/server/portfolio-response';
 import type { SupabaseClient } from '@supabase/supabase-js';
 it('public account/widget response preserves market valuation and marks full accounting unavailable', async () => {
+  mocks.candles.mockClear();
   mocks.candles.mockResolvedValue({ s: 'ok', t: [Date.UTC(2026, 0, 1) / 1000], c: [3.5] });
-  const response = await buildPortfolioResponse({ supabase: {} as SupabaseClient, userId: 'owner', finnhubToken: null, snapshot: {
+  const response = await buildPortfolioResponse({ supabase: {} as SupabaseClient, userId: 'owner', finnhubToken: null, includeTargetHistory: true, snapshot: {
     positions: [{ id: 'p', symbol: 'ABC', display: 'ABC', image_url: '', quantity: 2, entry_price: 100, entry_date: '2026-01-01', location: 'bank_one' }],
     position_lots: [
       { id: 'buy', position_id: 'p', side: 'BUY', quantity: 2, price: 100, executed_at: '2026-01-01', has_commission: false, commission_amount: 0 },
@@ -22,6 +23,8 @@ it('public account/widget response preserves market valuation and marks full acc
   expect(data.summary).toMatchObject({ totalValue: 360, totalCost: 270, totalCurrentPnLUsd: null, totalNetPnLUsd: null, totalTaxesPaidUsd: null });
   expect(data.dataQuality).toMatchObject({ completeTransactionHistory: false, reconciledSymbols: ['ABC'] });
   expect(data.stocks[0]).toMatchObject({ quantity: 3, currentPnLUsd: 90, currentPnLIls: null });
+  expect(data.targetHistory).toEqual([{ timestamp: Date.parse(data.timestamp), gapUsd: null, gapIls: null }]);
+  expect(mocks.candles.mock.calls.map(([symbol]) => symbol)).toEqual(['ILS=X']);
 });
 
 it('loads FX back to a known original basis years before its observation date', async () => {

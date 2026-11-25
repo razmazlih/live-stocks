@@ -22,8 +22,10 @@ export async function POST(request: Request) {
     }
     // Every financial row and the encrypted key come from the same fenced RPC.
     // No later administrative query can pick up data added by a concurrent merge.
+    const body = await request.json().catch(() => null);
+    const includeTargetHistory = body?.includeTargetHistory === true;
     const response = await buildPortfolioResponse({ supabase: admin, userId: data.user_id,
-      snapshot: data, finnhubToken: data.encrypted_credential
+      snapshot: data, ...(includeTargetHistory && { includeTargetHistory: true }), finnhubToken: data.encrypted_credential
         ? decryptCredential(data.credential_aad_subject, data.encrypted_credential) : null }, { includeWeightedPrice: true, targetCurrency: 'ILS' });
     if (!response.ok) return response;
     const payload = await response.json();
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
       currentPnLUsd: stock.currentPnLUsd, currentPnLIls: stock.currentPnLIls, dailyChange: stock.dailyChange,
     })) : [];
     return Response.json({ timestamp: payload.timestamp, usdToIlsRate: payload.usdToIlsRate,
+      ...(includeTargetHistory && { targetHistory: payload.targetHistory }),
       summary: payload.summary, dataQuality: payload.dataQuality, stocks, widgetTokenExpiresAt: data.expires_at }, { headers: PRIVATE_HEADERS });
   } catch {
     return Response.json({ error: 'Widget data is temporarily unavailable' }, { status: 503, headers: PRIVATE_HEADERS });

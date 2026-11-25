@@ -56,6 +56,7 @@ export async function fetchYahooCandlesData(
   from: number,
   to: number,
   resolution: CandleResolution = 'D',
+  options?: { signal: AbortSignal; revalidate: number },
 ): Promise<CandleData> {
   const normalizedSymbol = symbol.trim();
   if (!normalizedSymbol) {
@@ -71,8 +72,8 @@ export async function fetchYahooCandlesData(
 
   const response = await fetchWithRetry(
     url,
-    { cache: 'no-store' },
-    { shouldRetry: (res) => !res.ok },
+    options ? { signal: options.signal, next: { revalidate: options.revalidate } } : { cache: 'no-store' },
+    { shouldRetry: (res) => !res.ok, ...(options && { retries: 1 }) },
   );
 
   const data = (await response.json()) as YahooChartResponse;
