@@ -11,7 +11,7 @@ The personal-account backend and `POST /api/widget/summary` are live. [25 produc
 
 Never paste a token into the script source, widget parameters, a URL, or an iCloud text file. The script does not write tokens to the filesystem. A changed host does not receive credentials saved for another host; HTTP redirects are disabled. Website sign-out and ChatGPT disconnection do not revoke a separately issued widget token.
 
-The widget caches portfolio data locally for up to one hour and no later than token expiry. Cache names and records are scoped to the HTTPS origin and a non-secret token fingerprint. Missing credentials, known expiry, and HTTP 401/403 clear the cache and show a reconnect prompt; denied requests never fall back to a saved portfolio. The upgrade removes only this widget's legacy `stocks-glance-v3-<hex>.json` cache files. Keychain behavior and prompts are tested with mocked Scriptable APIs; no physical-device claim is made.
+The widget keeps its last usable portfolio locally until token expiry. If a refresh fails or temporarily drops a previously available portfolio metric, the widget shows the saved snapshot and its age. A successful response with an explicit history or commission limitation takes precedence for profit and forecast figures. Cache names and records are scoped to the HTTPS origin and a non-secret token fingerprint. Missing credentials, known expiry, and HTTP 401/403 clear the cache and show a reconnect prompt; denied requests never fall back to a saved portfolio. The upgrade removes only this widget's legacy `stocks-glance-v3-<hex>.json` cache files. Keychain behavior and prompts are tested with mocked Scriptable APIs; no physical-device claim is made.
 
 ## Portfolio display
 
@@ -19,7 +19,7 @@ All sizes now show net profit/loss and the forecast gap together. The authoritat
 
 Small/medium always show portfolio value plus both requested metrics. Large/extraLarge retain the mode=pnl hero option. Large metric rail replaces winner/loser counts with P/L and forecast gap; ticker badges removed for space.
 
-Validation: 222 display assertions and 36 mock renders, plus 10 personal-account security scenarios covering Keychain setup/replacement, host isolation, redirect refusal, authorization denial, credential expiry, and offline cache isolation. Source-driven browser previews use sample data and approximate native rendering; concentration ring drawing is approximate. No native Liquid Glass compatibility claim.
+Validation: 222 display assertions and 36 mock renders, plus personal-account and refresh regression scenarios covering Keychain setup/replacement, host isolation, redirect refusal, authorization denial, credential expiry, and offline cache isolation. Source-driven browser previews use sample data and approximate native rendering; concentration ring drawing is approximate. No native Liquid Glass compatibility claim.
 
 Run from this directory:
 

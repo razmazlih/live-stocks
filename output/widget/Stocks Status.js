@@ -12,7 +12,7 @@
  * ILS daily movement converts USD movement at current FX; excludes FX movement.
  * Response update time is not the exchange quote time. No invented chart/history.
  */
-const SETTINGS = { offlineMaxAge: 60 * 60 * 1000, baseUrl: "https://razmaz-live-stocks.vercel.app", refresh: 15, timeout: 15 };
+const SETTINGS = { baseUrl: "https://razmaz-live-stocks.vercel.app", refresh: 15, timeout: 15 };
 const FAMILY = ["small", "medium", "large", "extraLarge"].includes(config.widgetFamily) ? config.widgetFamily : "medium";
 const LARGE = FAMILY === "large" || FAMILY === "extraLarge";
 const XL = FAMILY === "extraLarge";
@@ -184,6 +184,26 @@ async function setupCredential() {
 }
 function valid(p) { return p && !p.error && p.summary && typeof p.summary === "object" && Array.isArray(p.stocks); }
 function reconnect() { clearCaches(); return { payload: null, stale: false, reconnect: true }; }
+function readCachedPortfolio(cache) {
+  try {
+    if (cache.fm.fileExists(cache.path)) {
+      const state = JSON.parse(cache.fm.readString(cache.path));
+      const savedAt = new Date(state.savedAt).getTime(), expiresAt = new Date(state.expiresAt).getTime();
+      if (state.origin === OPTIONS.baseUrl && state.identity === cache.identity && valid(state.payload) && Number.isFinite(savedAt) && savedAt <= Date.now() && expiresAt > Date.now()) return { ...state, stale: true };
+      cache.fm.remove(cache.path);
+    }
+  } catch (_) {}
+  return null;
+}
+function lostPortfolioMetrics(payload, previousPayload) {
+  if (!payload.stocks.length) return false;
+  const current = normalize(payload), previous = normalize(previousPayload);
+  if (["value", "daily"].some(key => current[key] === null && previous[key] !== null)) return true;
+  // An explicit history or commission limitation supersedes older calculated results.
+  const quality = payload.dataQuality;
+  if (quality?.completeTransactionHistory === false || quality?.completeCommissionHistory === false) return false;
+  return ["pnl", "forecastGap"].some(key => current[key] === null && previous[key] !== null);
+}
 async function load() {
   clearCaches(true);
   if (!OPTIONS.baseUrl) return reconnect();
@@ -209,27 +229,19 @@ async function load() {
     if (readCredential() !== token) return reconnect();
     const expiresAt = payload.widgetTokenExpiresAt;
     const expiry = new Date(expiresAt).getTime();
-    if (!Number.isFinite(expiry) || expiry <= Date.now()) { disconnect(); return reconnect(); }
+    if (!Number.isFinite(expiry)) throw new Error("Missing widget token expiry");
+    if (expiry <= Date.now()) { disconnect(); return reconnect(); }
+    const saved = readCachedPortfolio(cache);
+    if (saved && lostPortfolioMetrics(payload, saved.payload)) return saved;
     const state = { origin: OPTIONS.baseUrl, identity: cache.identity, payload, expiresAt, savedAt: new Date().toISOString(), stale: false };
-    Keychain.set(credentialKey() + ":metadata", JSON.stringify({ identity: cache.identity, expiresAt }));
+    try { Keychain.set(credentialKey() + ":metadata", JSON.stringify({ identity: cache.identity, expiresAt })); } catch (_) {}
     try { cache.fm.writeString(cache.path, JSON.stringify(state)); } catch (_) {}
     return state;
   } catch (_) {
     const status = req && req.response && req.response.statusCode;
     if (status === 401 || status === 403) { disconnect(); return reconnect(); }
     if (readCredential() !== token) return reconnect();
-    // Offline/server failure only. Invalid requests, redirects and denied access cannot use cache.
-    if (status && status < 500) return { payload: null, stale: false };
-    try {
-      if (cache.fm.fileExists(cache.path)) {
-        const state = JSON.parse(cache.fm.readString(cache.path));
-        const savedAt = new Date(state.savedAt).getTime(), expiresAt = new Date(state.expiresAt).getTime();
-        if (state.origin === OPTIONS.baseUrl && state.identity === cache.identity && Number.isFinite(expiresAt) && expiresAt <= Date.now()) { disconnect(); return reconnect(); }
-        if (state.origin === OPTIONS.baseUrl && state.identity === cache.identity && valid(state.payload) && Number.isFinite(savedAt) && savedAt <= Date.now() && Date.now() - savedAt <= SETTINGS.offlineMaxAge && expiresAt > Date.now()) return { ...state, stale: true };
-        cache.fm.remove(cache.path);
-      }
-    } catch (_) {}
-    return { payload: null, stale: false };
+    return readCachedPortfolio(cache) || { payload: null, stale: false };
   }
 }
 function age(date) {

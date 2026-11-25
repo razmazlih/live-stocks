@@ -57,12 +57,12 @@ const { run, fixture, TOKEN, HOST, fingerprint } = require('./widget-v7-test.cjs
     }
   });
 
-  await check('offline cache is limited to one hour and the same token identity', async () => {
+  await check('offline cache survives past one hour and stays scoped to the same token', async () => {
     const fresh = await run(fixture, { cached: true, offline: true });
     assert(fresh.rendered.some(text => text.includes('שמור')));
     const old = await run(fixture, { cached: true, offline: true, savedAt: new Date(Date.now() - 3600001).toISOString() });
-    assert(old.rendered.includes('לא ניתן לטעון את התיק'));
-    assert.equal(old.storage.size, 0);
+    assert(old.rendered.some(text => text.includes('שמור')));
+    assert.equal(old.storage.size, 1);
     const previous = await run();
     const switched = await run(fixture, { token: `lst_widget_${'b'.repeat(43)}`, storage: previous.storage, offline: true });
     assert(switched.rendered.includes('לא ניתן לטעון את התיק'));
@@ -78,12 +78,34 @@ const { run, fixture, TOKEN, HOST, fingerprint } = require('./widget-v7-test.cjs
     assert.equal(result.storage.size, 0);
   });
 
-  await check('HTTP redirects and request errors cannot reuse a stale portfolio', async () => {
-    for (const status of [302, 400, 404]) {
-      const result = await run(fixture, { cached: true, status });
-      assert(result.rendered.includes('לא ניתן לטעון את התיק'));
-      assert(!result.rendered.some(text => text.includes('₪+321')));
+  await check('failed HTTP refreshes and malformed responses reuse the local snapshot', async () => {
+    for (const status of [200, 302, 404, 429, 503]) {
+      const result = await run(fixture, { cached: true, status, invalidJSON: status === 200 });
+      assert(result.rendered.some(text => text.includes('שמור')));
+      assert(result.rendered.some(text => text.includes('₪+321')));
     }
+  });
+
+  await check('consecutive partial refreshes preserve the last usable snapshot, then recover', async () => {
+    const previous = await run();
+    const partial = structuredClone(fixture);
+    partial.summary.totalNetPnLIls = null;
+    partial.summary.totalForecastGapIls = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await run(partial, { keys: previous.keys, storage: previous.storage });
+      assert(result.rendered.some(text => text.includes('שמור')));
+      assert(result.rendered.some(text => text.includes('₪+321')));
+      assert.equal(JSON.parse([...result.storage.values()][0]).payload.summary.totalNetPnLIls, 321);
+    }
+    const fresh = structuredClone(fixture);
+    fresh.summary.totalNetPnLIls = 456;
+    const recovered = await run(fresh, { keys: previous.keys, storage: previous.storage });
+    assert(recovered.rendered.some(text => text.includes('₪+456')));
+    assert(!recovered.rendered.some(text => text.includes('שמור')));
+
+    partial.dataQuality = { completeTransactionHistory: false };
+    const limited = await run(partial, { keys: previous.keys, storage: previous.storage });
+    assert(!limited.rendered.some(text => text.includes('₪+456')));
   });
 
   await check('native setup uses a secure prompt and stores token only in host-specific Keychain', async () => {
