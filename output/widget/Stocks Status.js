@@ -2,9 +2,9 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-green; icon-glyph: chart-line;
 
-/** LiveStocks • Personal portfolio glance, v10.0
+/** LiveStocks • Personal portfolio glance, v8.0
  * Native small / medium / large / extraLarge layouts for Scriptable.
- * Parameters: currency=ILS|USD; mode=target|value|pnl; baseurl=https://your-host
+ * Parameters: currency=ILS|USD; mode=value|pnl; baseurl=https://your-host
  * Run in Scriptable to store a personal read-only token in native Keychain.
  * Never put a token in script source, widget parameters, or iCloud files.
  * Daily change is the latest quoted holding movement, not a live account return.
@@ -24,14 +24,14 @@ function httpsOrigin(value) {
   return `https://${match[1].toLowerCase()}${match[2] && +match[2] !== 443 ? ":" + Number(match[2]) : ""}`;
 }
 function options(raw) {
-  const out = { baseUrl: httpsOrigin(args.queryParameters && args.queryParameters.baseurl || SETTINGS.baseUrl), currency: "ILS", mode: "target" };
+  const out = { baseUrl: httpsOrigin(args.queryParameters && args.queryParameters.baseurl || SETTINGS.baseUrl), currency: "ILS", mode: "value" };
   String(raw || "").split(/[;\n]/).forEach(part => {
     const i = part.indexOf("=");
     if (i < 1) return;
     const k = part.slice(0, i).trim().toLowerCase(), v = part.slice(i + 1).trim();
     if (["baseurl", "host", "url"].includes(k)) out.baseUrl = httpsOrigin(v);
     if (k === "currency" && /^(ILS|USD)$/i.test(v)) out.currency = v.toUpperCase();
-    if (k === "mode" && /^(target|pnl|value)$/i.test(v)) out.mode = v.toLowerCase();
+    if (k === "mode" && /^(pnl|value)$/i.test(v)) out.mode = v.toLowerCase();
   });
   return out;
 }
@@ -116,7 +116,6 @@ function normalize(payload) {
   const largest = stocks.slice().sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
   return { value, pnl, projected, forecastGap, daily, dailyPercent: daily !== null && base > 0 ? daily / base * 100 : null,
     stocks, ranked, known: known.length, full, fx, largest,
-    incompleteHistory: payload.dataQuality && payload.dataQuality.completeTransactionHistory === false,
     concentration: full && stocks.every(r => r.value !== null && r.value >= 0) && largest && largest.value !== null && value > 0 ? largest.value / value * 100 : null,
     winners: known.filter(r => r.daily > 0).length, losers: known.filter(r => r.daily < 0).length };
 }
@@ -202,9 +201,7 @@ async function load() {
     // Never forward a personal credential to a redirected host or path.
     req.onRedirect = () => null;
     req.headers = { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` };
-    req.body = JSON.stringify(OPTIONS.mode === "target"
-      ? { targetCurrency: OPTIONS.currency, includeTargetHistory: true }
-      : { targetCurrency: OPTIONS.currency });
+    req.body = JSON.stringify({ targetCurrency: OPTIONS.currency });
     const payload = await req.loadJSON();
     const status = req.response && req.response.statusCode;
     if (status === 401 || status === 403) { disconnect(); return reconnect(); }
@@ -423,330 +420,20 @@ function renderXL(w, m, state) {
   summary.addSpacer();
   footer(w, m, state);
 }
-// Layer offset ellipses so each concentric rim catches the same upper-left light.
-function addTargetMedallion(parent, gap) {
-  const ctx = new DrawContext();
-  ctx.size = new Size(48, 42);
-  ctx.opaque = false;
-  ctx.respectScreenScale = true;
-  function disc(cx, cy, width, color, opacity = 1) {
-    const height = width * 0.77;
-    ctx.setFillColor(new Color(color, opacity));
-    ctx.fillEllipse(new Rect(cx - width / 2, cy - height / 2, width, height));
-  }
-  disc(25, 26, 43, "08101D", 0.14);
-  disc(25, 25, 39, "08101D", 0.22);
-  function rim(cx, cy, width) {
-    disc(cx + 1, cy + 2.6, width, "253345");
-    disc(cx + 0.6, cy + 1.6, width, "748394");
-    disc(cx, cy, width, "DCE5EA");
-    disc(cx, cy + 0.4, width - 1.3, "9CAAB8");
-    disc(cx + 0.6, cy + 0.9, width * 0.79, "4C606F");
-    disc(cx, cy + 1.5, width * 0.73, "344552");
-  }
-  rim(24, 20.5, 40);
-  rim(23.7, 19.5, 24);
-  const positive = gap >= 0;
-  disc(23.6, 19.4, 11.4, positive ? "286E61" : "8C4055");
-  disc(23.2, 18.2, 10, positive ? "72D8B5" : "F39AAE");
-  disc(22.5, 17.3, 6, positive ? "B8F4D9" : "FFD6DF");
-  const image = parent.addImage(ctx.getImage());
-  image.imageSize = new Size(48, 42);
-}
-
-// Text alignment on Scriptable stacks is determined by the row's flexible spacer.
-function rightText(parent, value, ...style) {
-  const row = stack(parent, false);
-  row.addSpacer();
-  return text(row, value, ...style);
-}
-function chartDays(history, currency, asOf) {
-  const dayMs = 86400000;
-  const today = Math.floor(new Date(asOf).getTime() / dayMs);
-  const days = new Array(30).fill(null);
-  const field = currency === "ILS" ? "gapIls" : "gapUsd";
-  for (const point of Array.isArray(history) ? history : []) {
-    if (!point || !Number.isFinite(point.timestamp)) continue;
-    const index = Math.floor(point.timestamp / dayMs) - today + 29;
-    if (index >= 0 && index < days.length) days[index] = Number.isFinite(point[field]) ? point[field] : null;
-  }
-  return days;
-}
-function gapImage(days, width, height, low, high) {
-  const ctx = new DrawContext();
-  ctx.size = new Size(width, height);
-  ctx.opaque = false;
-  ctx.respectScreenScale = true;
-  const inset = SMALL ? 3.5 : 6;
-  const x = i => inset + i * (width - 2 * inset) / (days.length - 1);
-  const y = value => high === low ? height / 2 : inset + (high - value) / (high - low) * (height - 2 * inset);
-  // Feather each continuous run toward the base, leaving all missing dates transparent.
-  const runs = [];
-  days.forEach((value, i) => {
-    if (value === null) return;
-    if (i === 0 || days[i - 1] === null) runs.push([]);
-    runs[runs.length - 1].push({ x: x(i), y: y(value) });
-  });
-  for (const run of runs) {
-    if (run.length < 2) continue;
-    const base = height - 1;
-    const depth = (point, fraction) => new Point(point.x, point.y + (base - point.y) * fraction);
-    const bands = SMALL ? 3 : 8;
-    for (let band = 0; band < bands; band++) {
-      const area = new Path();
-      area.move(depth(run[0], band / bands));
-      for (let i = 1; i < run.length; i++) area.addLine(depth(run[i], band / bands));
-      for (let i = run.length - 1; i >= 0; i--) area.addLine(depth(run[i], (band + 1) / bands));
-      ctx.addPath(area);
-      ctx.setFillColor(new Color("7892A2", 0.22 * (1 - band / bands)));
-      ctx.fillPath();
-    }
-  }
-  if (low <= 0 && high >= 0) {
-    const axis = new Path();
-    axis.move(new Point(x(0), y(0)));
-    axis.addLine(new Point(x(days.length - 1), y(0)));
-    ctx.addPath(axis);
-    ctx.setLineWidth(1);
-    ctx.setStrokeColor(new Color("81909F", 0.65));
-    ctx.strokePath();
-  }
-  // Static raster colors must remain legible when iOS changes widget appearance.
-  const stroke = new Color("7D8997");
-  ctx.setStrokeColor(stroke);
-  ctx.setFillColor(stroke);
-  ctx.setLineWidth(SMALL ? 1.5 : 2);
-  const line = new Path();
-  days.forEach((value, i) => {
-    if (value === null) return;
-    const point = new Point(x(i), y(value));
-    const startsRun = i === 0 || days[i - 1] === null;
-    if (startsRun) line.move(point); else line.addLine(point);
-    const isolated = startsRun && (i === days.length - 1 || days[i + 1] === null);
-    if (isolated && i !== days.length - 1) {
-      const radius = 1.4;
-      ctx.fillEllipse(new Rect(x(i) - radius, y(value) - radius, radius * 2, radius * 2));
-    }
-  });
-  ctx.addPath(line);
-  ctx.setStrokeColor(new Color("516579", 0.20));
-  ctx.setLineWidth(SMALL ? 3 : 5);
-  ctx.strokePath();
-  ctx.addPath(line);
-  ctx.setStrokeColor(stroke);
-  ctx.setLineWidth(SMALL ? 1.5 : 2);
-  ctx.strokePath();
-  const last = days[days.length - 1];
-  if (last !== null) {
-    const rounded = Math.round(Math.abs(last));
-    const hue = rounded === 0 ? "7D8997" : last > 0 ? "279467" : "D55770";
-    const radius = SMALL ? 3.5 : 5.5;
-    const disc = (scale, color) => {
-      const r = radius * scale;
-      ctx.setFillColor(color);
-      ctx.fillEllipse(new Rect(x(29) - r, y(last) - r, 2 * r, 2 * r));
-    };
-    disc(1, new Color(hue, 0.24));
-    disc(0.68, new Color("E5EBEB"));
-    disc(0.47, new Color(hue));
-  }
-  return ctx.getImage();
-}
-function targetChart(parent, days) {
-  const values = days.filter(value => value !== null);
-  if (values.length < 2) {
-    rightText(parent, "אין מספיק היסטוריה לגרף", SMALL ? 10 : 11, C.muted);
-    return;
-  }
-  const low = Math.min(...values), high = Math.max(...values);
-  const width = SMALL ? 126 : FAMILY === "medium" ? 143 : XL ? 664 : 292;
-  const height = SMALL ? 18 : FAMILY === "medium" ? 36 : XL ? 48 : 71;
-  if (!SMALL) {
-    const heading = stack(parent, false);
-    if (low <= 0 && high >= 0) text(heading, "─ היעד", 10, C.muted);
-    heading.addSpacer();
-    text(heading, FAMILY === "medium" ? "פער · 30 יום" : "הפער מהיעד · 30 יום", 11, C.muted, "medium");
-  }
-  const row = stack(parent, false);
-  row.addSpacer();
-  const image = row.addImage(gapImage(days, width, height, low, high));
-  image.imageSize = new Size(width, height);
-  if (LARGE) {
-    const dates = stack(parent, false);
-    text(dates, "לפני 29 יום", 10, C.muted);
-    dates.addSpacer();
-    text(dates, "היום", 10, C.muted);
-  }
-}
-function targetHero(parent, m) {
-  const gap = m.forecastGap;
-  if (gap === null) {
-    const msg = rightText(parent, m.incompleteHistory ? "חסרה היסטוריית עסקאות" : "אין מספיק נתונים לחישוב היעד", SMALL ? 14 : 17, C.ink, "bold");
-    msg.lineLimit = 2;
-    return;
-  }
-  if (Math.round(Math.abs(gap)) === 0) {
-    rightText(parent, "בדיוק ביעד", SMALL ? 21 : 26, C.ink, "bold");
-    return;
-  }
-  const compact = !LARGE || Math.abs(gap) >= 1e8;
-  const row = stack(parent, false);
-  if (LARGE) addTargetMedallion(row, gap);
-  row.addSpacer();
-  if (LARGE) {
-    text(row, gap > 0 ? "מעל היעד" : "מתחת ליעד", 18, tone(gap), "medium");
-    row.addSpacer(6);
-  }
-  const amount = text(row, cash(Math.abs(gap), compact), SMALL ? 23 : LARGE ? 32 : 26, tone(gap), "bold");
-  amount.minimumScaleFactor = 0.72;
-  if (!LARGE) rightText(parent, gap > 0 ? "מעל היעד" : "מתחת ליעד", 12, tone(gap), "medium");
-}
-function netLabel(pnl) {
-  return pnl === null ? "רווח / הפסד נטו" : pnl < 0 ? "הפסד נטו" : "רווח נטו";
-}
-function targetStats(parent, m) {
-  const balance = cash(m.value, true);
-  if (SMALL) {
-    rightText(parent, "שווי התיק " + balance, 11, C.ink, "medium");
-    rightText(parent, m.dailyPercent === null ? "שינוי יומי · אין נתון מלא" : "שינוי יומי " + pct(m.dailyPercent), 11, C.muted);
-    return;
-  }
-  const row = stack(parent, false);
-  function metric(label, value) {
-    const cell = stack(row);
-    rightText(cell, label, 11, C.muted);
-    rightText(cell, value, LARGE ? 15 : 12, C.ink, "medium");
-  }
-  if (!LARGE) {
-    metric(netLabel(m.pnl), cash(m.pnl === null ? null : Math.abs(m.pnl), true));
-    row.addSpacer();
-  }
-  metric("שינוי יומי", m.daily === null ? "אין נתון מלא" : cash(m.daily, true, true) + " · " + pct(m.dailyPercent));
-  row.addSpacer();
-  metric("שווי התיק", balance);
-}
-function targetMovers(parent, m) {
-  const title = stack(parent, false);
-  if (m.known < m.stocks.length) text(title, `כיסוי ${m.known}/${m.stocks.length}`, 11, C.muted);
-  title.addSpacer();
-  text(title, "מה הזיז את התיק היום", 13, C.ink, "bold");
-  const contributors = m.ranked.filter(r => r.daily !== null).slice(0, XL ? 6 : 3);
-  if (!contributors.length) rightText(parent, m.stocks.length ? "אין נתוני שינוי יומי" : "אין החזקות פעילות", 11, C.muted);
-  const max = contributors.length ? Math.abs(contributors[0].daily) : 0;
-  for (const stock of contributors) {
-    parent.addSpacer(XL ? 2 : 4);
-    const row = stack(parent, false);
-    row.url = `${OPTIONS.baseUrl}/stock/${encodeURIComponent(stock.symbol)}`;
-    row.addSpacer();
-    text(row, cash(stock.daily, true, true), 12, tone(stock.daily), "medium", true);
-    row.addSpacer(10);
-    const track = stack(row, false);
-    track.size = new Size(94, 3);
-    track.cornerRadius = 1.5;
-    track.backgroundColor = C.line;
-    if (stock.daily !== 0) {
-      track.addSpacer();
-      const fill = stack(track, false);
-      fill.size = new Size(94 * Math.abs(stock.daily) / max, 3);
-      fill.cornerRadius = 1.5;
-      fill.backgroundColor = tone(stock.daily);
-    }
-    row.addSpacer(8);
-    const ticker = stack(row);
-    ticker.size = new Size(66, 0);
-    rightText(ticker, ltr(stock.symbol), 12, C.ink, "medium", true);
-  }
-}
-function targetHoldings(parent, m) {
-  rightText(parent, "ההחזקות הגדולות", 13, C.ink, "bold");
-  if (m.concentration === null) {
-    rightText(parent, m.stocks.length ? "אין נתוני משקל מלאים" : "אין החזקות פעילות", 11, C.muted);
-    return;
-  }
-  for (const stock of [...m.stocks].sort((a, b) => b.value - a.value).slice(0, 3)) {
-    parent.addSpacer(4);
-    const row = stack(parent, false);
-    row.url = `${OPTIONS.baseUrl}/stock/${encodeURIComponent(stock.symbol)}`;
-    text(row, ltr(number(stock.value / m.value * 100, 1) + "%"), 12, C.muted);
-    row.addSpacer();
-    text(row, ltr(stock.symbol), 12, C.ink, "medium", true);
-  }
-}
-function renderTarget(w, m, state) {
-  const days = chartDays(state.payload.targetHistory, OPTIONS.currency, state.payload.timestamp ?? state.savedAt);
-  const heading = stack(w, false);
-  const stamp = (state.stale ? "שמור · " : "") + age(state.savedAt);
-  if (!SMALL) text(heading, stamp, 11, C.muted);
-  heading.addSpacer();
-  text(heading, "היעד האישי להיום", SMALL ? 11 : 14, C.ink, "bold");
-  w.addSpacer(SMALL ? 2 : 4);
-  if (FAMILY === "medium") {
-    const body = stack(w, false);
-    targetChart(stack(body), days);
-    body.addSpacer();
-    const hero = stack(body);
-    hero.size = new Size(140, 0);
-    targetHero(hero, m);
-  } else {
-    targetHero(w, m);
-    w.addSpacer(SMALL ? 2 : 4);
-    targetChart(w, days);
-  }
-  if (LARGE) w.addSpacer();
-  rule(w, SMALL ? 2 : 4);
-  targetStats(w, m);
-  if (SMALL) {
-    w.addSpacer(3);
-    rightText(w, stamp, 10, C.muted);
-  }
-  if (!LARGE) return;
-  w.addSpacer();
-  rule(w, 4);
-  if (XL) {
-    const columns = stack(w, false);
-    columns.topAlignContent();
-    const holdings = stack(columns);
-    holdings.size = new Size(215, 0);
-    targetHoldings(holdings, m);
-    columns.addSpacer();
-    const movers = stack(columns);
-    movers.size = new Size(320, 0);
-    targetMovers(movers, m);
-  } else {
-    targetMovers(w, m);
-  }
-  w.addSpacer();
-  w.addSpacer(XL ? 4 : 6);
-  rightText(w, netLabel(m.pnl) + " מצטבר " + cash(m.pnl === null ? null : Math.abs(m.pnl), true), 11, C.muted);
-}
 async function main() {
   if (!config.runsInWidget) await setupCredential();
   const state = await load(), w = new ListWidget();
-  const target = OPTIONS.mode === "target";
-  w.backgroundColor = target ? Color.dynamic(new Color("F4F6F6"), new Color("1B1D20")) : C.bg;
-  const gradient = new LinearGradient();
-  gradient.colors = target ? [
-    Color.dynamic(new Color("FFFFFF"), new Color("383D42")),
-    w.backgroundColor,
-    Color.dynamic(new Color("E5EBED"), new Color("131619")),
-  ] : [Color.dynamic(new Color("E2ECFF"), new Color("20365A")), C.bg, C.bg];
-  gradient.locations = [0, target ? 0.48 : 0.65, 1];
-  gradient.startPoint = new Point(0, 0);
-  gradient.endPoint = new Point(1, 1);
-  w.backgroundGradient = gradient;
-  w.url = state.reconnect ? "scriptable:///run?scriptName=" + encodeURIComponent(Script.name()) + (OPTIONS.baseUrl ? "&baseurl=" + encodeURIComponent(OPTIONS.baseUrl) : "") : `${OPTIONS.baseUrl}/`; const pad = SMALL ? 11 : XL ? 18 : LARGE && OPTIONS.mode === "target" ? 16 : 13; w.setPadding(pad, pad, pad, pad);
+  w.backgroundColor = C.bg;
+  const gradient = new LinearGradient(); gradient.colors = [Color.dynamic(new Color("E2ECFF"), new Color("20365A")), C.bg, C.bg]; gradient.locations = [0, 0.65, 1]; gradient.startPoint = new Point(0, 0); gradient.endPoint = new Point(1, 1); w.backgroundGradient = gradient;
+  w.url = state.reconnect ? "scriptable:///run?scriptName=" + encodeURIComponent(Script.name()) + (OPTIONS.baseUrl ? "&baseurl=" + encodeURIComponent(OPTIONS.baseUrl) : "") : `${OPTIONS.baseUrl}/`; const pad = SMALL ? 11 : XL ? 18 : 13; w.setPadding(pad, pad, pad, pad);
   w.refreshAfterDate = new Date(Date.now() + (state.stale || !state.payload ? 7 : SETTINGS.refresh) * 60000);
   if (!state.payload) {
     w.addSpacer(); icon(w, "wifi.exclamationmark", C.warning, 24); w.addSpacer(10);
     text(w, state.reconnect ? "נדרש חיבור אישי" : "לא ניתן לטעון את התיק", SMALL ? 13 : 18, C.ink, "bold"); w.addSpacer(8);
     text(w, state.reconnect ? "הקש להגדרת טוקן ב־Scriptable ↗" : "הקש לפתיחת LiveStocks ↗", 11, C.accent); w.addSpacer();
   } else {
-    const m = normalize(state.payload);
-    if (OPTIONS.mode === "target") renderTarget(w, m, state);
-    else {
-      header(w, state);
-      if (SMALL) renderSmall(w, m); else if (FAMILY === "medium") renderMedium(w, m, state); else if (XL) renderXL(w, m, state); else renderLarge(w, m, state);
-    }
+    const m = normalize(state.payload); header(w, state);
+    if (SMALL) renderSmall(w, m); else if (FAMILY === "medium") renderMedium(w, m, state); else if (XL) renderXL(w, m, state); else renderLarge(w, m, state);
   }
   Script.setWidget(w);
   if (!config.runsInWidget) {

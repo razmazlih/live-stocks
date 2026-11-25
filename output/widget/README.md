@@ -1,4 +1,4 @@
-# LiveStocks personal widget — 2026-11-26
+# LiveStocks personal widget v8 — 2026-11-14
 
 The personal-account backend and `POST /api/widget/summary` are live. [25 production API checks](../../docs/verification/widget-production-api-2026-11-15.json) passed, including valid, revoked and expired credentials, restricted scope, cleanup and financial data preservation. This source distribution has not been installed or verified on the user's physical iPhone by this work; device setup, iCloud sync and native rendering remain separate.
 
@@ -6,42 +6,22 @@ The personal-account backend and `POST /api/widget/summary` are live. [25 produc
 
 1. Sign in to LiveStocks and open **Settings → Personal widget tokens**. Create a named token and copy it while it is displayed.
 2. Install `Stocks Status.js` in Scriptable and run it inside the app. Paste the token into the secure prompt. It is stored in Scriptable's native Keychain under the exact HTTPS site origin.
-3. Add a Scriptable widget and select this script. The default is `currency=ILS;mode=target`. To display dollars, use `currency=USD`. If you previously set `mode=value` or `mode=pnl`, remove that parameter or select `mode=target` to see the new layout. To use another deployment, use `baseurl=https://your-host` and run the script with that same host to set up its separate credential.
+3. Add a Scriptable widget and select this script. Optional parameters: `currency=ILS;mode=value`. To use another deployment, use `baseurl=https://your-host` and run the script with that same host to set up its separate credential.
 4. Run the script inside Scriptable again to replace the token or disconnect this device. Revoke a token from the website to invalidate server access. Tokens expire after 90 days.
 
 Never paste a token into the script source, widget parameters, a URL, or an iCloud text file. The script does not write tokens to the filesystem. A changed host does not receive credentials saved for another host; HTTP redirects are disabled. Website sign-out and ChatGPT disconnection do not revoke a separately issued widget token.
 
 The widget caches portfolio data locally for up to one hour and no later than token expiry. Cache names and records are scoped to the HTTPS origin and a non-secret token fingerprint. Missing credentials, known expiry, and HTTP 401/403 clear the cache and show a reconnect prompt; denied requests never fall back to a saved portfolio. The upgrade removes only this widget's legacy `stocks-glance-v3-<hex>.json` cache files. Keychain behavior and prompts are tested with mocked Scriptable APIs; no physical-device claim is made.
 
-## היעד האישי להיום
+## Portfolio display
 
-המספר הגדול מציג את המרחק מיעד הצמיחה האישי שנצבר עד היום. בדוגמה הכהה התיק נמצא ₪1,250 מעל היעד גם אחרי ירידה יומית של ₪189. בדוגמה הבהירה חסרים ₪340 ליעד ביום שבו התיק עלה ב־₪189.
+All sizes now show net profit/loss and the forecast gap together. The authoritative summary.totalForecastGapIls/Usd field is used; when unavailable, fallback subtracts totalProjectedPnL from totalNetPnL in the same currency only when both exist. Positive means above forecast; negative below. Missing data stays unavailable. This is the personal compound growth target accrued to today, not an analyst price forecast. API defaults for rates/quotes are unchanged.
 
-הקו שמתחת לסכום מציג את הפער לאורך 30 הימים האחרונים במטבע שבחרתם. קוראים אותו משמאל לימין. טבעת בקצה הימני מסמנת את הנתון של היום כשהוא זמין. בגדלים הגדול והגדול במיוחד מופיע גם סמל מטרה בעל עומק ליד סכום הפער. קו האפס מייצג עמידה ביעד ומוצג כשהוא נמצא בטווח הגרף. ימים שחסרים בהם נתונים משאירים הפסקה בקו. כאשר יש פחות משתי נקודות תקפות מופיעה הודעה קצרה.
+Small/medium always show portfolio value plus both requested metrics. Large/extraLarge retain the mode=pnl hero option. Large metric rail replaces winner/loser counts with P/L and forecast gap; ticker badges removed for space.
 
-<p>
-  <img src="preview-dark.png" width="280" alt="וידג׳ט גדול כהה המציג ₪1,250 מעל היעד ביום ירידות">
-  <img src="preview-light.png" width="280" alt="וידג׳ט גדול בהיר המציג ₪340 מתחת ליעד ביום עליות">
-</p>
+Validation: 222 display assertions and 36 mock renders, plus 10 personal-account security scenarios covering Keychain setup/replacement, host isolation, redirect refusal, authorization denial, credential expiry, and offline cache isolation. Source-driven browser previews use sample data and approximate native rendering; concentration ring drawing is approximate. No native Liquid Glass compatibility claim.
 
-כדי לפתוח את ההדמיה במחשב, הריצו `node widget-v7-preview.cjs` מתוך התיקייה הזאת ופתחו את `preview.html` שנוצר. ארבעת הגדלים מוצגים יחד, וניתן לבחור תרחיש, מטבע ומצב בהיר או כהה. ההדמיות הופקו מקוד הווידג׳ט עם נתוני דוגמה. הריווח והגופנים ב־Scriptable עשויים להשתנות לפי המכשיר.
-
-| גודל | פרטים נוספים בתצוגת היעד |
-| --- | --- |
-| קטן | גרף חודשי קטן, שווי התיק והשינוי היומי באחוזים |
-| בינוני | הפער מהיעד מימין והגרף משמאל. מתחתיהם שווי, שינוי יומי ורווח או הפסד נטו |
-| גדול | גרף חודשי לרוחב התצוגה ועד שלוש מניות לפי השפעתן על היום. אורך כל פס יחסי לתרומה הגדולה ביותר בערך מוחלט. לחיצה על מניה פותחת את העמוד שלה |
-| גדול במיוחד | עד שש מניות לפי תרומה יומית, לצד שלוש ההחזקות הגדולות לפי משקלן בתיק |
-
-## Display and verification
-
-The target gap comes from `summary.totalForecastGapIls` or `summary.totalForecastGapUsd`. When unavailable, the widget subtracts the accrued target from net P/L if both amounts exist in the selected currency. A gap that rounds to zero displays “בדיוק ביעד”. If the history is incomplete, the target area explains the missing data. The portfolio value and daily figures can still be available.
-
-Daily movement reflects the quoted price change of the current holdings. In ILS it uses the current FX rate. The time in the margin shows when the widget retrieved the summary. An offline copy is labeled with its age.
-
-Explicit `mode=value` and `mode=pnl` keep the earlier layouts. In those layouts, the small and medium sizes lead with portfolio value. On large and extra-large widgets, `mode=pnl` leads with net P/L.
-
-From this directory, run the display and account-access checks and regenerate the local HTML preview:
+Run from this directory:
 
 ```sh
 node widget-v7-test.cjs
@@ -49,6 +29,7 @@ node widget-auth-test.cjs
 node widget-v7-preview.cjs
 ```
 
-The browser preview draws the paths produced by the Scriptable widget against synthetic monthly history. It covers four sizes, two themes and two currencies, including a zero crossing, a flat month, missing days, a single sample, an unavailable history, large amounts and daily movement in the opposite direction to the target gap. The final check for native text spacing, taps and iCloud installation takes place on an iPhone running Scriptable.
+The v7 filenames are retained for the display regression harness and preview generator; both read the current v8 source.
 
-Broker-balance reconciliation keeps current USD holdings/value and open profit available, while incomplete lifetime profit and target gaps remain unavailable. The API includes `dataQuality.completeTransactionHistory` and `reconciledSymbols`. Missing ILS open P/L is never reconstructed by converting USD P/L at today's FX because the historic currency basis can be unknown.
+
+Broker-balance reconciliation keeps current USD holdings/value and open profit available, while incomplete lifetime profit and target gaps remain unavailable. The API includes `dataQuality.completeTransactionHistory` and `reconciledSymbols`; historical trades are retained. Missing ILS open P/L is never reconstructed by converting USD P/L at today's FX, because an unknown acquisition date leaves the historic currency basis unknown. Scriptable normalization verifies that missing values stay missing.

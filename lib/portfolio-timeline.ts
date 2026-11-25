@@ -17,7 +17,6 @@ export function buildPositionTimeline(
   spyPoints: HistoricalPoint[],
   getFxRateAt: (timestamp: number) => number,
   asOf = Date.now(),
-  window?: { start: number; requireDailyClose: boolean },
 ): PortfolioTimelinePoint[] {
   const prices = points.filter(p => Number.isFinite(p.timestamp) && Number.isFinite(p.close) && p.close > 0).sort((a, b) => a.timestamp - b.timestamp);
   const spy = spyPoints.filter(p => Number.isFinite(p.timestamp) && p.close > 0).sort((a, b) => a.timestamp - b.timestamp);
@@ -27,7 +26,7 @@ export function buildPositionTimeline(
     .filter(({ timestamp }) => Number.isFinite(timestamp))
     .sort((a, b) => a.timestamp - b.timestamp);
   if (!lots.length) return [];
-  const first = dayStart(Math.max(lots[0].timestamp, window?.start ?? lots[0].timestamp));
+  const first = dayStart(lots[0].timestamp);
   const priceAt = (history: HistoricalPoint[], timestamp: number) => {
     let low = 0; let high = history.length - 1; let value: number | undefined;
     const day = dayStart(timestamp);
@@ -38,7 +37,6 @@ export function buildPositionTimeline(
     }
     return value;
   };
-  const observed = window?.requireDailyClose ? new Map(prices.map(point => [dayStart(point.timestamp), point.close])) : null;
   const activeLots: PositionLot[] = [];
   let nextLot = 0;
 
@@ -100,7 +98,7 @@ export function buildPositionTimeline(
     }
     const fx = getFxRateAt(timestamp);
     const realized = calculateRealizedPortfolioTotals(lotState.sales, annualGrowthRate, fx, getFxRateAt);
-    const close = observed ? observed.get(day) : priceAt(prices, timestamp);
+    const close = priceAt(prices, timestamp);
     let actualUsd = realized.profitUsd;
     let actualIls = realized.profitIls;
     let targetUsd = realized.expectedProfitUsd;
