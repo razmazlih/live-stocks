@@ -36,6 +36,27 @@ describe('ChatGPT actual transaction proposal server', () => {
     await expect(prepareChatTransaction(principal, { ...input, commissionUsd: null })).rejects.toThrow('לאשר שלא הייתה עמלה');
     expect(rpc.mock.calls.some(call => call[0] === 'create_chat_transaction_proposal')).toBe(false);
   });
+  it('prepares all executions in one card, using earlier trades in the batch to review later trades', async () => {
+    const sell = { ...input, side: 'SELL', quantity: 1, executedOn: '2026-01-03' };
+    const secondSource = { ...source, id: '10000000-0000-4000-8000-000000000002', name: 'חשבון נוסף' };
+    const secondBuy = { ...input, location: secondSource.id, symbol: 'MSFT' };
+    rpc.mockResolvedValueOnce({ data: { positions: [], lots: [], sources: [source, secondSource], fingerprint: 'a'.repeat(32) }, error: null });
+    const { value } = await prepareChatTransaction(principal, { transactions: [sell, input, secondBuy] });
+    expect(value).toMatchObject({
+      input: { transactions: [input, secondBuy, sell] },
+      plan: { transactions: [
+        { transaction: input, sourceName: source.name, changes: [{ previousQuantity: 0, quantity: 2 }] },
+        { transaction: secondBuy, sourceName: secondSource.name, changes: [{ previousQuantity: 0, quantity: 2 }] },
+        { transaction: sell, changes: [{ previousQuantity: 2, quantity: 1 }] },
+      ] },
+    });
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot', 'create_chat_transaction_proposal']);
+    expect(rpc).toHaveBeenLastCalledWith('create_chat_transaction_proposal', expect.objectContaining({ p_input: value.input, p_review: { input: value.input, plan: value.plan } }));
+  });
+  it('does not create a partial card if a later trade fails', async () => {
+    await expect(prepareChatTransaction(principal, { transactions: [input, { ...input, symbol: 'MSFT', side: 'SELL' }] })).rejects.toThrow('MSFT');
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['screenshot_sync_snapshot']);
+  });
   it('uses only proposal identity and hidden capability to confirm, and reads the actually saved portfolio', async () => {
     expect(await confirmChatTransaction(principal, { proposalId: id, confirmationSecret: secret })).toMatchObject({ proposalId: id, kind: 'transaction', status: 'applied', portfolio: { status: 'available', holdings: [] } });
     expect(rpc.mock.calls.map(call => call[0])).toEqual(['confirm_chat_transaction_proposal', 'screenshot_sync_snapshot']);

@@ -22,7 +22,7 @@ LiveStocks מרכז החזקות ועסקאות, מציג רווח והפסד ב
 - כשמחיר או שווי משתנים, המספר נע מהערך הקודם לחדש. הממשק מכבד את העדפת המכשיר להפחתת תנועה.
 - ניהול קניות, מכירות ועמלות לפי מקורות השקעה, עם היסטוריית מנות רכישה ומימושים.
 - מעקב אחר מניות, שערי USD/ILS, ביצועים מול יעד והצעות לסגירת קבוצות.
-- מחקר ב־ChatGPT לפי נתוני התיק ורישום עסקאות שכבר בוצעו לאחר אישור בכרטיס.
+- מחקר ב־ChatGPT לפי נתוני התיק ורישום של עד 25 עסקאות שכבר בוצעו באישור אחד בכרטיס.
 - חשבונות אישיים עם כניסת Google או מייל וסיסמה בהתאם לתצורת הסביבה.
 
 ## הרצה מקומית
@@ -72,7 +72,7 @@ LIVESTOCKS_DEMO_DATA_DIR="$(mktemp -d)" npm run dev
 | אימות, סביבת פיתוח ודוא״ל | [Better Auth](docs/BETTER_AUTH_SETUP.md) · [דוא״ל](docs/TRANSACTIONAL_EMAIL.md) |
 | קישור חשבונות והתאוששות | [קישור חשבונות](docs/ACCOUNT_LINKING.md) |
 | מקורות השקעה | [תפעול ובדיקות](docs/INVESTMENT_SOURCES.md) |
-| ChatGPT | [חיבור OAuth](plugins/livestocks-oauth/README.md) · [עסקאות והרשאות](docs/CHAT_TRANSACTION_AUTH.md) |
+| ChatGPT | [חיבור OAuth](plugins/livestocks-oauth/README.md) · [רישום עסקאות](docs/CHAT_TRANSACTIONS.md) · [הרשאות](docs/CHAT_TRANSACTION_AUTH.md) |
 | Scriptable | [התקנה ובדיקות](output/widget/README.md) |
 
 דוחות וצילומים שהוחלפו זמינים ב־[גרסת הבסיס לפני הניקוי](https://github.com/razmazlih/live-stocks/tree/870801f821060e8eccf0d99124c1606f3f565e64/docs).

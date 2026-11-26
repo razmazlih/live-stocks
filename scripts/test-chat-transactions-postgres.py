@@ -45,16 +45,25 @@ def reject(query, **kwargs):
 def snap():
     return json.loads(invoke('select public.screenshot_sync_snapshot()'))
 
-def prepare(source, side='BUY', quantity=2, price=100, date='2026-01-01', commission=0, before_quantity=0, before_average=None, after_quantity=None, after_average=None, proposal=None, fingerprint=None):
-    proposal = proposal or str(uuid.uuid4())
-    inp = {'location': source, 'side': side, 'symbol': 'AAPL', 'quantity': quantity, 'priceUsd': price, 'executedOn': date, 'commissionUsd': commission}
+def transaction_plan(source, side='BUY', quantity=2, price=100, date='2026-01-01', commission=0, before_quantity=0, before_average=None, after_quantity=None, after_average=None, symbol='AAPL', source_name='מקור ראשי'):
+    inp = {'location': source, 'side': side, 'symbol': symbol, 'quantity': quantity, 'priceUsd': price, 'executedOn': date, 'commissionUsd': commission}
     aq = after_quantity if after_quantity is not None else before_quantity + (quantity if side == 'BUY' else -quantity)
     aa = after_average if after_average is not None else (price + (commission or 0) / quantity if before_quantity == 0 else before_average)
-    plan = {'location': source, 'sourceName': 'מקור ראשי', 'transaction': inp, 'canApply': True,
-            'changes': [{'symbol': 'AAPL', 'previousQuantity': before_quantity, 'quantity': aq, 'previousAverageCostUsd': before_average, 'averageCostUsd': aa if aq > 0 else 0}]}
+    return {'location': source, 'sourceName': source_name, 'transaction': inp, 'canApply': True,
+            'changes': [{'symbol': symbol, 'previousQuantity': before_quantity, 'quantity': aq, 'previousAverageCostUsd': before_average, 'averageCostUsd': aa if aq > 0 else 0}]}
+
+def proposal_query(inp, plan, proposal=None, fingerprint=None):
+    proposal = proposal or str(uuid.uuid4())
     secret = 'a' * 43
     query = "select public.create_chat_transaction_proposal('%s','%s','%s'::jsonb,'%s'::jsonb,'%s')" % (proposal, fingerprint or snap()['fingerprint'], json.dumps(inp), json.dumps({'input': inp, 'plan': plan}), hashlib.sha256(secret.encode()).hexdigest())
     return proposal, secret, query
+
+def prepare(source, *, proposal=None, fingerprint=None, **kwargs):
+    plan = transaction_plan(source, **kwargs)
+    return proposal_query(plan['transaction'], plan, proposal, fingerprint)
+
+def prepare_batch(plans):
+    return proposal_query({'transactions': [plan['transaction'] for plan in plans]}, {'canApply': True, 'transactions': plans})
 
 def confirm(proposal, secret):
     return "select public.confirm_chat_transaction_proposal('%s','%s')" % (proposal, secret)
@@ -66,8 +75,9 @@ try:
     transaction_migration = root / 'supabase/migrations/20261116182648_chat_executed_transactions.sql'
     commission_migration = root / 'supabase/migrations/20261116211749_require_chat_transaction_commission.sql'
     correction_migration = root / 'supabase/migrations/20261117001000_web_reconciliation_corrections.sql'
+    batch_migration = root / 'supabase/migrations/20261126205324_chat_transaction_batches.sql'
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
-        if migration not in (transaction_migration, commission_migration, correction_migration):
+        if migration not in (transaction_migration, commission_migration, correction_migration, batch_migration):
             sql(migration.read_text())
     # Reproduce managed postgres: owns project objects but is NOINHERIT and
     # NOSUPERUSER, with only CREATEROLE plus explicitly granted schema rights.
@@ -212,6 +222,86 @@ try:
     web_reject(f"update public.position_lots set side='SELL',price=95,executed_at='2026-01-01',commission_known=true,basis_acquired_on=null,basis_date_estimate=null where id='{fl}'")
     assert sql(f"select jsonb_agg(to_jsonb(l) order by id) from public.position_lots l where position_id='{fp}'") == fifo_before
     print('PASS owner website correction/removal, known-fee BUY quality restoration, empty-position zero, crossowner/MCP denial, immutable fields and FIFO rollback')
+
+    old_pending, old_secret, old_query = prepare(source, symbol='OLDPENDING')
+    invoke(old_query)
+    sql("set session authorization fixture_transaction_migrator;" + batch_migration.read_text())
+    assert json.loads(invoke(confirm(old_pending, old_secret)))['transaction']['symbol'] == 'OLDPENDING'
+    assert json.loads(invoke(confirm(pid, secret))) == result
+    for role in ['anon', 'authenticated', 'service_role', 'livestocks_auth_backend']:
+        for signature in ['private.chat_transaction_batch_lot(text,jsonb,jsonb,jsonb,boolean)',
+                          'private.chat_transaction_increment_lot_id(uuid)']:
+            assert sql(f"select has_function_privilege('{role}','{signature}','EXECUTE')") == 'f'
+    print('PASS managed migration privileges, existing pending confirmation and existing receipt replay')
+
+    other_source = str(uuid.uuid4())
+    sql(f"insert into public.investment_sources(id,user_id,name) values('{other_source}','fixture-a','Second account')")
+    plans = [
+        transaction_plan(source, symbol='BATCHA', commission=2),
+        transaction_plan(other_source, symbol='BATCHB', source_name='Second account'),
+        transaction_plan(source, symbol='BATCHA', side='SELL', quantity=1, before_quantity=2, before_average=101),
+        transaction_plan(other_source, symbol='BATCHA', source_name='Second account', quantity=3),
+    ]
+    before_batch = snap()
+    for invalid_plans in [[], plans * 9, [plans[0], transaction_plan(source, symbol='BATCHC', commission=None)],
+                          [plans[0], transaction_plan(source, symbol='BATCHA', side='SELL', quantity=3,
+                                                      before_quantity=2, before_average=101, after_quantity=0)]]:
+        _, _, invalid_query = prepare_batch(invalid_plans)
+        reject(invalid_query)
+    batch, batch_secret, batch_query = prepare_batch(plans)
+    reject(batch_query, scopes='portfolio:read')
+    batch_review = json.loads(invoke(batch_query))
+    assert batch_review['status'] == 'pending' and batch_review['review']['plan']['transactions'] == plans
+    assert snap() == before_batch
+    assert json.loads(invoke(f"select public.read_chat_transaction_proposal('{batch}')")) == batch_review
+    reject(confirm(batch, batch_secret), session='other-session')
+    reject(confirm(batch, batch_secret), owner='fixture-b')
+    batch_receipt = json.loads(invoke(confirm(batch, batch_secret)))
+    trades = batch_receipt['transactions']
+    assert batch_receipt['applied'] and [trade['transaction'] for trade in trades] == [plan['transaction'] for plan in plans]
+    assert trades[0]['positionId'] == trades[2]['positionId'] != trades[1]['positionId']
+    assert trades[3]['positionId'] != trades[0]['positionId']
+    assert trades[0]['lotId'] < trades[2]['lotId'] and all(trade['commissionKnown'] for trade in trades)
+    assert json.loads(invoke(confirm(batch, batch_secret))) == batch_receipt
+    assert json.loads(invoke(f"select public.read_chat_transaction_proposal('{batch}')"))['receipt'] == batch_receipt
+    after_batch = snap()
+    assert len(after_batch['lots']) == len(before_batch['lots']) + len(plans)
+    assert json.loads(sql(f"select private.chat_transaction_summary('{trades[0]['positionId']}')"))['quantity'] == 1
+    print('PASS mixed-account and same-day multi-stock review, known fees, scoped authorization, oversell and idempotent batch recording')
+
+    stale_batch, stale_secret, stale_query = prepare_batch([
+        transaction_plan(source, symbol='STALEA'), transaction_plan(source, symbol='STALEB')])
+    invoke(stale_query)
+    web(f"update public.positions set display='Edited after review' where id='{trades[0]['positionId']}'")
+    after_edit = snap()
+    assert after_edit['fingerprint'] != after_batch['fingerprint']
+    reject(confirm(stale_batch, stale_secret))
+    assert snap() == after_edit
+
+    # Force a write error on the second transaction after the first has been inserted.
+    sql("""create function public.fixture_batch_reject() returns trigger language plpgsql as $$
+           begin
+             if new.symbol='ROLLBACKB' and exists(select 1 from public.positions where symbol='ROLLBACKA') then
+               raise exception 'Second position rejected after the first was inserted';
+             end if;
+             return new;
+           end;$$;
+           create trigger fixture_batch_reject before insert on public.positions
+           for each row execute function public.fixture_batch_reject()""")
+    rollback, rollback_secret, rollback_query = prepare_batch([
+        transaction_plan(source, symbol='ROLLBACKA'), transaction_plan(source, symbol='ROLLBACKB')])
+    invoke(rollback_query)
+    try:
+        invoke(confirm(rollback, rollback_secret))
+    except RuntimeError as error:
+        assert 'Second position rejected after the first was inserted' in str(error)
+    else:
+        raise AssertionError('Expected an error on the second write')
+    assert snap() == after_edit
+    assert json.loads(invoke(f"select public.read_chat_transaction_proposal('{rollback}')"))['status'] == 'pending'
+    sql('drop trigger fixture_batch_reject on public.positions;drop function public.fixture_batch_reject()')
+    assert len(json.loads(invoke(confirm(rollback, rollback_secret)))['transactions']) == 2
+    print('PASS stale batch rejection, full rollback on second write, and safe retry of the original review')
 
 finally:
     if started:

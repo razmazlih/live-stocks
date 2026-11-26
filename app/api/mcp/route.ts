@@ -1,6 +1,6 @@
 import { requireMcpPrincipal, authenticationResponse, AuthenticationError, authenticationConfiguration, PRIVATE_HEADERS, type Principal } from '@/lib/auth/server';
 import { reviewChatScreenshotSync, cancelChatScreenshotSync, SyncScopeRequiredError, ChatSyncUnavailableError } from '@/lib/chat-screenshot-sync';
-import { ChatTransactionPlanError } from '@/lib/chat-transactions';
+import { ChatTransactionPlanError, MAX_CHAT_TRANSACTIONS } from '@/lib/chat-transactions';
 import { prepareChatTransaction, reviewChatTransaction, confirmChatTransaction, cancelChatTransaction, TransactionScopeRequiredError, ChatTransactionUnavailableError } from '@/lib/chat-transaction-server';
 import { CHAT_SYNC_RESOURCE_URI, CHAT_SYNC_RESOURCE_MIME, CHAT_SYNC_APP_HTML } from '@/lib/chat-sync-app';
 import { findPurchaseDateCandidates, purchaseDateCandidatesInputSchema } from '@/lib/purchase-date-candidates';
@@ -31,11 +31,40 @@ const cacheableMethods = new Set(['tools/list', 'prompts/list', 'resources/list'
 const securitySchemes = [{ type: 'oauth2', scopes: ['portfolio:read'] }];
 const transactionSecuritySchemes = [{ type: 'oauth2', scopes: ['portfolio:read', 'portfolio:transactions'] }];
 const syncResourceMeta = { ui: { resourceUri: CHAT_SYNC_RESOURCE_URI }, 'openai/outputTemplate': CHAT_SYNC_RESOURCE_URI };
+const reviewResourceUris = new Set([CHAT_SYNC_RESOURCE_URI, 'ui://livestocks/screenshot-sync-v5.html', 'ui://livestocks/screenshot-sync-v4.html']);
 const confirmationInput = { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' }, confirmationSecret: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } }, required: ['proposalId', 'confirmationSecret'], additionalProperties: false };
+const recordedTransactionInput = {
+  type: 'object',
+  properties: {
+    location: { type: 'string', format: 'uuid' },
+    side: { type: 'string', enum: ['BUY', 'SELL'] },
+    symbol: { type: 'string', minLength: 1, maxLength: 32 },
+    quantity: { type: 'number', exclusiveMinimum: 0 },
+    priceUsd: { type: 'number', exclusiveMinimum: 0 },
+    executedOn: { type: 'string', format: 'date', description: 'Actual execution date. Resolve today or yesterday from the user date context.' },
+    commissionUsd: { type: 'number', minimum: 0 },
+  },
+  required: ['location', 'side', 'symbol', 'quantity', 'priceUsd', 'executedOn', 'commissionUsd'],
+  additionalProperties: false,
+};
 const tools = [
-  { name: 'prepare_chat_transaction', description: 'Record a BUY or SELL the user explicitly reports as already executed; no screenshot required. NEVER use for an investment idea, recommendation or broker order. Ask once only for missing ticker, quantity, execution price in USD, execution date and account; do not invent these. Read get_portfolio_snapshot.sources, auto-select its only active source; clarify an ambiguous account by name. Existing-stock purchases and partial or full sales are allowed when recording actual executions; research recommendation restrictions remain unchanged. A known commissionUsd is required before preparation: ask for the actual USD fee or explicit confirmation of no fee (0). Never infer zero or use null. This records ordinary BUY/SELL lots with the same FIFO, net profit and personal-target calculations and website edit/delete controls as manual entries. Never use screenshot balance reconciliation. Prepare a 15-minute immutable review only. Requires separate optional portfolio:transactions consent; existing read or screenshot-sync permission is insufficient. Only the user clicking the embedded card can confirm. Never call confirm or claim saved before its receipt; keep chat reply brief, friendly and in the user language.', inputSchema: { type: 'object', properties: { location: { type: 'string', format: 'uuid' }, side: { type: 'string', enum: ['BUY','SELL'] }, symbol: { type: 'string', minLength: 1, maxLength: 32 }, quantity: { type: 'number', exclusiveMinimum: 0 }, priceUsd: { type: 'number', exclusiveMinimum: 0 }, executedOn: { type: 'string', format: 'date', description: 'Actual execution calendar date supplied by the user. Resolve today/yesterday from the user date context; never invent a missing date.' }, commissionUsd: { type: ['number','null'], minimum: 0 } }, required: ['location','side','symbol','quantity','priceUsd','executedOn','commissionUsd'], additionalProperties: false }, securitySchemes: transactionSecuritySchemes, _meta: syncResourceMeta, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
+  {
+    name: 'prepare_chat_transaction',
+    description: 'Prepare one 15-minute review for all BUY/SELL executions the user reports as already completed. Use transactions for multiple executions, in the reported order for trades on the same day. Send all executions together, since a new preparation replaces the previous pending card. To correct a pending review, resubmit the full corrected list. Ask once for missing account, ticker, quantity, execution USD price, actual execution date, or known USD fee (0 only if the user confirms no fee). Read get_portfolio_snapshot.sources and auto-select its only active source; clarify ambiguous accounts by name. Existing-stock purchases and partial or full sales are allowed. An execution screenshot can supply these facts. A holdings screenshot, investment idea or broker order cannot. Only the user clicking the embedded card can confirm and save all listed trades together. Never call confirm yourself or claim anything was saved before the receipt.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transactions: { type: 'array', minItems: 1, maxItems: MAX_CHAT_TRANSACTIONS, items: recordedTransactionInput },
+      },
+      required: ['transactions'],
+      additionalProperties: false,
+    },
+    securitySchemes: transactionSecuritySchemes,
+    _meta: syncResourceMeta,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
   { name: 'review_chat_transaction', description: 'Read a stored already-executed BUY/SELL review and its status; no portfolio mutation. Corrections require a new prepare_chat_transaction review.', inputSchema: { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' } }, required: ['proposalId'], additionalProperties: false }, annotations: { ...annotations, openWorldHint: false } },
-  { name: 'confirm_chat_transaction', description: 'APP ONLY. After the user clicks the embedded confirmation button, record exactly the stored already-executed BUY/SELL transaction once and return the saved portfolio. No broker orders, editable trade fields or model confirmation.', inputSchema: confirmationInput, securitySchemes: transactionSecuritySchemes, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+  { name: 'confirm_chat_transaction', description: 'APP ONLY. After the user clicks the embedded confirmation button, record all stored already-executed BUY/SELL trades together, once and return the saved portfolio. No broker orders, editable trade fields or model confirmation.', inputSchema: confirmationInput, securitySchemes: transactionSecuritySchemes, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
   { name: 'cancel_chat_transaction', description: 'APP ONLY. Cancel only the stored pending transaction review shown in the embedded card. No trade or holding changes.', inputSchema: confirmationInput, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
   { name: 'review_screenshot_sync', description: 'Read the exact immutable before/after screenshot proposal already presented in the ChatGPT review card, including status and expiry. Does not confirm or mutate holdings. Corrections require prepare_screenshot_sync with previousProposalId, which invalidates the previous pending review.', inputSchema: { type: 'object', properties: { proposalId: { type: 'string', format: 'uuid' } }, required: ['proposalId'], additionalProperties: false }, annotations: { ...annotations, openWorldHint: false } },
   { name: 'cancel_screenshot_sync', description: 'Cancel only the pending proposal shown in this embedded ChatGPT review card. Does not modify holdings. Requires the app-private confirmation capability; cancelled proposals cannot later apply.', inputSchema: confirmationInput, _meta: { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -187,14 +216,14 @@ export async function POST(request: Request) {
   if (rpc.method === 'resources/read') {
     const resourceUri = rpc.params?.uri;
     // Existing ChatGPT connections may still cache the previous tool template.
-    if (resourceUri !== CHAT_SYNC_RESOURCE_URI && resourceUri !== 'ui://livestocks/screenshot-sync-v4.html') return error(rpc.id, -32602, 'Unknown resource.');
+    if (typeof resourceUri !== 'string' || !reviewResourceUris.has(resourceUri)) return error(rpc.id, -32602, 'Unknown resource.');
     return result({ contents: [{ uri: resourceUri, mimeType: CHAT_SYNC_RESOURCE_MIME, text: CHAT_SYNC_APP_HTML,
-      _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true }, 'openai/widgetCSP': { connect_domains: [], resource_domains: [] }, 'openai/widgetDescription': 'Review and confirm an already-executed LiveStocks purchase or sale without leaving ChatGPT.' } }] });
+      _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true }, 'openai/widgetCSP': { connect_domains: [], resource_domains: [] }, 'openai/widgetDescription': 'Review and confirm already-executed LiveStocks trades without leaving ChatGPT.' } }] });
   }
   if (rpc.method === 'tools/list') return result({ tools });
   if (rpc.method !== 'tools/call') return error(rpc.id, -32601, 'Method not found.');
   const name = rpc.params?.name;
-  if (name === 'prepare_screenshot_sync' || name === 'confirm_screenshot_sync') return result({ isError: true, content: [{ type: 'text', text: 'Balance reconciliation is retired. Record actual executions with prepare_chat_transaction, using the actual BUY/SELL, ticker, account, quantity, execution price/date and known fee (explicit 0 for no fee). A holdings screenshot or average cost alone is insufficient; ask for missing execution details. No portfolio changes were made.' }] });
+  if (name === 'prepare_screenshot_sync' || name === 'confirm_screenshot_sync') return result({ isError: true, content: [{ type: 'text', text: 'Balance reconciliation is retired. Record actual executions with prepare_chat_transaction, passing multiple executions together in transactions. Each requires actual BUY/SELL, ticker, account, quantity, execution price/date and known fee (explicit 0 for no fee). A holdings screenshot or average cost alone is insufficient; ask for missing execution details. No portfolio changes were made.' }] });
   if (typeof name !== 'string' || !tools.some(tool => tool.name === name)) return error(rpc.id, -32602, 'Unknown tool.');
   try {
     const value = await callTool(name, rpc.params?.arguments ?? {}, request, principal);

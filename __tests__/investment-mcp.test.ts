@@ -84,7 +84,7 @@ describe('investment action constraints', () => {
 
 describe('read-only MCP transport and tools', () => {
   it.each(['http_header', 'request_metadata'])('satisfies the 2026 per-request resource contract with private immediately-stale cache hints (%s)', async transport => {
-    const resourceUri = 'ui://livestocks/screenshot-sync-v5.html';
+    const resourceUri = 'ui://livestocks/transaction-review-v6.html';
     const raw = await POST(request('resources/read', { uri: resourceUri, ...(transport === 'request_metadata' ? { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } : {}) }, transport === 'http_header' ? { 'mcp-protocol-version': '2026-07-28' } : undefined));
     const envelope = await raw.json();
     const hostReadContract = z.object({ resultType: z.literal('complete'), ttlMs: z.number().int().nonnegative(), cacheScope: z.enum(['private', 'public']), contents: z.array(z.object({ uri: z.string(), mimeType: z.string(), text: z.string() })) });
@@ -100,7 +100,7 @@ describe('read-only MCP transport and tools', () => {
     expect(read.contents[0]).toMatchObject({ uri: oldUri, mimeType: 'text/html;profile=mcp-app' });
     expect(read.contents[0].text).toContain('התיק שלך מעודכן');
     const list = (await (await POST(request('resources/list'))).json()).result;
-    expect(list.resources[0].uri).toBe('ui://livestocks/screenshot-sync-v5.html');
+    expect(list.resources[0].uri).toBe('ui://livestocks/transaction-review-v6.html');
   });
   it.each(['tools/list', 'resources/list', 'resources/templates/list', 'server/discover'])('emits the required 2026 caching envelope for %s', async method => {
     const modern = (await (await POST(request(method, { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }))).json()).result;
@@ -141,12 +141,16 @@ describe('read-only MCP transport and tools', () => {
     expect(denied.status).toBe(403);
     expect(denied.headers.get('www-authenticate')).toContain('scope="portfolio:read portfolio:transactions"');
     const listing = (await (await POST(request('tools/list'))).json()).result.tools;
+    const prepare = listing.find((tool: { name: string }) => tool.name === 'prepare_chat_transaction');
+    expect(prepare.inputSchema.properties.transactions).toMatchObject({ type: 'array', minItems: 1, maxItems: 25, items: { required: ['location', 'side', 'symbol', 'quantity', 'priceUsd', 'executedOn', 'commissionUsd'] } });
     const confirm = listing.find((tool: { name: string }) => tool.name === 'confirm_chat_transaction');
     expect(confirm.securitySchemes[0].scopes).toEqual(['portfolio:read', 'portfolio:transactions']);
     expect(confirm._meta.ui.visibility).toEqual(['app']);
     expect(Object.keys(confirm.inputSchema.properties).sort()).toEqual(['confirmationSecret', 'proposalId']);
     mocks.txPrepare.mockResolvedValueOnce({ value: { proposalId: 'tx-one', kind: 'transaction', status: 'pending' }, meta: { confirmationSecret: 'tx-private-secret' } });
-    const prepared = await call('prepare_chat_transaction', {});
+    const batch = { transactions: [{ symbol: 'AAPL' }, { symbol: 'MSFT' }] };
+    const prepared = await call('prepare_chat_transaction', batch);
+    expect(mocks.txPrepare).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'mcp' }), batch);
     expect(prepared._meta.confirmationSecret).toBe('tx-private-secret');
     expect(JSON.stringify(prepared.structuredContent)).not.toContain('tx-private-secret');
     const args = { proposalId: 'tx-one', confirmationSecret: 'tx-private-secret' };

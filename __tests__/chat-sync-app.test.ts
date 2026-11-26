@@ -39,7 +39,7 @@ afterEach(() => { frame?.contentWindow?.close(); frame?.remove(); vi.clearAllTim
 
 describe('inline ChatGPT synchronization approval', () => {
   it('declares a standard self-contained MCP App without external scripts or fetch', () => {
-    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/screenshot-sync-v5.html');
+    expect(CHAT_SYNC_RESOURCE_URI).toBe('ui://livestocks/transaction-review-v6.html');
     expect(CHAT_SYNC_RESOURCE_MIME).toBe('text/html;profile=mcp-app');
     expect(CHAT_SYNC_APP_HTML).not.toMatch(/<script[^>]+src=|fetch\(|localStorage|sessionStorage/);
   });
@@ -164,6 +164,57 @@ describe('inline ChatGPT synchronization approval', () => {
     expect(doc.getElementById('headline')?.textContent).toBe('התיק שלך מעודכן');
     expect(doc.getElementById('portfolio')?.hidden).toBe(false);
     expect(doc.querySelector('main')?.dataset.state).toBe('applied');
+  });
+  it('reviews and saves the whole batch once, keeping the same ticker distinct across accounts', async () => {
+    boot(); await initialize();
+    const first = plan();
+    const second = { ...first, location: 'another-account', sourceName: 'חשבון נוסף' };
+    const buy = { location: first.location, side: 'BUY', symbol: 'AAPL', quantity: 2, priceUsd: 120, executedOn: '2026-11-13', commissionUsd: 1 };
+    const sell = { ...buy, location: second.location, side: 'SELL', executedOn: '2026-11-14', commissionUsd: 2 };
+    const nextBuy = { ...buy, symbol: 'MSFT', executedOn: '2026-11-15', quantity: 3, priceUsd: 300 };
+    const lastBuy = { ...buy, executedOn: '2026-11-15', quantity: 3, priceUsd: 140, commissionUsd: 3 };
+    const trades = [
+      { ...first, transaction: buy, changes: [{ ...first.changes[0], quantity: 10 }] },
+      { ...second, transaction: sell, changes: [{ ...second.changes[0], previousQuantity: 6, quantity: 4 }] },
+      { ...first, transaction: nextBuy, changes: [{ ...first.changes[0], symbol: 'MSFT', previousQuantity: 0, quantity: 3 }] },
+      { ...first, transaction: lastBuy, changes: [{ ...first.changes[0], previousQuantity: 10, quantity: 13 }], warnings: ['כדאי לבדוק את העסקה האחרונה.'] },
+    ];
+    const review = { structuredContent: { ...prepared().structuredContent, kind: 'transaction', input: { transactions: [buy, sell, nextBuy, lastBuy] }, plan: { canApply: true, transactions: trades } }, _meta: { confirmationSecret: 'batch-private' } };
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: review });
+    expect(doc.getElementById('headline')?.textContent).toBe('לשמור את העסקאות?');
+    expect(doc.getElementById('description')?.textContent).toBe('4 עסקאות · אישור אחד');
+    expect(button('confirm').textContent).toBe('שמירת כל העסקאות');
+    const tradeCards = [...doc.querySelectorAll('.trade-detail')];
+    expect(tradeCards.map(card => card.querySelector('.trade-banner bdi')?.textContent)).toEqual(['AAPL', 'AAPL', 'MSFT', 'AAPL']);
+    expect(tradeCards[1].textContent).toContain('חשבון נוסף');
+    expect(tradeCards[1].textContent).toContain('14.11.2026');
+    expect(tradeCards[1].textContent).toContain('238.00');
+    expect(tradeCards[3].textContent).toContain('כדאי לבדוק את העסקה האחרונה.');
+    const holdings = [...doc.querySelectorAll('#rows tr')];
+    expect(holdings.map(row => row.querySelector('.ticker-symbol')?.textContent)).toEqual(['AAPL', 'AAPL', 'MSFT']);
+    expect(holdings[0].querySelector('.before bdi')?.textContent).toBe('8');
+    expect(holdings[0].querySelector('.after bdi')?.textContent).toBe('13');
+    expect(holdings[1].querySelector('.holding-source')?.textContent).toBe('חשבון נוסף');
+    expect(holdings[1].querySelector('.after bdi')?.textContent).toBe('4');
+    expect(doc.body.textContent).not.toContain('batch-private');
+    expect(toolCalls()).toHaveLength(0);
+    button('confirm').click(); button('confirm').click();
+    expect(toolCalls()).toHaveLength(1);
+    expect(toolCalls()[0].params).toEqual({ name: 'confirm_chat_transaction', arguments: { proposalId: 'proposal-one', confirmationSecret: 'batch-private' } });
+    const portfolio = { status: 'available', holdings: [
+      { symbol: 'AAPL', quantity: 13, averageCostUsd: 110, location: first.location },
+      { symbol: 'AAPL', quantity: 4, averageCostUsd: 110, location: second.location },
+      { symbol: 'MSFT', quantity: 3, averageCostUsd: 300, location: first.location },
+      { symbol: 'MSFT', quantity: 4, averageCostUsd: 290, location: second.location },
+    ] };
+    const receipt = { proposalId: 'proposal-one', kind: 'transaction', status: 'applied', transactions: trades.map(item => ({ transaction: item.transaction })), portfolio };
+    message({ jsonrpc: '2.0', id: toolCalls()[0].id, result: { structuredContent: receipt } }); await flush();
+    expect(doc.getElementById('status')?.textContent).toContain('4 עסקאות נשמרו');
+    expect([...doc.querySelectorAll('.portfolio-holding')].map(row => !!row.querySelector('.updated-tag'))).toEqual([true, true, true, false]);
+    expect(button('confirm').disabled).toBe(true);
+    message({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: review });
+    expect(button('confirm').disabled).toBe(true);
+    expect(doc.getElementById('status')?.textContent).toContain('4 עסקאות נשמרו');
   });
   it('marks an omitted fee as unknown and cancels through the transaction-only tool', async () => {
     boot(); await initialize();
