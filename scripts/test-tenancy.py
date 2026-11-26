@@ -90,9 +90,17 @@ try:
  (select jsonb_agg(jsonb_build_object('subject',r.subject,'client_id',r.client_id,'verified_at',clock_timestamp()))
  from private.account_merge_revocations r where r.job_id=j.id)))
  from private.account_merge_jobs j where j.request_id='eeeeeeee-0000-4000-8000-000000000001';""")
- for migration in current_migrations: sql(path=migration)
+ for migration in current_migrations:
+  if migration.name.endswith('_secondary_better_auth_mcp_client.sql'):
+   sql(text="""update private.auth_config set issuer='https://secondary-client.test/api/auth',
+     auth_provider='better_auth',website_client_id='fixture-website',mcp_client_id='livestocks-mcp-chatgpt',
+     website_audience='https://secondary-client.test/api/web',mcp_audience='https://secondary-client.test/api/mcp'
+     where singleton;""")
+  sql(path=migration)
  sql(path=root/'supabase/tests/investment_sources.sql')
  print('PASS current source migration and real-role source isolation after legacy/concurrency regressions')
+ sql(path=root/'supabase/tests/better_auth_secondary_mcp.sql')
+ print('PASS secondary MCP approval, tenant and scope checks, transaction isolation, and revocation on disconnect/merge')
 
  sql(text='create database legacy')
  sql(text=base.replace('create role anon; create role authenticated; create role service_role bypassrls; ',''),db='legacy')
@@ -126,6 +134,11 @@ try:
  sql(path=root/'supabase/tests/position_identity.sql',db='legacy')
  print('PASS position identity regression with pre-existing migrated portfolio')
  for migration in current_migrations: sql(path=migration,db='legacy',settings=owner)
+ sql(text="""do $$begin
+  if exists(select 1 from private.auth_config where mcp_secondary_client_id is not null) then
+   raise exception 'Secondary MCP client enabled for an unrelated installation';
+  end if;
+ end$$;""",db='legacy')
  sql(path=root/'supabase/tests/investment_sources.sql',db='legacy')
  print('PASS current source migration and source isolation with adopted legacy portfolio')
 finally:

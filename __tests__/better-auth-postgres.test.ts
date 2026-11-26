@@ -30,10 +30,13 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       BETTER_AUTH_WEBSITE_CLIENT_ID: state.websiteClientId, BETTER_AUTH_MCP_CLIENT_ID: state.mcpClientId, BETTER_AUTH_MCP_CLIENT_SECRET: randomBytes(48).toString('hex'),
       GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' };
     Object.entries(env).forEach(([key, value]) => vi.stubEnv(key, value as string));
+    const additionalClientId = 'livestocks-mcp-chatgpt-blue';
+    vi.stubEnv('BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID', additionalClientId);
     // Model an existing deployment: the provider seeds resources insert-only.
     // A later code release advertising sync must not mask the old DB policy.
     const resourceAdmin = new Pool({ connectionString: state.adminDatabaseUrl });
     try {
+      await resourceAdmin.query('update private.auth_config set mcp_secondary_client_id=$1 where singleton', [additionalClientId]);
       await resourceAdmin.query(`insert into livestocks_auth."oauthResource"
         (id,identifier,name,"accessTokenTtl","signingAlgorithm","allowedScopes",disabled,"dpopBoundAccessTokensRequired","policyVersion","createdAt","updatedAt")
         values($1,$2,$2,300,'ES256',$3::jsonb,false,false,1,now(),now())`,
@@ -41,6 +44,8 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     } finally { await resourceAdmin.end(); }
     const debugAuth = getBetterAuth(); expect(debugAuth).not.toBeNull(); await debugAuth!.$context;
     const origin = state.origin, issuer = origin + '/api/auth', resource = origin + '/api/mcp', callback = 'http://localhost:3110/callback';
+    const primaryClient = { id: state.mcpClientId, callback, secret: env.BETTER_AUTH_MCP_CLIENT_SECRET };
+    const additionalClient = { id: additionalClientId, callback: 'http://localhost:3110/blue-callback', secret: randomBytes(48).toString('hex') };
     const metadataResponse = await authorizationMetadata(new Request(origin + '/.well-known/oauth-authorization-server/api/auth'));
     expect(metadataResponse.status).toBe(200);
     const metadata = await metadataResponse.json();
@@ -79,16 +84,28 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
       vi.stubEnv('BETTER_AUTH_MCP_CLIENT_SECRET', randomBytes(48).toString('hex'));
       await expect(seedMcpClient(new Headers({ cookie: a.cookie }), [callback])).rejects.toThrow();
       vi.stubEnv('BETTER_AUTH_MCP_CLIENT_SECRET', env.BETTER_AUTH_MCP_CLIENT_SECRET);
+      // Bootstrap the second registration independently using its own callback and credential.
+      const additionalConfigFile = join(privateDir, 'blue-config.json');
+      const additionalCallbacksFile = join(privateDir, 'blue-callbacks.json');
+      await writeFile(additionalConfigFile, JSON.stringify({ ...config, BETTER_AUTH_MCP_CLIENT_ID: additionalClient.id, BETTER_AUTH_MCP_CLIENT_SECRET: additionalClient.secret }), { mode: 0o600 });
+      await writeFile(additionalCallbacksFile, JSON.stringify([additionalClient.callback]), { mode: 0o600 });
+      const additional = await promisify(execFile)(process.execPath, [
+        'scripts/seed-mcp-client.mjs', '--config-file', additionalConfigFile, '--cookie-file', join(privateDir, 'cookie.txt'),
+        '--callbacks-file', additionalCallbacksFile, '--origin', origin, '--client-id', additionalClient.id, '--operator-id', a.id,
+        '--enable-portfolio-transactions', '--apply',
+      ]);
+      expect(JSON.parse(additional.stdout)).toMatchObject({ created: true, clientId: additionalClient.id });
     } finally { await rm(privateDir, { recursive: true, force: true }); }
     const web = await getWebsiteDatabaseToken(new Headers({ cookie: a.cookie }));
     const keys = createLocalJWKSet((await request('/jwks')).data);
     const verify = createAuth0TokenVerifier({ issuer, websiteAudience: origin + '/api/web', mcpAudience: resource, websiteClientId: state.websiteClientId,
-      mcpClientId: state.mcpClientId, jwks: keys, requireLiveSessionEvidence: true, companionAudience: issuer + '/oauth2/userinfo' });
+      mcpClientId: state.mcpClientId, additionalMcpClientId: additionalClient.id, jwks: keys, requireLiveSessionEvidence: true, companionAudience: issuer + '/oauth2/userinfo' });
     expect((await verify(web.token, 'web')).userId).toBe(a.id);
     await expect(verify(web.token, 'mcp')).rejects.toThrow();
-    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false, scope = 'openid email profile offline_access portfolio:read', options: { prompt?: string; browser?: boolean } = {}) {
+    async function authorize(cookie = a.cookie, target: string | null = resource, reviewOnly = false, scope = 'openid email profile offline_access portfolio:read', options: { prompt?: string; browser?: boolean; client?: typeof primaryClient } = {}) {
       const verifier = randomBytes(32).toString('base64url');
-      const params = new URLSearchParams({ client_id: state.mcpClientId, response_type: 'code', redirect_uri: callback, scope,
+      const client = options.client ?? primaryClient;
+      const params = new URLSearchParams({ client_id: client.id, response_type: 'code', redirect_uri: client.callback, scope,
         state: randomBytes(20).toString('hex'), nonce: randomBytes(20).toString('hex'), code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url') });
       if (options.prompt !== '') params.set('prompt', options.prompt ?? 'consent');
       if (target !== null) params.set('resource', target);
@@ -141,7 +158,7 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     const loginContinuation = await request('/sign-in/email', { email: a.email, password: a.password, oauth_query: new URL(loginStart.location!, origin).search.slice(1) });
     expect(loginContinuation.data.redirect).toBe(true);
     expect(new URL(loginContinuation.data.url, origin).pathname).toBe('/oauth/consent');
-    const token = (body: Record<string, unknown>) => request('/oauth2/token', { client_id: state.mcpClientId, client_secret: env.BETTER_AUTH_MCP_CLIENT_SECRET, ...body }, '', true);
+    const token = (body: Record<string, unknown>, client = primaryClient) => request('/oauth2/token', { client_id: client.id, client_secret: client.secret, ...body }, '', true);
     async function exchange(cookie = a.cookie, target: string | null = resource, scope = 'openid email profile offline_access portfolio:read') {
       const code = await authorize(cookie, resource, false, scope); expect(code.code).toBeTruthy();
       return token({ grant_type: 'authorization_code', code: code.code, code_verifier: code.verifier, redirect_uri: callback, ...(target === null ? {} : { resource: target }) });
@@ -233,6 +250,30 @@ describe.skipIf(!process.env.BETTER_AUTH_LOCAL_TEST_STATE)('actual provider with
     const transactionIdentity = await verify(transactionIssued.data.access_token, 'mcp');
     expect(transactionIdentity.scopes).toEqual(['portfolio:read', 'portfolio:transactions']);
     expect(transactionIdentity.portfolioSync).toBe(false);
+    const additionalScopes = 'openid offline_access portfolio:read portfolio:transactions';
+    const additionalStart = await authorize(a.cookie, resource, true, additionalScopes, { ...browserOptions, client: additionalClient });
+    expect(additionalStart.status).toBe(302);
+    const additionalLocation = new URL(additionalStart.location!, origin);
+    expect(additionalLocation.pathname).toBe('/oauth/consent');
+    const additionalReview = await getConsentReview(additionalLocation.search.slice(1), headers);
+    expect(additionalReview.callback).toBe(additionalClient.callback);
+    expect(additionalReview.scopes).toEqual(additionalScopes.split(' '));
+    await expect(decideConsent({ query: additionalReview.query, receipt: transactionReview.receipt, accept: true }, headers)).rejects.toThrow('INVALID_REQUEST');
+    const additionalResult = new URL(await decideConsent({ query: additionalReview.query, receipt: additionalReview.receipt, accept: true }, headers));
+    expect(additionalResult.pathname).toBe(new URL(additionalClient.callback).pathname);
+    const additionalIssued = await token({ grant_type: 'authorization_code', code: additionalResult.searchParams.get('code'),
+      code_verifier: additionalStart.verifier, redirect_uri: additionalClient.callback, resource }, additionalClient);
+    expect(additionalIssued.response.status).toBe(200);
+    const additionalIdentity = await verify(additionalIssued.data.access_token, 'mcp');
+    expect(additionalIdentity).toMatchObject({ clientId: additionalClient.id, authSessionId: transactionIdentity.authSessionId, userId: a.id, scopes: additionalScopes.split(' ') });
+    expect(additionalIdentity.grantId).not.toBe(transactionIdentity.grantId);
+    const additionalRefresh = { grant_type: 'refresh_token', refresh_token: additionalIssued.data.refresh_token, resource };
+    const crossClientRefresh = await token(additionalRefresh);
+    expect(crossClientRefresh.data.access_token).toBeUndefined();
+    const additionalRenewed = await token(additionalRefresh, additionalClient);
+    expect(additionalRenewed.response.status).toBe(200);
+    const renewedAdditionalIdentity = await verify(additionalRenewed.data.access_token, 'mcp');
+    expect(renewedAdditionalIdentity).toMatchObject({ clientId: additionalClient.id, grantId: additionalIdentity.grantId });
     expect((await verify(positive.data.access_token, 'mcp')).scopes).not.toContain('portfolio:transactions');
     const readForTransactions = await exchange();
     const refusedTransactions = await token({ grant_type: 'refresh_token', refresh_token: readForTransactions.data.refresh_token,

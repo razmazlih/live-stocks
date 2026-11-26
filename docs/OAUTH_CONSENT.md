@@ -39,6 +39,12 @@ After reviewing that exact target, append `--apply` to create the registration. 
 
 Re-running with the same configuration is idempotent. Existing differing callbacks, scopes, resources, grants, disabled state, PKCE, consent or authentication method are refused. Existing client secrets are verified through the SDK's introspection authentication; this command does not rotate secrets or overwrite registrations. The private pool is closed and temporary compiled code is removed on exit. Remove the temporary session-cookie file after use.
 
+## Parallel client for a ChatGPT connection replacement
+
+The production replacement uses `livestocks-mcp-chatgpt-blue`. Deploy with `BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID` set to that exact value and apply the matching secondary-client migration. Keep the configured primary client during host verification. The server still requires the canonical MCP resource, exact registered callback, S256 PKCE and explicit consent. Each consent and token stays bound to its actual OAuth client. The website continues using its own client and audience.
+
+Register the secondary client separately with a fresh secret and the callback observed in the ChatGPT form. The operation adds only a client registration and its link to the existing MCP resource. Enter the new secret in the owning ChatGPT form and retain it in protected operator storage. Verify both clients' profile reads and the new client's transaction-review tools before removing the old ChatGPT entry. The website's MCP disconnect action revokes both clients for that account, so it is unsuitable for retiring just one application.
+
 ## Verification and remaining scope
 
 The disposable local PostgreSQL gate exercises the actual limited-role provider, operator CLI creation and reuse, password-login continuation, consent review and approval, code exchange, denial/state preservation, receipt/account-switch checks, query tampering and real expiry, disabled-client rejection, origin validation, resource/PKCE/refresh checks and logout revocation. SMTP is mocked in memory. Run:

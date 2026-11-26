@@ -1,14 +1,14 @@
 import { jwtVerify, errors, type JWTVerifyGetKey } from 'jose';
+import { isMcpClientId, type McpClientConfiguration } from './mcp-clients';
 
 export type Auth0TokenKind = 'web' | 'mcp';
 
-export interface Auth0TokenVerifierOptions {
+export interface Auth0TokenVerifierOptions extends McpClientConfiguration {
   /** Exact trusted issuer, including its configured trailing slash. */
   issuer: string;
   websiteAudience: string;
   mcpAudience: string;
   websiteClientId: string;
-  mcpClientId: string;
   /** Trusted local/remote JWKS resolver; never derive this from token headers. */
   jwks: JWTVerifyGetKey;
   requireLiveSessionEvidence?: boolean;
@@ -57,7 +57,10 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
   const { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId, jwks } = options;
   if ([issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId]
     .some(value => typeof value !== 'string' || !value || value.trim() !== value)
-    || websiteAudience === mcpAudience || websiteClientId === mcpClientId || typeof jwks !== 'function') {
+    || websiteAudience === mcpAudience || isMcpClientId(options, websiteClientId)
+    || (options.additionalMcpClientId !== undefined && (!options.additionalMcpClientId.trim()
+      || options.additionalMcpClientId !== options.additionalMcpClientId.trim() || options.additionalMcpClientId === mcpClientId))
+    || typeof jwks !== 'function') {
     throw new Error('Auth0 verifier requires explicit, distinct trusted website and MCP configuration');
   }
 
@@ -74,7 +77,6 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         throw new Auth0TokenVerificationError();
       }
       const expectedAudience = kind === 'web' ? websiteAudience : mcpAudience;
-      const expectedClient = kind === 'web' ? websiteClientId : mcpClientId;
       const { payload } = await jwtVerify(token, resolveKey, {
         algorithms: ['RS256', 'ES256'], issuer, audience: expectedAudience, clockTolerance: 0,
         requiredClaims: ['iss', 'aud', 'sub', 'azp', 'scope', 'role', 'iat', 'exp', READ_ONLY_CLAIM, VERIFIED_EMAIL_CLAIM],
@@ -86,9 +88,9 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         audiences.some(value => typeof value !== 'string' || !value || value.trim() !== value)
         || (options.requireLiveSessionEvidence && audiences.some(value => value !== expectedAudience && value !== options.companionAudience))
         || typeof payload.sub !== 'string' || payload.sub.length === 0 || payload.sub.length > 255 || payload.sub.trim() !== payload.sub
-        || payload.azp !== expectedClient
+        || typeof payload.azp !== 'string' || (kind === 'web' ? payload.azp !== websiteClientId : !isMcpClientId(options, payload.azp))
         // If a provider adds the RFC 9068 claim, it must agree with Auth0's azp.
-        || (payload.client_id !== undefined && payload.client_id !== expectedClient)
+        || (payload.client_id !== undefined && payload.client_id !== payload.azp)
         || payload.role !== 'authenticated'
         || payload[READ_ONLY_CLAIM] !== (kind === 'mcp') || payload[VERIFIED_EMAIL_CLAIM] !== true
         || !scopes.has('portfolio:read') || (kind === 'web' && !scopes.has('portfolio:write'))
@@ -113,7 +115,7 @@ export function createAuth0TokenVerifier(options: Auth0TokenVerifierOptions) {
         || (kind === 'mcp' && (typeof grantId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(grantId))))) {
         throw new Auth0TokenVerificationError();
       }
-      return { userId: payload.sub, scopes: [...scopes], portfolioSync: kind === 'mcp' && scopes.has('portfolio:sync'), clientId: expectedClient, issuedAt: payload.iat, expiresAt: payload.exp, kind,
+      return { userId: payload.sub, scopes: [...scopes], portfolioSync: kind === 'mcp' && scopes.has('portfolio:sync'), clientId: payload.azp, issuedAt: payload.iat, expiresAt: payload.exp, kind,
         ...(hasOrigin ? { authSessionId: sessionId as string, authSessionCreatedAt: sessionCreatedAt as number } : {}),
         ...(typeof email === 'string' ? { verifiedEmail: email } : {}),
         ...(typeof grantId === 'string' ? { grantId } : {}),

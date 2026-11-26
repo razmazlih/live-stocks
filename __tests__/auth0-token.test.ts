@@ -10,6 +10,7 @@ const websiteAudience = 'https://stocks.example.com/api/web';
 const mcpAudience = 'https://stocks.example.com/api/mcp';
 const websiteClientId = 'website-client';
 const mcpClientId = 'chatgpt-client';
+const additionalMcpClientId = 'livestocks-mcp-chatgpt-blue';
 const userId = 'google-oauth2|stable-opaque-subject';
 const readOnlyClaim = 'https://livestocks.app/read_only';
 const verifiedClaim = 'https://livestocks.app/email_verified';
@@ -58,6 +59,30 @@ describe('Auth0 access-token trust boundaries', () => {
         userId, scopes: (claims(kind).scope as string).split(' '), portfolioSync: false, clientId: kind === 'web' ? websiteClientId : mcpClientId, issuedAt: payload.iat, expiresAt: payload.exp, kind,
       });
     }
+  });
+  it('uses the exact second configured MCP client for the signed identity and keeps the original client valid', async () => {
+    const keys = [{ ...await exportJWK(ec.publicKey), alg: 'ES256', kid: 'ES256', use: 'sig' }];
+    const verifyWithAdditionalClient = createAuth0TokenVerifier({
+      ...configuration, additionalMcpClientId, jwks: createLocalJWKSet({ keys }),
+    });
+    const payload = { ...claims(), azp: additionalMcpClientId, client_id: additionalMcpClientId };
+    const readToken = await sign(payload);
+    await expect(verify(readToken, 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+    await expect(verifyWithAdditionalClient(readToken, 'mcp')).resolves.toMatchObject({
+      clientId: additionalMcpClientId, scopes: ['openid', 'portfolio:read'],
+    });
+    await expect(verifyWithAdditionalClient(await sign({ ...payload, scope: 'portfolio:read portfolio:transactions' }), 'mcp')).resolves.toMatchObject({
+      clientId: additionalMcpClientId, scopes: ['portfolio:read', 'portfolio:transactions'],
+    });
+    await expect(verifyWithAdditionalClient(await sign(), 'mcp')).resolves.toMatchObject({ clientId: mcpClientId });
+    for (const rejected of [
+      { ...payload, client_id: mcpClientId },
+      { ...payload, azp: additionalMcpClientId + '-suffix', client_id: undefined },
+      { ...payload, scope: 'portfolio:read portfolio:write' },
+    ]) {
+      await expect(verifyWithAdditionalClient(await sign(rejected), 'mcp')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
+    }
+    await expect(verifyWithAdditionalClient(await sign({ ...claims('web'), azp: additionalMcpClientId }), 'web')).rejects.toBeInstanceOf(Auth0TokenVerificationError);
   });
   it('grants narrow synchronization only for an exact signed MCP scope', async () => {
     const payload = { ...claims(), scope: 'openid portfolio:read portfolio:sync' };

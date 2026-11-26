@@ -26,8 +26,8 @@ export type Principal = {
 let verifierCache: { key: string; verify: ReturnType<typeof createAuth0TokenVerifier> } | undefined;
 export function authenticationConfiguration() {
   try {
-    const { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId } = betterAuthConfiguration();
-    return { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId };
+    const { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId, additionalMcpClientId } = betterAuthConfiguration();
+    return { issuer, websiteAudience, mcpAudience, websiteClientId, mcpClientId, additionalMcpClientId };
   } catch { throw new AuthenticationError(503, 'Authentication is not configured'); }
 }
 

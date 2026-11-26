@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Pool } from 'pg';
 import { createAuthPool, getAuthDatabasePool, getBetterAuthSession } from '@/lib/auth/better-auth';
 import { betterAuthConfiguration } from '@/lib/auth/better-auth-config';
+import { isMcpClientId } from '@/lib/auth/mcp-clients';
 import { getAdminSupabase } from '@/lib/auth/admin';
 import { decryptCredential, encryptCredential } from '@/lib/auth/credentials';
 import { verifiedEmailDigest } from '@/lib/auth/identity';
@@ -74,7 +75,7 @@ export function createAccountMergeRuntime(overrides: { admin?: SupabaseClient; p
         await client.query("set local lock_timeout='3s';set local statement_timeout='15s'");
         const subjects = [...new Set(job.revocations.map(r => r.subject))];
         if (!subjects.includes(job.actor_subject) || !subjects.includes(job.other_subject)
-          || job.revocations.some(r => ![config.websiteClientId, config.mcpClientId].includes(r.client_id))) throw new AccountMergeError('CONFLICT');
+          || job.revocations.some(r => r.client_id !== config.websiteClientId && !isMcpClientId(config, r.client_id))) throw new AccountMergeError('CONFLICT');
         for (const subject of subjects) {
           await client.query('select private.revoke_oauth_approvals($1)', [subject]);
           await client.query('delete from livestocks_auth.session where "userId"=$1', [subject]);

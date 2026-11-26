@@ -1,6 +1,7 @@
 import 'server-only';
 import { logAuthFailure, type AuthFailurePhase } from './diagnostics';
 import { isPasswordAuthEnabled, isPasswordAuthPath } from './better-auth-config';
+import { isMcpClientId, type McpClientConfiguration } from './mcp-clients';
 import { betterAuthConfiguration, getBetterAuth, MCP_ALLOWED_SCOPES } from './better-auth';
 
 const OAUTH_SERVER_POSTS = new Set(['/oauth2/token', '/oauth2/introspect', '/oauth2/revoke']);
@@ -8,7 +9,7 @@ const OAUTH_SERVER_POSTS = new Set(['/oauth2/token', '/oauth2/introspect', '/oau
 const PRIVATE = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' };
 
 /** Keep the provider's OAuth protocol checks; add this application's narrower client/resource policy. */
-export function validateAuthRequest(request: Request, config: { origin: string; issuer: string; mcpClientId: string; mcpAudience: string }): Response | null {
+export function validateAuthRequest(request: Request, config: McpClientConfiguration & { origin: string; issuer: string; mcpAudience: string }): Response | null {
   const url = new URL(request.url);
   const path = url.pathname.slice('/api/auth'.length);
   if (!isPasswordAuthEnabled() && isPasswordAuthPath(path)) return Response.json({ code: 'NOT_FOUND' }, { status: 404, headers: PRIVATE });
@@ -21,7 +22,7 @@ export function validateAuthRequest(request: Request, config: { origin: string; 
     if (scopeValues.length !== 1 || !scopes.includes('portfolio:read') || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope))) {
       return Response.json({ error: 'invalid_scope' }, { status: 400, headers: PRIVATE });
     }
-    if (url.searchParams.getAll('client_id').length !== 1 || url.searchParams.get('client_id') !== config.mcpClientId) {
+    if (url.searchParams.getAll('client_id').length !== 1 || !isMcpClientId(config, url.searchParams.get('client_id'))) {
       return Response.json({ error: 'invalid_client' }, { status: 400, headers: PRIVATE });
     }
     if (resources.length !== 1 || resources[0] !== config.mcpAudience

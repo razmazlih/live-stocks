@@ -1,12 +1,14 @@
 import 'server-only';
+import type { McpClientConfiguration } from './mcp-clients';
 
-export type BetterAuthConfiguration = {
+export type BetterAuthConfiguration = McpClientConfiguration & {
   origin: string; issuer: string; websiteAudience: string; mcpAudience: string;
-  websiteClientId: string; mcpClientId: string; secret: string; databaseUrl: string;
+  websiteClientId: string; secret: string; databaseUrl: string;
 };
 
 export function betterAuthConfiguration(): BetterAuthConfiguration {
   const { APP_BASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_DATABASE_URL, BETTER_AUTH_WEBSITE_CLIENT_ID, BETTER_AUTH_MCP_CLIENT_ID } = process.env;
+  const additionalMcpClientId = process.env.BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID || undefined;
   if (!APP_BASE_URL || !BETTER_AUTH_SECRET || BETTER_AUTH_SECRET.length < 32 || !BETTER_AUTH_DATABASE_URL
     || !BETTER_AUTH_WEBSITE_CLIENT_ID || !BETTER_AUTH_MCP_CLIENT_ID || BETTER_AUTH_WEBSITE_CLIENT_ID === BETTER_AUTH_MCP_CLIENT_ID) {
     throw new Error('Authentication is not configured');
@@ -15,7 +17,9 @@ export function betterAuthConfiguration(): BetterAuthConfiguration {
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:' && process.env.NODE_ENV !== 'production'))
     || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('Invalid authentication origin');
-  for (const id of [BETTER_AUTH_WEBSITE_CLIENT_ID, BETTER_AUTH_MCP_CLIENT_ID]) {
+  const requiredClientIds = [BETTER_AUTH_WEBSITE_CLIENT_ID, BETTER_AUTH_MCP_CLIENT_ID];
+  if (additionalMcpClientId && requiredClientIds.includes(additionalMcpClientId)) throw new Error('Authentication clients must be distinct');
+  for (const id of additionalMcpClientId ? [...requiredClientIds, additionalMcpClientId] : requiredClientIds) {
     if (!/^[a-zA-Z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid authentication client identifier');
   }
   // Development may serve browser cookies locally while retaining the database's
@@ -32,7 +36,7 @@ export function betterAuthConfiguration(): BetterAuthConfiguration {
   }
   return { origin: browserOrigin, issuer: `${url.origin}/api/auth`, websiteAudience: `${url.origin}/api/web`,
     mcpAudience: `${url.origin}/api/mcp`, websiteClientId: BETTER_AUTH_WEBSITE_CLIENT_ID,
-    mcpClientId: BETTER_AUTH_MCP_CLIENT_ID, secret: BETTER_AUTH_SECRET, databaseUrl: BETTER_AUTH_DATABASE_URL };
+    mcpClientId: BETTER_AUTH_MCP_CLIENT_ID, additionalMcpClientId, secret: BETTER_AUTH_SECRET, databaseUrl: BETTER_AUTH_DATABASE_URL };
 }
 
 export function isPasswordAuthEnabled(): boolean { return process.env.PASSWORD_AUTH_ENABLED === 'true'; }

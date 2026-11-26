@@ -2,11 +2,12 @@ import 'server-only';
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { jwt } from 'better-auth/plugins';
-import { oauthProvider } from '@better-auth/oauth-provider';
+import { getOAuthProviderState, oauthProvider } from '@better-auth/oauth-provider';
 import { Pool } from 'pg';
 import { attachDatabasePool } from '@vercel/functions';
 import { randomUUID } from 'node:crypto';
 import { betterAuthConfiguration, getAuthPublicOptions, isPasswordAuthEnabled, PASSWORD_AUTH_PATHS, type BetterAuthConfiguration } from './better-auth-config';
+import { isMcpClientId } from './mcp-clients';
 import { requireAuthEmailConfiguration, sendAuthEmail } from './auth-email';
 import { methodUserValidator } from './sign-in-method-guard';
 
@@ -106,7 +107,11 @@ function providerOptions(config: BetterAuthConfiguration, pool: Pool, bootstrapU
       page: '/oauth/consent', shouldRedirect: async () => false,
       consentReferenceId: async ({ user, session }: { user: { id: string; emailVerified: boolean }; session: { id: string } }) => {
         if (!user.emailVerified || !session.id) throw deniedGrant();
-        return ensureApproval(pool, user.id, session.id, config.mcpClientId);
+        const oauth = await getOAuthProviderState();
+        const clients = new URLSearchParams(oauth?.query).getAll('client_id');
+        const [clientId] = clients;
+        if (clients.length !== 1 || !isMcpClientId(config, clientId)) throw deniedGrant();
+        return ensureApproval(pool, user.id, session.id, clientId);
       },
     },
   };
@@ -146,7 +151,7 @@ export function createBetterAuth(config: BetterAuthConfiguration, pool: Pool, bo
       jwt({ disableSettingJwtHeader: true, jwks: { keyPairConfig: { alg: 'ES256' }, gracePeriod: 30 * 24 * 60 * 60 }, jwt: { issuer: config.issuer } }),
       oauthProvider({ ...providerOptions(config, pool, bootstrapUserId),
         extensions: [{ claims: { accessToken: async ({ client, user, sessionId, referenceId, resources, scopes }) => {
-          if (client.clientId !== config.mcpClientId || !user?.emailVerified || !sessionId || !referenceId
+          if (!isMcpClientId(config, client.clientId) || !user?.emailVerified || !sessionId || !referenceId
             || !resources?.includes(config.mcpAudience) || resources.some(value => value !== config.mcpAudience)
             || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope)) || !scopes.includes('portfolio:read')) throw deniedGrant();
           const approval = await checkOAuthApproval(pool, referenceId, user.id, sessionId, client.clientId);
@@ -166,7 +171,7 @@ function closeAuthPool(pool: Pool): void {
 export function getBetterAuth(): ReturnType<typeof createBetterAuth> | null {
   let config: BetterAuthConfiguration;
   try { config = betterAuthConfiguration(); } catch { return null; }
-  const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId, isPasswordAuthEnabled(), process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]);
+  const key = JSON.stringify([config.origin, config.databaseUrl, config.secret, config.websiteClientId, config.mcpClientId, config.additionalMcpClientId, isPasswordAuthEnabled(), process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]);
   if (!singleton || singleton.key !== key) {
     const previous = singleton;
     singleton = undefined;

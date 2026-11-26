@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
 import { MCP_ALLOWED_SCOPES, betterAuthConfiguration, getBetterAuth } from './better-auth';
+import { isMcpClientId } from './mcp-clients';
 import { signedOAuthQuery, validConsentDestination } from './oauth-continuation';
 
 export type ConsentReview = {
@@ -28,16 +29,17 @@ async function verifiedContext(raw: string, headers: Headers) {
     if (params.getAll(name).length !== 1) throw new ConsentError('INVALID_REQUEST');
   }
   const scopes = params.get('scope')!.split(' ').filter(Boolean);
-  if (params.get('client_id') !== config.mcpClientId || params.get('resource') !== config.mcpAudience
+  const clientId = params.get('client_id');
+  if (!isMcpClientId(config, clientId) || params.get('resource') !== config.mcpAudience
     || params.get('response_type') !== 'code' || params.get('code_challenge_method') !== 'S256'
     || params.has('claims') || !scopes.includes('portfolio:read')
     || scopes.some(scope => !(MCP_ALLOWED_SCOPES as readonly string[]).includes(scope))) throw new ConsentError('INVALID_REQUEST');
   const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } });
   if (!session?.user.emailVerified || new Date(session.session.expiresAt).getTime() <= Date.now()) throw new ConsentError('SIGN_IN_REQUIRED');
   // Public metadata checks the current registration exists and is enabled. Never render its links or logo.
-  const client = await auth.api.getOAuthClientPublic({ headers, query: { client_id: config.mcpClientId } });
+  const client = await auth.api.getOAuthClientPublic({ headers, query: { client_id: clientId } });
   const registered = await context.adapter.findOne<{ redirectUris: string[]; requirePKCE: boolean; skipConsent: boolean }>({
-    model: 'oauthClient', where: [{ field: 'clientId', value: config.mcpClientId }],
+    model: 'oauthClient', where: [{ field: 'clientId', value: clientId }],
   });
   const callback = params.get('redirect_uri')!;
   if (!registered?.requirePKCE || registered.skipConsent || !registered.redirectUris.includes(callback)) throw new ConsentError('INVALID_REQUEST');

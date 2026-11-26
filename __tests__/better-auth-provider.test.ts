@@ -10,8 +10,9 @@ import { AuthEmailUnavailable, sendAuthEmail } from '@/lib/auth/auth-email';
 
 const origin = 'https://livestocks.example';
 const config = { origin, issuer: `${origin}/api/auth`, mcpAudience: `${origin}/api/mcp`, mcpClientId: 'mcp-client-test' };
+const additionalMcpClientId = 'livestocks-mcp-chatgpt-blue';
 const env = { APP_BASE_URL: origin, BETTER_AUTH_SECRET: 's'.repeat(48), BETTER_AUTH_DATABASE_URL: 'postgresql://livestocks_auth_backend@127.0.0.1:54998/dummy', BETTER_AUTH_WEBSITE_CLIENT_ID: 'website-test', BETTER_AUTH_MCP_CLIENT_ID: config.mcpClientId };
-function configured() { vi.stubEnv('PASSWORD_AUTH_ENABLED', 'true'); for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value); }
+function configured() { vi.stubEnv('PASSWORD_AUTH_ENABLED', 'true'); vi.stubEnv('BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID', undefined); for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value); }
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 describe('own-origin auth configuration', () => {
@@ -31,6 +32,17 @@ describe('own-origin auth configuration', () => {
     configured(); vi.stubEnv('APP_BASE_URL', value); expect(() => betterAuthConfiguration()).toThrow();
   });
   it('rejects shared web/MCP client identities', () => { configured(); vi.stubEnv('BETTER_AUTH_WEBSITE_CLIENT_ID', config.mcpClientId); expect(() => betterAuthConfiguration()).toThrow(); });
+  it('loads the optional second client only from explicit configuration', () => {
+    configured();
+    expect(betterAuthConfiguration().additionalMcpClientId).toBeUndefined();
+    vi.stubEnv('BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID', additionalMcpClientId);
+    expect(betterAuthConfiguration()).toMatchObject({ mcpClientId: config.mcpClientId, additionalMcpClientId });
+  });
+  it.each([config.mcpClientId, env.BETTER_AUTH_WEBSITE_CLIENT_ID, 'invalid client', ' padded-client '])('rejects overlapping or malformed additional MCP client %s', value => {
+    configured();
+    vi.stubEnv('BETTER_AUTH_ADDITIONAL_MCP_CLIENT_ID', value);
+    expect(() => betterAuthConfiguration()).toThrow();
+  });
   it('uses a local browser origin without changing registered database trust', () => {
     configured(); vi.stubEnv('NODE_ENV', 'development'); vi.stubEnv('LOCAL_AUTH_ORIGIN', 'http://localhost:3001');
     expect(betterAuthConfiguration()).toMatchObject({ origin: 'http://localhost:3001', issuer: `${origin}/api/auth`, websiteAudience: `${origin}/api/web`, mcpAudience: config.mcpAudience });
@@ -64,6 +76,22 @@ describe('MCP authorization boundary', () => {
   it('rejects duplicate or unknown clients before redirects', () => {
     expect(validateAuthRequest(authorize(`resource=${config.mcpAudience}&client_id=other`), config)?.status).toBe(400);
     expect(validateAuthRequest(new Request(`${config.issuer}/oauth2/authorize?client_id=other&resource=${config.mcpAudience}`), config)?.status).toBe(400);
+  });
+  it('authorizes two exact configured clients with the same scope and resource boundaries', async () => {
+    const withAdditionalClient = { ...config, additionalMcpClientId };
+    const request = (clientId: string, extra: Record<string, string> = {}) => new Request(
+      `${config.issuer}/oauth2/authorize?` + new URLSearchParams({
+        client_id: clientId, scope: 'portfolio:read portfolio:transactions', resource: config.mcpAudience, ...extra,
+      }),
+    );
+    expect(validateAuthRequest(request(config.mcpClientId), withAdditionalClient)).toBeNull();
+    expect(validateAuthRequest(request(additionalMcpClientId), withAdditionalClient)).toBeNull();
+    expect(await validateAuthRequest(request(additionalMcpClientId), config)?.json()).toEqual({ error: 'invalid_client' });
+    expect(await validateAuthRequest(request(additionalMcpClientId + '-suffix'), withAdditionalClient)?.json()).toEqual({ error: 'invalid_client' });
+    const duplicate = request(additionalMcpClientId).url + `&client_id=${config.mcpClientId}`;
+    expect(await validateAuthRequest(new Request(duplicate), withAdditionalClient)?.json()).toEqual({ error: 'invalid_client' });
+    expect(await validateAuthRequest(request(additionalMcpClientId, { resource: origin + '/api/web' }), withAdditionalClient)?.json()).toEqual({ error: 'invalid_target' });
+    expect(await validateAuthRequest(request(additionalMcpClientId, { scope: 'portfolio:read portfolio:write' }), withAdditionalClient)?.json()).toEqual({ error: 'invalid_scope' });
   });
   it('keeps synchronization optional and requires explicit requested scopes', () => {
     expect(AUTH_SCOPES).not.toContain('portfolio:sync');
