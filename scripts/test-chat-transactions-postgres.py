@@ -76,8 +76,9 @@ try:
     commission_migration = root / 'supabase/migrations/20261116211749_require_chat_transaction_commission.sql'
     correction_migration = root / 'supabase/migrations/20261117001000_web_reconciliation_corrections.sql'
     batch_migration = root / 'supabase/migrations/20261126205324_chat_transaction_batches.sql'
+    secondary_client_migration = root / 'supabase/migrations/20261126212442_secondary_better_auth_mcp_client.sql'
     for migration in sorted((root / 'supabase/migrations').glob('*.sql')):
-        if migration not in (transaction_migration, commission_migration, correction_migration, batch_migration):
+        if migration not in (transaction_migration, commission_migration, correction_migration, batch_migration, secondary_client_migration):
             sql(migration.read_text())
     # Reproduce managed postgres: owns project objects but is NOINHERIT and
     # NOSUPERUSER, with only CREATEROLE plus explicitly granted schema rights.
@@ -226,6 +227,7 @@ try:
     old_pending, old_secret, old_query = prepare(source, symbol='OLDPENDING')
     invoke(old_query)
     sql("set session authorization fixture_transaction_migrator;" + batch_migration.read_text())
+    sql(secondary_client_migration.read_text())
     assert json.loads(invoke(confirm(old_pending, old_secret)))['transaction']['symbol'] == 'OLDPENDING'
     assert json.loads(invoke(confirm(pid, secret))) == result
     for role in ['anon', 'authenticated', 'service_role', 'livestocks_auth_backend']:

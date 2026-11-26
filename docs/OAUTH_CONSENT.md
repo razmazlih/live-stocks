@@ -45,6 +45,8 @@ The production replacement uses `livestocks-mcp-chatgpt-blue`. Deploy with `BETT
 
 Register the secondary client separately with a fresh secret and the callback observed in the ChatGPT form. The operation adds only a client registration and its link to the existing MCP resource. Enter the new secret in the owning ChatGPT form and retain it in protected operator storage. Verify both clients' profile reads and the new client's transaction-review tools before removing the old ChatGPT entry. The website's MCP disconnect action revokes both clients for that account, so it is unsuitable for retiring just one application.
 
+If the SDK seeder's production operator session is unavailable, use the [guarded registration script](../scripts/register-blue-mcp-client.sql) from an authorized PostgreSQL session. In one explicit transaction, set the local `app.livestocks_blue_mcp_secret_digest` parameter to the unpadded base64url-encoded SHA-256 digest, run the script, and commit. Keep the plaintext secret in operator storage and enter it in the ChatGPT form. The script checks the exact production issuer, callback, registration and resource before adding the replacement.
+
 ## Verification and remaining scope
 
 The disposable local PostgreSQL gate exercises the actual limited-role provider, operator CLI creation and reuse, password-login continuation, consent review and approval, code exchange, denial/state preservation, receipt/account-switch checks, query tampering and real expiry, disabled-client rejection, origin validation, resource/PKCE/refresh checks and logout revocation. SMTP is mocked in memory. Run:
