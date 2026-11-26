@@ -208,7 +208,10 @@ function accept(result){
     var avatar=document.createElement('span');avatar.className='ticker-avatar';avatar.setAttribute('aria-hidden','true');avatar.textContent=String(row.symbol).slice(0,2);identity.appendChild(avatar);
     var info=document.createElement('span');info.className='ticker-info';var symbol=document.createElement('bdi');symbol.className='ticker-symbol';symbol.textContent=String(row.symbol);info.appendChild(symbol);
     var date=document.createElement('small');date.className='acquisition-date';date.hidden=value.kind==='transaction';date.textContent=row.acquiredOn?'נקנה ב־'+String(row.acquiredOn).split('-').reverse().join('.'):row.estimatedAcquiredOn?'תאריך משוער: '+String(row.estimatedAcquiredOn).split('-').reverse().join('.'):'תאריך הקנייה לא ידוע';info.appendChild(date);if(row.sourceName)info.appendChild(node('small','holding-source',row.sourceName));identity.appendChild(info);
-    var kind=document.createElement('span');kind.className='holding-kind';kind.textContent=row.quantity===0?'יוצאת מהתיק':row.previousQuantity===0?'חדשה בתיק':'מתעדכנת';identity.appendChild(kind);tr.appendChild(identity);
+    var kind=document.createElement('span');kind.className='holding-kind';
+    if(row.quantity===0)kind.textContent=row.previousQuantity===0?'ללא החזקה פתוחה':'יוצאת מהתיק';
+    else kind.textContent=row.previousQuantity===0?'חדשה בתיק':'מתעדכנת';
+    identity.appendChild(kind);tr.appendChild(identity);
     function stat(label,before,after){
       var cell=document.createElement('td');cell.className='holding-stat';cell.setAttribute('role','cell');var title=document.createElement('span');title.className='stat-label';title.textContent=label;cell.appendChild(title);
       var comparison=document.createElement('span');comparison.className='comparison';
