@@ -56,3 +56,14 @@ __pycache__/
 
 # Computer-local demo account (private data and atomic-write locks)
 /.local/
+
+# Keep promotional assets and video exports out of version control.
+marketing/
+promotional/
+promo/
+reels/
+social-media/
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[wW][eE][bB][mM]
+*.[mM]4[vV]
